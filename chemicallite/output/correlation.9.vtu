@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<VTKFile byte_order="LittleEndian" type="UnstructuredGrid" version="0.1">
+<UnstructuredGrid>
+<Piece NumberOfCells="0" NumberOfPoints="10">
+<Points>
+<DataArray NumberOfComponents="3" format="ascii" type="Float32">0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 </DataArray>
+</Points>
+<PointData>
+<DataArray Name="Points" format="ascii" type="Float32">0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 </DataArray>
+<DataArray Name="correlation p-value" format="ascii" type="Float32">0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 </DataArray>
+<DataArray Name="correlation coefficients" format="ascii" type="Float32">0.69107892756 0.301084059434 0.294646861521 0.41576857686 0.427943323222 0.456365686568 0.479014602503 0.503173708445 0.542553868175 0.589633821269 </DataArray>
+<DataArray Name="time" format="ascii" type="Float32">0.0 106.476844288 212.953688575 319.430532863 425.90737715 532.384221438 638.861065726 745.337910013 851.814754301 958.291598588 </DataArray>
+</PointData>
+<CellData/>
+<Cells>
+<DataArray Name="connectivity" format="ascii" type="Int32">0</DataArray>
+<DataArray Name="offsets" format="ascii" type="Int32">0</DataArray>
+<DataArray Name="types" format="ascii" type="UInt8">11</DataArray>
+</Cells>
+</Piece>
+</UnstructuredGrid>
+</VTKFile>

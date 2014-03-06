@@ -1,0 +1,9 @@
+#program_registry.txt describes the various programs which are reachable
+# by calling 'python modular.py' with some calling option
+#it does not include the simulator as it is the default program always
+
+
+developer : dev : run modular developer
+dispatcher : mdp : run modular dispatcher
+daw_receiver : dr : run daw receiver program
+daw_transceiver : dt : run daw transceiver program

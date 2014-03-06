@@ -1,0 +1,41 @@
+
+<end_criteria>
+time limit : 10.0
+
+<capture_criteria>
+species scaler increment : .1 : time
+
+<variables>
+tau : 5.0
+CO : 100
+g : 0.02
+K : 10
+n : 2
+mu : 100
+alpha : 1000.0
+N : 5
+
+<functions>
+r_np = alpha/(1+x/CO)**n
+G = g
+r_mp = mu*x/(K+x)
+r_maturation = N/tau
+
+<reactions>
+nothing r_np -> 1 x1 : production of nascent repressor
+1 x r_mp -> nothing : degradation of mature repressor
+1 x G -> nothing : diluation of mature repressor
+1 x1 r_maturation -> 1 x2 : maturation1
+1 x2 r_maturation -> 1 x3 : maturation2
+1 x3 r_maturation -> 1 x4 : maturation3
+1 x4 r_maturation -> 1 x5 : maturation4
+1 x5 r_maturation -> 1 x : maturation5
+
+<species>
+x3 : 0
+x2 : 0
+x : 0
+x1 : 0
+x4 : 0
+x5 : 0
+

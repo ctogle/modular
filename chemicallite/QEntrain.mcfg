@@ -1,0 +1,71 @@
+
+<end_criteria>
+time limit : 1000
+
+<capture_criteria>
+species scaler increment : 10 : time
+
+<variables>
+gamma_g : 0.01
+gamma_c : 0.01
+gamma_a : 0.01
+gamma_h : 0.01
+
+CFP_in : 10.0
+GFP_in : 10.0
+
+cfp_clpxp_bind : 100.0
+gfp_clpxp_bind : 100.0
+cfp_clpxp_unbind : 0.01
+gfp_clpxp_unbind : 0.01
+cfp_out : 5.0
+gfp_out : 5.0
+
+tau : 20.0
+
+<functions>
+arab_in = 0.25 * sin(time / 30.0) + 0.75
+AHL_in = 1.0 * sin(time / tau) + 1.0
+
+<reactions>
+
+#arabinose, AHL creation
+nothing arab_in -> 1 arabinose : arabinose injection; driver signal
+nothing AHL_in -> 1 AHL : AHL production; out of phase signal
+
+#arabinose, AHL diffusion
+#1 arabinose gamma_a -> nothing : arabinose diffusion
+#1 AHL gamma_h -> nothing : AHL diffusion
+
+#arabinose, AHL only leave system in CFP, GFP production and diffusion
+
+#GFP, CFP production
+1 AHL CFP_in -> 1 CFP : Generate CFP; rate proportional to AHL
+1 arabinose GFP_in -> 1 GFP : Generate GFP; rate proportional to arabinose
+
+#GFP, CFP diffusion
+1 CFP gamma_c -> nothing : Diffusion CFP
+1 GFP gamma_g -> nothing : Diffusion GFP
+
+#GFP, CFP degradation
+1 CFP + 1 ClpXP cfp_clpxp_bind -> 1 Cfp-XP : Bind Cfp
+1 GFP + 1 ClpXP gfp_clpxp_bind -> 1 Gfp-XP : Bind Gfp
+1 Cfp-XP cfp_clpxp_unbind -> 1 CFP + 1 ClpXP : Unbind Cfp
+1 Gfp-XP gfp_clpxp_unbind -> 1 GFP + 1 ClpXP : Unbind Gfp
+1 Cfp-XP cfp_out -> 1 ClpXP : Degrade Cfp-Xp
+1 Gfp-XP gfp_out -> 1 ClpXP : Degrade Gfp-XP
+
+#im looking for a reaction which is invalid yet has propensity > 0
+#invalid if any reactant is not present
+#propensity proportional to reactants -> missing reactant => propensity = 0
+
+<species>
+Cfp-XP : 10
+Gfp-XP : 10
+ClpXP : 10
+GFP : 10
+CFP : 10
+
+arabinose : 10
+AHL : 10
+

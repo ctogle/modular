@@ -1,0 +1,20 @@
+
+
+<interface>
+multithread_gui = True
+interface_verbosity = 2
+debug_verbosity = 2
+
+<multiprocessing defaults>
+worker_processes = 8
+multiprocessing = False
+
+<run options>
+profile = False
+
+<ensemble defaults>
+mapparameterspace = True
+postprocessing = True
+
+<data handling>
+auto_clear_data_pools = True

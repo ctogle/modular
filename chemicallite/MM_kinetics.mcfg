@@ -1,0 +1,16 @@
+<reactions>
+#k_f = 0.1 (1/#*s) <-> k_r = 0.01 (1/s)
+1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
+
+1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+
+#(Values from wiki)
+#	Chymotrypsin : k_cat = 0.14 (1/s) ->
+#	Fumarase : k_cat = 800 (1/s) ->
+1 ES_Complex 800 -> 1 Enzyme + 1 Product : Product formation
+
+<species>
+Enzyme : 5000
+Substrate : 10000
+ES_Complex : 0
+Product : 100

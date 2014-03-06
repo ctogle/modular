@@ -1,0 +1,90 @@
+
+<end_criteria>
+	time limit : 1000
+
+<capture_criteria>
+	species scaler increment : 5.0 : time
+
+<variables>
+	gamma_A : 0.001
+	gamma_A2 : 0.001
+	gamma_L : 0.001
+	gamma_L4 : 0.001
+	gamma_G : 0.001
+	gamma_C : 0.001
+	tau_A : 0.0025
+	tau_L : 0.0015
+	eta_A : 0.0001
+	eta_L : 0.00015
+	mu : 10.0
+	k_mu : 0.0001
+	kappa_G : 1.25
+	kappa_C : 1.5
+	kappa_L : 1.0
+	kappa_L4 : 1.0
+	kappa_A : 1.0
+	kappa_A2 : 1.0
+	lambda_C : 0.1
+	alpha_GLA : 50.0
+	alpha_CA : 50.0
+	k_L : 1.0
+	k_A : 2.0
+
+	AHL_pwm : 0.15
+	AHL_pwm_tau : 100.0
+	AHL_pwm_phi : 0.0
+
+<functions>
+	AHL_sq = alpha_CA * pwm_square(AHL_pwm_tau:AHL_pwm_phi:AHL_pwm:time)
+	lambda_GLA = alpha_GLA * ((k_L**2)/((k_L**2) + (LacI4**2))) * (((AraC2/k_A) + (1.0/20.0))/(1.0 + (AraC2/k_A)))
+	lambda_CA = alpha_CA * ((pwm_square(AHL_pwm_tau:AHL_pwm_phi:AHL_pwm:time)**2)/((k_A**2) + (pwm_square(AHL_pwm_tau:AHL_pwm_phi:AHL_pwm:time)**2)))
+	g_G = mu * kappa_G / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	g_C = mu * kappa_C / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	g_L = mu * kappa_L / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	g_L4 = mu * kappa_L4 / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	g_A = mu * kappa_A / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	g_A2 = mu * kappa_A2 / (k_mu + (GFP * kappa_G) + (CFP * kappa_C) + (LacI * kappa_L) + (AraC * kappa_A) + (AraC * kappa_A2) + (LacI4 * kappa_L4))
+	#func = alpha_CA * (pwm_square(AHL_pwm_tau:AHL_pwm_phi:AHL_pwm:time))
+
+<reactions>
+	nothing lambda_GLA -> 1 GFP 1 LacI 1 AraC : production of GFP LacI AraC
+	2 AraC tau_A -> 1 AraC2 : dimerization of AraC
+	1 AraC2 eta_A -> 2 AraC : inverse-dimerization of AraC2
+	4 LacI tau_L -> 1 LacI4 : tetramerization of LacI
+	1 LacI4 eta_L -> 4 LacI : inverse-tetramerization of LacI4
+	nothing lambda_CA -> 1 CFP : production of CFP via AHL
+	nothing lambda_C -> 1 CFP : basal CFP production
+	1 GFP g_G -> nothing : degradation of GFP
+	1 CFP g_C -> nothing : degradation of CFP
+	1 LacI g_L -> nothing : degradation of LacI
+	1 LacI4 g_L4 -> nothing : degradation of LacI4
+	1 AraC g_A -> nothing : degradation of AraC
+	1 AraC2 g_A2 -> nothing : degradation of AraC2
+	1 GFP gamma_G -> nothing : diffusion/division of GFP
+	1 CFP gamma_C -> nothing : diffusion/division of CFP
+	1 LacI gamma_L -> nothing : diffusion/division of LacI
+	1 LacI4 gamma_L4 -> nothing : diffusion/division of LacI4
+	1 AraC gamma_A -> nothing : diffusion/division of AraC
+	1 AraC2 gamma_A2 -> nothing : diffusion/division of AraC2
+
+<species>
+	AraC2 : 20
+	LacI : 1
+	GFP : 10
+	AraC : 50
+	LacI4 : 1
+	CFP : 10
+
+<plot_targets>
+	time
+	fixed_time
+	#AraC2
+	#LacI
+	GFP
+	#AraC
+	#LacI4
+	CFP
+	lambda_GLA
+	lambda_CA
+	AHL_sq
+
