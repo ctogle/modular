@@ -742,6 +742,7 @@ class trajectory_dialog(create_obj_dialog):
 	def create_product_space_locations(self):
 		from libs.modular_core.libgeometry import parameter_space_location
 		self.wrap_nones()
+		
 		tuple_table = it.product(*self.variations)
 		for tup in tuple_table:
 			fixed_tup = []
