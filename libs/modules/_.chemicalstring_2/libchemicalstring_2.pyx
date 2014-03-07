@@ -1,5 +1,4 @@
 #imports
-# cython: profile=True
 cimport cython
 
 from libc.math cimport log as log
@@ -13,7 +12,7 @@ from numpy import random as rnd
 import re
 import random
 
-
+pwm_square = None
 
 #Will's random number generator
 cdef class GENRAND:
@@ -40,6 +39,49 @@ cdef class GENRAND:
 			#print self.randbuf[self.inow]
 			return self.randbuf[self.inow]
 
+cdef class pwm_sq:
+
+	cdef double period
+	cdef double phase
+	cdef double pwm_time_up
+	cdef str domain
+	cdef int dex0
+	cdef int dex1
+
+	#only gets initialized once, using paramters of first pwm_square found
+	def __init__(self, *args, **kwargs):
+		global pwm_square
+
+		encoded = args[0]
+		cnts = args[1]
+		targs = args[2]
+
+		dex0 = encoded.find('pwm_square(') + len('pwm_square(')
+		dex1 = encoded[dex0:].find(')') + dex0
+		params_str = encoded[dex0:dex1].split(':')
+		params_val = []
+		for par in params_str[:-1]:
+			dex = targs.index(par)
+			params_val.append(cnts[dex])
+
+		self.period = params_val[0]
+		self.phase = params_val[1]
+		self.pwm_time_up = params_val[2]
+		self.domain = str(params_str[-1])
+
+		pwm_square = self.__call__
+
+	#all calls will look the same
+	def get_encoded(self, encoded):
+		dex0 = encoded.find('pwm_square(') + len('pwm_square(')
+		dex1 = encoded[dex0:].find(')') + dex0
+		return encoded.replace(encoded[dex0:dex1], self.domain)
+
+	def __call__(self, t):
+		t_w = (t + self.phase) % self.period
+		#print t, t_w, self.period, t_w/self.period, self.pwm_time_up, t_w/self.period > self.pwm_time_up
+		if t_w/self.period > self.pwm_time_up: return 0.0
+		return 1.0
 
 
 #bulk of preprocessing is here
@@ -636,6 +678,9 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 	#initialize output data structure
 	targets = targets[targets.find('>') + 1:].split(',')
 	targets = follow_order(targets, count_targets)
+
+	#DETERMINE TOTAL POINTS, REWRITE ALGORITHM SO EXACTLY THIS MANY CAPTURES OCCUR
+	# KEEP THE DATA IN A NP MATRIX!!!
 	data = [[] for dex in range(len(count_targets))]
 	target_dexes = [count_targets.index(targ) for targ in targets]
 

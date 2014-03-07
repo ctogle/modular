@@ -135,21 +135,22 @@ class writer_txt(writer):
 
 class plot_axes_manager(lfu.modular_object_qt):
 
-	def __init__(self, parent = None):
-		lfu.modular_object_qt.__init__(self, parent = parent)
-		self._children_ = []
+	_children_ = []
 
 	def grab_info_from_output_plan_parent(self):
-		self.x_title = self.parent.parent.parent.x_title
-		self.y_title = self.parent.parent.parent.y_title
-		self.title = self.parent.parent.parent.title
+		try: self.x_title = self.parent.parent.parent.x_title
+		except: self.x_title = 'x-title'
+		try: self.y_title = self.parent.parent.parent.y_title
+		except: self.y_title = 'y-title'
+		try: self.title = self.parent.parent.parent.title
+		except: self.title = 'title'
 
 	def use_line_plot(self):
 		#return true if only one axis was chosen
 		#this axis will be the domain
 		#is always available (provided all other axes are fixed)
 		if self.parent.parent.parent.use_line_plot:
-			self.grab_info_from_output_plan_parent()
+			#self.grab_info_from_output_plan_parent()
 			return True
 
 		else: return False
@@ -158,13 +159,15 @@ class plot_axes_manager(lfu.modular_object_qt):
 		#return true if 2 axes have been chosen
 		#this should only be available to correlations and probabilities
 		if self.parent.parent.parent.use_color_plot:
-			self.grab_info_from_output_plan_parent()
+			#self.grab_info_from_output_plan_parent()
 			return True
 
 		else: return False
 
 	def use_bar_plot(self):
-		return True
+		if self.parent.parent.parent.use_bar_plot:
+			return True
+
 	#need widgets to choose 1 or 2 axes from a list of possibles
 	#	this is determined by the parent of the output plan
 	#		for correlations this should be the p_space axes
@@ -206,24 +209,18 @@ class writer_plt(writer):
 		# if so you can impost plot_types from here
 		plot_types = []
 		if self.axes_manager.use_color_plot():
-			#self.plt_window = lgd.plot_window(
-			#	title = self.parent.parent.label)
-			#self.plotter = self._plot_color_
 			plot_types.append('color')
 
 		if self.axes_manager.use_line_plot():
-			#self.plt_window = lgd.plot_window(
-			#	title = self.parent.parent.label)
-			#self.plotter = self._plot_lines_
 			plot_types.append('lines')
 
 		if self.axes_manager.use_bar_plot():
 			plot_types.append('bars')
 
+		self.axes_manager.grab_info_from_output_plan_parent()
 		self.plt_window = lgd.plot_window(
 			title = self.parent.parent.label, 
 			plot_types = plot_types)
-		#print 'pl', self.plotter
 
 	def sanitize(self, *args, **kwargs):
 		self.plt_window = None
@@ -287,6 +284,11 @@ class output_plan(lfu.plan):
 			visible_attributes = visible_attributes, parent = parent)
 		self._children_ = self.writers
 		self.__dict__.create_partition('template owners', ['writers'])
+
+	def to_string(self):
+		lines = []
+		pdb.set_trace()
+		return lines
 
 	def must_output(self, *args, **kwargs):
 		return True in [self.output_vtk, self.output_pkl, 

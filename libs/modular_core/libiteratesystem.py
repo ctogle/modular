@@ -18,9 +18,7 @@ def run_system(*args, **kwargs):
 	if ensemble.multiprocess_plan.use_plan:
 		return system.data
 
-	else: ensemble.data_pool.append(system.data)
-
-	#if ensemble.fitting_plan.use_plan: return system.data
+	else: ensemble.data_pool.batch_pool.append(system.data)
 
 if __name__ == '__main__': print 'this is a library!'
 

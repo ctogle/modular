@@ -7,12 +7,13 @@ import libs.modular_core.libfitroutine as lfr
 import libs.modular_core.libpostprocess as lpp
 import libs.modular_core.libcriterion as lc
 
-import libs.modules.stringchemical as chemfast
-#import libs.modules.chemicalstring_2.libchemicalstring_2 as chemfast
+#import libs.modules.stringchemical as chemfast
+import libs.modules.libchemicalstring_3 as chemfast
 
 import sys
 import types
 import random
+import numpy as np
 from math import log as log
 
 import pdb
@@ -366,7 +367,8 @@ def parse_mcfg(lines, *args):
 			if split: name = split[0]
 			if len(split) > 1:
 				if split[1].strip() == proc_type._tag:
-					proc = proc_type._class(label = name)
+					proc = proc_type._class(label = name, 
+						parent = ensem.postprocess_plan)
 					procs.append(proc)
 					if len(split) > 2:
 						inputs = [int(item.strip()) for 
@@ -399,7 +401,7 @@ def parse_mcfg(lines, *args):
 							except IndexError: pass
 
 						elif proc_type._tag == 'counts to concentrations':
-							pass
+							print 'counts to concentrations parsing not done'
 
 						elif proc_type._tag == 'correlation':
 							try:
@@ -445,13 +447,13 @@ def parse_mcfg(lines, *args):
 							else: proc.dater_ids = relevant
 
 						elif proc_type._tag == 'one to one binary operation':
-							pass
+							print 'one to one binary operation parsing not done'
 
 						elif proc_type._tag == 'probability':
-							pass
+							print 'probability parsing not done'
 
 						elif proc_type._tag == 'period finding':
-							pass
+							print 'period finding parsing not done'
 
 						else: pdb.set_trace()
 
@@ -487,7 +489,8 @@ def parse_mcfg(lines, *args):
 		def validate(rng):
 			valid = []
 			for val in rng.split(','):
-				valid.append(float(val))
+				try: valid.append(float(val))
+				except: pass
 
 			return valid
 
@@ -532,10 +535,9 @@ def parse_mcfg(lines, *args):
 		for ax, vari, rng in zip(axes, variants, ranges):
 			trj_dlg_dex = traj_dlg.axis_labels.index(
 							' : '.join([ax, vari]))
-			traj_dlg.variations[trj_dlg_dex] = [validate(rng)]
+			traj_dlg.variations[trj_dlg_dex] = validate(rng)
 
 		traj_dlg.on_make()
-		print 'tr', traj_dlg.made
 		if traj_dlg.made:
 			ensem.cartographer_plan.on_delete_selected_pts(
 										preselected = None)
@@ -670,7 +672,22 @@ def parse_mcfg(lines, *args):
 		if len(p_sub_sps) > 1: print 'only parsing first p-scan space'
 		parse_p_space(p_sub_sps[0], ensem)
 
-def write_mcfg(run_params):
+def write_mcfg(*args):
+	run_params = args[0]
+	ensem = args[1]
+
+	def p_space_to_lines():
+		lines.append('<parameter_space>')
+		p_space = ensem.cartographer_plan.parameter_space
+		if p_space: lines.extend(p_space.to_string())
+		else: lines.append('#no parameter space!')
+		lines.append('')
+
+	def mp_plan_to_lines():
+		lines.append('<multiprocessing>')
+		mp_plan = ensem.multiprocessing_plan
+		lines.extend(mp_plan.to_string())
+		lines.append('')
 
 	def params_to_lines(key):
 		lines.append('<' + key + '>')
@@ -680,21 +697,27 @@ def write_mcfg(run_params):
 		elif type(run_params[key]) is types.DictionaryType:
 			params = run_params[key].values()
 
-		lines.extend([param.to_string() for param in params])
+		if params:
+			if issubclass(params[0].__class__, modular_object):
+				lines.extend([param.to_string() for param in params])
+
+			else: lines.extend([str(param) for param in params])
+
 		lines.append('')
 
 	lines = ['']
 	params_to_lines('end_criteria')
 	params_to_lines('capture_criteria')
-	params_to_lines('plot_targets')
 	params_to_lines('variables')
 	params_to_lines('functions')
 	params_to_lines('reactions')
 	params_to_lines('species')
 	params_to_lines('post_processes')
-	params_to_lines('parameter_space')
-	params_to_lines('multiprocessing')
+	params_to_lines('plot_targets')
+	p_space_to_lines()
+	mp_plan_to_lines()
 	params_to_lines('output_plans')
+	pdb.set_trace()
 	return lines
 
 class scalers(object):
@@ -780,18 +803,13 @@ class sim_system(lsc.sim_system):
 									self.system_string))
 
 	def finalize_data(self, data, targets, toss = None):
-		#data = [dater for dater in data if len(dater) > 1]
-
-		data = [dater[:toss] for dater in data if len(dater) > 1]
+		data = [dater for dater in data if len(dater) > 1]
 		reorder = []
 		for name in self.params['plot_targets']:
 			dex = targets.index(name)
-			reorder.append(data[dex])
+			reorder.append(np.array(data[dex][:toss], dtype = np.float))
 
-		#data = [dater[:toss] for dater in data]
-		return reorder
-		#return [scalers(label = target, scalers = dater[:toss]) 
-		#			for target, dater in zip(targets, data)]
+		return np.array(reorder, dtype = np.float)
 
 	def verify_end_criteria(self):
 		return self.iteration == 1

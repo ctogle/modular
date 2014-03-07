@@ -263,9 +263,22 @@ class post_process(lfu.modular_object_qt):
 
 		lfu.modular_object_qt._destroy_(self)
 
+	def inputs_to_string(self):
+		inps = []
+		valid_inputs = self.get_valid_inputs(None, self.parent.parent)
+		for input_ in self.input_regime:
+			inps.append(valid_inputs.index(input_))
+
+		inps = ', '.join([str(inp) for inp in inps])
+		return inps
+
 	def to_string(self):
-		pdb.set_trace()
-		return self.label + ' : ' + str(self.value)
+		return self.label + ' : '
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = True
+		self.use_bar_plot = True
 
 	def get_source_reference(self, *args, **kwargs):
 		sources = args[1].postprocess_plan.post_processes + \
@@ -334,7 +347,7 @@ class post_process(lfu.modular_object_qt):
 		sources = self.get_source_reference(1, *args, **kwargs)
 		for src in sources: lfu.zip_list(pool, src.data)
 		if 'simulation' in self.input_regime:
-			lfu.zip_list(pool, args[0].data_pool)
+			lfu.zip_list(pool, args[0].data_pool.get_batch())
 
 		if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']
 		else: p_space = args[0].cartographer_plan
@@ -478,8 +491,7 @@ class post_process_meanfield(post_process):
 
 		if not 'valid_regimes' in kwargs.keys():
 			kwargs['valid_regimes'] = ['all trajectories', 
-				#'by parameter space map', 'manual grouping']
-				'by parameter space map']
+								'by parameter space map']
 
 		if not 'regime' in kwargs.keys():
 			kwargs['regime'] = 'all trajectories'
@@ -489,6 +501,21 @@ class post_process_meanfield(post_process):
 		self.impose_default('bin_count', 100, **kwargs)
 		self.impose_default('ordered', True, **kwargs)
 		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#x stats : standard statistics : 0 : x of time : 10 : ordered
+		inps = self.inputs_to_string()
+		phrase = ' of '.join([self.mean_of, self.function_of])
+		bins = str(self.bin_count)
+		if self.ordered: ordered = 'ordered'
+		else: ordered = 'unordered'
+		return ' : '.join([self.label, 'standard statistics', 
+								inps, phrase, bins, ordered])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.meanfield
@@ -593,30 +620,60 @@ class post_process_meanfield(post_process):
 
 class post_process_correlation_values(post_process):
 
-	def __init__(self, label = 'another correlation', ordered = True, 
-			target_1 = None, target_2 = None, function_of = None, 
-			bin_count = 10, fill_value = -100.0, 
-			regime = 'all trajectories', base_class = None, 
-			capture_targets = [], input_regime = ['simulation'], 
-			valid_inputs = ['simulation'], 
-			valid_regimes = ['all trajectories', 
-							'by parameter space map']):
+	def __init__(self, *args, **kwargs):
+	#def __init__(self, label = 'another correlation', ordered = True, 
+	#		target_1 = None, target_2 = None, function_of = None, 
+	#		bin_count = 10, fill_value = -100.0, 
+	#		regime = 'all trajectories', base_class = None, 
+	#		capture_targets = [], input_regime = ['simulation'], 
+	#		valid_inputs = ['simulation'], 
+	#		valid_regimes = ['all trajectories', 
+	#						'by parameter space map']):
 							#'by parameter space map', 
 							#	'manual grouping']):
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-								object, 'correlation')
 
-		self.target_1 = target_1
-		self.target_2 = target_2
-		self.ordered = ordered
-		self.function_of = function_of
-		self.bin_count = bin_count
-		self.fill_value = fill_value
-		post_process.__init__(self, label = label, regime = regime, 
-			base_class = base_class, valid_regimes = valid_regimes, 
-			input_regime = input_regime, valid_inputs = valid_inputs, 
-			capture_targets = capture_targets)
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+										object, 'correlation')
+
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'correlation'
+
+		if not 'valid_regimes' in kwargs.keys():
+			kwargs['valid_regimes'] = ['all trajectories', 
+								'by parameter space map']
+
+		if not 'regime' in kwargs.keys():
+			kwargs['regime'] = 'all trajectories'
+
+		self.impose_default('target_1', None, **kwargs)
+		self.impose_default('target_2', None, **kwargs)
+		self.impose_default('function_of', None, **kwargs)
+		self.impose_default('bin_count', 100, **kwargs)
+		self.impose_default('ordered', True, **kwargs)
+		self.impose_default('fill_value', -100.0, **kwargs)
+		#post_process.__init__(self, label = label, regime = regime, 
+		#	base_class = base_class, valid_regimes = valid_regimes, 
+		#	input_regime = input_regime, valid_inputs = valid_inputs, 
+		#	capture_targets = capture_targets)
+		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#x, y correlation : correlation : 0 : x and y of time : 10 : ordered
+		inps = self.inputs_to_string()
+		phrase = ' of '.join([' and '.join(
+			[self.target_1, self.target_2]), 
+				self.function_of])
+		bins = str(self.bin_count)
+		if self.ordered: ordered = 'ordered'
+		else: ordered = 'unordered'
+		return ' : '.join([self.label, 'correlation', 
+						inps, phrase, bins, ordered])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.correlate
@@ -725,6 +782,16 @@ class post_process_counts_to_concentrations(post_process):
 			input_regime = input_regime, valid_inputs = valid_inputs, 
 			capture_targets = capture_targets)
 
+	def to_string(self):
+		#label : counts to concentrations : 0 : x and y of time : 10 : ordered
+		inps = self.inputs_to_string()
+		return ' : '.join([self.label, 'counts to concentrations', inps])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
+
 	def initialize(self, *args, **kwargs):
 		self.volume = float(self.volume)
 		post_process.initialize(self, *args, **kwargs)
@@ -787,19 +854,47 @@ class post_process_counts_to_concentrations(post_process):
 
 class post_process_slice_from_trajectory(post_process):
 
-	def __init__(self, label = 'slice from trajectory', 
-			capture_targets = [], dater_ids = None, 
-			slice_dex = 0, regime = 'per trajectory', 
-			base_class = None, valid_regimes = ['per trajectory']):
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-					object, 'slice from trajectory')
+	def __init__(self, *args, **kwargs):
+	#def __init__(self, label = 'slice from trajectory', 
+	#		capture_targets = [], dater_ids = None, 
+	#		slice_dex = 0, regime = 'per trajectory', 
+	#		base_class = None, valid_regimes = ['per trajectory']):
+		#if base_class is None:
+		#	base_class = lfu.interface_template_class(
+		#			object, 'slice from trajectory')
 
-		self.dater_ids = dater_ids
-		self.slice_dex = slice_dex
-		post_process.__init__(self, label = label, regime = regime, 
-			base_class = base_class, valid_regimes = valid_regimes, 
-			capture_targets = capture_targets)
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+								object, 'slice from trajectory')
+
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'slices'
+
+		if not 'valid_regimes' in kwargs.keys():
+			kwargs['valid_regimes'] = ['per trajectory']
+
+		if not 'regime' in kwargs.keys():
+			kwargs['regime'] = 'per trajectory'
+
+		self.impose_default('dater_ids', None, **kwargs)
+		self.impose_default('slice_dex', -1, **kwargs)
+	#	post_process.__init__(self, label = label, regime = regime, 
+	#		base_class = base_class, valid_regimes = valid_regimes, 
+	#		capture_targets = capture_targets)
+		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#slices : slice from trajectory : 1 : all : -1
+		inps = self.inputs_to_string()
+		phrase = 'all'
+		slice_dex = str(self.slice_dex)
+		return ' : '.join([self.label, 'slice from trajectory', 
+									inps, phrase, slice_dex])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.slice_from_trajectory
@@ -870,20 +965,46 @@ class post_process_reorganize_data(post_process):
 	#thus any process which can use p-space, can be reorganized
 	#if not using p-space, data won't be in the proper structure - 
 	# this process then cannot be used and must be ignored
-	def __init__(self, label = 'reorganize data', 
-			capture_targets = [], input_regime = ['simulation'], 
-			valid_inputs = ['simulation'], dater_ids = None, 
-			slice_dex = 0, regime = 'all trajectories', 
-			base_class = None, valid_regimes = ['all trajectories']):
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-							object, 'reorganize data')
+	def __init__(self, *args, **kwargs):
+	#def __init__(self, label = 'reorganize data', 
+	#		capture_targets = [], input_regime = ['simulation'], 
+	#		valid_inputs = ['simulation'], dater_ids = None, 
+	#		slice_dex = 0, regime = 'all trajectories', 
+	#		base_class = None, valid_regimes = ['all trajectories']):
+	#	if base_class is None:
+	#		base_class = lfu.interface_template_class(
+	#						object, 'reorganize data')
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+									object, 'reorganize data')
 
-		self.dater_ids = dater_ids
-		post_process.__init__(self, label = label, regime = regime, 
-			base_class = base_class, valid_regimes = valid_regimes, 
-			input_regime = input_regime, valid_inputs = valid_inputs, 
-			capture_targets = capture_targets)
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'reorganize'
+
+		if not 'valid_regimes' in kwargs.keys():
+			kwargs['valid_regimes'] = ['all trajectories', 
+								'by parameter space map']
+
+		if not 'regime' in kwargs.keys():
+			kwargs['regime'] = 'all trajectories'
+
+		self.impose_default('dater_ids', None, **kwargs)
+		#post_process.__init__(self, label = label, regime = regime, 
+		#	base_class = base_class, valid_regimes = valid_regimes, 
+		#	input_regime = input_regime, valid_inputs = valid_inputs, 
+		#	capture_targets = capture_targets)
+		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#reorg : reorganize data : 2 : all
+		inps = self.inputs_to_string()
+		phrase = 'all'
+		return ' : '.join([self.label, 'reorganize data', inps, phrase])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = True
+		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		if not args[0].cartographer_plan.use_plan:
@@ -925,48 +1046,8 @@ class post_process_reorganize_data(post_process):
 
 		data.append(lgeo.surface_vector(data, 
 			self.axis_labels, 'reorg surface vector'))
-		#return data
-		return data[-1:]
-
-	def provide_axes_manager_input(self):
-		'''
-		#theres always more than one axis because p-space trajectory
-		#index is always provided
-		if len(self.capture_targets) == 2:
-			#p-space index is 1-1 with only other axis - 
-			# colorplot would not make sense
-			#domain is either p-space index or values of the axis
-			self.use_line_plot = True
-			self.use_color_plot = False
-
-		elif len(self.capture_targets) == 3:
-			#color plot axes have only one possible combination - 
-			# the axes of the p-space
-			#line plot can be used if either p-space axis is fixed - 
-			# one to one with a subset of the p-space indices
-			# thus cannot use p-space axis as domain anymore
-			self.use_line_plot = True
-			self.use_color_plot = True
-
-		elif len(self.capture_targets) > 3:
-			#all but 2 p-space axes must be sliced and fixed
-			#if all but one is sliced and fixed, line plot can be used
-			#cannot use p-space indices as domain
-			self.use_line_plot = True
-			self.use_color_plot = True
-
-		#this is where defaults should be imposed
-		#if color plotting these can be p-space axes
-		self.x_title = 'formation of x1 (rate is lambda1) : rate'
-		self.y_title = 'formation of x2 (rate is lambda2) : rate'
-		#can be anything measured against the domain of bins
-		#p-values, 
-		self.title = 'correlation coefficients'
-		'''
-		post_process.provide_axes_manager_input(self)
-		#self.x_title = 'b : value'
-		self.use_line_plot = False
-		self.use_color_plot = True
+		#return data[-1:]
+		return data
 
 	def set_settables(self, *args, **kwargs):
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
@@ -1020,6 +1101,16 @@ class post_process_1_to_1_binary_operation(post_process):
 		self.impose_default('operations', 
 			['+', '-', '*', '/'], **kwargs)
 		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#label : one to one binary operation : 0
+		inps = self.inputs_to_string()
+		return ' : '.join([self.label, 'one to one binary operation', inps])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	def grab_daters(self, *args, **kwargs):
 		trajectory = args[0]
@@ -1168,7 +1259,7 @@ class post_process_period_finding(post_process):
 
 		#provide a default label - is made unique by superclasses
 		if not 'label' in kwargs.keys():
-			kwargs['label'] = 'another period finder'
+			kwargs['label'] = 'period finder'
 
 		#this process can be run on all trajectories
 		# if the parameter space is not being mapped
@@ -1187,6 +1278,16 @@ class post_process_period_finding(post_process):
 
 		#always call superclass's init within modular platform
 		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#label : period finding : 0
+		inps = self.inputs_to_string()
+		return ' : '.join([self.label, 'period finding', inps])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	#the superclass actually runs the method, but here the subclass
 	# points to the appropriate bound method to use
@@ -1299,25 +1400,51 @@ class post_process_period_finding(post_process):
 #completely unfinished
 class post_process_measure_probability(post_process):
 
-	def __init__(self, label = 'probability measurement', 
-			bin_counts = [100], fill_values = [-100.0], 
-			regime = 'all trajectories', base_class = None, 
-			capture_targets = [], input_regime = ['simulation'], 
-			valid_inputs = ['simulation'], 
-			valid_regimes = ['all trajectories', 
-							'by parameter space map']):
+	def __init__(self, *args, **kwargs):
+	#def __init__(self, label = 'probability measurement', 
+	#		bin_counts = [100], fill_values = [-100.0], 
+	#		regime = 'all trajectories', base_class = None, 
+	#		capture_targets = [], input_regime = ['simulation'], 
+	#		valid_inputs = ['simulation'], 
+	#		valid_regimes = ['all trajectories', 
+	#						'by parameter space map']):
 							#'by parameter space map', 
 							#	'manual grouping']):
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-								object, 'probability')
 
-		self.bin_counts = bin_counts
-		self.fill_values = fill_values
-		post_process.__init__(self, label = label, regime = regime, 
-			base_class = base_class, valid_regimes = valid_regimes, 
-			input_regime = input_regime, valid_inputs = valid_inputs, 
-			capture_targets = capture_targets)
+		if not 'base_class' in kwargs.keys():
+			#class is used for recasting processes as other process instances
+			# second argument is a string to look up the appropriate class
+			#subsequently also appears in valid_postproc_base_classes
+			kwargs['base_class'] = lfu.interface_template_class(
+										object, 'probability')
+
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'probability measurement'
+
+		if not 'valid_regimes' in kwargs.keys():
+			kwargs['valid_regimes'] = ['all trajectories', 
+								'by parameter space map']
+
+		if not 'regime' in kwargs.keys():
+			kwargs['regime'] = 'all trajectories'
+
+		self.impose_default('bin_counts', [100], **kwargs)
+		self.impose_default('fill_values', [-100], **kwargs)
+		#post_process.__init__(self, label = label, regime = regime, 
+		#	base_class = base_class, valid_regimes = valid_regimes, 
+		#	input_regime = input_regime, valid_inputs = valid_inputs, 
+		#	capture_targets = capture_targets)
+		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#label : probability : 0
+		inps = self.inputs_to_string()
+		return ' : '.join([self.label, 'probability', inps])
+
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.measure_probability
@@ -1389,6 +1516,7 @@ def correlate(self, *args, **kwargs):
 	return data
 
 def select_for_binning(pool, be_binned, be_meaned):
+	#print 'be meaned', be_meaned
 	flat_pool   = [item for sublist in pool for item in sublist]
 	bin_lookup  = [pool[k][j].label == be_binned 
 						for k in range(len(pool)) 
@@ -1426,7 +1554,8 @@ def bin_scalers(axes, ax_vals, bin_res, ordered = True):
 				for j in range(last_j, len(axes[k].scalers)):
 
 					if axes[k].scalers[j] < threshold_top:
-						vals[i].append(ax_vals[k].scalers[j])
+						try: vals[i].append(ax_vals[k].scalers[j])
+						except: pdb.set_trace()
 
 					else:
 						j_last[k] = j

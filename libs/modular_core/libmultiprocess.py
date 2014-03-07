@@ -3,6 +3,7 @@ import libs.modular_core.libsettings as lset
 import libs.gpu.lib_gpu as lgpu
 
 import multiprocessing as mp
+import numpy as np
 import types
 import time
 
@@ -24,6 +25,15 @@ class multiprocess_plan(lfu.plan):
 		use_plan = lset.get_setting('multiprocessing')
 		lfu.plan.__init__(self, parent = parent, label = label, 
 										use_plan = use_plan)
+
+	def to_string(self):
+		lines = []
+		#ENCODE SOMETHING LIKE THE FOLLOWING
+		#<product_space> 100
+		#	driveamp : value : 50-150;10
+		#	driveperiod : value : 20-40;5
+		pdb.set_trace()
+		return lines
 
 	def make_call_sequence(calls, args):
 
@@ -96,6 +106,7 @@ class multiprocess_plan(lfu.plan):
 			run_system = target_processes[2]			
 			worker_report = []
 			data_pool = []
+			#data_pool = ensem_reference.data_pool.batch_pool
 			dex0 = 0
 			while dex0 < target_counts[0]:
 				move_to(dex0)
@@ -131,7 +142,12 @@ class multiprocess_plan(lfu.plan):
 
 			pool.close()
 			pool.join()
-			ensem_reference.data_pool = data_pool
+			print 'dp len', len(data_pool), type(data_pool)
+			try:
+				ensem_reference.data_pool.batch_pool =\
+					np.array(data_pool, dtype = np.float)
+
+			except ValueError: pdb.set_trace()
 			self.worker_report = worker_report
 
 		def two_layer_nest():			
@@ -157,8 +173,8 @@ class multiprocess_plan(lfu.plan):
 
 		pool = mp.Pool(processes = processor_count)
 		worker_report = []
-		#result_pool = []
-		result_pool = ensem_reference.data_pool
+		result_pool = []
+		#result_pool = ensem_reference.data_pool.batch_pool
 		dex0 = 0
 		while dex0 < run_count:
 			check_time = time.time()
@@ -182,7 +198,8 @@ class multiprocess_plan(lfu.plan):
 		pool.close()
 		pool.join()
 		self.worker_report = worker_report
-		#ensem_reference.data_pool = result_pool
+		ensem_reference.data_pool.batch_pool =\
+			np.array(result_pool, dtype = np.float)
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)

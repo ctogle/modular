@@ -51,7 +51,7 @@ class batch_scalers(object):
 		self.pool_names = targets
 		self.current = 0
 
-	def append(self, value):
+	#def append(self, value):
 		#values are in order corresponding to targets
 		#store them corresponding to self.pool_names
 		#targets should always contain the same items as targets
@@ -61,17 +61,19 @@ class batch_scalers(object):
 		#	reorder.append(value[dex])
 
 		#self.batch_pool.append(reorder)
-		self.batch_pool.append(value)
-		self.high = len(self.batch_pool)
+	#	self.batch_pool.append(value)
+	#	self.high = len(self.batch_pool)
 
-	def extend(self, values):
-		self.batch_pool.extend(values)
-		self.high = len(self.batch_pool)
+	#def extend(self, values):
+	#	self.batch_pool.extend(values)
+	#	self.high = len(self.batch_pool)
 
 	def __iter__(self):
 		print '__iter__ of batch scalers'
-		batch = [self._get_trajectory_(dex) for dex in range(self.high)]
-		return batch.__iter__()
+		#batch = [self._get_trajectory_(dex) for dex in range(len(self))]
+		#return batch.__iter__()
+		return [self._get_trajectory_(dex) for 
+			dex in range(len(self.batch_pool))].__iter__()
 
 	def next(self):
 		if self.current > self.high:
@@ -82,9 +84,14 @@ class batch_scalers(object):
 			self.current += 1
 			return self.current - 1
 
-	def __getitem__(self, key):
-		print key, self
-		return self.batch_pool.__getitem__(key)
+	#def __getitem__(self, key):
+	#	print key, self
+	#	return self.batch_pool.__getitem__(key)
+
+	def get_batch(self):
+		print 'get_batch', len(self.batch_pool)
+		return [self._get_trajectory_(dex) for 
+			dex in range(len(self.batch_pool))]
 
 	def _get_trajectory_(self, traj_dex):
 
@@ -94,7 +101,9 @@ class batch_scalers(object):
 			return sca
 
 		relevant = self.batch_pool[traj_dex]
-		return [_wrap_(rele, dex) for dex, rele in enumerate(relevant)]
+		batch = [_wrap_(rele, dex) for dex, rele 
+						in enumerate(relevant)]
+		return batch
 
 class bin_vectors(object):
 #Note: inheriting from lfu.modular_object here makes things SLOW!
@@ -266,6 +275,13 @@ class parameter_space(lfu.modular_object_qt):
 		lfu.modular_object_qt.__init__(self, 
 			#label = label, parent = parent)
 			parent = parent)
+
+	def to_string(self):
+		lines = []
+		#ENCODE SOMETHING LIKE THE FOLLOWING
+		#	workers : 8
+		pdb.set_trace()
+		return lines
 
 	def get_start_position(self):
 		location = [sp.inst.__dict__[sp.key] 

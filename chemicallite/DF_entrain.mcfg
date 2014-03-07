@@ -3,7 +3,7 @@
 	time limit : 200
 
 <capture_criteria>
-	species scaler increment : 2 : time
+	species scaler increment : 5 : time
 
 <variables>
 	alpha : 1000
@@ -22,7 +22,8 @@
 
 <functions>
 	lambda_x = alpha/((1 + x/C0)**n)
-	lambda_y = driveamp * pwm_square(driveperiod:drivephase:AHL_pwm:time)
+	#lambda_y = driveamp * pwm_square(driveperiod:drivephase:AHL_pwm:time)
+	lambda_y = driveamp * sin(time*driveperiod/(2*3.1458))
 	g = mu/(K + x + y)
 
 <reactions>
@@ -59,13 +60,12 @@
 	reorg : reorganize data : 2 : all
 
 <parameter_space>
-	<product_space> 1000
-		x : initial_count : 5-50;5
-		K : value : 0.5-1.5;0.1
-		x1 production : rate : 10-100;10
+	<product_space> 100
+		driveamp : value : 50-150;10
+		driveperiod : value : 20-40;5
 
 <multiprocessing>
-	workers : 16
+	workers : 8
 
 <output_plans>
 	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all

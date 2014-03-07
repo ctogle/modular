@@ -12,11 +12,8 @@ import pdb
 
 class modular(lqg.application):
 	gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
-	try:
-		_content_ = [lsc.ensemble_manager()]
-		lsc.manager = _content_[0]
-
-	except: pass
+	_content_ = [lsc.ensemble_manager()]
+	lsc.manager = _content_[0]
 
 	def __init__(self, *args, **kwargs):
 		lqg.application.__init__(self, *args, **kwargs)

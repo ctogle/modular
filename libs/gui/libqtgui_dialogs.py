@@ -110,7 +110,6 @@ class create_obj_dialog(QtGui.QDialog):
 
 	def __call__(self, *args, **kwargs):
 		self.dialoging = True
-		print 'dlg', self.dialoging
 		self.exec_()
 		if self.made: return True
 		else: return False
@@ -743,7 +742,6 @@ class trajectory_dialog(create_obj_dialog):
 	def create_product_space_locations(self):
 		from libs.modular_core.libgeometry import parameter_space_location
 		self.wrap_nones()
-		pdb.set_trace()
 		tuple_table = it.product(*self.variations)
 		for tup in tuple_table:
 			fixed_tup = []
