@@ -13,10 +13,6 @@ import numpy as np
 from copy import deepcopy as copy
 from scipy.integrate import simps as integrate
 
-#import matplotlib.pyplot as plt
-#plt.ion()
-#plt.show()
-
 import pdb
 
 if __name__ == 'libs.modular_core.libgeometry':
@@ -27,22 +23,19 @@ if __name__ == 'libs.modular_core.libgeometry':
 
 if __name__ == '__main__': print 'this is a library!'
 
-'''
-class scalers(object):
-#Note: inheriting from lfu.modular_object here makes things SLOW!
-
-	def __init__(self, label = 'another scaler'):
-		self.scalers = []
-		self.tag = 'scaler'
-		self.label = label
-'''
-
 class scalers(object):
 
-	def __init__(self, label = 'some scaler', scalers = []):
+	def __init__(self, label = 'some scaler', scalers = None):
 		self.label = label
-		self.scalers = scalers
+		if scalers: self.scalers = scalers
+		else: self.scalers = []
 		self.tag = 'scaler'
+
+	def as_string_list(self):
+		return [str(val) for val in self.scalers]
+
+	def as_string(self):
+		return ', '.join([str(val) for val in self.scalers])
 
 class batch_scalers(object):
 
@@ -51,27 +44,7 @@ class batch_scalers(object):
 		self.pool_names = targets
 		self.current = 0
 
-	#def append(self, value):
-		#values are in order corresponding to targets
-		#store them corresponding to self.pool_names
-		#targets should always contain the same items as targets
-		#reorder = []
-		#for name in self.pool_names:
-		#	dex = targets.index(name)
-		#	reorder.append(value[dex])
-
-		#self.batch_pool.append(reorder)
-	#	self.batch_pool.append(value)
-	#	self.high = len(self.batch_pool)
-
-	#def extend(self, values):
-	#	self.batch_pool.extend(values)
-	#	self.high = len(self.batch_pool)
-
 	def __iter__(self):
-		print '__iter__ of batch scalers'
-		#batch = [self._get_trajectory_(dex) for dex in range(len(self))]
-		#return batch.__iter__()
 		return [self._get_trajectory_(dex) for 
 			dex in range(len(self.batch_pool))].__iter__()
 
@@ -80,16 +53,10 @@ class batch_scalers(object):
 			raise StopIteration
 
 		else:
-			pdb.set_trace()
 			self.current += 1
 			return self.current - 1
 
-	#def __getitem__(self, key):
-	#	print key, self
-	#	return self.batch_pool.__getitem__(key)
-
 	def get_batch(self):
-		print 'get_batch', len(self.batch_pool)
 		return [self._get_trajectory_(dex) for 
 			dex in range(len(self.batch_pool))]
 
@@ -105,6 +72,74 @@ class batch_scalers(object):
 						in enumerate(relevant)]
 		return batch
 
+class batch_data_pool(object):
+	def __init__(self, *args, **kwargs):
+		self.targets = args[0]
+		self.trajectory = args[1].trajectory
+
+		self._id = time.time()
+		self.data_pool_ids = ['.'.join(['batch_child', 
+			str(self._id), str(dex), 'pkl']) for dex 
+					in range(len(self.trajectory))]
+		self.data_pools = [None]*len(self.data_pool_ids)
+
+		self.live_pool = None
+		self.current = 0
+
+	def get_batch(self):
+		pdb.set_trace()
+
+	def _prep_pool_(self, dex):
+		self._rid_pool_(self.current)
+		self.current = dex
+		self.live_pool = []
+
+	def __len__(self):
+		return len(self.live_pool)
+
+	def __getitem__(self, key):
+		if type(key) is types.IntType: return self._get_pool_(key)
+		else: pdb.set_trace()
+
+	def _flatten_(self, pool):
+		batch = []
+		[batch.extend(self._get_trajectory_(dex)) 
+			for dex in range(len(self.live_pool))]
+		return batch
+
+	def _get_pool_(self, dex):
+		self.current = dex
+		try:
+			self.live_pool = lf.load_pkl_object(os.path.join(
+								os.getcwd(), 'data_pools', 
+								self.data_pool_ids[dex]))
+
+		except: pdb.set_trace()
+		batch = [self._get_trajectory_(dex) for 
+			dex in range(len(self.live_pool))]
+		return batch
+
+	def _get_trajectory_(self, traj_dex):
+
+		def _wrap_(values, dex):
+			sca = scalers(label = self.targets[dex])
+			sca.scalers = values
+			return sca
+
+		relevant = self.live_pool[traj_dex]
+		batch = [_wrap_(rele, dex) for dex, rele 
+						in enumerate(relevant)]
+		return batch
+
+	def _rid_pool_(self, dex):
+		if self.live_pool:
+			print 'saving sub pool', dex
+			lf.save_pkl_object(self.live_pool, 
+				os.path.join(os.getcwd(), 'data_pools', 
+							self.data_pool_ids[dex]))
+			print 'saved sub pool', dex
+			self.live_pool = []
+
 class bin_vectors(object):
 #Note: inheriting from lfu.modular_object here makes things SLOW!
 
@@ -117,19 +152,20 @@ class bin_vectors(object):
 
 class surface_vector(object):
 
-	def __init__(self, data = [], axes = [], 
-			label = 'another surface vector'):
+	def __init__(self, data = [], axes = [], surfs = [], 
+					label = 'another surface vector'):
 		self.tag = 'surface'
 		self.label = label
-
-		self.data_scalers = data
+		self.data_scalers = [data for data in data if not data is self]
 		self.axis_labels = axes
+		self.axis_values = [scalers(label = dat.label, 
+			scalers = lfu.uniqfy(dat.scalers)) for dat in 
+			self.data_scalers if dat.label in self.axis_labels]
+		self.axis_defaults = [da.scalers[0] for da in self.axis_values]
+		self.surf_targets = surfs
 		self.reduced = None
 
-	def make_surface(self, axis_defaults = [3.0, 3.0, 9.0], 
-			x_ax = 'formation of x1 (rate is lambda1) : rate', 
-			y_ax = 'formation of x2 (rate is lambda2) : rate', 
-					surf_target = 'correlation coefficients'):
+	def make_surface(self, x_ax = '', y_ax = '', surf_target = ''):
 
 		data = self.data_scalers
 		daters = [dater.label for dater in data]
@@ -137,33 +173,40 @@ class surface_vector(object):
 		axes = [copy(dater) for dater, is_ax in 
 					zip(data, are_ax) if is_ax]
 		ax_labs = [ax.label for ax in axes]
+		if not (x_ax in ax_labs and y_ax in ax_labs and 
+				not x_ax == y_ax and surf_target in self.surf_targets):
+			print 'chosen axes do not correspond to surface'
+			print 'axes:\n', ax_labs, '\nsurfaces:\n', self.surf_targets
+			return False
+
 		surf = lfu.grab_mobj_by_name(surf_target, data)
 		x_ax_dex = ax_labs.index(x_ax)
 		y_ax_dex = ax_labs.index(y_ax)
-		ax_slices = copy(axis_defaults)
+		ax_slices = copy(self.axis_defaults)
 		ax_slices[x_ax_dex] = None
 		ax_slices[y_ax_dex] = None
 
-		def make_reduction(ax_slices, reduct_dex, last_reduction):
-			in_slice = [val == ax_slices[reduct_dex] for val in 
-						last_reduction[0][reduct_dex].scalers]
-			reduction = [[val for val, in_ in zip(ax.scalers, in_slice) 
-								if in_] for ax in last_reduction[0]]
-			subsp_axes = [lfu.uniqfy(red) for red in reduction]
-			for axi, sub_axi in zip(last_reduction[0], subsp_axes):
-				axi.scalers = sub_axi
-
-			surf = scalers_from_labels([surf_target])[0]
-			surf.scalers = [sur for sur, in_ in 
-				zip(last_reduction[1].scalers, in_slice) if in_]
-			return (last_reduction[0], surf)
-
 		reduced = (axes, surf)
-		for ax_dex in range(len(axes)):
-			if not ax_dex in [x_ax_dex, y_ax_dex]:
-				reduced = make_reduction(ax_slices, ax_dex, reduced)
+		in_slices = []
+		for ax_dex, ax in enumerate(axes):
+			if ax_slices[ax_dex] is None:
+				in_slices.append([True for val in ax.scalers])
 
-		self.reduced = reduced
+			else:
+				in_slices.append([(val == ax_slices[ax_dex]) 
+									for val in ax.scalers])
+
+		in_every_slice = [(False not in row) for row in zip(*in_slices)]
+		sub_surf = scalers_from_labels([surf_target])[0]
+		sub_surf.scalers = [sur for sur, in_ in 
+			zip(surf.scalers, in_every_slice) if in_]
+		sub_axes = scalers_from_labels(self.axis_labels)
+		for sub_ax, ax in zip(sub_axes, axes):
+			sub_ax.scalers = lfu.uniqfy([val for val, in_ 
+				in zip(ax.scalers, in_every_slice) if in_])
+
+		self.reduced = (sub_axes, sub_surf)
+		return True
 
 def merge_spaces(subspaces):
 	space = parameter_space(subspaces = subspaces)
@@ -275,13 +318,6 @@ class parameter_space(lfu.modular_object_qt):
 		lfu.modular_object_qt.__init__(self, 
 			#label = label, parent = parent)
 			parent = parent)
-
-	def to_string(self):
-		lines = []
-		#ENCODE SOMETHING LIKE THE FOLLOWING
-		#	workers : 8
-		pdb.set_trace()
-		return lines
 
 	def get_start_position(self):
 		location = [sp.inst.__dict__[sp.key] 
@@ -682,9 +718,19 @@ class cartographer_plan(lfu.plan):
 		self.controller_ref = None
 		self.traj_count = traj_count
 		self.key_path = key_path
+		self.trajectory_string = ''
 		use = lset.get_setting('mapparameterspace')
 		lfu.plan.__init__(self, label = label, 
 			parent = parent, use_plan = use)
+
+	def to_string(self):
+		if self.trajectory:
+			#cnt = self.trajectory[0][1].trajectory_count
+			cnt = str(self.traj_count)
+
+		else: cnt = '1'
+		lines = [self.trajectory_string.replace('#', cnt)]
+		return lines
 
 	def generate_parameter_space(self):
 		self.parameter_space, valid =\
@@ -826,6 +872,7 @@ class cartographer_plan(lfu.plan):
 					self.on_reset_trajectory_parameterization()
 
 				self.on_append_trajectory(traj_dlg.result)
+				self.trajectory_string = traj_dlg.result_string
 
 		return lgb.create_reset_widgets_wrapper(
 					window, on_create_trajectory)

@@ -31,6 +31,7 @@ class ensemble(lfu.modular_object_qt):
 		self.aborted = False
 		self.data_pool = lfu.data_container(
 			data = [], postproc_data = [])
+		self.data_scheme = None
 		self.__dict__ = lfu.dictionary()
 		if 'parent' in kwargs.keys(): self.parent = kwargs['parent']
 		self.cancel_make = False
@@ -39,7 +40,7 @@ class ensemble(lfu.modular_object_qt):
 		self.mcfg_path = ''
 		self.num_trajectories = 1
 		self.data_pool_descr = ''
-		self.treebook_memory = [0, []]
+		self.treebook_memory = [0, [], []]
 		self._module_memory_ = []
 
 		self.simulation_plan = simulation_plan(parent = self)
@@ -149,16 +150,19 @@ class ensemble(lfu.modular_object_qt):
 
 		save = False
 		if self.skip_simulation:
-			if self.postprocess_plan.use_plan:
+			save = self.perform_post_processing(load = True)
+			#if self.postprocess_plan.use_plan:
 				#self.load_data_pool()
 				#self.data_pool = self.data_pool.data
-				self.data_pool = self.load_data_pool().data
+				#self.data_pool = self.load_data_pool().data
 
 		else:
 			#self.data_pool = []
-			self.data_pool = lgeo.batch_scalers(
-				self.run_params['plot_targets'])
+			#self.data_pool = lgeo.batch_scalers(
+			#	self.run_params['plot_targets'])
 			if self.fitting_plan.use_plan == True:
+				print 'fitting is not supported yet!'
+				return
 				self.fitting_plan(self)
 
 			else:
@@ -187,16 +191,18 @@ class ensemble(lfu.modular_object_qt):
 			save = True
 			print 'duration of simulations: ', time.time() - start_time
 
-		if self.postprocess_plan.use_plan:
-			try:
-				check = time.time()
-				self.postprocess_plan(self)
-				save = True
-				print 'duration of post procs: ', time.time() - check
+			save = self.perform_post_processing(load = False)
+		#if self.postprocess_plan.use_plan:
+		#	try:
+		#		print 'performing post processing...'
+		#		check = time.time()
+		#		self.postprocess_plan(self)
+		#		save = True
+		#		print 'duration of post procs: ', time.time() - check
 
-			except:
-				traceback.print_exc(file=sys.stdout)
-				print 'failed to run post processes'
+		#	except:
+		#		traceback.print_exc(file=sys.stdout)
+		#		print 'failed to run post processes'
 
 		if save: self.save_data_pool()
 		print 'finished last simulation run: exiting'
@@ -211,6 +217,21 @@ class ensemble(lfu.modular_object_qt):
 
 		return True
 
+	def perform_post_processing(self, load = False):
+		if self.postprocess_plan.use_plan:
+			try:
+				print 'performing post processing...'
+				if load: self.data_pool = self.load_data_pool().data
+				check = time.time()
+				self.postprocess_plan(self)
+				print 'duration of post procs: ', time.time() - check
+				return True
+
+			except:
+				traceback.print_exc(file=sys.stdout)
+				print 'failed to run post processes'
+				return False
+
 	def on_run(self, *args, **kwargs):
 		global manager
 		print 'running ensemble: ', self.label
@@ -219,6 +240,7 @@ class ensemble(lfu.modular_object_qt):
 			self.sanitize()
 			self.__dict__.rid_widg_templates('template owners')
 			self.parent = None
+			self.set_data_scheme()
 			if multithread_gui:
 				manager.worker_threads.append(lwt.worker_thread(self, 
 							self.run, len(manager.worker_threads)))
@@ -238,7 +260,8 @@ class ensemble(lfu.modular_object_qt):
 
 	def describe_data_pool(self, pool):
 		proc_pool = pool.postproc_data
-		sim_pool = pool.data.batch_pool
+		try: sim_pool = pool.data.batch_pool
+		except AttributeError: sim_pool = '<couldnt read batch object>'
 		if not pool: self.data_pool_descr = 'Empty'
 		else:
 			try: sim_pool_count = len(sim_pool)
@@ -253,14 +276,30 @@ class ensemble(lfu.modular_object_qt):
 	def save_data_pool(self):
 		print 'saving data pool...'
 		check = time.time()
+		proc_data = None
 		if self.postprocess_plan.use_plan:
 			proc_data = [proc.data for proc in 
 				self.postprocess_plan.post_processes]
 
-		else: proc_data = None
+		#else: proc_data = None
 		self.data_pool = lfu.data_container(data = self.data_pool, 
 										postproc_data = proc_data)
 		self.describe_data_pool(self.data_pool)
+		if self.data_scheme == 'smart_batch':
+			self.data_pool.data.live_pool = []
+			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+										'.'.join(['data_pool', 'smart', 
+											self.data_pool_id, 'pkl']))
+
+		elif self.data_scheme == 'batch':
+			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
+
+		else:
+			print 'data_scheme is unresolved... assuming "batch"'
+			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
+
 		lf.save_pkl_object(self.data_pool, self.data_pool_pkl)
 		print 'saved data pool: ', time.time() - check
 
@@ -274,38 +313,67 @@ class ensemble(lfu.modular_object_qt):
 		return data_pool
 
 	def produce_output(self):
+		if not self.output_plan.use_plan:
+			print 'skipping output...'
+			return
+
 		print 'producing output...'
 		check_0 = time.time()
 		self.output_plan.flat_data = False
-		#self.load_data_pool()
 		pool = self.load_data_pool()
 		data_ = lfu.data_container(data = pool.data)
-		#data_ = lfu.data_container(data = self.data_pool.data)
 		if self.output_plan.must_output(): self.output_plan(data_)
-		if self.postprocess_plan.use_plan == True and\
-				not self.data_pool.postproc_data is None:
+		#if self.postprocess_plan.use_plan == True and\
+		#		not pool.postproc_data is None:
+		if not pool.postproc_data is None:
 			processes = self.postprocess_plan.post_processes
 			for dex, proc in enumerate(processes):
 				if proc.output.must_output():
 					proc.provide_axes_manager_input()
 					data_ = lfu.data_container(
-						#data = self.data_pool.postproc_data[dex])
 						data = pool.postproc_data[dex])
 					proc.determine_regime(self)
 					proc.output(data_)
 
 		print 'produced output: ', time.time() - check_0
 
+	def set_data_scheme(self):
+		smart = lset.get_setting('use_smart_pool')
+		if smart and self.cartographer_plan.use_plan:
+			data_pool = lgeo.batch_data_pool(
+				self.run_params['plot_targets'], 
+						self.cartographer_plan)
+			self.data_scheme = 'smart_batch'
+			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+										'.'.join(['data_pool', 'smart', 
+											self.data_pool_id, 'pkl']))
+
+		else:
+			data_pool = lgeo.batch_scalers(
+				self.run_params['plot_targets'])
+			self.data_scheme = 'batch'
+			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
+
+		return data_pool
+
 	#no multiprocessing, no parameter variation, and no fitting
 	def run_systems_boring(self):
+		self.data_pool = self.set_data_scheme()
+		#self.data_pool = lgeo.batch_scalers(
+		#	self.run_params['plot_targets'])
 		current_trajectory = 1
 		while current_trajectory <= self.num_trajectories:
 			self.output_plan.update_filenames()
-			lis.run_system(self)
+			self.data_pool.batch_pool.append(lis.run_system(self))
+			#lis.run_system(self)
 			current_trajectory += 1
 
 	#multiprocessing, no parameter variation, no fitting
 	def run_systems_mutliproc(self):
+		self.data_pool = self.set_data_scheme()
+		#self.data_pool = lgeo.batch_scalers(
+		#	self.run_params['plot_targets'])
 		self.multiprocess_plan.distribute_work_simple_runs(
 			update_func = self.output_plan.update_filenames, 
 			run_func = lis.run_system, ensem_reference = self, 
@@ -313,25 +381,34 @@ class ensemble(lfu.modular_object_qt):
 
 	#no multiprocessing, parameter variation, no fitting
 	def run_systems_mapping(self):
+		self.data_pool = self.set_data_scheme()
 		run_func = lis.run_system
 		move_func = self.cartographer_plan.move_to
 		arc_length = len(self.cartographer_plan.trajectory)
 		iteration = self.cartographer_plan.iteration
 		while iteration < arc_length:
 			move_func(iteration)
+			self.data_pool._prep_pool_(iteration)
 			for dex in range(self.cartographer_plan.trajectory[
 								iteration][1].trajectory_count):
 				self.output_plan.update_filenames()
-				run_func(self)
+				self.data_pool.live_pool.append(run_func(self))
+				#run_func(self)
 				print 'location dex:', iteration, 'run dex:', dex
 
 			iteration += 1
 
-		#go back to start location?
+		self.data_pool._rid_pool_(iteration - 1)
 		self.cartographer_plan.iteration = 0
 
 	#multiprocessing with parameter variation, no fitting
 	def run_systems_multiproc_mapping(self):
+		self.data_pool = self.set_data_scheme()
+		#self.data_pool = lgeo.batch_data_pool(
+		#	self.run_params['plot_targets'], 
+		#			self.cartographer_plan)
+		#self.data_pool = lgeo.batch_scalers(
+		#	self.run_params['plot_targets'])
 		self.multiprocess_plan.distribute_work(self, 
 			target_processes =\
 				[self.cartographer_plan.move_to, 
@@ -364,17 +441,19 @@ class ensemble(lfu.modular_object_qt):
 		self.load_module(reset_params = True)
 
 	def on_choose_mcfg(self, file_ = None):
+		self.choose_mcfg_flag = False
 		if not os.path.isfile(self.mcfg_path):
 			fidlg = lgd.create_dialog('Choose File', 'File?', 'file', 
 					'Modular config files (*.mcfg)', self.mcfg_dir)
 			file_ = fidlg()
 
-		if file_ is not None:
+		if file_:
 			self.mcfg_path = file_
 			try: self.mcfg_text_box_ref[0].setText(self.mcfg_path)
 			except TypeError:
 				lgd.message_dialog(None, 'Refresh Required!', 'Problem')
 
+			self.choose_mcfg_flag = True
 			self.rewidget(True)
 
 	def on_parse_mcfg(self, *args, **kwargs):
@@ -382,12 +461,21 @@ class ensemble(lfu.modular_object_qt):
 			self.load_module(reset_params = True, parse_params = True)
 			self.rewidget(True)
 
-		except:
-			traceback.print_exc(file = sys.stdout)
-			lgd.message_dialog(None, 'Failed to parse file!', 'Problem')
+		except IOError:
+			if self.choose_mcfg_flag:
+				traceback.print_exc(file = sys.stdout)
+				lgd.message_dialog(None, 
+					'Failed to parse file!', 'Problem')
 
 	def on_write_mcfg(self, *args, **kwargs):
 		try:
+			if not self.mcfg_path:
+				fidlg = lgd.create_dialog('Choose File', 'File?', 'file', 
+					'Modular config files (*.mcfg)', self.mcfg_dir)
+				file_ = fidlg()
+				if not file_: return
+
+			else: file_ = self.mcfg_path
 			module = self.get_module_reference()
 			lf.output_lines(module.write_mcfg(
 				self.run_params, self), file_)
@@ -419,6 +507,10 @@ class ensemble(lfu.modular_object_qt):
 				widg_spans = [(1, 2), None, None, None], 
 				#minimum_sizes = [[(400, 35)], None, None], 
 				widgets = ['text', 'button_set'], 
+				tooltips = [['Current mcfg file', 
+					'Parse the contents of the mcfg file', 
+					'Generate an mcfg file based on the\
+					\ncurrent run parameters']], 
 				verbosities = [0, 0], 
 				handles = [(self, 'mcfg_text_box_ref'), None], 
 				keys = [['mcfg_path'], None], 
@@ -426,8 +518,8 @@ class ensemble(lfu.modular_object_qt):
 				initials = [[self.mcfg_path], None], 
 				bindings = [[None], [lgb.create_reset_widgets_wrapper(
 					window, [self.on_choose_mcfg, self.on_parse_mcfg]), 
-						lgb.create_reset_widgets_wrapper(window, 
-						[self.on_choose_mcfg, self.on_write_mcfg])]], 
+						lgb.create_reset_widgets_wrapper(
+							window, self.on_write_mcfg)]], 
 				labels = [None, ['Parse mcfg File', 
 							'Generate mcfg File']])
 		if not self.parent: self.get_parent()
@@ -437,10 +529,6 @@ class ensemble(lfu.modular_object_qt):
 								(1, 0), (2, 0), (0, 3)], 
 				layouts = ['vertical', 'vertical', 'vertical', 
 							'vertical', 'vertical', 'vertical'], 
-				#minimum_sizes = [[(100, 50)], None, None, 
-				#		[(100, 100)], [(100, 100)], None], 
-				#maximum_sizes = [[(300, 100)], None, None, 
-				#		[(200, 150)], [(400, 150)], None], 
 				widg_spans = [None, (2, 1), (4, 1), None, None, None], 
 				grid_spacing = 10, 
 				box_labels = ['Ensemble Name', None, 'Run Options', 
@@ -448,7 +536,8 @@ class ensemble(lfu.modular_object_qt):
 							'Configuration File'], 
 				widgets = ['text', 'button_set', 
 					'check_set', 'spin', 'text', 'panel'], 
-				verbosities = [0, [0, 0, 0, 0, 2], 0, 0, 2, 0], 
+				#verbosities = [0, [0, 0, 0, 0, 2], 0, 0, 2, 0], 
+				verbosities = [0, [0, 0, 0, 2], 0, 0, 2, 0], 
 				multiline = [False, None, None, None, True, None], 
 				templates = [None, None, None, None, None, 
 							[config_file_box_template]], 
@@ -460,17 +549,14 @@ class ensemble(lfu.modular_object_qt):
 							self, self], [self], [self], [None]], 
 				keys = [['label'], [None], ['use_plan', 'use_plan', 
 								'use_plan', 'use_plan', 'use_plan', 
-							#'skip_simulation', 'aggregate_anyway'], 
 							'skip_simulation'], 
 					['num_trajectories'], ['data_pool_descr'], [None]], 
 				labels = [[None], ['Run Ensemble', 'Save Ensemble', 
-							#'Reset Ensemble', 'Update Ensemble'], 
-							'Reset Ensemble', 'Update Ensemble', 
-											'Print Label Pool'], 
+							#'Reset Ensemble', 'Update Ensemble', 
+							'Update Ensemble', 'Print Label Pool'], 
 							['use output plan', 'use fitting plan', 
 					'map parameter space', 'use post processing', 
 					'use multiprocessing', 'skip simulation', 
-						#'aggregate results'], [None], [None], [None]], 
 						], [None], [None], [None]], 
 				initials = [[self.label], None, None, 
 							[self.num_trajectories], 
@@ -479,11 +565,10 @@ class ensemble(lfu.modular_object_qt):
 								[1], None, None], 
 				maximum_values = [None, None, None, 
 								[1000000], None, None], 
-				#bindings = [[None], [self.on_run, 
 				bindings = [[None], [self.parent.run_current_ensemble, 
-					self.on_save, lgb.create_reset_widgets_wrapper(
-											window, self.on_reset), 
-					#lgb.create_reset_widgets_function(window)], 
+					self.on_save, 
+					#self.on_save, lgb.create_reset_widgets_wrapper(
+					#						window, self.on_reset), 
 					lgb.create_reset_widgets_function(window), 
 										lfu.show_label_pool], 
 									None, None, None, None])
@@ -554,7 +639,14 @@ class ensemble_manager(lfu.modular_object_qt):
 		del_pools = [item for item in pool_matches if 
 			os.path.join(os.getcwd(), item) not in saved_pools]
 		for pool in del_pools:
-			try: os.remove(os.path.join(os.getcwd(), pool))
+			try:
+				if pool.count('smart') > 0:
+					sm_pool = lf.load_pkl_object(pool)
+					for sub_pool in sm_pool.data.data_pool_ids:
+						os.remove(os.path.join(os.getcwd(), 
+								'data_pools', sub_pool))
+
+				os.remove(os.path.join(os.getcwd(), pool))
 			except OSError, e:
 				print ("Error: %s - %s." % (e.filename, e.strerror))
 
@@ -728,12 +820,14 @@ class ensemble_manager(lfu.modular_object_qt):
 		self.handle_widget_inheritance(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
+				#widgets = ['tab_book', 'console_listener'], 
 				widgets = ['tab_book'], 
-				pages = [self.make_tab_book_pages(*args, **kwargs)], 
-				initials = [[self.current_tab_index]], 
-				handles = [(self, 'tab_ref')], 
-				instances = [[self]], 
-				keys = [['current_tab_index']]))
+				pages = [self.make_tab_book_pages(
+							*args, **kwargs), None], 
+				initials = [[self.current_tab_index], None], 
+				handles = [(self, 'tab_ref'), (self, 'console_ref')], 
+				instances = [[self], None], 
+				keys = [['current_tab_index'], None]))
 		gear_icon_path = os.path.join(
 			os.getcwd(), 'resources', 'gear.png')
 		wrench_icon_path = os.path.join(
@@ -1038,8 +1132,9 @@ class simulation_plan(lfu.plan):
 		self.selected_capt_crit_label = None
 		self.plot_targets = []
 		lfu.plan.__init__(self, label = label, parent = parent)
-		self._children_.extend(self.end_criteria)
-		self._children_.extend(self.capture_criteria)
+		#self._children_.extend(self.end_criteria)
+		#self._children_.extend(self.capture_criteria)
+		self._children_ = []
 
 	def enact_plan(self, *args, **kwargs):
 		print 'simulation plan does not enact...'
@@ -1049,6 +1144,12 @@ class simulation_plan(lfu.plan):
 		self.widg_templates_capture_criteria = []
 		self.widg_templates_plot_targets = []
 		lfu.plan.sanitize(self)
+
+	def reset_criteria_lists(self):
+		del self.end_criteria[:]
+		del self.capture_criteria[:]
+		del self._children_[:]
+		self.rewidget(True)
 
 	def add_end_criteria(self, crit = None):
 		if crit is None: new = lc.criterion_sim_time(parent = self)
@@ -1081,8 +1182,9 @@ class simulation_plan(lfu.plan):
 		self._children_ = []
 		self.rewidget(True)
 
-	def remove_end_criteria(self):
-		select = self.get_selected_criteria('end')
+	def remove_end_criteria(self, crit = None):
+		if crit: select = crit
+		else: select = self.get_selected_criteria('end')
 		if select:
 			self.end_criteria.remove(select)
 			self._children_.remove(select)
@@ -1090,8 +1192,9 @@ class simulation_plan(lfu.plan):
 
 		self.rewidget(True)
 
-	def remove_capture_criteria(self):
-		select = self.get_selected_criteria('capture')
+	def remove_capture_criteria(self, crit = None):
+		if crit: select = crit
+		else: select = self.get_selected_criteria('capture')
 		if select:
 			self.capture_criteria.remove(select)
 			self._children_.remove(select)
@@ -1134,8 +1237,8 @@ class simulation_plan(lfu.plan):
 		self.handle_widget_inheritance(*args, **kwargs)
 		if self.plot_targets: plot_target_labels = self.plot_targets
 		else:
-			plot_target_labels = ['iteration', 'time', 'fixed_time', 
-								'total population', 'vertex counts']
+			plot_target_labels = ['iteration', 'time', 
+				'total population', 'vertex counts']
 
 		try: self.selected_end_crit_label = self.selected_end_crit.label
 		except AttributeError: self.selected_end_crit_label = None

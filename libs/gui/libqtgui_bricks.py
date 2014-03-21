@@ -1443,6 +1443,7 @@ class tree_book(QtGui.QHBoxLayout):
 		if not inst is None and not key is None:
 			self.selected_page_dex = inst.__dict__[key][0]
 			self.expanded = inst.__dict__[key][1]
+			self.scroll_mem = inst.__dict__[key][2]
 			self.maintain_page = True
 			self.maintenance_handle = (inst, key)
 
@@ -1475,7 +1476,8 @@ class tree_book(QtGui.QHBoxLayout):
 				sub_page = mason.interpret_template(sub)
 				sub_page.addStretch(1)
 				self.tree_pages.append(create_scroll_area(
-					central_widget_wrapper(content = sub_page)))
+					central_widget_wrapper(content = sub_page), 
+								memory = (self, 'scroll_mem')))
 
 			self.tree.addTopLevelItem(top)
 			dex += 1
@@ -1518,7 +1520,9 @@ class tree_book(QtGui.QHBoxLayout):
 		self.tree_pages[self.selected_page_dex].show()
 		if self.maintain_page:
 			self.maintenance_handle[0].__dict__[
-				self.maintenance_handle[1]] = [page_dex, self.expanded]
+				self.maintenance_handle[1]] = [
+					page_dex, self.expanded, 
+							self.scroll_mem]
 
 class central_widget_wrapper(QtGui.QWidget):
 
@@ -1841,6 +1845,61 @@ def generate_linkage_assertion_funcs(linkages):
 			generate_linkage_assertion_func(linkage))
 
 	return assertions
+
+class console_listener(QtCore.QObject):
+
+	output_written = QtCore.Signal(object, object)
+
+	def __init__(self, stdout = True):
+		QtCore.QObject.__init__(self)
+		self.terminal = None
+		if stdout:
+			self._stream = sys.stdout
+			sys.stdout = self
+ 
+		else:
+			self._stream = sys.stderr
+			sys.stderr = self
+			 
+		self._stdout = stdout
+		self._err_color = QtCore.Qt.red
+		self.output_written.connect(self.handle_output)
+
+	def write(self, text):
+		#self._stream.write(text)
+		self.output_written.emit(text, self._stdout)
+
+	def __getattr__(self, name):
+		return getattr(self._stream, name)
+
+	def __del__(self):
+		try:
+			if self._stdout: sys.stdout = self._stream
+			else: sys.stderr = self._stream
+
+		except AttributeError: pass
+
+	def handle_output(self, text, stdout):
+		if self.terminal:
+			color = self.terminal.textColor()
+			self.terminal.setTextColor(
+				color if stdout else self._err_color)
+			self.terminal.moveCursor(QtGui.QTextCursor.End)
+			self.terminal.insertPlainText(text)
+			self.terminal.setTextColor(color)
+
+def create_console_listener():
+	terminal = QtGui.QTextBrowser()
+	#stdout = console_listener(terminal, True)
+	#stdout = lfu.stdout
+	#stdout.output_written.connect(stdout.handle_output)
+	#stderr = console_listener(terminal, False)
+	#stderr = lfu.stderr
+	#stderr.output_written.connect(stdout.handle_output)
+	lfu.pipe_mirror.set_terminal(terminal, QtGui)
+	print lfu.pipe_mirror
+	#stderr.terminal = terminal
+	return terminal
 
 if __name__ == '__main__': print 'this is a library!'
 

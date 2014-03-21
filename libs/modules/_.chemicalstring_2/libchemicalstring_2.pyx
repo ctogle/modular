@@ -558,7 +558,7 @@ def generate_update_functions(count_targets, counts,
 
 
 #temporarily here to use debug_string.txt
-#import os
+import os
 
 @cython.boundscheck(False) #no IndexErrors can be allowed to occur
 @cython.cdivision(False)
@@ -566,8 +566,8 @@ def generate_update_functions(count_targets, counts,
 def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,Product:0<variables>k:0.5<functions>ratio=Substrate/(Enzyme+k)<reactions>(1)Substrate+(1)Enzyme->1.0->(1)ES_Complex,(1)ES_Complex->0.01->(1)Substrate+(1)Enzyme,(1)ES_Complex->800.0->(1)Enzyme+(1)Product<end>iteration>=10000<capture>increment:time:0.00002<targets>ES_Complex,Product,iteration,time,fixed_time||'):
 
 	#some code to print a system_string to a txt file... to be certain the system_strings I give you work
-	#path = os.path.join(os.getcwd(), 'libs', 'modules', 'debug_string.txt')
-	#with open(path, 'w') as handle: handle.write(system_string)
+	path = os.path.join(os.getcwd(), 'libs', 'modules', 'debug_string.txt')
+	with open(path, 'w') as handle: handle.write(system_string)
 	#
 
 

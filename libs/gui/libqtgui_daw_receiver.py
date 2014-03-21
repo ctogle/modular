@@ -5,27 +5,27 @@ lgd = lqg.lgd
 lgb = lqg.lgb
 import libs.daw_receiver.libs.libdawcontrol as ldc
 
+import os
 import sys
 
 class application_daw_rec(lqg.application):
+	gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
 	_content_ = [ldc.motor_manager()]
 
 	def __init__(self, *args, **kwargs):
 		lqg.application.__init__(self, *args, **kwargs)
-		#lqg.application.setStyle(lgb.create_style('windows'))
-		#lqg.application.setStyle(lgb.create_style('xp'))
-		#lqg.application.setStyle(lgb.create_style('vista'))
-		#lqg.application.setStyle(lgb.create_style('motif'))
-		#lqg.application.setStyle(lgb.create_style('cde'))
 		lqg.application.setStyle(lgb.create_style('plastique'))
-		#lqg.application.setStyle(lgb.create_style('clean'))
+		x, y = lfu.convert_pixel_space(1024, 256)
+		x_size, y_size = lfu.convert_pixel_space(512, 512)
+		self._standards_ = {
+			'title' : 'DAW Receiver', 
+			'geometry' : (x, y, x_size, y_size), 
+			'window_icon' : self.gear_icon}
+		lqg._window_.apply_standards(self._standards_)
 
 _application_ = application_daw_rec
 _application_locked_ = True
 
-#def initialize_gui(params):
-#	app = application_daw_rec(params, sys.argv)
-#	sys.exit(app.exec_())
 
 
 

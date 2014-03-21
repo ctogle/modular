@@ -15,10 +15,7 @@ def run_system(*args, **kwargs):
 
 	system.decommission()
 	if system.bAbort: system.toss_bad_daters()
-	if ensemble.multiprocess_plan.use_plan:
-		return system.data
-
-	else: ensemble.data_pool.batch_pool.append(system.data)
+	return system.data
 
 if __name__ == '__main__': print 'this is a library!'
 

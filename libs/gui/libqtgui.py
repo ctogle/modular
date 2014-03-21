@@ -47,6 +47,14 @@ class gui_window(QtGui.QMainWindow):
 		self.settables_infos = (self, )
 		try: standards = kwargs['standards']
 		except KeyError: standards = {}
+		self.apply_standards(standards)
+		self.statusBar().showMessage('Ready')
+		try: self.content = kwargs['content']
+		except KeyError: self.content = None
+		self.set_up_widgets(*args, **kwargs)
+		self.show()
+
+	def apply_standards(self, standards):
 		try: title = standards['title']
 		except KeyError: title = '--'
 		try: geometry = standards['geometry']
@@ -60,11 +68,6 @@ class gui_window(QtGui.QMainWindow):
 		except KeyError: pass
 		self.setWindowTitle(title)
 		self.setGeometry(*geometry)
-		self.statusBar().showMessage('Ready')
-		try: self.content = kwargs['content']
-		except KeyError: self.content = None
-		self.set_up_widgets(*args, **kwargs)
-		self.show()
 
 	def set_up_widg_templates(self, *args, **kwargs):
 		if type(self.content) is types.ListType:

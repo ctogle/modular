@@ -17,4 +17,5 @@ worker_processes = 8
 multiprocessing = True
 
 <data handling>
+use_smart_pool = True
 auto_clear_data_pools = True

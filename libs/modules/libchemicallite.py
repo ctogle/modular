@@ -7,8 +7,8 @@ import libs.modular_core.libfitroutine as lfr
 import libs.modular_core.libpostprocess as lpp
 import libs.modular_core.libcriterion as lc
 
-#import libs.modules.stringchemical as chemfast
-import libs.modules.libchemicalstring_3 as chemfast
+import libs.modules.stringchemical as chemfast
+#import libs.modules.libchemicalstring_3 as chemfast
 
 import sys
 import types
@@ -159,11 +159,13 @@ def set_module_memory_(ensem):
 def set_parameters(ensem):
 	set_module_memory_(ensem)
 
-	if ensem.run_params['end_criteria']:
-		ensem.simulation_plan.end_criteria = []
+	if 'end_criteria' in ensem.run_params.keys():
+		for crit in ensem.run_params['end_criteria']:
+			crit._destroy_()
 
-	if ensem.run_params['capture_criteria']:
-		ensem.simulation_plan.capture_criteria = []
+	if 'capture_criteria' in ensem.run_params.keys():
+		for crit in ensem.run_params['capture_criteria']:
+			crit._destroy_()
 
 	if 'variables' in ensem.run_params.keys():
 		for key, val in ensem.run_params['variables'].items():
@@ -180,32 +182,30 @@ def set_parameters(ensem):
 		for key, val in ensem.run_params['functions'].items():
 			ensem.run_params['functions'][key]._destroy_()
 
+	if ensem.postprocess_plan.post_processes:
+		for proc in ensem.postprocess_plan.post_processes:
+			proc._destroy_()
+
+	ensem.simulation_plan.reset_criteria_lists()
 	ensem.run_params['variables'] = {}
 	ensem.run_params['species'] = {}
 	ensem.run_params['reactions'] = []
 	ensem.run_params['functions'] = {}
-	ensem.run_params['plot_targets'] = ['iteration', 
-								'time', 'fixed_time']
+	ensem.run_params['plot_targets'] = ['iteration', 'time']
+	ensem.postprocess_plan.reset_process_list()
 	output_plan = ensem.run_params['output_plans']['Simulation']
-	output_plan.targeted = ['iteration', 'time', 'fixed_time']
+	output_plan.targeted = ['iteration', 'time']
 	for dex in range(len(output_plan.outputs)):
-		output_plan.outputs[dex] = ['iteration', 'time', 'fixed_time']
+		output_plan.outputs[dex] = ['iteration', 'time']
 
-	ensem.run_params['bool_expressions'] = lfu.dictionary()
-	ensem.run_params['bool_expressions']['end'] = ''
-	ensem.run_params['bool_expressions']['capt'] = ''
 	ensem.run_params.create_partition('system', 
 		[	'variables', 'species', 'reactions', 'functions', 
-			'end_criteria', 'capture_criteria', 'plot_targets', 
-										'bool_expressions'	])
+			'end_criteria', 'capture_criteria', 'plot_targets'	])
 	ensem.cartographer_plan.parameter_space_mobjs =\
 				ensem.run_params.partition['system']
 	ensem.run_params.create_partition('template owners', 
 		['variables', 'functions', 'reactions', 'species'])
 
-#this should be capable of handling
-# everything in run_param_keys
-#but its not done yet
 def parse_mcfg(lines, *args):
 	params = args[0]
 	ensem = args[1]
@@ -244,7 +244,7 @@ def parse_mcfg(lines, *args):
 		return name, [varib]
 
 	def parse_function_line(data):
-		split = [item.strip() for item in data.split('=')]
+		split = [item.strip() for item in data.split(':')]
 		name, value = split[0], split[1]
 		func = function_cont(label = name, func_statement = value)
 		return name, [func]
@@ -539,6 +539,8 @@ def parse_mcfg(lines, *args):
 
 		traj_dlg.on_make()
 		if traj_dlg.made:
+			ensem.cartographer_plan.trajectory_string =\
+								traj_dlg.result_string
 			ensem.cartographer_plan.on_delete_selected_pts(
 										preselected = None)
 			ensem.cartographer_plan.on_reset_trajectory_parameterization()
@@ -586,6 +588,12 @@ def parse_mcfg(lines, *args):
 			continue
 
 		elif line.startswith('<post_processes>'):
+			if p_space_flag:
+				if len(p_sub_sps) > 1:
+					print 'only parsing first p-scan space'
+
+				parse_p_space(p_sub_sps[0], ensem)
+
 			parser = 'post_processes'
 			continue
 
@@ -668,25 +676,18 @@ def parse_mcfg(lines, *args):
 			if not targable.label in targs:
 				targable.brand_new = False
 
-	if p_space_flag:
-		if len(p_sub_sps) > 1: print 'only parsing first p-scan space'
-		parse_p_space(p_sub_sps[0], ensem)
-
 def write_mcfg(*args):
 	run_params = args[0]
 	ensem = args[1]
 
 	def p_space_to_lines():
 		lines.append('<parameter_space>')
-		p_space = ensem.cartographer_plan.parameter_space
-		if p_space: lines.extend(p_space.to_string())
-		else: lines.append('#no parameter space!')
+		lines.extend(ensem.cartographer_plan.to_string())
 		lines.append('')
 
 	def mp_plan_to_lines():
 		lines.append('<multiprocessing>')
-		mp_plan = ensem.multiprocessing_plan
-		lines.extend(mp_plan.to_string())
+		lines.extend(ensem.multiprocess_plan.to_string())
 		lines.append('')
 
 	def params_to_lines(key):
@@ -701,7 +702,7 @@ def write_mcfg(*args):
 			if issubclass(params[0].__class__, modular_object):
 				lines.extend([param.to_string() for param in params])
 
-			else: lines.extend([str(param) for param in params])
+			else: lines.extend(['\t' + str(param) for param in params])
 
 		lines.append('')
 
@@ -712,12 +713,11 @@ def write_mcfg(*args):
 	params_to_lines('functions')
 	params_to_lines('reactions')
 	params_to_lines('species')
-	params_to_lines('post_processes')
 	params_to_lines('plot_targets')
 	p_space_to_lines()
+	params_to_lines('post_processes')
 	mp_plan_to_lines()
 	params_to_lines('output_plans')
-	pdb.set_trace()
 	return lines
 
 class scalers(object):
@@ -830,7 +830,7 @@ class variable(modular_object):
 
 	def to_string(self):
 		self.ensem = None
-		return self.label + ' : ' + str(self.value)
+		return '\t' + self.label + ' : ' + str(self.value)
 
 	def set_settables(self, *args, **kwargs):
 		ensem = args[1]
@@ -890,7 +890,7 @@ class function_cont(modular_object):
 		modular_object.__init__(self, *args, **kwargs)
 
 	def to_string(self):
-		return self.label + ' = ' + self.func_statement
+		return '\t' + self.label + ' : ' + self.func_statement
 
 	def set_settables(self, *args, **kwargs):
 		ensem = args[1]
@@ -974,7 +974,7 @@ class reaction(modular_object):
 		produced_line = agents_to_line(self.produced)
 		rxn_string = ' '.join([used_line, str(self.rate), 
 									'->', produced_line])
-		rxn_string = rxn_string + ' : ' + self.label
+		rxn_string = '\t' + rxn_string + ' : ' + self.label
 		return rxn_string
 
 	def react(self, system):
@@ -1116,7 +1116,7 @@ class species(modular_object):
 
 	def to_string(self):
 		self.ensem = None
-		return self.label + ' : ' + str(self.initial_count)
+		return '\t' + self.label + ' : ' + str(self.initial_count)
 
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
@@ -1249,7 +1249,7 @@ class criterion_species_count(lc.criterion):
 		lc.criterion.__init__(self, *args, **kwargs)
 
 	def to_string(self):
-		return 'species count : ' + str(self.spec_count_target) +\
+		return '\tspecies count : ' + str(self.spec_count_target) +\
 												' : ' + self.key
 
 	def initialize(self, *args, **kwargs):

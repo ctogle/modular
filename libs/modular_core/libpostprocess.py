@@ -36,7 +36,6 @@ class post_process_plan(lfu.plan):
 		self.impose_default('post_processes', [], **kwargs)
 		use = lset.get_setting('postprocessing')
 		kwargs['use_plan'] = use
-		#self.selected_post_process = None
 		self.selected_process_label = None
 		lfu.plan.__init__(self, *args, **kwargs)
 
@@ -47,19 +46,24 @@ class post_process_plan(lfu.plan):
 			print ' '.join(['completed post process:', process.label, 
 						'in:', str(time.time() - check1), 'seconds'])
 
+	def reset_process_list(self):
+		del self.post_processes[:]
+		del self._children_[:]
+
 	def add_process(self, new = None):
 		if not new: new = post_process_meanfield(parent = self)
 		self.post_processes.append(new)
 		self._children_.append(new)
 		self.rewidget(True)
 
-	def remove_process(self):
-		select = self.get_selected()
+	def remove_process(self, selected = None):
+		if selected: select = selected
+		else: select = self.get_selected()
 		if select:
 			self.post_processes.remove(select)
 			self._children_.remove(select)
-			#del self.parent.run_params['output_plans'][select.label]
-			#del select
+			del self.parent.run_params['output_plans'][
+							select.label + ' output']
 			select._destroy_()
 
 		self.rewidget(True)
@@ -113,40 +117,8 @@ class post_process_plan(lfu.plan):
 		window = args[0]
 		#ensemble = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
-		'''
-		if not selected_routine is None:
-			where_reference = ensemble.run_params['output_plans']
-			rout_remove_data_links = [lfu.interface_template_dependance(
-				(where_reference, selected_routine.label, True), 
-				linkages = [(where_reference, selected_routine.label, 
-											True, 'direct_remove')])]
-
-		else:
-			where_reference = None
-			rout_remove_data_links = None
-		'''
 		try: select_label = self.selected_process_label
 		except AttributeError: select_label = None
-		'''
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				layout = 'grid', 
-				widg_positions = [(0, 0), (0, 2), (1, 2), (2, 2)], 
-				widg_spans = [(3, 2), None, None, None], 
-				grid_spacing = 10, 
-				widgets = ['mobj_inspector', 'button_set', 'selector'], 
-				verbosities = [1, 1, 1], 
-				instances = [[self.selected_post_process], None, None], 
-				handles = [None, None, (self, 'process_selector')], 
-				labels = [None, ['Add Post Process', 
-								'Remove Post Process'], 
-						lfu.grab_mobj_names(self.post_processes)], 
-				initials = [None, None, [select_label]], 
-				bindings = [None, [lgb.create_reset_widgets_wrapper(
-										window, self.add_process), 
-						lgb.create_reset_widgets_wrapper(window, 
-								self.remove_process)], None]))
-		'''
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				layout = 'grid', 
@@ -252,6 +224,7 @@ class post_process(lfu.modular_object_qt):
 		self.initialize(*args, **kwargs)
 		self.postproc(*args, **kwargs)
 
+	'''
 	def _destroy_(self, *args, **kwargs):
 		try:
 			del self.parent.parent.run_params['output_plans'][
@@ -262,18 +235,21 @@ class post_process(lfu.modular_object_qt):
 			pdb.set_trace()
 
 		lfu.modular_object_qt._destroy_(self)
+	'''
 
 	def inputs_to_string(self):
 		inps = []
 		valid_inputs = self.get_valid_inputs(None, self.parent.parent)
 		for input_ in self.input_regime:
-			inps.append(valid_inputs.index(input_))
+			if input_.startswith('simulation'): numb = 0
+			else: numb = valid_inputs.index(input_) - 1
+			inps.append(numb)
 
 		inps = ', '.join([str(inp) for inp in inps])
 		return inps
 
 	def to_string(self):
-		return self.label + ' : '
+		return '\t' + self.label + ' : '
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
@@ -286,6 +262,7 @@ class post_process(lfu.modular_object_qt):
 		try:
 			inputs = [lfu.grab_mobj_by_name(inp, sources) for inp 
 				in self.input_regime if not inp == 'simulation']
+
 		except ValueError:
 			self.fix_inputs()
 			#return self.get_source_reference(*args, **kwargs)
@@ -345,10 +322,12 @@ class post_process(lfu.modular_object_qt):
 		self.determine_regime(args[0])
 		pool = []
 		sources = self.get_source_reference(1, *args, **kwargs)
-		for src in sources: lfu.zip_list(pool, src.data)
+		#for src in sources: lfu.zip_list(pool, src.data)
 		if 'simulation' in self.input_regime:
-			lfu.zip_list(pool, args[0].data_pool.get_batch())
+			#lfu.zip_list(pool, args[0].data_pool.get_batch())
+			pool = args[0].data_pool
 
+		for src in sources: lfu.zip_list(pool, src.data)
 		if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']
 		else: p_space = args[0].cartographer_plan
 		self.p_space = p_space
@@ -375,27 +354,17 @@ class post_process(lfu.modular_object_qt):
 		self.data = [method(pool)]
 
 	def handle_by_parameter_space(self, method, pool, p_space):
-		#if self.mp_plan_ref.use_plan:
-		if False:
-			self.handle_by_parameter_space_mp(
-						method, pool, p_space)
-
-		else: #currently only supporting non_mp post processing
-			self.handle_by_parameter_space_non_mp(
-							method, pool, p_space)
-
-	def handle_by_parameter_space_mp(self, method, pool, p_space):
-		self.data = self.mp_plan_ref.distribute_work_one_layer(
-										method, pool, p_space)
+		self.handle_by_parameter_space_non_mp(method, pool, p_space)
 
 	def handle_by_parameter_space_non_mp(self, method, pool, p_space):
 		pool_dex = 0
 		result_pool = []
 		for locale in p_space.trajectory:
 			traj_count = locale[1].trajectory_count
-			#DATAFLAG - wrap data in scalers before method()!
 			#temp_pool = pool[pool_dex:pool_dex + traj_count]
-			data = method(pool[pool_dex:pool_dex + traj_count])
+			#print 'traj_dex', locale[0]
+			temp_pool = pool[locale[0]]
+			data = method(temp_pool)
 			result_pool.append(data)
 			pool_dex += traj_count
 
@@ -441,8 +410,8 @@ class post_process(lfu.modular_object_qt):
 				lgm.interface_template_gui(
 					panel_position = (0, 2), 
 					widgets = ['check_set'], 
-					tooltips = [['Requires GUI update (Ctrl+G)' for 
-									input_ in self.valid_inputs]], 
+					tooltips = [['Requires GUI update (Ctrl+G)' 
+							for input_ in self.valid_inputs]], 
 					append_instead = [True], 
 					instances = [[self]], 
 					keys = [['input_regime']], 
@@ -509,13 +478,8 @@ class post_process_meanfield(post_process):
 		bins = str(self.bin_count)
 		if self.ordered: ordered = 'ordered'
 		else: ordered = 'unordered'
-		return ' : '.join([self.label, 'standard statistics', 
+		return '\t' + ' : '.join([self.label, 'standard statistics', 
 								inps, phrase, bins, ordered])
-
-	def provide_axes_manager_input(self):
-		self.use_line_plot = True
-		self.use_color_plot = False
-		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.meanfield
@@ -557,8 +521,10 @@ class post_process_meanfield(post_process):
 
 	#this is a stupid hack!
 	def provide_axes_manager_input(self):
-		post_process.provide_axes_manager_input(self)
-		self.x_title = 'time'
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
+		self.x_title = self.function_of
 
 	def set_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
@@ -667,7 +633,7 @@ class post_process_correlation_values(post_process):
 		bins = str(self.bin_count)
 		if self.ordered: ordered = 'ordered'
 		else: ordered = 'unordered'
-		return ' : '.join([self.label, 'correlation', 
+		return '\t' + ' : '.join([self.label, 'correlation', 
 						inps, phrase, bins, ordered])
 
 	def provide_axes_manager_input(self):
@@ -785,7 +751,8 @@ class post_process_counts_to_concentrations(post_process):
 	def to_string(self):
 		#label : counts to concentrations : 0 : x and y of time : 10 : ordered
 		inps = self.inputs_to_string()
-		return ' : '.join([self.label, 'counts to concentrations', inps])
+		return '\t' + ' : '.join([self.label, 
+			'counts to concentrations', inps])
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
@@ -888,7 +855,7 @@ class post_process_slice_from_trajectory(post_process):
 		inps = self.inputs_to_string()
 		phrase = 'all'
 		slice_dex = str(self.slice_dex)
-		return ' : '.join([self.label, 'slice from trajectory', 
+		return '\t' + ' : '.join([self.label, 'slice from trajectory', 
 									inps, phrase, slice_dex])
 
 	def provide_axes_manager_input(self):
@@ -999,10 +966,12 @@ class post_process_reorganize_data(post_process):
 		#reorg : reorganize data : 2 : all
 		inps = self.inputs_to_string()
 		phrase = 'all'
-		return ' : '.join([self.label, 'reorganize data', inps, phrase])
+		return '\t' + ' : '.join([self.label, 
+			'reorganize data', inps, phrase])
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
+		#self.use_line_plot = False
 		self.use_color_plot = True
 		self.use_bar_plot = False
 
@@ -1044,9 +1013,10 @@ class post_process_reorganize_data(post_process):
 					dater.label, locale).scalers[-1]
 				dater.scalers.append(value)
 
-		data.append(lgeo.surface_vector(data, 
-			self.axis_labels, 'reorg surface vector'))
-		#return data[-1:]
+		surf_targets =\
+			['parameter space location index'] + self.dater_ids
+		data.append(lgeo.surface_vector(data, self.axis_labels, 
+						surf_targets, 'reorg surface vector'))
 		return data
 
 	def set_settables(self, *args, **kwargs):
@@ -1056,7 +1026,6 @@ class post_process_reorganize_data(post_process):
 		try:
 			self.axis_labels = [subsp.label for subsp in 
 				args[1].cartographer_plan.parameter_space.subspaces]
-			#if there are 1, 2, or more labels....
 
 		except AttributeError: self.axis_labels = []
 		self.capture_targets = ['parameter space location index'] +\
@@ -1105,7 +1074,8 @@ class post_process_1_to_1_binary_operation(post_process):
 	def to_string(self):
 		#label : one to one binary operation : 0
 		inps = self.inputs_to_string()
-		return ' : '.join([self.label, 'one to one binary operation', inps])
+		return '\t' + ' : '.join([self.label, 
+			'one to one binary operation', inps])
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
@@ -1244,7 +1214,6 @@ class post_process_1_to_1_binary_operation(post_process):
 		super(post_process_1_to_1_binary_operation, 
 			self).set_settables(*args, from_sub = True)
 
-#this is the shell of a new post process for period finding
 class post_process_period_finding(post_process):
 
 	#the **kwargs keyword dictionary is modified and passed to the 
@@ -1282,7 +1251,7 @@ class post_process_period_finding(post_process):
 	def to_string(self):
 		#label : period finding : 0
 		inps = self.inputs_to_string()
-		return ' : '.join([self.label, 'period finding', inps])
+		return '\t' + ' : '.join([self.label, 'period finding', inps])
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
@@ -1439,19 +1408,19 @@ class post_process_measure_probability(post_process):
 	def to_string(self):
 		#label : probability : 0
 		inps = self.inputs_to_string()
-		return ' : '.join([self.label, 'probability', inps])
+		return '\t' + ' : '.join([self.label, 'probability', inps])
 
 	def provide_axes_manager_input(self):
 		self.use_line_plot = True
-		self.use_color_plot = False
-		self.use_bar_plot = False
+		self.use_color_plot = True
+		self.use_bar_plot = True
 
 	def postproc(self, *args, **kwargs):
 		kwargs['method'] = self.measure_probability
 		post_process.postproc(self, *args, **kwargs)
 
 	def measure_probability(self, *args, **kwargs):
-
+		'''
 		def verify(val):
 			if math.isnan(val): return self.fill_value
 			else: return val
@@ -1466,11 +1435,13 @@ class post_process_measure_probability(post_process):
 							self.bin_count, self.ordered)
 		correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
 						for val_1, val_2 in zip(vals_1, vals_2)])
+		'''
+		pdb.set_trace()
 		data = lgeo.scalers_from_labels([self.function_of, 
 			'correlation coefficients', 'correlation p-value'])
-		data[0].scalers = bins
-		data[1].scalers = [verify(val) for val in correlations]
-		data[2].scalers = [verify(val) for val in p_values]
+		#data[0].scalers = bins
+		#data[1].scalers = [verify(val) for val in correlations]
+		#data[2].scalers = [verify(val) for val in p_values]
 		return data
 
 	def set_settables(self, *args, **kwargs):
@@ -1517,7 +1488,8 @@ def correlate(self, *args, **kwargs):
 
 def select_for_binning(pool, be_binned, be_meaned):
 	#print 'be meaned', be_meaned
-	flat_pool   = [item for sublist in pool for item in sublist]
+	if hasattr(pool, '_flatten_'): flat_pool = pool._flatten_(pool)
+	else: flat_pool = [item for sublist in pool for item in sublist]
 	bin_lookup  = [pool[k][j].label == be_binned 
 						for k in range(len(pool)) 
 					for j in range(len(pool[k]))]
@@ -1554,8 +1526,7 @@ def bin_scalers(axes, ax_vals, bin_res, ordered = True):
 				for j in range(last_j, len(axes[k].scalers)):
 
 					if axes[k].scalers[j] < threshold_top:
-						try: vals[i].append(ax_vals[k].scalers[j])
-						except: pdb.set_trace()
+						vals[i].append(ax_vals[k].scalers[j])
 
 					else:
 						j_last[k] = j

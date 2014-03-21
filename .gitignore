@@ -1,2 +1,8 @@
 .idea
 *.swp
+*.pkl
+*.vtu
+*.c
+*.ensempkl
+
+

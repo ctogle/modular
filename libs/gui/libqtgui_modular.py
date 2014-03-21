@@ -23,6 +23,7 @@ class modular(lqg.application):
 			'title' : 'Modular', 
 			'geometry' : (x, y, x_size, y_size), 
 			'window_icon' : self.gear_icon}
+		lqg._window_.apply_standards(self._standards_)
 		#lqg.application.setStyle(lgb.create_style('windows'))
 		#lqg.application.setStyle(lgb.create_style('xp'))
 		#lqg.application.setStyle(lgb.create_style('vista'))

@@ -24,6 +24,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.path as path
 
+from mpl_toolkits.mplot3d import axes3d, Axes3D
+
 mpqt.figureoptions = None
 
 import numpy as np
@@ -180,11 +182,14 @@ class create_obj_dialog(QtGui.QDialog):
 		self.made = True
 		if self.dialoging: self.accept()
 
+###################
+#plotting business#
+###################
 class plot_page(QtGui.QWidget):
 
 	def __init__(self, plt_window, label, figure, canvas, 
-			data_container, specifics, filename, title, 
-							x_ax_title, y_ax_title):
+			data_container, specifics, axes, filename, title, 
+									x_ax_title, y_ax_title):
 		super(plot_page, self).__init__()
 		self.parent = plt_window
 		self.page_label = label
@@ -195,6 +200,7 @@ class plot_page(QtGui.QWidget):
 
 		self._data_ = data_container
 		self._plot_targets_ = specifics
+		self._axis_labels_ = axes
 		self._filename_ = filename
 		self.max_line_count = 20
 		self.title = title
@@ -262,7 +268,7 @@ class plot_page(QtGui.QWidget):
 
 	def hide(self, *args, **kwargs):
 		#print 'hide', self.page_label
-		pass
+		self.hide()
 
 	def show_plot(self, *args, **kwargs):
 		if self.parent.plot_type is 'lines':
@@ -270,6 +276,9 @@ class plot_page(QtGui.QWidget):
 
 		elif self.parent.plot_type is 'color':
 			self.show_plot_color(*args, **kwargs)
+
+		elif self.parent.plot_type is 'surface':
+			self.show_plot_surface(*args, **kwargs)
 
 		elif self.parent.plot_type is 'bars':
 			self.show_plot_bars(*args, **kwargs)
@@ -310,10 +319,7 @@ class plot_page(QtGui.QWidget):
 		self.resolve_x_domain()
 		self.resolve_y_domain()
 		self.resolve_surf_target()
-		self.fixed_axis_values = [2, 6, 8]
-
 		ax = self.add_plot()
-
 		try:
 			surf_vector_dex = [hasattr(dater, 'reduced') 
 				for dater in self._data_.data].index(True)
@@ -322,13 +328,18 @@ class plot_page(QtGui.QWidget):
 			print 'no surface_vector found!'; return
 
 		surf_vect = self._data_.data[surf_vector_dex]
-		surf_vect.make_surface(axis_defaults = self.fixed_axis_values, 
+		made_surf = surf_vect.make_surface(
 			x_ax = self.x_ax_title, y_ax = self.y_ax_title, 
 							surf_target = self.surf_target)
+		if not made_surf:
+			print 'surface was not resolved'
+			return
+
+		ax.set_title(self.surf_target)
 		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, 
-								surf_vect.reduced[0])
+								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
-								surf_vect.reduced[0])
+								surf_vect.axis_values)
 		x = np.array(x_ax.scalers, dtype = float)
 		y = np.array(y_ax.scalers, dtype = float)
 		try:
@@ -340,15 +351,99 @@ class plot_page(QtGui.QWidget):
 			return
 
 		surf = surf.transpose()
+		x_min, x_max = x.min(), x.max()
+		y_min, y_max = y.min(), y.max()
 		z_min, z_max = surf.min(), surf.max()
 		#plt.xscale('log')
 		#plt.yscale('log')
-		pc_mesh = ax.pcolormesh(x, y, surf, cmap = 'autumn', 
-			shading = 'gouraud', vmin = z_min, vmax = z_max)
+
+		delx = [x[i+1] - x[i] for i in range(len(x) - 1)]
+		dely = [y[i+1] - y[i] for i in range(len(y) - 1)]
+		xdels = lfu.uniqfy(delx)
+		ydels = lfu.uniqfy(dely)
+		if len(xdels) == 1 and len(ydels) == 1:
+			pc_mesh = ax.imshow(surf, interpolation = 'bicubic', 
+				cmap = plt.get_cmap('jet'), vmin = z_min, vmax = z_max, 
+				#cmap = 'autumn', vmin = z_min, vmax = z_max, 
+				origin = 'lower', extent = (x_min, x_max, y_min, y_max))
+			#Acceptable interpolations are 'none', 'nearest', 'bilinear', 
+			#'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
+			#'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 
+			#'bessel', 'mitchell', 'sinc', 'lanczos'
+
+		else:
+			print 'axes values are not evenly spaced; plot will be boxy'
+			pc_mesh = ax.pcolormesh(x, y, surf, 
+				cmap = plt.get_cmap('jet'), 
+			#pc_mesh = ax.pcolormesh(x, y, surf, cmap = 'autumn', 
+				shading = 'gouraud', vmin = z_min, vmax = z_max)
+
 		ax.axis([x.min(), x.max(), y.min(), y.max()])
-		#try: self.figure.delaxes(self.figure.axes[1])
-		#except IndexError: pass
+		ax.grid(True)
 		self.figure.colorbar(pc_mesh)
+		self.canvas.draw()
+
+	def show_plot_surface(self, *args, **kwargs):
+		self.resolve_x_domain()
+		self.resolve_y_domain()
+		self.resolve_surf_target()
+		self.figure.clf()
+		ax = Axes3D(self.figure)
+		ax.cla()
+		ax.grid(False)
+		#color = (0.1843, 0.3098, 0.3098)
+		#ax.set_axis_bgcolor(color)
+		try:
+			surf_vector_dex = [hasattr(dater, 'reduced') 
+				for dater in self._data_.data].index(True)
+
+		except ValueError:
+			print 'no surface_vector found!'; return
+
+		surf_vect = self._data_.data[surf_vector_dex]
+		made_surf = surf_vect.make_surface(
+			x_ax = self.x_ax_title, y_ax = self.y_ax_title, 
+							surf_target = self.surf_target)
+		if not made_surf:
+			print 'surface was not resolved'
+			return
+
+		ax.set_xlabel(self.x_ax_title, fontsize = 18)
+		ax.set_ylabel(self.y_ax_title, fontsize = 18)
+		ax.set_zlabel(self.surf_target, fontsize = 18)
+		ax.set_title(self.surf_target)
+		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, 
+								surf_vect.axis_values)
+		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
+								surf_vect.axis_values)
+		x = np.array(x_ax.scalers, dtype = float)
+		y = np.array(y_ax.scalers, dtype = float)
+		try:
+			surf = np.array(surf_vect.reduced[1].scalers, 
+					dtype = float).reshape(len(x), len(y))
+
+		except ValueError:
+			print 'not organized properly to colorplot...'
+			return
+
+		surf = surf.transpose()
+		x_min, x_max = x.min(), x.max()
+		y_min, y_max = y.min(), y.max()
+		z_min, z_max = surf.min(), surf.max()
+
+		x, y = np.meshgrid(x, y)
+		ax.set_zlim(z_min, z_max)
+		ax.axis([x_min, x_max, y_min, y_max])
+		surf = ax.plot_surface(x, y, surf, cmap = plt.get_cmap('jet'), 
+		#surf = ax.plot_surface(x, y, surf, cmap = plt.cm.gist_heat, 
+			shade = True, rstride = 1, cstride = 1, 
+			linewidth = 0, antialiased = False, zorder = 1.0)
+
+		#ax.zaxis.set_major_locator(LinearLocator(10))
+		#ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+		self.figure.colorbar(surf, shrink = 0.75)
+		#ax.set_axisbelow()
 		self.canvas.draw()
 
 	def show_plot_bars(self, *args, **kwargs):		
@@ -386,9 +481,12 @@ class plot_page(QtGui.QWidget):
 		#plt.show()
 		self.canvas.draw()
 
+	#def add_plot(self, code = 111, projection = None):
 	def add_plot(self, code = 111):
 		self.figure.clf()
-		ax = self.figure.add_subplot(code)
+		#ax = self.figure.add_subplot(code)
+		#if projection: ax = self.figure.gca(projection='3d')
+		ax = self.figure.gca()
 		ax.cla()
 		ax.set_xlabel(self.x_ax_title, fontsize = 18)
 		ax.set_ylabel(self.y_ax_title, fontsize = 18)
@@ -446,7 +544,7 @@ class plot_window(create_obj_dialog):
 		self.activateWindow()
 
 	def __init__(self, *args, **kwargs):
-		self.codes = range(1000)
+		self.codes = range(10000000)
 		self.selected_page_label = None
 		self.page_labels = []
 		self.pages = []
@@ -456,8 +554,12 @@ class plot_window(create_obj_dialog):
 		self.targets_layout = lgb.create_vert_box([])
 		self.check_group = None
 
+		self.surface_vector_flag = False
+		self._all_plot_axes_ = []
+		self._current_axes_ = []
 		self.slice_layout = lgb.create_vert_box([])
 		self.slice_group = None
+		self.slice_selectors = []
 
 		self.plot_type = 'lines'
 		self.plot_types = kwargs['plot_types']
@@ -467,6 +569,10 @@ class plot_window(create_obj_dialog):
 		create_obj_dialog.__init__(self, None, mason = mason, 
 							title = title, from_sub = True)
 
+		x, y = lfu.convert_pixel_space(256, 256)
+		x_size, y_size = lfu.convert_pixel_space(1024, 768)
+		geometry = (x, y, x_size, y_size)
+		self.setGeometry(*geometry)
 		self.figure = plt.figure()
 		self.canvas = FigureCanvas(self.figure)
 		self.setBackgroundRole(QtGui.QPalette.Window)
@@ -481,20 +587,29 @@ class plot_window(create_obj_dialog):
 		self.set_settables()
 
 	def get_verbosities(self):
-		if self.plot_type == 'lines': verbs = [0, 0, 0, 0, 10, 10, 0]
-		elif self.plot_type == 'color': verbs = [0, 0, 0, 0, 0, 0, 10]
-		elif self.plot_type == 'bars': verbs = [0, 0, 0, 10, 10, 10, 10]
+		if self.plot_type == 'lines':
+			verbs = [0, 0, 0, 0, 10, 10, 0, 10]
+
+		elif self.plot_type == 'color':
+			verbs = [0, 0, 0, 0, 0, 0, 0, 0]
+
+		elif self.plot_type == 'surface':
+			verbs = [0, 0, 0, 0, 0, 0, 0, 0]
+
+		elif self.plot_type == 'bars':
+			verbs = [0, 0, 0, 10, 10, 10, 10, 0]
+
 		return verbs
 
 	def set_settables(self, *args, **kwargs):
 		self.widg_templates = []
-		#self.plot_types = ['lines', 'color', 'bars']
+		#self.plot_types = ['lines', 'color', 'surface', 'bars']
 		verbs = self.get_verbosities()
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['selector', 'button_set', 'radio', 
 						'selector', 'selector', 'selector'], 
-				verbosities = verbs[:-1], 
+				verbosities = verbs[:-2], 
 				layout = 'vertical', 
 				initials = [None, None, ['lines'], None, None, None], 
 				instances = [None, None, [self], None, None, None], 
@@ -518,20 +633,24 @@ class plot_window(create_obj_dialog):
 
 	def set_up_widgets(self):
 		panel = lgb.create_panel(self.widg_templates, self.mason)
-		layout = lgb.create_horz_box([panel])
-		layout.addLayout(self.targets_layout)
-		bottom_layout = lgb.create_vert_box([self.canvas, self.toolbar])
-		layout.addLayout(bottom_layout)
-		#layout.addWidget(self.canvas)
-		#layout.addWidget(self.toolbar)
-		#self.delete_layout()
+		split = QtGui.QSplitter(QtCore.Qt.Horizontal)
+		split.addWidget(panel)
+		split.addWidget(lgb.central_widget_wrapper(
+					content = self.targets_layout))
+		split.addWidget(lgb.central_widget_wrapper(
+					content = self.slice_layout))
+		split.addWidget(lgb.central_widget_wrapper(
+					content = lgb.create_vert_box(
+					[self.canvas, self.toolbar])))
+
+		layout = lgb.create_horz_box([split])
 		self.setLayout(layout)
 
-	def create_plot_page(self, page_label, data_container, specifics, 
-							filename, title, x_ax_title, y_ax_title):
+	def create_plot_page(self, page_label, data_container, 
+			specifics, axes, filename, title, x_ax_title, y_ax_title):
 		return plot_page(self, page_label, self.figure, self.canvas, 
-						data_container, specifics, filename, title, 
-											x_ax_title, y_ax_title)
+				data_container, specifics, axes, filename, title, 
+										x_ax_title, y_ax_title)
 
 	def change_page(self, new_dex):
 		self.set_current_page(new_dex)
@@ -548,9 +667,11 @@ class plot_window(create_obj_dialog):
 		try:
 			page_dex = self.page_labels.index(self.selected_page_label)
 			self.current_targets = copy(self._all_plot_targets_[page_dex])
+			self.current_axes = copy(self._all_plot_axes_[page_dex])
 			self.update_check_boxes(page_dex)
 			self.update_axes_slicing(page_dex)
 			self.pages[page_dex]._plot_targets_ = self.current_targets
+			self.pages[page_dex]._axis_labels_ = self.current_axes
 			#self.pages[page_dex].show_plot(page_dex)
 			self.pages[page_dex].show_plot()
 
@@ -578,32 +699,68 @@ class plot_window(create_obj_dialog):
 		title = 'Curves Shown'
 		self.check_group = QtGui.QGroupBox(title = title)
 		layout = lgb.create_vert_box(check_widget)
-		self.check_group.setLayout(layout)
+		self.check_group.setLayout(lgb.create_vert_box([
+			lgb.create_scroll_area(lgb.central_widget_wrapper(
+								content = layout))]))
 		self.targets_layout.addWidget(self.check_group)
+
+	def change_axis_slice(self, page_dex):
+		daters = self.pages[page_dex]._data_.data
+		try:
+			surf_vector_dex = [hasattr(dater, 'reduced') 
+						for dater in daters].index(True)
+
+		except ValueError:
+			print 'no surface_vector found!'; return
+
+		surf_vect = daters[surf_vector_dex]
+		cur_slices = [sel.currentText() for sel in self.slice_selectors]
+		str_defaults = [str(val) for val in surf_vect.axis_defaults]
+		changed = [(not cur == def_) for cur, def_ in 
+						zip(cur_slices, str_defaults)]
+		changed_dex = changed.index(True)
+		surf_vect.axis_defaults[changed_dex] =\
+			surf_vect.axis_values[changed_dex].scalers[
+				self.slice_selectors[changed_dex].currentIndex()]
+		self.pages[page_dex].show_plot()
 
 	def update_axes_slicing(self, page_dex):
 		self.slice_layout.removeWidget(self.slice_group)
 		if self.slice_group: self.slice_group.deleteLater()
+		labels = copy(self._all_plot_axes_[page_dex])
+		daters = self.pages[page_dex]._data_.data
+		try:
+			surf_vector_dex = [hasattr(dater, 'reduced') 
+						for dater in daters].index(True)
 
-		'''
-		append_instead = True
-		keys = ['current_targets']
-		instances = [self]
-		labels = copy(self._all_plot_targets_[page_dex])
-		provide_master = True
-		check_widget = lgb.create_check_boxes(append_instead, keys, 
-			instances, labels, None, None, False, provide_master)
+		except ValueError:
+			print 'no surface_vector found!'; return
 
-		for check in check_widget:
-			dex = self.page_labels.index(self.selected_page_label)
-			check.stateChanged.connect(self.pages[dex].show_plot)
-		'''
+		surf_vect = daters[surf_vector_dex]
+		ax_labs, ax_vals = surf_vect.axis_labels, surf_vect.axis_values
 		slice_widgets = []
+		self.slice_selectors = []
+		for lab, sca, def_ in zip(ax_labs, ax_vals, 
+							surf_vect.axis_defaults):
+			dummy = [None]*len(sca.scalers)
+			selector = lgb.create_combo_box(
+				sca.as_string_list(), dummy, dummy)
+			initial = sca.scalers.index(def_)
+			selector.setCurrentIndex(initial)
+			self.slice_selectors.append(selector)
+			selector.currentIndexChanged.connect(
+				lgb.create_function_with_args(
+				self.change_axis_slice, (page_dex, )))
+			ax_box = QtGui.QGroupBox(title = lab)
+			ax_box.setLayout(lgb.create_vert_box([selector]))
+			slice_widgets.append(ax_box)
 
 		title = 'P-Space Axis Handling'
 		self.slice_group = QtGui.QGroupBox(title = title)
 		layout = lgb.create_vert_box(slice_widgets)
-		self.slice_group.setLayout(layout)
+		self.slice_group.setLayout(lgb.create_vert_box([
+			lgb.create_scroll_area(lgb.central_widget_wrapper(
+								content = layout))]))
 		self.slice_layout.addWidget(self.slice_group)
 
 	def set_plot_info(self, data_container, filename, specifics, 
@@ -615,8 +772,15 @@ class plot_window(create_obj_dialog):
 		self.page_selector[0].children()[1].addItem(
 						new_page, userData = None)
 		self._all_plot_targets_.append(specifics)
+		axes = []
+		for dater in data_container.data:
+			if hasattr(dater, 'axis_labels'):
+				self.surface_vector_flag = True
+				axes.extend(dater.axis_labels)
+
+		self._all_plot_axes_.append(axes)
 		page = self.create_plot_page(new_page, data_container, 
-			specifics, filename, title, x_ax_title, y_ax_title)
+			specifics, axes, filename, title, x_ax_title, y_ax_title)
 		self.pages.append(page)
 		lay = self.layout()
 		lay.addWidget(page)
@@ -626,9 +790,7 @@ class plot_window(create_obj_dialog):
 		except IndexError:
 			print 'no codes left'; return 111
 
-	def pre_plot(self):
-		return self.add_plot()
-
+	'''
 	def add_plot(self, code = 111):
 		ax = self.figure.add_subplot(code)
 		ax.cla()
@@ -637,6 +799,7 @@ class plot_window(create_obj_dialog):
 		ax.set_title(self.title)
 		self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 		return ax
+	'''
 
 	def remake_plot(self):
 		dex = self.page_labels.index(self.selected_page_label)
@@ -647,12 +810,16 @@ class plot_window(create_obj_dialog):
 		self.update_check_boxes(dex)
 		self.update_axes_slicing(dex)
 		self.pages[dex]._plot_targets_ = self.current_targets
-		#self.set_current_page(dex)
 		self.hide_irrelevant_widgets()
 		self.pages[dex].show_plot()
 
 	def hide_irrelevant_widgets(self):
 		verbs = self.get_verbosities()
+		if verbs[7] > 0:
+			try: self.slice_group.hide()
+			except AttributeError: pass
+
+		else: self.slice_group.show()
 		if verbs[6] > 0: self.check_group.hide()
 		else: self.check_group.show()
 		if verbs[5] > 0: self.surf_target_selector[0].hide()
@@ -674,6 +841,13 @@ class plot_window(create_obj_dialog):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_color_surface_target(new_dex)
 
+###################
+#plotting business#
+###################
+
+##########################
+#parameter space business#
+##########################
 class trajectory_dialog(create_obj_dialog):
 
 	def __init__(self, *args, **kwargs):
@@ -685,6 +859,7 @@ class trajectory_dialog(create_obj_dialog):
 		self.p_space = kwargs['p_space']
 		self.parent = kwargs['parent']
 
+		self.result_string = None
 		self.result = None
 		self.constructed = []
 		#variations is a list (in 1-1 with subspaces)
@@ -742,7 +917,6 @@ class trajectory_dialog(create_obj_dialog):
 	def create_product_space_locations(self):
 		from libs.modular_core.libgeometry import parameter_space_location
 		self.wrap_nones()
-		
 		tuple_table = it.product(*self.variations)
 		for tup in tuple_table:
 			fixed_tup = []
@@ -754,6 +928,11 @@ class trajectory_dialog(create_obj_dialog):
 
 			self.constructed.append(parameter_space_location(
 								location = list(fixed_tup)))
+
+		vari_string = '\n\t\t'.join([' : '.join([ax, ', '.join(
+				[str(var) for var in vari])]) for ax, vari in 
+			zip(self.axis_labels, self.variations) if vari])
+		self.result_string = '\t<product_space> #\n\t\t' + vari_string
 
 	def create_one_to_one_locations(self):
 		from libs.modular_core.libgeometry import parameter_space_location
@@ -774,6 +953,9 @@ class trajectory_dialog(create_obj_dialog):
 			locale = [var[dex] for var in self.variations] 
 			self.constructed.append(parameter_space_location(
 										location = locale))
+
+		self.result_string = '<zip>\n\t'
+		pdb.set_trace()
 
 	def on_make(self):
 		if self.composition_method == 'Product Space':
@@ -881,6 +1063,10 @@ class range_maker(QtGui.QLabel):
 	def handle_rewidget(self):
 		if self.rewidget and issubclass(self.inst.__class__, 
 			lfu.modular_object_qt): self.inst.rewidget(True)
+
+##########################
+#parameter space business#
+##########################
 
 if __name__ == '__main__': print 'this is a library!'
 

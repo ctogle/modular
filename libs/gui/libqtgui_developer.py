@@ -19,6 +19,7 @@ class application_developer(lqg.application):
 			'title' : 'Modular Developer', 
 			'geometry' : (x, y, x_size, y_size), 
 			'window_icon' : self.gear_icon}
+		lqg._window_.apply_standards(self._standards_)
 		lqg.application.setStyle(lgb.create_style('plastique'))
 
 _application_ = application_developer

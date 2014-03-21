@@ -21,9 +21,9 @@
 	K : 10
 
 <functions>
-	lambda_x = alpha/((1 + x/C0)**n)
-	lambda_y = driveamp * pwm_square(driveperiod:drivephase:AHL_pwm:time)
-	g = mu/(K + x + y)
+	lambda_x : alpha/((1 + x/C0)**n)
+	lambda_y : driveamp * pwm_square(driveperiod:drivephase:AHL_pwm:time)
+	g : mu/(K + x + y)
 
 <reactions>
 	null lambda_x -> 1 x1 : x1 production

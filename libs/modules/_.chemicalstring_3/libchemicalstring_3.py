@@ -204,6 +204,11 @@ def generate_reaction(count_targets, counts, functions, func_names,
 		for agent in reagents: counts[agent[1]] -= agent[0]
 		for agent in products: counts[agent[1]] += agent[0]
 
+	#this should not be used anymore!
+	#def use_rate(double rate):
+	#	def rate_(cnts, varis): return rate
+	#	return rate_
+
 	def measure_agent(agent):
 		nothings = ['nothing', 'null', '']
 		if not agent in nothings:
@@ -235,7 +240,9 @@ def generate_reaction(count_targets, counts, functions, func_names,
 	#cdef double propensity_minimum = 1e-30
 	propensity_minimum = 1e-30
 	reagents = [measure_agent(agent) for agent in split[0].split('+')]
+	reagents = [agent for agent in reagents if agent]
 	products = [measure_agent(agent) for agent in split[2].split('+')]
+	products = [agent for agent in products if agent]
 	cnt_dexes = [agent[1] for agent in reagents]
 	try:
 		stochios, cnt_dexes = zip(*[(agent[0], cnt) for agent, cnt 
@@ -617,20 +624,16 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 
 		else: print 'capture criterion parsing problem'
 	else: print 'capture criterion parsing problem'
-	total_captures = int(end_crit_limit/capt_crit_thresh)
-	print 'tc', total_captures
+	total_captures = int(end_crit_limit/capt_crit_thresh) + 1
 
 	data = np.zeros(shape = (len(targets), total_captures), dtype = np.float)
 	target_dexes = [count_targets.index(targ) for targ in targets]
 
-	#perform initial state capture -> necessary!
 	data[:,capture_dex] = [counts[dex] for dex in target_dexes]
 	capture_dex += 1
 
 	while capture_dex < total_captures:
 	#while not counts[end_crit_dex] >= end_crit_limit:
-		if counts[0] == 10000: print 'time', counts[1]
-		#print 'end crit', counts[end_crit_dex], end_crit_limit
 		propensity_total = 0.0
 		for prop_dex in range(propensity_count):
 			if validators[prop_dex]():
@@ -670,7 +673,6 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 		reactions[rxn_dex]()
 		propensities[rxn_dex]()
 
-	pdb.set_trace()
 	return data, targets
 
 

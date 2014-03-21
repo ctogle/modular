@@ -1,5 +1,7 @@
 import re
 import sys
+pipe_mirror = None
+#stderr = None
 import time
 import types
 import ctypes
@@ -33,9 +35,13 @@ def initialize_gui(params):
 		print 'no application key; no initialize_gui method...'
 		return
 
-	global lset
+	global lset; global stdout; global stderr
 	try: import libs.modular_core.libsettings as lset
 	except ImportError: lset = None
+	#stdout = gui_pack.lgb.console_listener(True)
+	#stderr = gui_pack.lgb.console_listener(False)
+	#sys.stdout = stdout
+	#sys.stderr = stderr
 	app = application(params, sys.argv)
 	sys.exit(app.exec_())
 
@@ -156,7 +162,9 @@ class modular_object_qt(object):
 	def _destroy_(self, *args, **kwargs):
 		#print 'destroyed', self
 		global label_pool
-		for child in self._children_: child._destroy_()
+		for child in self._children_:
+			if child is self: pdb.set_trace()
+			child._destroy_()
 		if hasattr(self, '_label') and self._label in label_pool:
 			label_pool.remove(self._label)
 

@@ -16,15 +16,15 @@ _filter_endings_ = ['pyc', 'vtu', 'db', '.pkl', 'pvsm', 'sh', 'zip']
 def ignore_filter_(fi):
 	endings = _filter_endings_
 	ended = [fi.endswith(ending) for ending in endings]
-	return True in ended or fi.startswith('_.')
+	return True in ended or fi.startswith('_.') or fi.startswith('.')
 
 def ignore_paths():
 
 	def ignoref(pa, files):
-		if pa.startswith('_.'): return (f for f in files)
-		else:
-			fis = [f for f in files if ignore_filter_(f)]
+		if pa.startswith('_.') or pa.startswith('.'):
+			return (f for f in files)
 
+		else: fis = [f for f in files if ignore_filter_(f)]
 		return fis
 
 	return ignoref

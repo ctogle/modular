@@ -141,6 +141,10 @@ class standard_mason(object):
 				widg_list = self.interpret_template_list_controller(
 												template, widg_dex)
 
+			elif widget_type == 'console_listener':
+				widg_list = self.interpret_template_console_listener(
+												template, widg_dex)
+
 			else:
 				print 'no interpretation of widget type: ' + widget_type
 				return None
@@ -695,6 +699,9 @@ class standard_mason(object):
 		except AttributeError: entries = []
 		return [lgb.create_list_controller(headers = labels, 
 										entries = entries)]
+
+	def interpret_template_console_listener(self, template, widg_dex):
+		return [lgb.create_console_listener()]
 
 class recasting_mason(standard_mason):
 

@@ -168,6 +168,8 @@ class plot_axes_manager(lfu.modular_object_qt):
 		if self.parent.parent.parent.use_bar_plot:
 			return True
 
+		else: return False
+
 	#need widgets to choose 1 or 2 axes from a list of possibles
 	#	this is determined by the parent of the output plan
 	#		for correlations this should be the p_space axes
@@ -211,6 +213,9 @@ class writer_plt(writer):
 		if self.axes_manager.use_color_plot():
 			plot_types.append('color')
 
+		if self.axes_manager.use_color_plot():
+			plot_types.append('surface')
+
 		if self.axes_manager.use_line_plot():
 			plot_types.append('lines')
 
@@ -238,8 +243,7 @@ class writer_plt(writer):
 			y_ax_title = self.axes_manager.y_title)
 
 	def set_uninheritable_settables(self, *args, **kwargs):
-		self.visible_attributes = ['label', 'base_class', 
-					'filenames', 'iteration_resolution']
+		self.visible_attributes = ['label', 'base_class', 'filenames']
 
 class output_plan(lfu.plan):
 
@@ -286,9 +290,25 @@ class output_plan(lfu.plan):
 		self.__dict__.create_partition('template owners', ['writers'])
 
 	def to_string(self):
-		lines = []
-		pdb.set_trace()
-		return lines
+		#0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+		if self.label.startswith('Simulation'): numb = '0'
+		else:
+			procs = lfu.grab_mobj_names(
+				self.parent.parent.post_processes)
+			numb = str(procs.index(self.parent.label) + 1)
+
+		plot_types = [item for item, out_item in 
+			zip(['vtk', 'pkl', 'txt', 'plt'], 
+			[self.output_vtk, self.output_pkl, 
+			self.output_txt, self.output_plt]) if out_item]
+		if not plot_types: plots = 'none'
+		else: plots = ', '.join(plot_types)
+		targs = self.get_target_labels()
+		if not self.targeted: targs = 'none'
+		elif self.targeted == targs: targs = 'all'
+		else: targs = ', '.join(self.targeted)
+		return '\t' + ' : '.join([numb, self.save_directory, 
+						self.save_filename, plots, targs])
 
 	def must_output(self, *args, **kwargs):
 		return True in [self.output_vtk, self.output_pkl, 
@@ -342,13 +362,6 @@ class output_plan(lfu.plan):
 			#put each data list into a flat list of objects with flat lists for data attributes
 			targs = self.get_target_labels()
 			for traj in system.data:
-				#DATAFLAG
-				#print 'dataflag', self.flat_data
-				#dat_ = [lgeo.scalers(label = target, scalers = dater) 
-				#	for target, dater in zip(targs, traj) if dater]
-				#pdb.set_trace()
-				#data_container = lfu.data_container(data = dat_)
-
 				data_container = lfu.data_container(data = traj)
 				self.update_filenames()
 				proper_paths = self.find_proper_paths()
@@ -435,7 +448,6 @@ class output_plan(lfu.plan):
 
 	def set_settables(self, *args, **kwargs):
 		ensem = args[1]
-		#frame = args[0]
 		target_labels = self.get_target_labels(*args, **kwargs)
 
 		self.targeted = lfu.intersect_lists(self.targeted, target_labels)

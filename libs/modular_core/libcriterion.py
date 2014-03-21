@@ -87,7 +87,7 @@ class criterion_iteration(criterion):
 		self._children_ = []
 
 	def to_string(self):
-		return 'iteration limit : ' + str(self.max_iterations)
+		return '\titeration limit : ' + str(self.max_iterations)
 
 	def initialize(self, *args, **kwargs):
 		self.max_iterations = float(self.max_iterations)
@@ -135,7 +135,7 @@ class criterion_sim_time(criterion):
 		self.max_time = max_time
 
 	def to_string(self):
-		return 'time limit : ' + str(self.max_time)
+		return '\ttime limit : ' + str(self.max_time)
 
 	def initialize(self, *args, **kwargs):
 		self.max_time = float(self.max_time)
@@ -179,7 +179,7 @@ class criterion_capture_count(criterion):
 		self.max_captures = max_captures
 
 	def to_string(self):
-		return 'capture limit : ' + str(self.max_captures)
+		return '\tcapture limit : ' + str(self.max_captures)
 
 	def initialize(self, *args, **kwargs):
 		self.max_captures = int(self.max_captures)
@@ -233,7 +233,7 @@ class criterion_scaler_increment(criterion):
 		self.increment = increment
 
 	def to_string(self):
-		return 'species scaler increment : ' + \
+		return '\tspecies scaler increment : ' + \
 			str(self.increment) + ' : ' + self.key
 
 	def initialize(self): self.increment = float(self.increment)
