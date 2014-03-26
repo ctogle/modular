@@ -7,11 +7,14 @@ import itertools as it
 import types
 import random
 import os
+import sys
 import time
 import math
 import numpy as np
 from copy import deepcopy as copy
 from scipy.integrate import simps as integrate
+
+import traceback
 
 import pdb
 
@@ -27,7 +30,7 @@ class scalers(object):
 
 	def __init__(self, label = 'some scaler', scalers = None):
 		self.label = label
-		if scalers: self.scalers = scalers
+		if not scalers is None: self.scalers = scalers
 		else: self.scalers = []
 		self.tag = 'scaler'
 
@@ -48,6 +51,9 @@ class batch_scalers(object):
 		return [self._get_trajectory_(dex) for 
 			dex in range(len(self.batch_pool))].__iter__()
 
+	def __len__(self):
+		return len(self.batch_pool)
+
 	def next(self):
 		if self.current > self.high:
 			raise StopIteration
@@ -55,6 +61,12 @@ class batch_scalers(object):
 		else:
 			self.current += 1
 			return self.current - 1
+
+	def __getitem__(self, key):
+		if type(key) is types.IntType:
+			try: return self._get_trajectory_(key)
+			except IndexError: raise IndexError
+		else: raise TypeError
 
 	def get_batch(self):
 		return [self._get_trajectory_(dex) for 
@@ -98,8 +110,10 @@ class batch_data_pool(object):
 		return len(self.live_pool)
 
 	def __getitem__(self, key):
-		if type(key) is types.IntType: return self._get_pool_(key)
-		else: pdb.set_trace()
+		if type(key) is types.IntType:
+			try: return self._get_pool_(key)
+			except IndexError: raise IndexError
+		else: raise TypeError
 
 	def _flatten_(self, pool):
 		batch = []
@@ -114,7 +128,7 @@ class batch_data_pool(object):
 								os.getcwd(), 'data_pools', 
 								self.data_pool_ids[dex]))
 
-		except: pdb.set_trace()
+		except: raise IndexError
 		batch = [self._get_trajectory_(dex) for 
 			dex in range(len(self.live_pool))]
 		return batch
@@ -230,11 +244,11 @@ def generate_parameter_space_from_run_params(parent, run_params):
 					if template.contribute_to_p_sp:
 						subspaces.append(one_dim_space(template))
 
-			nested = par.__dict__.partition['p_space contributors']
-			for key in nested.keys():
-				check_for_nested_contributors(subspaces, nested[key])
+			#nested = par.__dict__.partition['p_space contributors']
+			#for key in nested.keys():
+			#	check_for_nested_contributors(subspaces, nested[key])
 
-		except: pass
+		except: traceback.print_exc(file=sys.stdout)
 
 	subspaces = []
 	for key in run_params.keys():
@@ -254,16 +268,84 @@ def generate_parameter_space_from_run_params(parent, run_params):
 	space.parent = parent
 	return space, True
 
-class one_dim_space(scalers):
+def generate_coarse_parameter_space_from_fine(fine):
 
-	def __init__(self, template):
+	def coerce_bounds(inbounds, orders):
+		outbounds = [coerce_to_magnitude_order(bnd, dir_, orders) 
+				for bnd, dir_ in zip(inbounds, ['down', 'up'])]
+		return outbounds
+
+	def coerce_to_magnitude_order(val, bounds, orders):
+
+		def resolve_bounded(orders, val, bnds):
+			bottom = orders.index(bnds[0])
+			top = orders.index(bnds[1])
+			#middle = int((bottom + top)/2.0)
+			#return orders[middle]
+			return orders[top - 1]
+
+		def resolve_no_bounds(orders, val, dir_):
+			if dir_ == 'up': bump = 1
+			else: bump = -1
+			try: resolved = 10.0**int(math.log10(val) + bump)
+			except ValueError:
+				if val == 0.0:
+					if dir_ == 'up': resolved = 1.0
+					else: resolved = 0.1
+
+			return resolved
+
+		fl = float(val)
+		if bounds in ['down', 'up']:
+			return resolve_no_bounds(orders, fl, bounds)
+		else: return resolve_bounded(orders, fl, bounds)
+
+	orders = [0.000000001, 0.00000001, 0.0000001, 0.000001, 
+			0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 
+					1000.0, 10000.0, 100000, 1000000, 10000000]
+	coarse_subspaces = []
+	for fine_subsp in fine.subspaces:
+		coerced_bounds = coerce_bounds(fine_subsp.bounds, orders)
+		coarse_subsp = one_dim_space(interface_template_p_space_axis(
+			instance = fine_subsp.inst, key = fine_subsp.key, 
+			p_sp_continuous = False, p_sp_bounds = coerced_bounds, 
+			p_sp_increment = coerce_to_magnitude_order(
+				fine_subsp.increment, coerced_bounds, orders)))
+		coarse_subsp.inst.__dict__[coarse_subsp.key] =\
+			coerce_to_magnitude_order(
+				fine.subspaces[0].inst.__dict__[
+				fine.subspaces[0].key], 'up', orders)
+		coarse_subsp.scalers = orders[
+				orders.index(coerced_bounds[0]):
+				orders.index(coerced_bounds[1])+1]
+		coarse_subspaces.append(coarse_subsp)
+
+	if not coarse_subspaces: return None, False
+	space = merge_spaces(coarse_subspaces)
+	space.parent = fine.parent
+	return space, True
+
+class one_dim_space(object):
+
+	def __init__(self, template, scalers_ = None):
 		self.inst = template.instance
 		self.key = template.key
 		self.bounds = template.p_sp_bounds
+		self.continuous = template.p_sp_continuous
+		self.increment = template.p_sp_increment
 		label = ' : '.join([template.instance.label, template.key])
-		scalers.__init__(self, label = label)
+		self.label = label
+		if not self.continuous and not scalers_:
+			scalers_ = np.arange(self.bounds[0], 
+					self.bounds[1], self.increment)
+			scalers_ = list(scalers_)
+			if self.bounds[1] - scalers_[-1] >= self.increment:
+				scalers_.append(scalers_[-1] + self.increment)
+
+		self.scalers = scalers_
 
 	def move_to(self, value):
+		if not self.continous: pdb.set_trace()
 		self.inst.__dict__[self.key] = value
 
 class parameter_space_location(lfu.modular_object_qt):
@@ -285,6 +367,30 @@ class parameter_space_location(lfu.modular_object_qt):
 	def __len__(self):
 		return len(self.location)
 
+class parameter_space_step(lfu.modular_object_qt):
+
+	def __init__(self, location = [], 
+						initial = [], 
+						final = [], 
+						delta_quality = []):
+		lfu.modular_object_qt.__init__(self)
+		self.location = location
+		self.initial = initial
+		self.final = final
+		self.delta_quality = delta_quality
+
+	def step_forward(self):
+		for k in range(len(self.location)):
+			#print 'actually set value to: ' + str(self.final[k])
+			self.location[k][0].__dict__[
+				self.location[k][1]] = float(self.final[k])
+
+	def step_backward(self):
+		for k in range(len(self.location)):
+			#print 'actually reset value to: ' + str(self.final[k])
+			self.location[k][0].__dict__[
+				self.location[k][1]] = float(self.initial[k])
+
 class parameter_space(lfu.modular_object_qt):
 
 	'''
@@ -294,14 +400,8 @@ class parameter_space(lfu.modular_object_qt):
 		subsps are one_dim_space objects
 	the first overrides the second
 	'''
-	#def __init__(self, label = 'another parameter space', 
-	def __init__(self, 
-			base_obj = None, subspaces = [], 
-			parent = None, steps = []): 
-
-		#initial_factor = 1.0, steps = []):
-		#self.rand_1 = random.random()
-		#self.initial_factor = initial_factor
+	def __init__(self, base_obj = None, subspaces = [], 
+							parent = None, steps = []): 
 
 		if not base_obj is None:
 			self.subspaces = []
@@ -314,6 +414,7 @@ class parameter_space(lfu.modular_object_qt):
 			self.set_simple_space_lookup()
 
 		self.steps = steps
+		self.step_normalization = 10.0
 		self.dimensions = len(self.subspaces)
 		lfu.modular_object_qt.__init__(self, 
 			#label = label, parent = parent)
@@ -325,10 +426,9 @@ class parameter_space(lfu.modular_object_qt):
 		return parameter_space_location(location = location)
 
 	def get_current_position(self):
-		vector = [(axis.name, 
-				str(axis.base_obj.__dict__[axis.base_template.name])) 
-										for axis in self.subspaces]
-		return vector
+		return [(axis.inst.label, axis.key, 
+			str(axis.inst.__dict__[axis.key])) 
+					for axis in self.subspaces]
 
 	#bias_axis is the index of the subspace in subspaces
 	#bias is the number of times more likely that axis is than the rest
@@ -373,6 +473,9 @@ class parameter_space(lfu.modular_object_qt):
 	def set_start_pt(self):
 		self.undo_level = 0
 		for subsp in self.subspaces:
+			rele_val = subsp.inst.__dict__[subsp.key]
+			
+			'''
 			for subsubsp in subsp.subspaces:
 				rele_val = subsubsp.base_obj.__dict__[
 							subsubsp.base_template.name]
@@ -386,26 +489,27 @@ class parameter_space(lfu.modular_object_qt):
 						subsubsp.base_obj.__dict__[
 							subsubsp.base_template.name] = 0.0
 
-				else:
-					if subsubsp.base_template.conditioning(rele_val)\
-											not in subsubsp.scalers:
-						new_dex = int(len(subsubsp.scalers)/2)
-						subsubsp.base_obj.__dict__[
-							subsubsp.base_template.name] =\
-										subsubsp.scalers[new_dex]
-						print 'initial value "' + str(rele_val) +\
-							'" not found in specified parameter' +\
-								' space - adjusting to ' +\
-									str(subsubsp.scalers[new_dex])
+					else:
+						if subsubsp.base_template.conditioning(rele_val)\
+												not in subsubsp.scalers:
+							new_dex = int(len(subsubsp.scalers)/2)
+							subsubsp.base_obj.__dict__[
+								subsubsp.base_template.name] =\
+											subsubsp.scalers[new_dex]
+							print 'initial value "' + str(rele_val) +\
+								'" not found in specified parameter' +\
+									' space - adjusting to ' +\
+										str(subsubsp.scalers[new_dex])
+			'''
 
 	def undo_step(self):
 		try:
-			print 'undoing a step!'
+			#print 'undoing a step!'
 			self.undo_level += 1
-			self.steps.append(
-					parameter_space_step(location = self.steps[-1].location, 
-											initial = self.steps[-1].final, 
-											final = self.steps[-1].initial))
+			self.steps.append(parameter_space_step(
+				location = self.steps[-1].location, 
+				initial = self.steps[-1].final, 
+				final = self.steps[-1].initial))
 			self.steps[-1].step_forward()
 
 		except IndexError:
@@ -413,268 +517,161 @@ class parameter_space(lfu.modular_object_qt):
 
 	def step_up_discrete(self, step, dex, rng):
 		if dex + step not in rng:
-			print 'i cant step up anymore!'
-			dex = rng[-1]
-			#dex = self.step_down(step, dex, rng)
+			over = dex + step - rng[-1]
+			dex = rng[-1] - over
 
-		else:
-			dex += step
-
+		else: dex += step
 		return dex
 
 	def step_down_discrete(self, step, dex, rng):
 		if dex - step not in rng:
-			print 'i cant step down anymore!'
-			dex = rng[0]
-			#dex = self.step_up(step, dex, rng)
+			dex = step - dex
 
-		else:
-			dex -= step
-
+		else: dex -= step
 		return dex
 
-	def set_up_discrete_step(self, param_dex, factor):
-		param = self.subspaces[param_dex].base_obj.__dict__[
-				self.subspaces[param_dex].base_template.name]
-		val_dex_rng = range(len(self.subspaces[param_dex].scalers))
-		try:
-			val_dex = self.subspaces[param_dex].scalers.index(param)
-
+	def set_up_discrete_step(self, param_dex, factor, direc):
+		#type_ = type(self.subspaces[param_dex].inst.__dict__[
+		#					self.subspaces[param_dex].key])
+		old_value = self.subspaces[param_dex].inst.__dict__[
+							self.subspaces[param_dex].key]
+		space_leng = len(self.subspaces[param_dex].scalers)
+		val_dex_rng = range(space_leng)
+		try:val_dex = self.subspaces[param_dex].scalers.index(old_value)
 		except ValueError:
-			print 'step was out of bounds - adjust?'
-			pdb.set_trace()
-			val_dex = int(len(val_dex_rng)/2)
+			print 'discrete parameter was off of lattice'
+			val_dex = int(space_leng/2)
 
-		step = 1 + int(factor)
-		print 'stepped: ' + str(step)
-		self.steps.append(
-				parameter_space_step(
-					location = (self.subspaces[param_dex].base_obj, 
-								self.subspaces[param_dex].base_template.name), 
-								initial = param))
-		self.parent.last_subsp_bias =\
-			self.subspaces[param_dex].base_template.subsp_tag
-		return val_dex, val_dex_rng, step, param
+		space_leng = len(self.subspaces[param_dex].scalers)
+		step = abs(int(random.gauss(0, 
+		#step = 1 + abs(int(random.gauss(0, 
+			space_leng/self.step_normalization)*\
+					(factor/self.initial_factor)))
+		self.steps[-1].location.append((
+			self.subspaces[param_dex].inst, 
+			self.subspaces[param_dex].key))
+		self.steps[-1].initial.append(old_value)
+		if not direc: rand = random.random()
+		else: rand = direc
+		if rand < 0.5:
+			val_dex = self.step_down_discrete(
+					step, val_dex, val_dex_rng)
 
-	def take_discrete_step(self, par_dex, val_dex):
-		param =	self.subspaces[par_dex].scalers[val_dex]
-		self.steps[-1].final = param
-		self.steps[-1].step_forward()
-		print 'now its this: ' + str(param)
+		else:
+			val_dex = self.step_up_discrete(
+				step, val_dex, val_dex_rng)
+
+		param = self.subspaces[param_dex].scalers[val_dex]
+		return param - old_value, old_value
 
 	def set_up_continuous_step(self, param_dex, factor, direc):
-		old_value = self.subspaces[param_dex].base_obj.__dict__[
-					self.subspaces[param_dex].base_template.name]
-		#space_leng = len(self.subspaces[param_dex].scalers)
-		space_leng = self.subspaces[param_dex].base_template.p_sp_bounds[1] -\
-						self.subspaces[param_dex].base_template.p_sp_bounds[0]
-		space_leng *= self.subspaces[param_dex].base_template.p_sp_step_order
-		print 'parameter: ' + str(self.subspaces[param_dex].name) + ' with space leng: ' + str(space_leng)
-		step = random.gauss(0, space_leng/5.0)*\
+		old_value = float(self.subspaces[param_dex].inst.__dict__[
+									self.subspaces[param_dex].key])
+		space_leng =\
+			self.subspaces[param_dex].bounds[1] -\
+			self.subspaces[param_dex].bounds[0]
+		step = random.gauss(0, 
+			space_leng/self.step_normalization)*\
 					(factor/self.initial_factor)
-		#if direc != None:
-		#	step = abs(step)*direc
+		if direc:
+			if not step/abs(step) == direc: step = -1.0 * step
 
-		self.steps[-1].location.append((self.subspaces[param_dex].base_obj, 
-						self.subspaces[param_dex].base_template.name))
+		if old_value + step < self.subspaces[param_dex].bounds[0]:
+			over_the_line = abs(step) -\
+				abs(old_value - self.subspaces[param_dex].bounds[0])
+			step = over_the_line - old_value
+
+		if old_value + step > self.subspaces[param_dex].bounds[1]:
+			over_the_line = abs(step) -\
+				abs(self.subspaces[param_dex].bounds[1] - old_value)
+			step = self.subspaces[param_dex].bounds[1] -\
+								over_the_line - old_value
+
+		self.steps[-1].location.append((
+			self.subspaces[param_dex].inst, 
+			self.subspaces[param_dex].key))
 		self.steps[-1].initial.append(old_value)
-		#self.steps.append(
-		#		parameter_space_step(
-		#			location = (self.subspaces[param_dex].base_obj, 
-		#				self.subspaces[param_dex].base_template.name), 
-		#				initial = old_value))
-		#self.parent.last_subsp_bias =\
-		#	self.subspaces[param_dex].base_template.subsp_tag
-		
-		print 'stepped: ' + str(step) + ' | ' + str(factor/self.initial_factor)
 		return step, old_value
 
-	#def take_continuous_step(self, par_dex, param, step):
-	def take_continuous_step(self, par_dexes, params):
-		#self.steps[-1].final = param + step
-		self.steps[-1].final = []
-		for k in range(len(params)):
-			self.steps[-1].final.append(params[k][0] + params[k][1])
-			rules = self.subspaces[par_dexes[k]].\
-					base_template.p_sp_continuous_rules
-			fixes = self.subspaces[par_dexes[k]].\
-					base_template.p_sp_continuous_fixes
-			for j in range(len(rules)):
-				if not rules[j](self.steps[-1].final[-1]):
-					self.steps[-1].final[-1] = fixes[j](self.steps[-1].final[-1])
+	def take_biased_step_along_axis(self, factor = 1.0, bias = 1000.0):
 
-		self.steps[-1].step_forward()
-		#print 'now its continuously this: ' + str(self.steps[-1].final)
+		def get_direction(dex):
+			delta = self.steps[-1].final[dex] -\
+				float(self.steps[-1].initial[dex])
+			if delta: return delta/abs(delta)
+			return None
 
-	def take_biased_step_along_axis(self, factor = 1.0, 
-					bias = 10.0, pref_subsp_tag = None, flip_dirs = False):
-		if pref_subsp_tag != None:
-			pref_ax_dexes = [dex for dex in range(len(self.subspaces)) 
-						if self.subspaces[dex].base_template.subsp_tag 
-													== pref_subsp_tag]
-			print 'the preferred axes! ' + str(pref_ax_dexes)
-			self.set_simple_space_lookup(pref_ax_dexes, bias)
-			self.take_proportional_step(factor, even_odds = False)
+		if not self.steps: self.take_proportional_step(factor)
+		objs = [sp.inst for sp in self.subspaces]
+		step_objs = [local[0] for local in self.steps[-1].location]
+		last_ax_dexes = [objs.index(obj) for obj in step_objs]
+		last_ax_direcs = [get_direction(k) for k in 
+				range(len(self.steps[-1].initial))]
+		self.set_simple_space_lookup(last_ax_dexes, bias)
+		self.take_proportional_step(factor, 
+			#even_odds = False, many_steps = len(last_ax_dexes)/4, 
+			even_odds = False, many_steps = int(len(last_ax_dexes)), 
+			last_ax_pairs = zip(last_ax_dexes, last_ax_direcs))
 
-		else:
-			try:
-				#last_ax_dex = [sp.base_obj for sp in 
-				#				self.subspaces].index(
-				#				self.steps[-1].location[0])
-				objs = [sp.base_obj for sp in self.subspaces]
-				step_objs = [local[0] for local in self.steps[-1].location]
-				last_ax_dexes = [objs.index(obj) for obj in step_objs]
-				last_ax_direcs = [(self.steps[-1].final[k] - self.steps[-1].initial[k])\
-									/abs(self.steps[-1].final[k] - self.steps[-1].initial[k]) 
-									for k in range(len(self.steps[-1].initial))]
-				if flip_dirs:
-					last_ax_direcs = [val*-1.0 for val in last_ax_dexes]
-
-				print 'lasting leng: ' + str(last_ax_dexes)
-
-			except ZeroDivisionError:
-				print 'its probably time to call it quits....'
-				print 'failed to continue old step!'
-				self.take_proportional_step(factor)
-				return
-
-			except:
-				print 'failed to continue old step!'
-				pdb.set_trace()
-				self.take_proportional_step(factor)
-				return
-
-			self.set_simple_space_lookup(last_ax_dexes, bias)
-			self.take_proportional_step(factor, even_odds = False, many_steps = len(last_ax_dexes), last_ax_pairs = zip(last_ax_dexes, last_ax_direcs))
-			print 'biasing step old fashioned way!'
-
-	#BROKEN FUNCTION!!
-	def continue_along_axis(self, factor = 1.0):
-		try:
-			param_dex = [sp.base_obj for sp in 
-							self.subspaces].index(
-							self.steps[-1].location[0])
-
-		except IndexError:
-			print 'failed to continue old step!'
-			pdb.set_trace()
-			self.take_proportional_step(factor)
-			return
-
-		if self.subspaces[param_dex].base_template.p_sp_continuous:
-			step, param = self.set_up_continuous_step(
-									param_dex, factor)
-			self.take_continuous_step(param_dex, param, step)
-
-		else:
-			val_dex, val_dex_rng, step, param = self.set_up_discrete_step(
-														param_dex, factor)
-			print 'continuing old step from: ' + str(param)
-			#self.steps.append(
-			#		parameter_space_step(
-			#				location = self.steps[-1].location, 
-			#				initial = self.steps[-1].final))
-			if self.rand_1 < 0.5:
-				val_dex = self.step_down(step, val_dex, val_dex_rng)
-
-			elif self.rand_1 > 0.5:
-				val_dex = self.step_up(step, val_dex, val_dex_rng)
-
-			self.take_discrete_step(param_dex, val_dex)
-
-	def take_proportional_step(self, factor = 1.0, 
-			even_odds = True, many_steps = 1, last_ax_pairs = None):
-		if even_odds:
-			self.set_simple_space_lookup()
-
-		#self.rand_1 = random.random()
-		self.rands = [random.random() for k in range(many_steps)]
-		self.rand_lookup = random.random()
-		#param_dex = LM.pick_value_from_unsorted_prob_distrib(
-		#					self.param_lookup, self.rand_lookup)
-		#param_dex = [self.rand_lookup < lookup 
-		#			for lookup in self.param_lookup].index(True)
-
-
+	def take_proportional_step(self, factor = 1.0, even_odds = True, 
+								many_steps = 3, last_ax_pairs = None):
+		if even_odds: self.set_simple_space_lookup()
 		param_dexes = self.lookup_distinct_axes(many_steps)
-
-		#param_dexes = [[rand < lookup 
-		#				for lookup in self.param_lookup].index(True) for rand in self.rands]
-		try:
-			last_axes, last_direcs = zip(*last_ax_pairs)
-
-		except:
+		if last_ax_pairs: last_axes, last_direcs = zip(*last_ax_pairs)
+		else:
 			last_axes = []
 			last_direcs = []
 
-		step_param_collection = []
-		self.steps.append(
-				parameter_space_step(
-					location = [], 
-					initial = []))
+		self.steps.append(parameter_space_step(
+			location = [], initial = [], final = []))
 		for param_dex in param_dexes:
-			if self.subspaces[param_dex].base_template.p_sp_continuous:
-				if param_dex in last_axes:
-					direc = last_direcs[last_axes.index(param_dex)]
+			if param_dex in last_axes:
+				direc = last_direcs[last_axes.index(param_dex)]
 
-				else:
-					direc = None
+			else: direc = None
+			if self.subspaces[param_dex].continuous:
 
 				step, param = self.set_up_continuous_step(
-									param_dex, factor, direc)
-				#self.take_continuous_step(param_dex, param, step)
-				step_param_collection.append((step, param))
+								param_dex, factor, direc)
+				self.steps[-1].final.append(step + float(param))
 
 			else:
-				val_dex, val_dex_rng, step, param = \
-					self.set_up_discrete_step(param_dex, factor)
+				step, param = self.set_up_discrete_step(
+								param_dex, factor, direc)
+				self.steps[-1].final.append(step + float(param))
 
-				print 'taking new step from: ' + str(param)
-				#self.steps.append(
-				#		parameter_space_step(
-				#			location = (self.subspaces[param_dex].base_obj, 
-				#						self.subspaces[param_dex].base_template.name), 
-				#						initial = param))
-				if val_dex is val_dex_rng[-1] or self.rand_1 < 0.5:
-					val_dex = self.step_down(step, val_dex, val_dex_rng)
-
-				elif val_dex is val_dex_rng[0] or self.rand_1 > 0.5:
-					val_dex = self.step_up(step, val_dex, val_dex_rng)
-
-				self.take_discrete_step(param_dex, val_dex)
-
-		self.take_continuous_step(param_dexes, step_param_collection)
+		self.steps[-1].step_forward()
 
 	def lookup_distinct_axes(self, many_steps):
 		dexes = []
-		#lookup = copy(self.param_lookup)
-		while len(dexes) < many_steps:
+		while len(dexes) < min([len(self.subspaces), many_steps]):
 			rand = random.random()
-			new_dex = [rand < lup for lup in self.param_lookup].index(True)
-			if not new_dex in dexes:
-				dexes.append(new_dex)
-			#[val - lookup[dexes[-1]] for val in lookup[dexes[-1] + 1:]]
-			#del lookup[dexes[-1]]
+			new_dex = [rand < lup for lup in 
+				self.param_lookup].index(True)
+			if not new_dex in dexes: dexes.append(new_dex)
 
-		print 'dexes: ' + str(dexes)
-		#pdb.set_trace()
 		return dexes
 
 class interface_template_p_space_axis(lfu.interface_template_new_style):
+
+	rewidget_ = True
 
 	def __init__(self, instance = None, key = None, parent = None, 
 			visible_attributes = ['reference', 'linkages'], 
 			contribute_to_p_sp = False, gui_give_p_sp_control = True, 
 			p_sp_continuous = True, p_sp_bounds = [1, 10], 
-			gui_give_p_sp_cont_disc_control = False):
+			gui_give_p_sp_cont_disc_control = False, 
+			p_sp_increment = 1.0):
 		self.instance = instance
 		self.key = key
 		self.contribute_to_p_sp = contribute_to_p_sp
 		self.gui_give_p_sp_control = gui_give_p_sp_control
 		self.p_sp_continuous = p_sp_continuous
 		self.p_sp_bounds = p_sp_bounds
+		self.p_sp_increment = p_sp_increment
 		self.gui_give_p_sp_cont_disc_control =\
 				gui_give_p_sp_cont_disc_control
+		self.mason = lgm.standard_mason(parent = self)
 		lfu.interface_template_new_style.__init__(self, 
 			parent = parent, visible_attributes = visible_attributes)
 
@@ -692,20 +689,55 @@ class interface_template_p_space_axis(lfu.interface_template_new_style):
 			#self.rewidget__children_(**kwargs)
 			return self.rewidget_
 
+	def _show_dialog_widgets_(self, *args, **kwargs):
+		self.dialog_panel = lgb.create_scroll_area(lgb.create_panel(
+							self.widg_dialog_templates, self.mason))
+		gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
+		self.dialog_panel.setWindowIcon(lgb.create_icon(gear_icon))
+		for temp in self.widg_dialog_templates:
+			if hasattr(temp, 'panel_label'):
+				self.dialog_panel.setWindowTitle(temp.panel_label)
+
+		panel_x = self.dialog_panel.sizeHint().width()*1.5
+		panel_y = self.dialog_panel.sizeHint().height()*1.25
+		panel_x, panel_y = min([panel_x, 1600]), min([panel_y, 900])
+		self.dialog_panel.setGeometry(150, 120, panel_x, panel_y)
+		self.dialog_panel.show()
+
 	def set_settables(self, *args, **kwargs):
 		#self.handle_widget_inheritance(*args, **kwargs)
 		self.widg_templates = []
 		self.widg_templates.append(
 			lgm.interface_template_gui(
-				widgets = ['check_set'], 
-				instances = [[self]], 
-				keys = [['contribute_to_p_sp']], 
-				labels = [['Contribute to Parameter Space']], 
-				append_instead = [False], 
+				widgets = ['check_set', 'button_set'], 
+				instances = [[self], None], 
+				keys = [['contribute_to_p_sp'], None], 
+				labels = [['Contribute to Parameter Space'], 
+						['More Settings']], 
+				append_instead = [False, None], 
+				bindings = [None, [self._show_dialog_widgets_]], 
 				box_labels = ['Parameter Space']))
-		self.rewidget(False)
+		self.widg_dialog_templates = []
+		self.widg_dialog_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['spin', 'spin'], 
+				doubles = [[True], [True]], 
+				initials = [[self.p_sp_bounds[0]], 
+							[self.p_sp_bounds[1]]], 
+				minimum_values = [[-sys.float_info.max], 
+								[-sys.float_info.max]], 
+				maximum_values = [[sys.float_info.max], 
+								[sys.float_info.max]], 
+				instances = [[self.p_sp_bounds], 
+							[self.p_sp_bounds]], 
+				keys = [[0], [1]], 
+				box_labels = ['Subspace Minimum', 
+							'Subspace Maximum'], 
+				panel_label = 'Parameter Space'))
+
 		#lfu.modular_object_qt.set_settables(
 		#		self, *args, from_sub = True)
+		self.rewidget(False)
 
 class cartographer_plan(lfu.plan):
 
@@ -974,505 +1006,142 @@ def sort_data_by_type(data, specifics = []):
 class metric(lfu.modular_object_qt):
 
 	#ABSTRACT
-	def __init__(self, label = 'another metric', bRelevant = True, 
-		parent = None, data = [], source_1 = None, source_2 = None, 
-		domain_dater_id_1 = None, domain_dater_id_2 = None, 
-		codomain_dater_ids_1 = [], codomain_dater_id_1 = None, 
-		codomain_dater_ids_2 = [], codomain_dater_id_2 = None, 
-		valid_base_classes = None, base_class = None):
-		if valid_base_classes is None:
-			global valid_criterion_base_classes
-			valid_base_classes = valid_criterion_base_classes
-
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-							object, 'abstract metric')
-
-		self.bRelevant = bRelevant
-		self.source_1 = source_1
-		self.source_2 = source_2
-		self.domain_dater_id_1 = domain_dater_id_1
-		self.domain_dater_id_2 = domain_dater_id_2
-		self.codomain_dater_ids_1 = codomain_dater_ids_1
-		self.codomain_dater_ids_2 = codomain_dater_ids_2
-		self.codomain_dater_id_1 = codomain_dater_id_1
-		self.codomain_dater_id_2 = codomain_dater_id_2
-		lfu.modular_object_qt.__init__(self, label = label, data = data, 
-							parent = parent, base_class = base_class, 
-							valid_base_classes = valid_base_classes)
-
-	def initialize(self):
-		pass
-		#self.data = lgeo.scalers_from_labels(self.codomain_dater_ids)
-
-	def grab_data_attribute(self, data_obj, id_y):
-		
-		dex_x = [dater.name for dater in data_obj.data].index(
-										self.compare_to_id_x)
-		dex_y = [dater.name for dater in data_obj.data].index(id_y)
-		dater_x = data_obj.data[dex_x]
-		dater_y = data_obj.data[dex_y]
-		return dater_x, dater_y
-
 	'''
-	def display_trajectory(self, x_axis, y_values_1, y_values_2):
-		plt.plot(x_axis, y_values_1)
-		plt.plot(x_axis, y_values_2)
-		plt.draw()
-		time.sleep(2)
-		plt.close()
+	a metric takes two sets of data and runs some method which
+	returns one scaler representing some sort of distance
 	'''
+	def __init__(self, *args, **kwargs):
+		if not 'valid_base_classes' in kwargs.keys():
+			global valid_metric_base_classes
+			kwargs['valid_base_classes'] = valid_metric_base_classes
 
-	def find_bounds(x_axis_1, x_axis_2):
-		bounds = (	max(x_axis_1[0], x_axis_2[0]), 
-					min(x_axis_1[-1], x_axis_2[-1])	)
-		print 'valid bounds: ' + str(bounds)
-		return bounds
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+									object, 'abstract metric')
 
-	def measure(self):
-		if not self.source_1 is None and not self.source_2 is None:
-			pdb.set_trace()
-		'''
-		if self.compare_to is not None:
-			to_compare_x, to_compare_y_list = self.to_compare
-			for k in range(len(self.compare_to_id_y_list)):
-				to_compare_y = to_compare_y_list[[dater.name 
-					for dater in to_compare_y_list].index(
-									self.compare_to_id_y[k])]
-				compare_to_x, compare_to_y = self.grab_data_attribute(
-							self.compare_to, self.compare_to_id_y[k])
-				#self.compare_to_x, _y should be data from pkl or whatever
-				compare_to_y = LM.linear_interpolation(
-										self.compare_to_x.scalers, 
-										self.compare_to_y.scalers, 
-										to_compare_x.scalers, 'linear')
-				#does linear interpolation allow for bounds?
-				try:
-					bad_dex = [math.isnan(val) for val 
-								in compare_to_y].index(True)
-					compare_to_y = compare_to_y[:bad_dex]
-					to_compare_x.scalers = to_compare_x.scalers[:bad_dex]
-					to_compare_y.scalers = to_compare_y.scalers[:bad_dex]
+		self.impose_default('best_measure', None, **kwargs)
+		self.impose_default('display_threshold', 500, **kwargs)
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+		self._children_ = []
 
-				except ValueError:
-					pass
+	def finalize(self, *args, **kwargs):
+		dat = self.data[0].scalers
+		norm = max(dat)
+		self.data[0].scalers = [val/norm for val in dat]
 
-				bounds = self.find_bounds(self.compare_to_x.scalers, 
-												to_compare_x.scalers)
-				measurement = self.make_measurement(
-								to_compare_x.scalers, 
-								to_compare_y.scalers, 
-								compare_to_y, bounds)
-				self.data[k].scalers.append(measurement)
-				if self.show_trajectory:
-					self.display_trajectory(to_compare_x.scalers, 
-								compare_to_y, to_compare_y.scalers)
-		'''
+	def measure(self, *args, **kwargs):
+		to_fit_to = args[0]
+		run_data = args[1]
+		best_flag = False
+		labels = [[do.label for do in de] for de in args]
+		run_data_domain = run_data[labels[1].index(labels[0][0])]
+		run_data_codomain = run_data[labels[1].index(labels[0][1])]
+		run_data_interped = scalers(label = 'interpolated result', 
+			scalers = lm.linear_interpolation(run_data_domain.scalers, 
+			run_data_codomain.scalers, to_fit_to[0].scalers, 'linear'))
+		x_meas_bnds = (0, len(to_fit_to[0].scalers))
+		meas = np.mean([diff for diff in 
+			kwargs['measurement'](to_fit_to[1].scalers, 
+				run_data_interped.scalers, x_meas_bnds, 
+				to_fit_to[0].scalers) if not math.isnan(diff)])
+		self.data[0].scalers.append(meas)
+		if meas == min(self.data[0].scalers):
+			self.best_measure = len(self.data[0].scalers) - 1
+			best_flag = self.best_measure > self.display_threshold
 
-	#to_compare_y is a list of recent resultant y_values
-	#compare_to_y is an interpolated list of y_values 
-	#	from data object belonging to the metric
-	#returns a tuple of measurements indicating quality of fit
+		if best_flag:
+		#if best_flag or kwargs['display']:
+			print 'metric', self.label, 'measured', meas
+			lgd.quick_plot_display(to_fit_to[0], 
+				[to_fit_to[1], run_data_interped])
 
-	#def make_measurement(self, to_compare_x, 
-	#		to_compare_y, compare_to_y, bounds = None):
-	#	return None
-		
-	def set_settables(self, *args, **kwargs):
-		ensem = args[0]
-		frame = args[1]
-		recaster = lgm.recasting_mason(frame)
-		self.handle_widget_inheritance(*args, **kwargs)
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget_layout = 'vert', 
-				key = ['label'], 
-				instance = [self], 
-				widget = ['text'],
-				box_label = 'Metric Name', 
-				initial = [self.label], 
-				sizer_position = (0, 0)))
-		classes = [template._class for template 
-					in self.valid_base_classes]
-		tags = [template._tag for template 
-				in self.valid_base_classes]
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget_mason = recaster, 
-				widget_layout = 'vert', 
-				key = ['_class'], 
-				instance = [[self.base_class, self]], 
-				widget = ['rad'], 
-				hide_none = [True], 
-				box_label = 'Metric Type', 
-				initial = [self.base_class._tag], 
-				possibles = [tags], 
-				possible_objs = [classes], 
-				sizer_position = (1, 0)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget_layout = 'vert', 
-				instance = [	[self]	], 
-				key = [	['bRelevant']	], 
-				gui_labels = [	['use this metric']	], 
-				initial = [	[self.bRelevant]	], 
-				append_instead = [False], 
-				widget = ['check_set'],
-				box_label = 'Relevance', 
-				sizer_position = (2, 0)))
-		'''
-		self.templates.append(
-			lfu.interface_template(
-					name = 'compare_to', 
-					instance = self, 
-					gui_widg = 'fetch_obj', 
-					gui_label = 'Grab Some Data', 
-					sizer_position = (0, 0), 
-					initial_valuable = self.compare_to, 
-					diag_class = LGDIG.load_pkl_dialog))
-		if self.compare_to is not None:
-			compare_to_dater_names = [dater.name for dater 
-									in self.compare_to.data]
-
-		else:
-			compare_to_dater_names = []
-
-		self.templates.append(
-			lfu.interface_template(
-					name = 'compare_to_id_x', 
-					instance = self, 
-					gui_widg = 'rad', 
-					gui_label = 'Data To Compare To (x-axis)', 
-					sizer_position = (0, 1), 
-					values = compare_to_dater_names,
-					valuables = compare_to_dater_names, 
-					initial_value = self.compare_to_id_x))
-		self.templates.append(
-			lfu.interface_template(
-					name = 'compare_to_id_y_list', 
-					instance = self, 
-					gui_widg = 'check_list', 
-					gui_label = 'Data To Compare To (y-axis)', 
-					sizer_position = (0, 2), 
-					values = compare_to_dater_names,
-					valuables = compare_to_dater_names, 
-					initial_value = self.compare_to_id_y_list))
-		print '\n'
-		print self.compare_to_id_y_list
-		print compare_to_dater_names
-		print '\n'
-		'''
+		return meas
 
 class metric_slope_fit_quality(metric):
 
-	def __init__(self, label = 'another slope metric', 
-			parent = None, data = [], source_1 = None, source_2 = None, 
-			domain_dater_id_1 = None, domain_dater_id_2 = None, 
-			codomain_dater_ids_1 = [], codomain_dater_id_1 = None, 
-			codomain_dater_ids_2 = [], codomain_dater_id_2 = None, 
-			slope_bias_factor = 10000.0):
-		self.slope_bias_factor = slope_bias_factor
-		metric.__init__(self, label = label, parent = parent, 
-			data = data, source_1 = source_1, source_2 = source_2, 
-			domain_dater_id_1 = domain_dater_id_1, 
-			domain_dater_id_2 = domain_dater_id_2, 
-			codomain_dater_ids_1 = codomain_dater_ids_1, 
-			codomain_dater_id_1 = codomain_dater_id_1, 
-			codomain_dater_ids_2 = codomain_dater_ids_2, 
-			codomain_dater_id_2 = codomain_dater_id_2)
+	def __init__(self, *args, **kwargs):
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'slope metric'
 
-	def make_measurement(self, compare_x, 
-			to_compare_y, compare_to_y, bounds = None):
-		to_slope = [(to_compare_y[k] - to_compare_y[k - 1])\
-					/(compare_x[k] - compare_x[k - 1]) 
-						for k in range(1, len(compare_x))]
-		slope_to = [(compare_to_y[k] - compare_to_y[k - 1])\
-					/(compare_x[k] - compare_x[k - 1]) 
-						for k in range(1, len(compare_x))]
-		sign_bias = [1.0]*len(to_slope)
-		slope_sign_agreement = [not abs(sum([to_s])) < max([s_to]) 
-						for to_s in to_slope for s_to in slope_to]
-		for agreement, bias in slope_sign_agreement, sign_bias:
-			if not agreement:
-				bias *= self.slope_bias_factor
+		metric.__init__(self, *args, **kwargs)
 
-		slope_differences = [abs(to_slope[k] - slope_to[k])*sign_bias[k] 
-										for k in range(len(to_slope))]
-		return slope_differences
+	def initialize(self, *args, **kwargs):
+		self.data = scalers_from_labels(['mean slope difference'])
+		metric.initialize(self, *args, **kwargs)
 
-	def set_settables(self, *args, **kwargs):
-		ensem = args[0]
-		frame = args[1]
-		self.handle_widget_inheritance(*args, from_sub = False)
-		'''
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-						widget_layout = 'vert', 
-						key = [	'max_time'	], 
-						instance = [self], 
-						widget = ['text'],
-						box_label = 'Max Simulation Time', 
-						initial = [self.max_time], 
-						sizer_position = (0, 2)))
-		'''
-		super(metric_slope_fit_quality, self).set_settables(
-									*args, from_sub = True)
+	def measure(self, *args, **kwargs):
+		kwargs['measurement'] = self.slope_differences
+		metric.measure(self, *args, **kwargs)
+
+	def slope_differences(self, *args, **kwargs):
+		to_fit_to_y = args[0]
+		runinterped = args[1]
+		bounds = args[2]
+		to_fit_to_x = args[3]
+		runinterped_slope = [(runinterped[k] - runinterped[k - 1])\
+					/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
+					for k in range(1, len(to_fit_to_x))]
+		to_fit_to_y_slope = [(to_fit_to_y[k] - to_fit_to_y[k - 1])\
+							/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
+							for k in range(1, len(to_fit_to_x))]
+		return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+						for k in range(bounds[0], bounds[1] -1)]
 
 class metric_integral_fit_quality(metric):
 
 	def __init__(self, *args, **kwargs):
 		if not 'label' in kwargs.keys():
-			kwargs['label'] = 'another integral metric'
+			kwargs['label'] = 'integral metric'
 
 		metric.__init__(self, *args, **kwargs)
 
-	def make_measurement(self, to_compare_y, 
-				compare_to_y, bounds = None):
-		integral_diffs = abs(integrate(to_compare_y) - \
-								integrate(compare_to_y))
-		return integral_diffs
+	def initialize(self, *args, **kwargs):
+		self.data = scalers_from_labels(['mean integral difference'])
+		metric.initialize(self, *args, **kwargs)
+
+	def measure(self, *args, **kwargs):
+		kwargs['measurement'] = self.integral_differences
+		metric.measure(self, *args, **kwargs)
+
+	def integral_differences(self, *args, **kwargs):
+		to_fit_to_y = args[0]
+		runinterped = args[1]
+		integral_diffs = abs(integrate(runinterped) - \
+								integrate(to_fit_to_y))
+		return [integral_diffs]
 
 class metric_avg_ptwise_diff_on_domain(metric):
 
 	def __init__(self, *args, **kwargs):
 		if not 'label' in kwargs.keys():
-			kwargs['label'] = 'pointwise difference metric', 
+			kwargs['label'] = 'pointwise difference metric'
 
 		metric.__init__(self, *args, **kwargs)
 
-	'''
-	def measure(self):
-		if self.fit_to is not None:
-			to_fit_x, to_fit_y_list = self.to_fit
-			#total_measure = 0.0
-			measures = []
-			for fit_to_id_y in self.fit_to_id_y_list:
-				to_fit_y = to_fit_y_list[[dater.name 
-						for dater in to_fit_y_list].index(fit_to_id_y)]
-				self.fit_to_id_y = fit_to_id_y
-				self.fit_to_x, self.fit_to_y = self.grab_data_attribute(
-															self.fit_to)
-				#self.fit_to_x, _y should be data from pkl or whatever
-				fit_to_y = LM.linear_interpolation(
-										self.fit_to_x.scalers, 
-										self.fit_to_y.scalers, 
-										to_fit_x.scalers, 'linear')
-				x_meas_bnds = (0, len(to_fit_x.scalers))
-				x_meas_differences =\
-					[abs(to_fit_y.scalers[k] - fit_to_y[k]) 
-						for k in range(x_meas_bnds[0], x_meas_bnds[1])]
-					#[math.sqrt((to_fit_y.scalers[k] - fit_to_y[k])**2) 
-					#	for k in range(x_meas_bnds[0], x_meas_bnds[1])]
-				x_meas_init = np.mean(x_meas_differences[0:10])
-				try:
-					x_meas_integral_difference =\
-						abs(integrate(to_fit_y.scalers) - \
-							integrate([val for val in fit_to_y 
-										if math.isnan(val) == False]))
+	def initialize(self, *args, **kwargs):
+		self.data = scalers_from_labels(['mean difference'])
+		metric.initialize(self, *args, **kwargs)
 
-				except IndexError:
-					x_meas_integral_difference = 1e12
+	def measure(self, *args, **kwargs):
+		kwargs['measurement'] = self.differences
+		metric.measure(self, *args, **kwargs)
 
-				x_meas_differences = [diff for diff in x_meas_differences 
-											if math.isnan(diff) == False]
-				#print 'meas leng: ' + str(len(x_meas_differences))
-				if len(x_meas_differences) <= 100:
-					#pdb.set_trace()
-					measures.append((1e12, fit_to_id_y, 0.0))
-					continue
-				#total_measure += np.mean(x_meas_differences)
-				measures.append((np.mean(x_meas_differences), 
-						#fit_to_id_y, len(x_meas_differences)))
-						fit_to_id_y, len(x_meas_differences), 
-						x_meas_integral_difference, x_meas_init))
+	def differences(self, *args, **kwargs):
+		to_fit_to_y = args[0]
+		runinterped = args[1]
+		bounds = args[2]
+		return [abs(to_fit_to_y[k] - runinterped[k]) 
+				for k in range(bounds[0], bounds[1])]
 
-				plt.plot(to_fit_x.scalers, fit_to_y)
-				plt.plot(to_fit_x.scalers, to_fit_y.scalers)
-
-				#x_measurement corresponds to interpolation along x-axes
-				#	so differences is in terms of y values
-			#return total_measure
-			try:
-				measures.append((10000.0*abs(to_fit_x.scalers[-1] -\
-									self.fit_to_x.scalers[-1]), 
-										'time-span comparison', 
-										len(to_fit_x.scalers), 0.0, 1e10))
-			except:
-				measures.append((100000000, fit_to_id_y, 0, 0.0, 1e10))
-
-			plt.draw()
-			time.sleep(2)
-			plt.close()
-			return measures
-
-		else:
-			print 'metric is missing its fit_to data!'
-			return None
-	'''
-
-	def make_measurement(self, *args, **kwargs):
-		pdb.set_trace()
-
-class scalers_exponential_curve(lfu.modular_object_qt):
-
-	def __init__(self, parent = None, 
-			label = 'another exponential curve', domain = range(100), 
-						exp_fact = 1, y_offset = 0, x_offset = 0):
-		self.domain = domain
-		self.exp_fact = exp_fact
-		self.y_offset = y_offset
-		self.x_offset = x_offset
-		self.parent = parent
-		self.set_curve()
-		lfu.modular_object_qt.__init__(self, 
-			label = label, parent = parent)
-
-	def fix_lists(self):
-
-		def fix_to_list(valued):
-			if type(valued) != types.ListType:
-				valued = [float(valued) for x in self.domain]
-
-			elif len(valued) >= len(self.domain):
-				valued = [float(valued[k]) for k 
-					in range(len(self.domain))]
-
-			else:
-				valued.extend([float(valued)[-1]]*\
-					(len(self.domain) - len(valued)))
-
-			return valued
-
-		self.exp_fact = fix_to_list(self.exp_fact)
-		self.x_offset = fix_to_list(self.x_offset)
-		self.y_offset = fix_to_list(self.y_offset)
-
-	def set_curve(self):
-		self.fix_lists()
-		self.scalers = [math.exp(exp * (x - x_0)) + y_0 for 
-						exp, x, x_0, y_0 in zip(self.exp_fact, 
-					self.domain, self.x_offset, self.y_offset)]
-		#self.scalers = [math.exp(self.exp_fact[k]*\
-		#					self.domain[k] - self.x_offset[k]) +\
-		#						self.y_offset[k] 
-		#						for k in range(len(self.domain))]
-
-	def set_settables(self, *args, **kwargs):
-		ensem = args[0]
-		frame = args[1]
-		self.set_curve()
-		self.handle_widget_inheritance(*args, from_sub = False)
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['exp_fact'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Exponent Coefficient', 
-					initial = [self.exp_fact], 
-					value = [[True, False]], 
-					sizer_position = (0, 0), 
-					minimum_size = (128, 24)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['x_offset'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Horizontal Offset', 
-					initial = [self.x_offset], 
-					value = [[True, False]], 
-					sizer_position = (0, 1), 
-					minimum_size = (128, 24)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['y_offset'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Vertical Offset', 
-					initial = [self.y_offset], 
-					value = [[True, False]], 
-					sizer_position = (1, 1), 
-					minimum_size = (128, 24)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['domain'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Domain', 
-					initial = [self.domain], 
-					value = [[True, False]], 
-					sizer_position = (1, 0), 
-					minimum_size = (128, 24)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['exp_fact'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Exponent Coefficient', 
-					initial = [self.exp_fact], 
-					value = [[True, True]], 
-					sizer_position = (2, 0), 
-					minimum_size = (400, 36)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['x_offset'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Horizontal Offset', 
-					initial = [self.x_offset], 
-					value = [[True, True]], 
-					sizer_position = (2, 1), 
-					minimum_size = (400, 36)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['y_offset'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Vertical Offset', 
-					initial = [self.y_offset], 
-					value = [[True, True]], 
-					sizer_position = (3, 1), 
-					minimum_size = (400, 36)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					key = ['domain'], 
-					instance = [self], 
-					widget = ['text'], 
-					box_label = 'Domain', 
-					initial = [self.domain], 
-					value = [[True, True]], 
-					sizer_position = (3, 0), 
-					minimum_size = (400, 36)))
-
-
-
-#THESE ARE IN THE WRONG PLACE
 def array_to_string(arr):
-	'''
-	file_str = StringIO()
-	[file_str.write(`value`) for value in arr]
-	return file_str.getvalue()
-	'''
-	#this should use cstrings....
-	try:
-		string = ' '
-		string = string.join([str(value) for value in arr])
-		string += ' '
-
-	except:
-		pdb.set_trace()
-
+	string = ' '
+	string = string.join([str(value) for value in arr])
+	string += ' '
 	return string
 
 def coords_to_string(x, y, z):
-	concat = x + y + z
+	#concat = x + y + z
+	concat = np.concatenate((x, y, z))
 	array = [[concat[k], concat[k + len(x)], concat[k + 2*len(x)]] \
 										for k in range(len(x))]
 	array = [item for sublist in array for item in sublist]
@@ -1495,83 +1164,6 @@ def quality_coords_to_string(x, y, z, Q, dims):
 
 	string = array_to_string(flat)
 	return string
-
-
-
-
-
-#THESE HAVEN'T BEEN UPDATED/DEBUGGED
-class coordinates(lfu.modular_object_qt):
-
-	#*args should be a list of scalers
-	def __init__(self, dims = int(3), args = []):
-		self.coords = {}
-		for k in range(min(len(args), dims)):
-			self.coords[args[k].name] = args[k].scalers
-		
-		self.name = '_'.join(self.coords.keys())
-		self.tag = 'coordinates'
-
-class piecewise_curve(scalers):
-
-	def __init__(self, parent = None, 
-					name = 'another piecewise curve', 
-					values = range(100)):
-		scalers.__init__(self, name)
-		self.parent = parent
-		values = [0] + [0.5]*100 + [1]*50 + [2]*40 + [3]*30 + [4]*20 + [5]*10 +\
-				range(5, 150) +\
-				range(150, 400, 2) +\
-				range(400, 600, 4) +\
-				range(600, 800, 6) + range(800, 1000, 7)
-		print 'lenght of cooling curve: ' + str(len(values))
-		values.reverse()
-		#values = [int(val/4) for val in values]
-		#values = [25.0, 24.0, 23.0, 22.0, 21.0, 20.0, 19.0, 18.0, 17.0, 16.0, 15.0, 14.0, 14.0, 13.0, 13.0, 12.0, 12.0, 11.0, 11.0, 10.0, 10.0, 9.0, 9.0, 9.0, 8.0, 8.0, 8.0, 7.0, 7.0, 7.0, 6.0, 6.0, 6.0, 5.0, 5.0, 5.0, 4.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]
-		self.scalers = values
-		self.set_settables()
-
-	def set_settables(self):
-		self.templates = []
-		self.templates.append(
-			lfu.interface_template(
-					name = 'scalers', 
-					instance = self, 
-					gui_widg = 'text_list', 
-					gui_label = 'Values', 
-					sizer_position = (0, 0), 
-					initial_value = self.scalers, 
-					conditioning = LG.vals_str_to_arr, 
-					spare_conditioning = float))
-
-
-
-
-#THIS SHOULD BE BROKEN MEOW
-class parameter_space_step(lfu.modular_object_qt):
-
-	def __init__(self, location = [], 
-						initial = [], 
-						final = [], 
-						delta_quality = []):
-		lfu.modular_object_qt.__init__(self)
-		self.location = location
-		self.initial = initial
-		self.final = final
-		self.delta_quality = delta_quality
-
-	def step_forward(self):
-		for k in range(len(self.location)):
-			self.location[k][0].__dict__[self.location[k][1]] = self.final[k]
-			print 'actually set value to: ' + str(self.final[k])
-
-	def step_backward(self):
-		for k in range(len(self.location)):
-			self.location[k][0].__dict__[self.location[k][1]] = self.initial[k]
-			print 'actually reset value to: ' + str(self.final[k])
-
-
-
 
 valid_metric_base_classes = [
 	lfu.interface_template_class(

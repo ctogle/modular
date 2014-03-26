@@ -11,7 +11,8 @@ import time
 
 import pdb
 
-_filter_endings_ = ['pyc', 'vtu', 'db', '.pkl', 'pvsm', 'sh', 'zip']
+_filter_endings_ = ['pyc', 'vtu', 'db', '.pkl', 
+					'pvsm', 'sh', 'zip', 'xmind']
 
 def ignore_filter_(fi):
 	endings = _filter_endings_

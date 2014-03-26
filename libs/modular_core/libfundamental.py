@@ -124,6 +124,7 @@ class interface_template_class(interface_template_new_style):
 
 class modular_object_qt(object):
 	rewidget_ = True
+	#_p_sp_bounds_ = []
 	_children_ = []
 	_handles_ = []
 	data = []
@@ -208,6 +209,7 @@ class modular_object_qt(object):
 			self.valid_base_classes = [self.base_class]
 
 		else: self.valid_base_classes = valid_base_classes
+		self.impose_default('parameter_space_templates', [], **kwargs)
 		self.rewidget_ = True
 
 	def impose_default(self, *args, **kwargs):
@@ -308,9 +310,15 @@ class modular_object_qt(object):
 		self.__dict__ = dictionary()
 		self.__dict__.update(d)
 
-	def initialize(self): pass
+	def initialize(self, *args, **kwargs): pass
 	def sanitize(self, *args, **kwargs):
 		self.widg_dialog_templates = []
+		if self.parameter_space_templates:
+			self._p_sp_bounds_ = [temp.p_sp_bounds for temp in 
+								self.parameter_space_templates]
+			self._p_sp_increments_ = [temp.p_sp_increment for temp 
+								in self.parameter_space_templates]
+
 		self.parameter_space_templates = []
 		self.widg_templates = []
 		self.menu_templates = []
@@ -370,10 +378,12 @@ class modular_object_qt(object):
 				child.set_settables(*kwargs['infos'])
 
 	def provide_axes_manager_input(self, 
-			lp = True, cp = False, x_title = 'x-title', 
-				y_title = 'y-title', title = 'title'):
+			lp = True, cp = True, bp = True, 
+			x_title = 'x-title', 
+			y_title = 'y-title', title = 'title'):
 		self.use_line_plot = lp
 		self.use_color_plot = cp
+		self.use_bar_plot = bp
 		self.x_title = x_title
 		self.y_title = y_title
 		self.title = title

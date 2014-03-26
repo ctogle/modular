@@ -41,10 +41,10 @@ run_param_keys = [	'End Criteria',
 
 def generate_gui_templates_qt(window, ensemble):
 	panel_template_lookup = []
-	plot_target_labels = ['iteration', 'time', 'fixed_time'] +\
-			ensemble.run_params['species'].keys() +\
-			ensemble.run_params['variables'].keys() +\
-			ensemble.run_params['functions'].keys()
+	plot_target_labels = ['iteration', 'time'] +\
+		ensemble.run_params['species'].keys() +\
+		ensemble.run_params['variables'].keys() +\
+		ensemble.run_params['functions'].keys()
 	ensemble.simulation_plan.plot_targets = plot_target_labels
 	ensemble.simulation_plan.set_settables(window, ensemble) #this may not need to be here
 	sim_plan = ensemble.simulation_plan
@@ -461,11 +461,29 @@ def parse_mcfg(lines, *args):
 		proc.set_settables(0, ensem)
 		return [proc]
 
+	def parse_fitting_line(data, ensem):
+		split = [item.strip() for item in data.split(':')]
+		for fit_type in lfr.valid_fit_routine_base_classes:
+			if split: name = split[0]
+			if len(split) > 1:
+				if split[1].strip() == fit_type._tag:
+					rout = fit_type._class(label = name, 
+						parent = ensem.fitting_plan)
+					routs.append(rout)
+
+				if len(split) > 2: rout.regime = split[2].strip()
+
+		ensem.fitting_plan.add_routine(new = rout)
+		rout.set_settables(0, ensem)
+		return [rout]
+
 	def parse_output_plan_line(line, ensem):
 		spl = [item.strip() for item in line.split(' : ')]
 		dex = int(spl[0])
 		if dex == 0: output = ensem.output_plan
-		else: output = procs[dex - 1].output
+		#else: output = procs[dex - 1].output
+		elif dex <= len(procs): output = procs[dex - 1].output
+		else: output = routs[dex - len(procs) - 1].output
 		output.save_directory = spl[1]
 		output.save_filename = spl[2]
 		if 'plt' in spl[3]: output.output_plt = True
@@ -501,11 +519,22 @@ def parse_mcfg(lines, *args):
 			for p_temp in mobj.parameter_space_templates:
 				if mobj_attr == p_temp.key:
 					p_temp.contribute_to_p_sp = True
+					p_temp.p_sp_bounds = rng_bounds[dex]
+					p_temp.p_sp_increment = increments[dex]
+
+		def read_increment(rng):
+			if rng.count(';') > 0: read = float(rng[rng.rfind(';')+1:])
+			else: read = 10
+			return read
 
 		axes = [ax[0] for ax in p_sub[1:]]
 		variants = [ax[1] for ax in p_sub[1:]]
+		increments = [read_increment(rng) for rng in 
+						[ax[2] for ax in p_sub[1:]]]
 		ranges = [lm.make_range(rng)[0] for rng in 
 					[ax[2] for ax in p_sub[1:]]]
+		rng_bounds = [[validate(rng)[0], validate(rng)[-1]] 
+										for rng in ranges]
 		poss_contribs = ['species', 'variables', 'reactions']
 		p_mobjs = ensem.cartographer_plan.parameter_space_mobjs
 		for key in p_mobjs.keys():
@@ -550,9 +579,12 @@ def parse_mcfg(lines, *args):
 		ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
 
 	plot_flag = False
+	post_proc_flag = False
+	fitting_flag = False
 	p_space_flag = False
 	targs = []
 	procs = []
+	routs = []
 	parser = ''
 	for line in lines:
 		if line.strip().startswith('#') == True or line.strip() == '':
@@ -588,6 +620,7 @@ def parse_mcfg(lines, *args):
 			continue
 
 		elif line.startswith('<post_processes>'):
+			post_proc_flag = True
 			if p_space_flag:
 				if len(p_sub_sps) > 1:
 					print 'only parsing first p-scan space'
@@ -595,6 +628,17 @@ def parse_mcfg(lines, *args):
 				parse_p_space(p_sub_sps[0], ensem)
 
 			parser = 'post_processes'
+			continue
+
+		elif line.startswith('<fit_routines>'):
+			fitting_flag = True
+			if p_space_flag:
+				if len(p_sub_sps) > 1:
+					print 'only parsing first p-scan space'
+
+				parse_p_space(p_sub_sps[0], ensem)
+
+			parser = 'fit_routines'
 			continue
 
 		elif line.startswith('<parameter_space>'):
@@ -646,6 +690,9 @@ def parse_mcfg(lines, *args):
 			elif parser == 'post_processes':
 				parse_postproc_line(line[:-1], ensem)[0]
 
+			elif parser == 'fit_routines':
+				parse_fitting_line(line[:-1], ensem)[0]
+
 			elif parser == 'parameter_space':
 				if line.strip().startswith('<product_space>'):
 					cnt_per_loc = int(line[line.find('>') + 1:].strip())
@@ -675,6 +722,9 @@ def parse_mcfg(lines, *args):
 		for targable in targetables:
 			if not targable.label in targs:
 				targable.brand_new = False
+
+	if p_space_flag and (not post_proc_flag or not fitting_flag):
+		parse_p_space(p_sub_sps[0], ensem)
 
 def write_mcfg(*args):
 	run_params = args[0]
@@ -764,14 +814,14 @@ class sim_system(lsc.sim_system):
 			return '->'.join([used, str(rxn.rate), prod])
 
 		self.iteration = 0
-		sub_spec = [':'.join([spec.label, str(spec.initial_count)]) 
-						for spec in self.params['species'].values()]
+		sub_spec = [':'.join([spec.label, str(int(spec.initial_count))]) 
+							for spec in self.params['species'].values()]
 		spec_string = '<species>' + ','.join(sub_spec)
 		sub_var = [':'.join([key, str(var.value)]) for key, var in 
 								self.params['variables'].items()]
 		variable_string = '<variables>' + ','.join(sub_var)
-		sub_func = ['='.join([key, fu.func_statement]) for key, fu 
-							in self.params['functions'].items()]
+		sub_func = ['='.join([key, fu.func_statement.replace(',', '&')]) 
+					for key, fu in self.params['functions'].items()]
 		function_string = '<functions>' + ','.join(sub_func)
 		sub_rxn = ','.join([make_rxn_string(rxn) for rxn in 
 								self.params['reactions']])
@@ -826,7 +876,13 @@ class variable(modular_object):
 		if 'label' not in kwargs.keys(): kwargs['label'] = 'variable'
 		self.impose_default('value', 1.0, **kwargs)
 		self.brand_new = True
-		modular_object.__init__(self, *args, **kwargs)
+		parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(instance = self, 
+								p_sp_bounds = ['-10e64', '10e64'], 
+									parent = self, key = 'value')]
+		modular_object.__init__(self, *args, 
+			parameter_space_templates =\
+				parameter_space_templates, **kwargs)
 
 	def to_string(self):
 		self.ensem = None
@@ -850,14 +906,11 @@ class variable(modular_object):
 		where_reference = ensem.run_params['variables']
 		cartographer_support = lgm.cartographer_mason(window)
 		self.handle_widget_inheritance(*args, **kwargs)
-		if not self.parameter_space_templates:
-			self.parameter_space_templates =\
-				[lgeo.interface_template_p_space_axis(instance = self, 
-									p_sp_bounds = ['-10e64', '10e64'], 
-									parent = self, key = 'value')]
-			self.parameter_space_templates[0].set_settables(
-											*args, **kwargs)
-
+		self.parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(parent = self, 
+							p_sp_bounds = self._p_sp_bounds_[0], 
+								instance = self, key = 'value')]
+		self.parameter_space_templates[0].set_settables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['spin'], 
@@ -958,7 +1011,8 @@ class reaction(modular_object):
 		modular_object.__init__(self, label = label, parent = parent, 
 							visible_attributes = visible_attributes, 
 			parameter_space_templates = parameter_space_templates)
-		self._children_ = []
+		#self._children_ = []
+		self._children_ = self.parameter_space_templates
 
 	def to_string(self):
 
@@ -1049,19 +1103,11 @@ class reaction(modular_object):
 		spec_list = ensem.run_params['species'].keys()
 		cartographer_support = lgm.cartographer_mason(window)
 		self.handle_widget_inheritance(*args, **kwargs)
-		if not self.parameter_space_templates:
-			self.parameter_space_templates =\
-				[lgeo.interface_template_p_space_axis(parent = self, 
-								p_sp_bounds = [0.0000001, 1000.0], 
+		self.parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(parent = self, 
+							p_sp_bounds = self._p_sp_bounds_[0], 
 								instance = self, key = 'rate')]
-			self._children_.append(self.parameter_space_templates[0])
-			self.parameter_space_templates[0].set_settables(
-											*args, **kwargs)
-
-		#elif self.parameter_space_templates[0].rewidget():
-		#	self.parameter_space_templates[0].set_settables(
-		#									*args, **kwargs)
-
+		self.parameter_space_templates[0].set_settables(*args, **kwargs)
 		left_template = lgm.interface_template_gui(
 				panel_position = (0, 2), 
 				mason = cartographer_support, 
@@ -1109,7 +1155,8 @@ class species(modular_object):
 		parameter_space_templates =\
 			[lgeo.interface_template_p_space_axis(instance = self, 
 				key = 'initial_count', p_sp_bounds = [0, 1000000], 
-												parent = self)]
+					p_sp_increment = 1, p_sp_continuous = False, 
+									parent = self)]
 		modular_object.__init__(self, label = label, 
 						visible_attributes = visible_attributes, 
 			parameter_space_templates = parameter_space_templates)
@@ -1168,14 +1215,13 @@ class species(modular_object):
 					for rxn in ensem.run_params['reactions']])		
 		window = args[1]
 		self.handle_widget_inheritance(*args, **kwargs)
-		if not self.parameter_space_templates:
-			self.parameter_space_templates =\
-				[lgeo.interface_template_p_space_axis(instance = self, 
+		self.parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(instance = self, 
 							key = 'initial_count', parent = self, 
-									p_sp_bounds = [0, 1000000])]
-			self.parameter_space_templates[0].set_settables(
-											*args, **kwargs)
-
+							p_sp_bounds = self._p_sp_bounds_[0], 
+							p_sp_increment = self._p_sp_increments_[0], 
+											p_sp_continuous = False)]
+		self.parameter_space_templates[0].set_settables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				mason = cartographer_support, 

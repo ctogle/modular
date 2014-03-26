@@ -132,8 +132,10 @@ def create_spin_box(parent = None, double = False, min_val = None,
 												decimals = 10):
 
 	def spin_function():
-		if type(instance) is types.DictionaryType:
+		if type(instance) is types.DictionaryType or\
+					type(instance) is types.ListType:
 			instance[key] = spin.value()
+			print 'update_widgets!'
 
 		else: instance.__dict__[key] = spin.value()
 		if rewidget and issubclass(instance.__class__, 
@@ -363,6 +365,7 @@ def create_panel(templates, mason, collapses = False, layout = 'grid'):
 	for dex, template in enumerate(templates):
 		try:
 			scroll_flag = template.panel_scrollable
+			print 'scroll_flag', scroll_flag
 			memory = template.panel_scroll_memory
 
 		except AttributeError: memory = None
@@ -641,18 +644,24 @@ def create_splitter_box(parent = None, templates = [], mason = None,
 	if parent is not None: split = QtGui.QSplitter(split_dir, parent)
 	else: split = QtGui.QSplitter(split_dir)
 	for template in templates:
+		scrolls = False
 		if hasattr(template, 'mason'): temp_mason = template.mason
 		else: temp_mason = mason
 		if hasattr(template, 'panel_collapses'):
 			collapse = template.panel_collapses
 
-		else: collapse = False
+		else: collapse = False		
+		if hasattr(template, 'panel_scrollable'):
+			scrolls = template.panel_scrollable
+
 		if hasattr(template, 'panel_scroll_memory'):
 			memory = template.panel_scroll_memory
 
-		split.addWidget(central_widget_wrapper(
+		widg = central_widget_wrapper(
 			content = temp_mason.interpret_template(template), 
-										collapses = collapse))
+										collapses = collapse)
+		if scrolls: widg = create_scroll_area(widg, None, memory)
+		split.addWidget(widg)
 
 	if scroll: return create_scroll_area(split, None, memory)
 	return split
@@ -1629,7 +1638,7 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
 					key in mobj.__dict__.keys()
 					if key in mobj.visible_attributes]
 		except:
-			print 'inspector problem'; return []
+			lfu.debug_filter('inspector problem', 10); return []
 		fixed_lap = []
 		for pair in lap:			
 			if 	issubclass(pair[1].__class__, lfu.modular_object_qt) or\

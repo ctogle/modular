@@ -8,6 +8,7 @@ interface_verbosity = 2
 <ensemble defaults>
 mapparameterspace = True
 postprocessing = True
+fitting = True
 
 <run options>
 profile = False

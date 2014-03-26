@@ -151,19 +151,13 @@ class ensemble(lfu.modular_object_qt):
 		save = False
 		if self.skip_simulation:
 			save = self.perform_post_processing(load = True)
-			#if self.postprocess_plan.use_plan:
-				#self.load_data_pool()
-				#self.data_pool = self.data_pool.data
-				#self.data_pool = self.load_data_pool().data
 
 		else:
-			#self.data_pool = []
-			#self.data_pool = lgeo.batch_scalers(
-			#	self.run_params['plot_targets'])
-			if self.fitting_plan.use_plan == True:
-				print 'fitting is not supported yet!'
-				return
-				self.fitting_plan(self)
+			if self.fitting_plan.use_plan:
+				if not self.cartographer_plan.parameter_space:
+					print 'fitting requires a parameter space!'; return
+
+				else: self.fitting_plan(self)
 
 			else:
 				
@@ -190,19 +184,7 @@ class ensemble(lfu.modular_object_qt):
 
 			save = True
 			print 'duration of simulations: ', time.time() - start_time
-
-			save = self.perform_post_processing(load = False)
-		#if self.postprocess_plan.use_plan:
-		#	try:
-		#		print 'performing post processing...'
-		#		check = time.time()
-		#		self.postprocess_plan(self)
-		#		save = True
-		#		print 'duration of post procs: ', time.time() - check
-
-		#	except:
-		#		traceback.print_exc(file=sys.stdout)
-		#		print 'failed to run post processes'
+			self.perform_post_processing(load = False)
 
 		if save: self.save_data_pool()
 		print 'finished last simulation run: exiting'
@@ -281,9 +263,13 @@ class ensemble(lfu.modular_object_qt):
 			proc_data = [proc.data for proc in 
 				self.postprocess_plan.post_processes]
 
-		#else: proc_data = None
+		rout_data = None
+		if self.fitting_plan.use_plan:
+			rout_data = [rout.data for rout in 
+					self.fitting_plan.routines]
+
 		self.data_pool = lfu.data_container(data = self.data_pool, 
-										postproc_data = proc_data)
+			postproc_data = proc_data, routine_data = rout_data)
 		self.describe_data_pool(self.data_pool)
 		if self.data_scheme == 'smart_batch':
 			self.data_pool.data.live_pool = []
@@ -306,6 +292,7 @@ class ensemble(lfu.modular_object_qt):
 	def load_data_pool(self):
 		print 'loading data pool...'
 		check_time = time.time()
+		self.set_data_scheme()
 		data_pool = lf.load_pkl_object(self.data_pool_pkl)
 		self.describe_data_pool(data_pool)
 		check2 = time.time()
@@ -319,12 +306,10 @@ class ensemble(lfu.modular_object_qt):
 
 		print 'producing output...'
 		check_0 = time.time()
-		self.output_plan.flat_data = False
+		#self.output_plan.flat_data = False
 		pool = self.load_data_pool()
 		data_ = lfu.data_container(data = pool.data)
 		if self.output_plan.must_output(): self.output_plan(data_)
-		#if self.postprocess_plan.use_plan == True and\
-		#		not pool.postproc_data is None:
 		if not pool.postproc_data is None:
 			processes = self.postprocess_plan.post_processes
 			for dex, proc in enumerate(processes):
@@ -335,15 +320,26 @@ class ensemble(lfu.modular_object_qt):
 					proc.determine_regime(self)
 					proc.output(data_)
 
+		if not pool.routine_data is None:
+			routines = self.fitting_plan.routines
+			for dex, rout in enumerate(routines):
+				if rout.output.must_output():
+					rout.provide_axes_manager_input()
+					data_ = lfu.data_container(
+						data = pool.routine_data[dex])
+					rout.output(data_)
+
 		print 'produced output: ', time.time() - check_0
 
 	def set_data_scheme(self):
 		smart = lset.get_setting('use_smart_pool')
-		if smart and self.cartographer_plan.use_plan:
+		if smart and self.cartographer_plan.use_plan and\
+						not self.fitting_plan.use_plan:
 			data_pool = lgeo.batch_data_pool(
 				self.run_params['plot_targets'], 
 						self.cartographer_plan)
 			self.data_scheme = 'smart_batch'
+			self.output_plan.flat_data = False
 			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
 										'.'.join(['data_pool', 'smart', 
 											self.data_pool_id, 'pkl']))
@@ -352,6 +348,7 @@ class ensemble(lfu.modular_object_qt):
 			data_pool = lgeo.batch_scalers(
 				self.run_params['plot_targets'])
 			self.data_scheme = 'batch'
+			self.output_plan.flat_data = False
 			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
 					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
@@ -525,6 +522,7 @@ class ensemble(lfu.modular_object_qt):
 		if not self.parent: self.get_parent()
 		top_half_template = lgm.interface_template_gui(
 				layout = 'grid', 
+				panel_scrollable = True, 
 				widg_positions = [(0, 0), (0, 1), (0, 2), 
 								(1, 0), (2, 0), (0, 3)], 
 				layouts = ['vertical', 'vertical', 'vertical', 
@@ -972,154 +970,6 @@ class ensemble_manager(lfu.modular_object_qt):
 						expand_, collapse_, find_mcfg_, make_mcfg_]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
-
-	'''
-	def set_settables(self, *args, **kwargs):
-		window = args[0]
-		self.handle_widget_inheritance(*args, **kwargs)
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widgets = ['tab_book'], 
-				verbosities = [0], 
-				pages = [self.make_tab_book_pages(*args, **kwargs)], 
-				initials = [[self.current_tab_index]], 
-				handles = [(self, 'tab_ref')], 
-				instances = [[self]], 
-				keys = [['current_tab_index']]))
-		gear_icon_path = os.path.join(
-			os.getcwd(), 'resources', 'gear.png')
-		wrench_icon_path = os.path.join(
-			os.getcwd(), 'resources', 'wrench_icon.png')
-		center_icon_path = os.path.join(
-			os.getcwd(), 'resources', 'center.png')
-		MakeEnsemble_path = os.path.join(
-			os.getcwd(), 'resources', 'make_ensemble.png')
-		RunEnsemble_path = os.path.join(
-			os.getcwd(), 'resources', 'run.png')
-		Refresh = os.path.join(
-			os.getcwd(), 'resources', 'refresh.png')
-		Next = os.path.join(
-			os.getcwd(), 'resources', 'Next.png')
-		Open = os.path.join(
-			os.getcwd(), 'resources', 'open.png')
-		Quit = os.path.join(
-			os.getcwd(), 'resources', 'quit.png')
-		Expand = os.path.join(
-			os.getcwd(), 'resources', 'Expand.png')
-		Collapse = os.path.join(
-			os.getcwd(), 'resources', 'Collapse.png')
-		find = os.path.join(
-			os.getcwd(), 'resources', 'find.png')
-		generate = os.path.join(
-			os.getcwd(), 'resources', 'generate.png')
-		attach_icon_path = os.path.join(
-			os.getcwd(), 'resources', 'attach.png')
-		gear_icon = lgb.create_icon(gear_icon_path)
-		wrench_icon = lgb.create_icon(wrench_icon_path)
-		center_icon = lgb.create_icon(center_icon_path)
-		MakeEnsemble = lgb.create_icon(MakeEnsemble_path)
-		RunEnsemble = lgb.create_icon(RunEnsemble_path)
-		Refresh = lgb.create_icon(Refresh)
-		Next = lgb.create_icon(Next)
-		Expand = lgb.create_icon(Expand)
-		Collapse = lgb.create_icon(Collapse)
-		find = lgb.create_icon(find)
-		generate = lgb.create_icon(generate)
-		attach_icon = lgb.create_icon(attach_icon_path)
-		settings_ = lgb.create_action(parent = window, label = 'Settings', 
-						bindings = lgb.create_reset_widgets_wrapper(
-						window, self.change_settings), icon = wrench_icon, 
-					shortcut = 'Ctrl+Shift+S', statustip = 'Settings')
-		open_file = lgb.create_action(parent = window, label = 'Open', 
-						bindings = lgb.create_reset_widgets_wrapper(
-						window, self.load_ensemble), icon = Open, 
-					shortcut = 'Ctrl+O', statustip = 'Open New File')
-		quit_ = lgb.create_action(parent = window, label = 'Quit', 
-							icon = Quit, shortcut = 'Ctrl+Q', 
-							statustip = 'Quit the Application', 
-									bindings = window.on_close)
-		center_ = lgb.create_action(parent = window, label = 'Center', 
-							icon = center_icon, shortcut = 'Ctrl+C', 
-									statustip = 'Center Window', 
-									bindings = [window.on_resize, 
-												window.on_center])
-		make_ensem_ = lgb.create_action(parent = window, 
-			label = 'Make Ensemble', icon = MakeEnsemble, 
-			shortcut = 'Ctrl+E', statustip = 'Make New Ensemble', 
-					bindings = lgb.create_reset_widgets_wrapper(
-									window, self.add_ensemble))
-		expand_ = lgb.create_action(parent = window, 
-			label = 'Expand Parameter Tree', icon = Expand, 
-			shortcut = 'Ctrl+T', bindings = self.expand_tree, 
-			statustip = 'Expand Run Parameter Tree (Ctrl+T)')
-		collapse_ = lgb.create_action(parent = window, 
-			label = 'Collapse Parameter Tree', icon = Collapse, 
-			shortcut = 'Ctrl+W', bindings = self.collapse_tree, 
-			statustip = 'Collapse Run Parameter Tree (Ctrl+W)')
-		find_mcfg_ = lgb.create_action(parent = window, 
-			label = 'Find mcfg', icon = find, shortcut = 'Ctrl+M', 
-			bindings = lgb.create_reset_widgets_wrapper(
-				window, [self.choose_mcfg, self.parse_mcfg]), 
-			statustip = 'Select *.mcfg file to parse (Ctrl+M)')
-		#parse_mcfg_ = lgb.create_action(parent = window, 
-		#	label = 'Parse mcfg', icon = gear_icon, shortcut = 'Ctrl+P', 
-		#	bindings = lgb.create_reset_widgets_wrapper(
-		#					window, self.parse_mcfg), 
-		#	statustip = 'Parse the chosen *.mcfg file (Ctrl+P)')
-		make_mcfg_ = lgb.create_action(parent = window, 
-			label = 'Generate mcfg', icon = generate, shortcut = 'Alt+M', 
-			bindings = lgb.create_reset_widgets_wrapper(
-								window, self.write_mcfg), 
-			statustip = 'Generate *.mcfg file from ensemble (Alt+M)')
-		self.refresh_ = lgb.create_reset_widgets_function(window)
-		update_gui_ = lgb.create_action(parent = window, 
-			label = 'Refresh GUI', icon = Refresh, shortcut = 'Ctrl+G', 
-			#bindings = lgb.create_reset_widgets_function(window), 
-			bindings = self.refresh_, 
-			statustip = 'Refresh the GUI (Ctrl+G)')
-		cycle_tabs_ = lgb.create_action(parent = window, 
-			label = 'Next Tab', icon = Next, shortcut = 'Ctrl+Tab', 
-			bindings = self.cycle_current_tab, 
-			statustip = 'Display The Next Tab (Ctrl+Tab)')
-		run_current_ = lgb.create_action(parent = window, 
-			label = 'Run Current Ensemble', icon = RunEnsemble, 
-			shortcut = 'Alt+R', bindings = self.run_current_ensemble, 
-			statustip = 'Run The Current Ensemble (Alt+R)')
-
-		#this cant reallllly be here
-		make_reaction_ = lgb.create_action(parent = window, 
-			label = 'Make Reaction', icon = gear_icon, 
-			shortcut = 'Ctrl+R', statustip = 'Make New Reaction (Ctrl+R)', 
-			bindings = lgb.create_reset_widgets_wrapper(
-							window, self.new_reaction))
-		make_species_ = lgb.create_action(parent = window, 
-			label = 'Make Species', icon = gear_icon, 
-			shortcut = 'Ctrl+S', statustip = 'Make New Species (Ctrl+S)', 
-			bindings = lgb.create_reset_widgets_wrapper(
-							window, self.new_species))
-
-		self.menu_templates.append(
-			lgm.interface_template_gui(
-				menu_labels = ['&File', '&File', '&File',
-					'&File', '&File', '&File', '&File', '&File',
-					'&File', '&File', '&File', '&File'], 
-				menu_actions = [settings_, center_, make_ensem_, 
-					run_current_, update_gui_, cycle_tabs_, expand_,
-					collapse_, find_mcfg_, make_mcfg_, open_file, quit_]))
-		self.tool_templates.append(
-			lgm.interface_template_gui(
-				tool_labels = ['&Tools', '&Tools', '&Tools', 
-								'&Tools', '&Tools', '&Tools', '&Tools', 
-								'&Tools', '&EnsemTools', '&EnsemTools', 
-								'&EnsemTools', '&EnsemTools', 
-								'&ModuleTools', '&ModuleTools'], 
-				tool_actions = [settings_, center_, make_ensem_, 
-					run_current_, update_gui_, cycle_tabs_, open_file, 
-					quit_, expand_, collapse_, find_mcfg_, make_mcfg_, 
-						make_reaction_, make_species_]))
-		lfu.modular_object_qt.set_settables(
-				self, *args, from_sub = True)
-	'''
 
 class simulation_plan(lfu.plan):
 

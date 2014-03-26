@@ -14,6 +14,9 @@
 
 <functions>
 	g : mu/(K + x1 + x2)
+	#sinee : sin(time*2*pi/100.0) - 0.9
+	#heave : heaviside(sin(time*2*pi/100.0) - 0.9)
+	#noise : gauss_noise(heaviside(sin(time*2*pi/100.0) - 0.9), 10.0)
 
 <reactions>
 	nothing lambda1 -> 1 x1 : formation of x1 (rate is lambda1)
@@ -31,11 +34,14 @@
 	time
 	x2
 	x1
+	#noise
+	#heave
+	#sinee
 
 <parameter_space>
 	<product_space> 500
-		lambda1 : value : 1.0-10.0;1.0
-		lambda2 : value : 1.0-10.0;1.0
+		lambda1 : value : 1.0-10.0;2.0
+		lambda2 : value : 1.0-10.0;2.0
 		#mu : value : 10.0-30.0;10.0
 		#K : value : 1.0, 0.000000000000001
 

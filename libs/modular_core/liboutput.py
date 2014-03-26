@@ -146,20 +146,13 @@ class plot_axes_manager(lfu.modular_object_qt):
 		except: self.title = 'title'
 
 	def use_line_plot(self):
-		#return true if only one axis was chosen
-		#this axis will be the domain
-		#is always available (provided all other axes are fixed)
 		if self.parent.parent.parent.use_line_plot:
-			#self.grab_info_from_output_plan_parent()
 			return True
 
 		else: return False
 
 	def use_color_plot(self):
-		#return true if 2 axes have been chosen
-		#this should only be available to correlations and probabilities
 		if self.parent.parent.parent.use_color_plot:
-			#self.grab_info_from_output_plan_parent()
 			return True
 
 		else: return False
@@ -170,24 +163,6 @@ class plot_axes_manager(lfu.modular_object_qt):
 
 		else: return False
 
-	#need widgets to choose 1 or 2 axes from a list of possibles
-	#	this is determined by the parent of the output plan
-	#		for correlations this should be the p_space axes
-	#			data will be 1 - 1 scalers: correl_coefficients, p_values, bin_domain
-	#			if done as all trajectories, only one set of these scalers mobjects
-	#				use the line plotter with the bin_domain as the domain always
-	#			if done by parameter space, one of these sets per location
-	#				this is when they get sliced and reorganized
-	#					reorg process determines axes from p_space
-	#					so this is the case for 2 axes options
-	#				if more than 2 axes, provide the widgets to fix remaining axes
-	#		for probabilities this should be all plot targets
-	#			post process will determine the number of axes and which
-	#				as well as the associated bin counts/values
-	#			if the number of axes is 1, use line plotter for probability vs bin_domain
-	#			if the number of axes is 2, use color plot, values
-	#need widgets to fix each remaining axis
-	#this arrangement will determine which plotter the writer uses and how
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, **kwargs)
 		super(plot_axes_manager, self).set_settables(
@@ -360,7 +335,8 @@ class output_plan(lfu.plan):
 			#self.to_be_outted has a 3rd element pointing to system within non-flat pool
 			#system will be an object with attribute .data but .data is a non-flat list!
 			#put each data list into a flat list of objects with flat lists for data attributes
-			targs = self.get_target_labels()
+
+			#targs = self.get_target_labels()
 			for traj in system.data:
 				data_container = lfu.data_container(data = traj)
 				self.update_filenames()
@@ -389,15 +365,9 @@ class output_plan(lfu.plan):
 
 			if 3 in [out[1] for out in to_be_outted]:
 					self.writers[3].plt_window()
-			#THIS CANNOT HAPPEN; WITHOUT REFERENCE TO PLT_WINDOW
-			# MATPLOTLIB WILL UNSURPRISINGLY CRASH
-			#tell plt writer to clear plt_window
-			#if 3 in [out[1] for out in to_be_outted]:
-			#	self.writers[3].plt_window = None
 
 		else:
-			#DATAFLAG
-			print 'dataflag', self.flat_data
+			self.update_filenames()
 			proper_paths = self.find_proper_paths()
 			#if the list of data objects is flat (system.data is the list)
 			#self.to_be_outted has only 2 elements since data is already flat
@@ -418,6 +388,9 @@ class output_plan(lfu.plan):
 
 			[self.writers[out[1]](system, out[0], 
 				proper_targets[out[1]]) for out in to_be_outted]
+
+			if 3 in [out[1] for out in to_be_outted]:
+					self.writers[3].plt_window()
 
 	def verify_nonempty_save_directory(self):
 		if not self.parent is None:

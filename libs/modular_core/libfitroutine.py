@@ -5,7 +5,12 @@ import libs.modular_core.libgeometry as lgeo
 import libs.modular_core.libcriterion as lc
 import libs.modular_core.libvtkoutput as lvtk
 import libs.modular_core.libiteratesystem as lis
+import libs.modular_core.libsettings as lset
+import libs.modular_core.libmath as lm
 
+import traceback
+import numpy as np
+import time
 import math
 import os
 import random
@@ -26,7 +31,10 @@ class fit_routine_plan(lfu.plan):
 							routines = [], fit_criterion = None):
 		self.routines = routines
 		self.selected_routine = None
-		lfu.plan.__init__(self, parent = parent, label = label)
+		self.selected_routine_label = None
+		use = lset.get_setting('fitting')
+		lfu.plan.__init__(self, parent = parent, 
+				label = label, use_plan = use)
 
 	def enact_plan(self, *args, **kwargs):
 		for routine in self.routines:
@@ -35,10 +43,22 @@ class fit_routine_plan(lfu.plan):
 			print ' '.join(['completed fit routine:', routine.label, 
 						'in:', str(time.time() - check1), 'seconds'])
 
-	def add_routine(self):
-		new = fit_routine_simulated_annealing(parent = self)
+	def add_routine(self, new = None):
+		if not new: new = fit_routine_simulated_annealing(parent = self)
 		self.routines.append(new)
 		self._children_.append(new)
+		self.rewidget(True)
+
+	def remove_routine(self, selected = None):
+		if selected: select = selected
+		else: select = self.get_selected()
+		if select:
+			self.routines.remove(select)
+			self._children_.remove(select)
+			del self.parent.run_params['output_plans'][
+							select.label + ' output']
+			select._destroy_()
+
 		self.rewidget(True)
 
 	def remove_routine(self):
@@ -48,6 +68,29 @@ class fit_routine_plan(lfu.plan):
 			self._children_.remove(select)
 
 		self.rewidget(True)
+
+	def move_routine_up(self, *args, **kwargs):
+		select = self.get_selected()
+		if select:
+			select_dex = lfu.grab_mobj_dex_by_name(
+						select.label, self.routines)
+			self.routines.pop(select_dex)
+			self.routines.insert(select_dex - 1, select)
+			#self.set_selected(select_dex - 1)
+			self.rewidget_routines()
+
+	def move_routine_down(self, *args, **kwargs):
+		select = self.get_selected()
+		if select:
+			select_dex = lfu.grab_mobj_dex_by_name(
+						select.label, self.routines)
+			self.routines.pop(select_dex)
+			self.routines.insert(select_dex + 1, select)
+			#self.set_selected(select_dex + 1)
+			self.rewidget_routines()
+
+	def rewidget_routines(self, rewidg = True):
+		[rout.rewidget(rewidg) for rout in self.routines]
 
 	def get_selected(self):
 		key = 'routine_selector'
@@ -64,7 +107,6 @@ class fit_routine_plan(lfu.plan):
 
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
-		#ensemble = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
 		'''
 		if not selected_routine is None:
@@ -80,6 +122,31 @@ class fit_routine_plan(lfu.plan):
 		'''
 		try: select_label = self.selected_routine.label
 		except AttributeError: select_label = None
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				layout = 'grid', 
+				widg_positions = [(0, 0), (0, 2), (1, 2), 
+								(2, 2), (3, 2), (4, 2)], 
+				widg_spans = [(3, 2), None, None, None, None, None], 
+				grid_spacing = 10, 
+				widgets = ['mobj_catalog', 'button_set'], 
+				verbosities = [1, 1], 
+				instances = [[self.routines, self], None], 
+				keys = [[None, 'selected_routine_label'], None], 
+				handles = [(self, 'routine_selector'), None], 
+				labels = [None, ['Add Fit Routine', 
+								'Remove Fit Routine', 
+								'Move Up In Hierarchy', 
+								'Move Down In Hierarchy']], 
+				initials = [[select_label], None], 
+				bindings = [None, [lgb.create_reset_widgets_wrapper(
+										window, self.add_routine), 
+						lgb.create_reset_widgets_wrapper(window, 
+								self.remove_routine), 
+						lgb.create_reset_widgets_wrapper(window, 
+								self.move_routine_up), 
+						lgb.create_reset_widgets_wrapper(window, 
+								self.move_routine_down)]]))
 		'''
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -98,141 +165,243 @@ class fit_routine_plan(lfu.plan):
 										window, self.add_routine), 
 						lgb.create_reset_widgets_wrapper(window, 
 								self.remove_routine)], None]))
-		'''
+
 		img_path = os.path.join(os.getcwd(), 
 			'resources', 'coming-soon.png')
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['image'], 
 				paths = [img_path]))
+		'''
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
 class fit_routine(lfu.modular_object_qt):
 
 	#ABSTRACT
 	#base class should not assume scalers are the data object
-	def __init__(self, label = 'another fit routine', 
-			iteration = 1, ensemble = None, bAbort = False, 
-			fitter_criteria = [], fitted_criteria = [], data = [], 
-			valid_base_classes = None, capture_targets = [], 
-			visible_attributes = ['label'], base_class = None, 
-			selected_fitter_criterion = None, 
-			fitter_bool_expression = None, 
-			selected_fitted_criterion = None, 
-			fitted_bool_expression = None, 
+	'''
+	fit_routine subclasses should have several regimes
+	fine: runs the routine on the parameter space as specified
+	coarse: coerce the parameter space into a discrete 
+		parameter space; impose new bounds on the old 
+		parameter space (which is not in general discrete) based
+		on the best fit
+	these two regimes can run in either of the above two regimes
+		=> 4 modes of operation
+	on_simulation: run a simulation; use its output as input 
+		any relevant metrics
+	on_process: run a batch of simulations; feed its output into
+		a series of post processes whose results are used as input
+		to any relevant metrics
 
-		fit_data = [], fit_domain = [], 
-		run_data = [], 
-		data_id_x = None, data_id_y = None, 
-		metrics = [], routine = None, 
-		parameter_space = None, p_sp_trajectory = []):
+	fitting routines can be used in series, which is particularly 
+		useful when each provides information for the next
+		this is the express purpose of the coarse regime
+		but the fine regime should also allow this option
+			the option will be on available on both
 
+	fitting routines should be able to run on each other - 
+		use a fitting routine to hone another fitting routine
 
-		self.__dict__ = lfu.dictionary()
-		self.brand_new = True
-		if valid_base_classes is None:
-			self.valid_base_classes =\
+		this could allow a single recursing routine which 
+		runs the coarse regime several times and then the fine
+		regime or whatever is desired
+
+	fitting routines can have many metrics and many criteria for
+		both accepting a parameter space step and for the end of 
+		the fitting routine which are for now assumed to be 
+		implicitly joined by AND statements
+
+	fitting routines can accept any number of lines as input 
+		for metric minimization (the assumed criterion for fitterness
+		for now)
+
+	input data should be identical to the output of modular via
+		pkl format - scalers objects wrapped in a data_container
+	'''
+	def __init__(self, *args, **kwargs):
+		self.impose_default('parameter_space', None, **kwargs)
+		self.impose_default('p_sp_trajectory', [], **kwargs)
+		self.impose_default('p_sp_step_factor', 1.0, **kwargs)
+		self.impose_default('fitter_criteria', [], **kwargs)
+		self.impose_default('fitted_criteria', [], **kwargs)
+		self.impose_default('metrics', [], **kwargs)
+		self.impose_default('data_to_fit_to', None, **kwargs)
+		self.impose_default('input_data_file', '', **kwargs)
+		self.impose_default('input_data_domain', '', **kwargs)
+		self.impose_default('input_data_codomain', '', **kwargs)
+
+		#self.metrics.append(
+		#	lgeo.metric_slope_fit_quality(parent = self))
+		#self.metrics.append(
+		#	lgeo.metric_integral_fit_quality(parent = self))
+		self.metrics.append(
+			lgeo.metric_avg_ptwise_diff_on_domain(parent = self))
+		self.fitted_criteria.append(
+			lc.criterion_iteration(parent = self, 
+						max_iterations = 10000))
+		self.fitter_criteria.append(
+			criterion_minimize_measures(parent = self))
+		self.input_data_file = os.path.join(os.getcwd(), 
+			'chemicallite', 'output', 'ensemble_output.1.pkl')
+		self.input_data_domain = 'time'
+		self.input_data_codomain = 'ES_Complex'
+
+		self.impose_default('capture_targets', [], **kwargs)
+		self.impose_default('bAbort', False, **kwargs)
+		self.impose_default('brand_new', True, **kwargs)
+		self.impose_default('iteration', 0, **kwargs)
+		self.impose_default('display_frequency', 500, **kwargs)
+		self.impose_default('regime', 'fine', **kwargs)
+		self.impose_default('valid_regimes', 
+				['fine', 'coarse'], **kwargs)
+		if not 'visible_attributes' in kwargs.keys():
+			kwargs['visible_attributes'] = None
+
+		if not 'valid_base_classes' in kwargs.keys():
+			kwargs['valid_base_classes'] =\
 				valid_fit_routine_base_classes
 
-		if base_class is None:
-			base_class = lfu.interface_template_class(
-					object, 'fit routine abstract')
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+								object, 'fit routine abstract')
 
-		self.bAbort = bAbort
-		self.fitter_criteria = fitter_criteria
-		self.fitted_criteria = fitted_criteria
-		self.selected_fitter_criterion = selected_fitter_criterion
-		self.selected_fitted_criterion = selected_fitted_criterion
-		self.fitter_bool_expression = fitter_bool_expression
-		self.fitted_bool_expression = fitted_bool_expression
-		#self.__dict__.create_partition('template owners', [])
-
-		#self.data_id_y_list = data_id_y_list
-		self.iteration = iteration
-		self.ensemble = ensemble
-		#self.run_data = run_data
-		#self.data_id_x = data_id_x
-		#self.data_id_y = data_id_y
-		self.metrics = metrics
-		self.capture_targets = capture_targets
-
-		lfu.modular_object_qt.__init__(self, label = label, data = data, 
-							valid_base_classes = valid_base_classes, 
-							visible_attributes = visible_attributes, 
-											base_class = base_class)
-		self.output = lo.output_plan(label = self.label, parent = self)
-
-
-		self.parameter_space = parameter_space
-		self.p_sp_trajectory = p_sp_trajectory
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+		self.output = lo.output_plan(label = ' '.join(
+				[self.label, 'output']), parent = self)
+		self._children_ = [self.output] + self.metrics +\
+			self.fitted_criteria + self.fitter_criteria
 
 	def __call__(self, *args, **kwargs):
 		self.initialize(*args, **kwargs)				
 		run_func = lis.run_system
-		while not self.bAbort and not\
-				self.verify_criteria_list(
-					self.fitted_criteria):
+		while not self.bAbort and not self.verify_criteria_list(
+									self.fitted_criteria, self):
 			self.iterate(run_func)
 
-		self.handle_fitting_key()
-		if self.output.must_output(): self.output(self)
+		self.finalize(*args, **kwargs)
+
+	def get_input_data(self):
+		relevant = [self.input_data_domain, self.input_data_codomain]
+		data = lf.load_pkl_object(self.input_data_file)
+		data = [dater for dater in data.data 
+				if dater.label in relevant]
+		return data
 
 	def initialize(self, *args, **kwargs):
-		pass
+		self.output.flat_data = True
+		self.ensemble = self.parent.parent
+		self.ensemble.data_pool = self.ensemble.set_data_scheme()
+		self.data_to_fit_to = self.get_input_data()
+		self.run_targets = self.ensemble.run_params['plot_targets']
+		self.iteration = 0
+		self.parameter_space =\
+			self.parent.parent.cartographer_plan.parameter_space
+		if self.regime == 'coarse':
+			self.parameter_space, valid =\
+				lgeo.generate_coarse_parameter_space_from_fine(
+										self.parameter_space)
+			if not valid:
+				traceback.print_exc(file=sys.stdout)
+				lgd.message_dialog(None, 
+					'P-Spaced couldnt be coarsened!', 'Problem')
 
-	def iterate(self, run_func = None):
-		pass
+		self.parameter_space.set_start_pt()
+		for metric in self.metrics:
+			metric.initialize(self, *args, **kwargs)
+
+		self.data = lgeo.scalers_from_labels(['fitting iteration'] +\
+				[met.label + ' measurement' for met in self.metrics])
+
+	def iterate(self, run_func):
+		run_data = run_func(self.ensemble)
+		self.ensemble.data_pool.batch_pool.append(run_data)
+		run_data = [lgeo.scalers(label = dater, scalers = dats) 
+			for dater, dats in zip(self.run_targets, run_data)]
+		display = self.iteration % self.display_frequency == 0
+		if display:
+			print ' '.join(['\niteration:', str(self.iteration), 
+						'temperature:', str(self.temperature)])
+
+		for metric in self.metrics:
+			metric.measure(self.data_to_fit_to, 
+					run_data, display = display)
+
+		self.capture_plot_data()
+		self.p_sp_trajectory.append(
+			self.parameter_space.get_current_position())
+		self.move_in_parameter_space()
+		self.iteration += 1
+
+	def finalize(self, *args, **kwargs):
+		self.best_fits = [(met.best_measure, 
+			met.data[0].scalers[met.best_measure]) 
+			for met in self.metrics]
+		self.handle_fitting_key()
+		best_run_data = self.ensemble.data_pool[
+							self.best_fits[0][0]]
+		best_run_data_x = lfu.grab_mobj_by_name(
+			self.data_to_fit_to[0].label, best_run_data)
+		best_run_data_y = lfu.grab_mobj_by_name(
+			self.data_to_fit_to[1].label, best_run_data)
+		best_run_interped = lgeo.scalers(
+			label = 'interpolated best result', 
+			scalers = lm.linear_interpolation(
+				best_run_data_x.scalers, best_run_data_y.scalers, 
+				self.data_to_fit_to[0].scalers, 'linear'))
+		for metric in self.metrics:
+			metric.finalize(*args, **kwargs)
+
+		print 'fit routine:', self.label, 'best fit:', self.best_fits
+		print 'ran using regime:', self.regime
+		lgd.quick_plot_display(self.data_to_fit_to[0], 
+			[self.data_to_fit_to[1], best_run_interped], delay = 5)
+		if self.regime == 'coarse':
+			self.impose_coarse_result_to_p_space()
+
+	def impose_coarse_result_to_p_space(self):
+		pdb.set_trace()
+
+	def capture_plot_data(self, *args, **kwargs):
+		self.data[0].scalers.append(self.iteration)
+		bump = 1#number of daters preceding metric daters
+		for dex, met in enumerate(self.metrics):
+			self.data[dex + bump].scalers.append(
+						met.data[0].scalers[-1])
 
 	def handle_fitting_key(self):
-		pdb.set_trace()
-		lines = ['Fit Routine Fitting Key: ']
-		for k in range(len(self.p_sp_trajectory)):
+
+		def location_to_lines(k, met_dex):
+			loc_measure = self.metrics[met_dex].data[0].scalers[k]
+			lines.append(' : '.join(['Best fit from metric', 
+				self.metrics[met_dex].label, str(loc_measure)]))
 			lines.append('\tTrajectory : ' + str(k + 1))
 			for ax in self.p_sp_trajectory[k]:
-				lines.append('\t\t' + ax[0] + ' : ' + ax[1])
+				lines.append('\t\t' + ' : '.join(ax))
 
+		lines = ['Fit Routine Fitting Key: ']
+		for dex, met_best in enumerate(self.best_fits):
+			k = met_best[0]
 			lines.append('\n')
+			location_to_lines(k, dex)
+			location_to_lines(0, dex)
 
 		lf.output_lines(lines, self.output.save_directory, 
 										'fitting_key.txt')
 
+	def move_in_parameter_space(self, bypass = False, many_steps = 3):
+		if self.verify_criteria_list(self.fitter_criteria, 
+							self.metrics) and not bypass:
+			self.parameter_space.take_biased_step_along_axis(
+						factor = self.p_sp_step_factor/5.0)
+
+		else:
+			self.parameter_space.undo_step()
+			self.parameter_space.take_proportional_step(
+						factor = self.p_sp_step_factor, 
+							many_steps = many_steps)
 
 
-
-
-	def gather_plot_targets(self, ensem):
-		print 'override this function!'
-
-	#def update_output_plan(self):
-	#	self.output.targets = {'OUTPUTABLES': self.targets,
-	#						'WRITE_FUNCS': [[LVTK.write_unstructured], [LO.write_pkl], [], []], 
-	#						'WRITE_TAGS': [['Unstructured Scalers'], ['Any Data'], [], []]}
-
-	def move_in_parameter_space(self):
-		print 'override this function!'
-
-	def attach_data_to_metrics(self):
-		dex_x = [dater.name for dater in self.run_data].index(self.data_id_x)
-		y_daters = [dater for dater in self.run_data 
-					if dater.name in self.data_id_y_list]
-		dater_x = self.run_data[dex_x]
-		for metric in self.metrics:
-			metric.to_compare = (dater_x, y_daters)
-
-	#def verify_end_criteria(self):
-	#	for crit in self.fitted_criteria:
-	#		if crit.verify_pass(self):
-	#			return True
-
-	#	return False
-
-	def verify_fitter_criteria(self):
-		metric_daters = [metric.dater for metric in self.metrics]
-		for (crit, dater) in (self.fitter_criteria, metric_daters):
-			if crit.verify_pass(dater):
-				return True
-
-		return False
 
 	def generate_add_crit_func(self, frame, select = 'fitter'):
 
@@ -275,49 +444,45 @@ class fit_routine(lfu.modular_object_qt):
 		return on_select_crit
 
 	def set_settables(self, *args, **kwargs):
-		ensem = args[0]
-		frame = args[1]
-		recaster = lgm.recasting_mason(frame)
-		dictionary_support = lgm.dictionary_support_mason(frame)
+		ensem = args[1]
 		if self.brand_new:
 			self.brand_new = not self.brand_new
-			ensem.run_params['output_plans'][self.label] = self.output
+			self.mp_plan_ref = ensem.multiprocess_plan
+			ensem.run_params['output_plans'][
+				self.label + ' output'] = self.output
 
-		where_reference = ensem.run_params['output_plans']
-		label_data_links = [lfu.interface_template_dependance(
-						(self, 'label', self.label), linkages =\
-						[(where_reference[self.label], 'label', 
-											True, 'direct')])]
+		self.output.label = self.label + ' output'
 		self.handle_widget_inheritance(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
-				widget_layout = 'vert', 
-				widget_mason = dictionary_support, 
-				data_links = [label_data_links], 
-				where_store = where_reference, 
-				key = ['label'], 
-				instance = [self], 
-				widget = ['text'], 
-				box_label = 'Fit Routine Name', 
-				initial = [self.label], 
-				sizer_position = (0, 0)))
+				widgets = ['radio'], 
+				labels = [self.valid_regimes], 
+				initials = [[self.regime]], 
+				instances = [[self]], 
+				keys = [['regime']], 
+				box_labels = ['P-Space Walk Regime']))
+		recaster = lgm.recasting_mason()
 		classes = [template._class for template 
 					in self.valid_base_classes]
 		tags = [template._tag for template 
 				in self.valid_base_classes]
 		self.widg_templates.append(
 			lgm.interface_template_gui(
-				widget_mason = recaster, 
-				widget_layout = 'vert', 
-				key = ['_class'], 
-				instance = [[self.base_class, self]], 
-				widget = ['rad'], 
-				hide_none = [True], 
-				box_label = 'Routine Type', 
-				initial = [self.base_class._tag], 
-				possibles = [tags], 
-				possible_objs = [classes], 
-				sizer_position = (1, 0)))
+				widgets = ['radio'], 
+				mason = recaster, 
+				keys = [['_class']], 
+				instances = [[(self.base_class, self)]], 
+				box_labels = ['Routine Method'], 
+				labels = [tags], 
+				initials = [[self.base_class._tag]]))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				keys = [['label']], 
+				minimum_sizes = [[(150, 50)]], 
+				instances = [[self]], 
+				widgets = ['text'], 
+				box_labels = ['Fit Routine Name']))
+		'''
 		#widgets for sources
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -424,148 +589,66 @@ class fit_routine(lfu.modular_object_qt):
 		#widgets for parameter space
 		#widgets for metrics
 		#widgets for controlling pyplot display
+		'''
+		lfu.modular_object_qt.set_settables(
+				self, *args, from_sub = True)
 
 class fit_routine_simulated_annealing(fit_routine):
 
 	def __init__(self, *args, **kwargs):
 		if not 'label' in kwargs.keys():
-			kwargs['label'] = 'another simulated annealing routine'
+			kwargs['label'] = 'simulated annealing routine'
 
 		if not 'base_class' in kwargs.keys():
 			kwargs['base_class'] = lfu.interface_template_class(
 								object, 'simulated annealing')
 
-		if not 'data' in kwargs.keys():
-			kwargs['data'] = lgeo.scalers_from_labels(
-				['simulated annealing iteration', 'temperature'])
-
-		fit_routine.__init__(self, *args, **kwargs)
-		self.impose_default('cooling_dex', 0, **kwargs)
 		self.impose_default('cooling_curve', None, **kwargs)
+		self.impose_default('max_temperature', 1000, **kwargs)
 		self.impose_default('temperature', None, **kwargs)
-		self.__dict__.create_partition('template owners', 
-										['cooling_curve'])
+		fit_routine.__init__(self, *args, **kwargs)
 
-	def initialize(self, ensem):
-		#self.best_match = [(1e10, 0)]
-		self.ensemble = ensem
-		self.temperature = self.cooling_curve.scalers[self.cooling_dex]
-		self.parameter_space =\
-			lgeo.generate_parameter_space_from_run_params(
-										self, 
-										ensem.run_params, 
-										[template.name 
-											for template 
-											in ensem.templates])
+	def initialize(self, *args, **kwargs):
+		if not self.cooling_curve:
+			final_iteration = self.fitted_criteria[0].max_iterations
+			lam = -1.0 * np.log(self.max_temperature) / final_iteration
+			#lam = -1.0 * np.log(self.max_temperature) / 2*final_iteration
+			cooling_domain = np.array(range(final_iteration))
+			cooling_codomain = self.max_temperature*np.exp(
+										lam*cooling_domain)
+			self.cooling_curve = lgeo.scalers(
+				label = 'cooling curve', scalers = cooling_codomain)
+
+		fit_routine.initialize(self, *args, **kwargs)
+		self.data.extend(lgeo.scalers_from_labels(
+						['annealing temperature']))
+		self.temperature = self.cooling_curve.scalers[self.iteration]
 		self.parameter_space.initial_factor = self.temperature
-		self.parameter_space.set_start_pt()
-		
-		pdb.set_trace()
-		for metric in self.metrics:
-			metric.initialize()
-			metric.compare_to = self.compare_to
-			metric.compare_to_id_x = self.compare_to_id_x
-			metric.compare_to_id_y_list = self.compare_to_id_y_list
 
-		self.iteration = 0
+	def iterate(self, *args, **kwargs):
+		self.temperature = self.cooling_curve.scalers[self.iteration]
+		fit_routine.iterate(self, *args, **kwargs)
 
-	def iterate(self, run_func):
-		pdb.set_trace()
-		print '\niteration: ' + str(self.iteration) + ' temperature: ' + str(self.temperature)
-		self.run_data = run_func(self.ensemble)
-		self.attach_data_to_metrics()
-		for metric in self.metrics:
-			metric.measure()
+	def capture_plot_data(self, *args, **kwargs):
+		fit_routine.capture_plot_data(self, *args, **kwargs)
+		self.data[-1].scalers.append(self.temperature)
 
-		self.capture_plot_data()
-		print '\n'
-		self.iteration += 1
-
-
-
-	def gather_plot_targets(self, ensem):
-		new_daters = [[LGEO.scalers(name = metric.label +\
-									' measure of ' + name) 
-						for name in self.data_id_y_list] 
-								for metric in self.metrics]
-		self.data = self.data[0:2] + [item for sublist in new_daters 
-												for item in sublist]
-		self.targets = [dater.name for dater in self.data]
-
-	def capture_plot_data(self):
-		self.data[0].scalers.append(self.iteration)
-		self.data[1].scalers.append(self.temperature)
-		bump = 0
-		for j in range(len(self.metrics)):
-			for k in range(bump, bump + len(self.metrics[j].data)):
-				for dater in self.metrics[j]:
-					self.data[k].scalers.append(dater.scalers[-1])			
-
-			bump += len(self.metrics[j].data)
-
-		'''
-		if True in [math.isnan(measure) for measure in 
-			[meas[0] for meas in self.run_fit_qualities]] or \
-				min([meas[2] for meas in self.run_fit_qualities[:-1]]) <= 100 or\
-					True in [math.isnan(measure) for measure in 
-							[meas[3] for meas in self.run_fit_qualities[:-1]]]:
-								print 'invalid run measurement: forcing undo ' +\
-									'and unbiased next step - not capturing!'
-								self.move_in_parameter_space(bypass = True)
-
-		else:
-			#self.data[0].scalers.append(self.run_fit_quality_x)
-			#self.data[1].scalers.append(self.iteration)
-			#self.data[2].scalers.append(self.temperature)
-			self.data[0].scalers.append(self.iteration)
-			self.data[1].scalers.append(self.temperature)
-			for k in range(2, len(self.data)):
-				self.data[k].scalers.append(
-					self.run_fit_qualities[k - 2][0])
-
-			for k in range(len(self.data_2)):
-				self.data_2[k].scalers.append(
-					self.run_fit_qualities[k][3])
-
-			for k in range(len(self.data_3)):
-				self.data_3[k].scalers.append(
-					self.run_fit_qualities[k][4])
-		'''
-
-		self.p_sp_trajectory.append(
-			self.parameter_space.get_current_position())
-		
-		self.move_in_parameter_space()
-
-	def move_in_parameter_space(self, bypass = False, 
-										many_steps = 10):
-		try:
-			self.temperature =\
-				self.cooling_curve.scalers[self.cooling_dex]
-
-		except IndexError:
-			self.temperature = self.cooling_curve.scalers[-1]
-
-		self.cooling_dex += 1
-		if self.verify_fitter_criteria() and bypass == False:
-			self.parameter_space.take_biased_step_along_axis(
-											self.temperature)
-
-		else:
-			self.parameter_space.undo_step()
-			#for k in range(many_steps):
-			#	self.parameter_space.take_proportional_step(
-			#								self.temperature)
-			self.parameter_space.take_proportional_step(
-									factor = self.temperature, 
-									many_steps = many_steps)
-
-
+	def move_in_parameter_space(self, *args, **kwargs):
+		self.p_sp_step_factor = self.temperature
+		initial_factor = self.parameter_space.initial_factor
+		many_steps = 1 + int(self.parameter_space.dimensions*\
+						((self.temperature/initial_factor)**3))
+		fit_routine.move_in_parameter_space(self, *args, 
+					many_steps = many_steps, **kwargs)
 
 	def set_settables(self, *args, **kwargs):
-		ensem = args[0]
-		frame = args[1]
+		self.capture_targets =\
+				['fitting iteration'] +\
+				[met.label + ' measurement' 
+					for met in self.metrics] +\
+					['annealing temperature']
 		self.handle_widget_inheritance(*args, from_sub = False)
+		'''
 		if hasattr(self, 'cooling_curve'):
 			if self.cooling_curve is None:
 				self.cooling_curve = lgeo.scalers_exponential_curve(
@@ -589,7 +672,6 @@ class fit_routine_simulated_annealing(fit_routine):
 				widget_mason = frame.mason, 
 				widget_templates =\
 					self.cooling_curve.widg_templates))
-		'''
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 						widget_layout = 'vert', 
@@ -600,8 +682,7 @@ class fit_routine_simulated_annealing(fit_routine):
 						initial = [self.max_time], 
 						sizer_position = (0, 2)))
 		'''
-		super(fit_routine_simulated_annealing, self).set_settables(
-											*args, from_sub = True)
+		fit_routine.set_settables(self, *args, from_sub = True)
 		'''
 		self.templates = []
 		curve_name_list = ['Exponential', 'Piecewise']
@@ -751,234 +832,28 @@ class fit_routine_simulated_annealing(fit_routine):
 					initial_value = initial_metric_label, 
 					nested_obj = True))'''
 
+class criterion_minimize_measures(lc.criterion):
 
-
-
-
-
-
-
-
-
-
-
-
-
-class sa_undo_criterion(lc.criterion):
-
-	def __init__(self, label = 'undo level criterion', value = 100):
-		lc.criterion.__init__(self, label = label, value = value)
-
-	def verify_pass(self, sa_routine):
-		if sa_routine.parameter_space.undo_level > self.value:
-			print 'passed undo level limit: ending fit routine'
-			return True
-		
-		return False
-
-class sa_temp_criterion(lc.criterion):
-
-	def __init__(self, label = 'temperature criterion', value = 0):
-		lc.criterion.__init__(self, label = label, value = value)
-
-	def verify_pass(self, sa_routine):
-		if sa_routine.temperature <= self.value:
-			print 'temperature has reached zero: ending fit routine'
-			return True
-
-		return False
-
-class sa_minim_run_fit_quality_criterion(lc.criterion):
-
-	def __init__(self):
-		lc.criterion.__init__(self)
-		self.undos = 5.0		#running tally of undos
-		self.continues = 10.0		#running tally of continues
-		self.undo_ratio = 0.5
-		self.fact = 1000.0
-		#self.sensitivity = 500.0
-		#self.sensiv_check = [True]*3 + [False]
-
-	def verify_pass(self, sa_routine):
-		try:
-			#time_autofail_relaxation = 1.0
-			#if not False in self.sensiv_check:
-			#	self.sensitivity += 100.0
-
-			#elif not True in self.sensiv_check:
-			#	self.sensitivity = max(200.0, self.sensitivity - 100.0)
-
-			undo_level = sa_routine.parameter_space.undo_level
-			self.undo_ratio = self.undos/self.continues
-			print 'undo ratio: ' + str(self.undo_ratio)
-			#if self.undo_ratio > 0.5:
-			if self.undo_ratio > 1.0:
-				self.fact = max(250.0, self.fact - 250.0)
-			#	del self.sensiv_check[0]
-			#	self.sensiv_check.append(True)
-			#	self.fact = max(1000.0, 
-			#					self.fact - self.sensitivity)
-
-			else:
-				self.fact += 250.0
-			#	del self.sensiv_check[0]
-			#	self.sensiv_check.append(False)
-			#	self.fact += self.sensitivity
-
-			check_integrals = [dater.scalers[-1] - dater.scalers[-2] < 0.0 
-											for dater in sa_routine.data_2]
-			check_real_integrals = [abs(dater.scalers[-1] - dater.scalers[-2]) 
-											for dater in sa_routine.data_2]
-			best_integ_match_dexes = [dater.scalers.index(min(dater.scalers)) for dater in sa_routine.data_2]
-
-			check_measures = [dater.scalers[-1] - dater.scalers[-2] < 0.0 
-										for dater in sa_routine.data[2:]]
-			check_inits = [dater.scalers[-1] - dater.scalers[-2] < 0.0 
-										for dater in sa_routine.data_3]
-			check_real_inits = [abs(dater.scalers[-1] - dater.scalers[-2]) for dater in sa_routine.data_3]
-			
-			#check_measures_extensive = [not False in [dater.scalers[-1] - dater.scalers[k] < 0.0
-			#									for k in range(- 2 - undo_level, -1)] 
-			#										for dater in sa_routine.data[2:]]
-			check_real_measures = [abs(dater.scalers[-1] - dater.scalers[-2]) 
-											for dater in sa_routine.data[2:]]
-			#check_prob = random.random()
-
-			#for k in range(len(check_measures_extensive)):
-			#	if check_measures_extensive[k] == True:
-			#			check_real_measures[k] *= 10
-			#			time_autofail_relaxation *= 10.0
-			#			print 'may be much better'
-
-			print 'check em!: ' + str(check_measures)
-			print 'check em!: ' + str([dater.name for dater 
-									in sa_routine.data[2:]])
-			print 'check em!: ' + str([check for check in check_real_measures])
-
-			#print 'undos: ' + str(undo_level) + '\tcheck_prob: ' + str(check_prob)
-
-			#if sum([check_real_inits[k] for k in range(len(check_real_inits)) if check_inits[k]]) > sum([check_real_inits[k] for k in range(len(check_real_inits)) if not check_inits[k]]) and\
-			#		(check_measures[-1] or check_real_measures[-1] < 0.01):
-			#	print 'initial counts got better - accepting'
-			#	sa_routine.parameter_space.undo_level = 0
-			#	self.continues += 1
-			#	return True
-
-			val1 = sum([check_real_measures[k] for k in range(len(check_real_measures)) 
-						if check_measures[k] == True and check_real_measures[k] > 1.0])
-			val2 = sum([math.sqrt(check_real_integrals[k]) 
-						for k in range(len(check_real_integrals)) 
-						if check_integrals[k] == True and check_real_integrals[k] > 1.0])
-			val1bad = sum([check_real_measures[k] for k in range(len(check_real_measures)) 
-						if check_measures[k] == False and check_real_measures[k] > 1.0])
-			val2bad = sum([math.sqrt(check_real_integrals[k]) 
-						for k in range(len(check_real_integrals)) 
-						if check_integrals[k] == False and check_real_integrals[k] > 1.0])
-
-			if val1 < val1bad and val2 < val2bad:
-				print 'hard rejection'
-				self.undos += 1
-				return False
-
-			#1 - sample from gauss with std val1 avg value of 1
-			#always most likely to reject
-			#equally likely to accept if the fit is good
-			accept_prob = val1
-			other_accept = val2
-			#accept_prob = 1.0 - random.gauss(1.0, val1/self.fact)/(5.0*val1/self.fact)
-
-			print 'undos: ' + str(undo_level)			# + ' accept_prob: ' + str(accept_prob) + '/' + str(other_accept) + ' fact: ' + str(self.fact)
-			#if other_accept > self.fact**2 and check_real_measures[-1] > 1.0:
-			#if math.sqrt(other_accept) > self.fact:
-			#	print 'the integrals got better!! - keeping!'
-			#	sa_routine.parameter_space.undo_level = 0
-			#	self.continues += 1
-			#	return True				
-
-			#says val1 must be at least double self.fact
-			#if check_measures[-1] and check_real_measures[-1] > 1.0:
-			#	print 'force accepting since time was closer!'
-			#	sa_routine.parameter_space.undo_level = 0
-			#	self.continues += 1
-			#	return True
-
-			#elif not check_measures[-1] and check_real_measures[-1] > 0.1*time_autofail_relaxation:
-			#elif not check_measures[-1] and check_real_measures[-1] > 0.1:
-			#	self.undos += 1
-			#	return False
-
-			#if sa_routine.iteration in best_integ_match_dexes and\
-			#	(check_measures[-1] or check_real_measures[-1] < 0.01):
-			#		sa_routine.best_match.append(
-			#			(sum([dater.scalers[sa_routine.iteration] 
-			#					for dater in sa_routine.data_2]), 
-			#							sa_routine.iteration))
-			#		print 'accepting because someone is looking their finest!'
-			#		sa_routine.parameter_space.undo_level = 0
-			#		self.continues += 1
-			#		return True
-
-			#if (math.sqrt(other_accept) > self.fact or accept_prob > self.fact) and (check_measures[-1] or check_real_measures[-1] < 0.01):
-			if 	(sum([check_real_inits[k] for k in range(len(check_real_inits)) if check_inits[k]]) >\
-				sum([check_real_inits[k] for k in range(len(check_real_inits)) if not check_inits[k]]) or\
-				(val2 > val2bad or val1 > val1bad)) and\
-				(check_measures[-1] or check_real_measures[-1] < 0.005):
-			#if accept_prob > float(check_measures.count(False))\
-			#						/float(len(check_measures)):
-			#if check_measures.count(True) == len(sa_routine.data[2:]):
-				print 'acceptance'
-				sa_routine.parameter_space.undo_level = 0
-				self.continues += 1
-				return True
-			'''
-			if sa_routine.data[0].scalers[-1] -\
-				sa_routine.data[0].scalers[-2] < 0.0:
-				#0.2*min(sa_routine.data[0].scalers):
-					sa_routine.parameter_space.undo_level = 0
-					return True
-			'''
-			'''
-			check_recent_x_measures =\
-					[	sa_routine.data[0].scalers[-1] -\
-						sa_routine.data[0].scalers[k] <\
-						0.5*min(sa_routine.data[0].scalers)
-								for k in 
-						range(- 2 - undo_level, -1)		]
-			if not False in check_recent_x_measures:
-				sa_routine.parameter_space.undo_level = 0
-				return True
-			'''
-		except IndexError:
-			if len(sa_routine.data[0].scalers) > 2:
-				print 'something probably aint working right!'
-				pdb.set_trace()
-
-			elif sa_routine.iteration in [0, 1]:
-				print 'base case: assuming False for fitter'
-				self.undos += 1
-				return False
-
-		self.undos += 1
-		return False
-
-class criterion_sa_minimize_measures(lc.criterion):
-
-	def __init__(self):
-		lc.criterion.__init__(self)
-		self.best_measure = None
+	def __init__(self, *args, **kwargs):
+		lc.criterion.__init__(self, *args, **kwargs)
 		self.rejects = 0
 		self.accepts = 0
 
-	def verify_pass(self, data):
-		print 'crit accept ratio: ' + str(float(self.rejects)/float(self.accepts))
-		improves = [dater[-1] - min(dater) < 0.0 for dater in data]
-		changed_by = [dater[-1] - min(dater) for dater in data]
-		improves_by = [changed_by[k] for k in 
-					range(len(changed_by)) if improves[k]]
-		worsens_by = [changed_by[k] for k in 
-					range(len(changed_by)) if improves[k]]
-		if improves_by > worsens_by:
-			print 'betterer than worserer'
+	def verify_pass(self, *args):
+		metrics = args[0]
+		if self.accepts > 0:
+			ratio = str(float(self.rejects)/float(self.accepts))
+
+		else: ratio = 'all rejections so far'
+		#print 'crit accept ratio: ' + ratio
+		improves = []
+		for met in metrics:
+			sca = met.data[0].scalers
+			improves.append(sca[-1] - min(sca) <=\
+					(np.mean(sca) - min(sca))/10.0)
+					#(np.mean(sca) - min(sca))/(len(sca)+1))
+
+		if improves.count(True) > int(len(improves)/2):
 			self.accepts += 1
 			return True
 
@@ -988,16 +863,25 @@ class criterion_sa_minimize_measures(lc.criterion):
 
 
 
-
-
-
-
-
 valid_fit_routine_base_classes = [
 	lfu.interface_template_class(
 		fit_routine_simulated_annealing, 
 				'simulated annealing')]
 
+'''
+#information about routine type specific metrics/criteria
+#[metrics, fitter, fitted]
+valid_fit_routine_base_classes_supports = [
+	[[lfu.interface_template_class(
+		lgeo.metric_avg_ptwise_diff_on_domain, 
+					'pointwise difference')], 
+	[lfu.interface_template_class(
+		criterion_minimize_measures, 
+			'minimize measurement')], 
+	[lfu.interface_template_class(
+			lc.criterion_iteration, 
+			'iteration limit')]]]
+'''
 
 
 

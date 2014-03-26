@@ -4,21 +4,12 @@ import libs.gui.libqtgui_bricks as lgb
 import libs.gui.libqtgui_masons as lgm
 from PySide import QtGui, QtCore
 
-#hacks to fix installer build
-#import scipy.interpolate as sp
-#from scipy.integrate import simps as integrate
-#import xml.dom.minidom
-#from scipy.stats import pearsonr as correl_coeff
-#import pyopencl
-#end hacks
-
 import matplotlib
 matplotlib.use('Qt4Agg')
 matplotlib.rcParams['backend.qt4'] = 'PySide'
-import matplotlib.backends.backend_qt4agg as mpqt
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
+from matplotlib.backend_bases import NavigationToolbar2
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -26,8 +17,7 @@ import matplotlib.path as path
 
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 
-mpqt.figureoptions = None
-
+import six
 import numpy as np
 import itertools as it
 from copy import deepcopy as copy
@@ -126,6 +116,20 @@ class create_obj_dialog(QtGui.QDialog):
 		try: self.title = kwargs['title']
 		except KeyError: self.title = 'Make MObject'
 		self.setWindowTitle(self.title)
+		path = os.getcwd()
+		self.button_icons =\
+			[os.path.join(path, 'resources', 'make.png'), 
+			os.path.join(path, 'resources', 'back.png')]
+		if 'button_regime' in kwargs.keys():
+			reg = kwargs['button_regime']
+			if reg.startswith('apply'):
+				self.button_icons[0] = os.path.join(
+					path, 'resources', 'apply.png')
+
+			if reg.endswith('cancel'):
+				self.button_icons[1] = os.path.join(
+					path, 'resources', 'cancel.png')
+
 		self.setWindowIcon(lgb.create_icon(os.path.join(
 				os.getcwd(), 'resources', 'gear.png')))
 		if 'from_sub' not in kwargs.keys(): self.set_up_widgets()
@@ -142,21 +146,17 @@ class create_obj_dialog(QtGui.QDialog):
 		except IndexError: return self.rewidget_
 
 	def set_up_widgets(self, layout = None):
-		path = os.getcwd()
 		panel = lgb.create_panel(self.widg_templates, self.mason)
-		button_icons = [os.path.join(path, 'resources', 'make.png'), 
-						os.path.join(path, 'resources', 'back.png')]
 		button_template = lgm.interface_template_gui(
 				widgets = ['button_set'], 
 				verbosities = [0], 
 				layout = 'horizontal', 
 				bindings = [[self.on_make, self.reject]], 
 				#labels = [['make', 'cancel']], 
-				icons = [button_icons], 
+				icons = [self.button_icons], 
 				minimum_sizes = [[(100, 50), (100, 50)]])
 		buttons = self.mason.interpret_template(button_template)
 		buttons.itemAt(0).widget().setFocus()
-
 		if layout: layout.addWidget(panel)
 		else: layout = lgb.create_vert_box([panel])
 		layout.addLayout(buttons)
@@ -185,6 +185,47 @@ class create_obj_dialog(QtGui.QDialog):
 ###################
 #plotting business#
 ###################
+class labels_dialog(create_obj_dialog):
+
+	def __init__(self, *args, **kwargs):
+		if 'newtitle' in kwargs.keys():
+			self.newtitle = kwargs['newtitle']
+
+		else: self.newtitle = 'new title'
+		if 'newxtitle' in kwargs.keys():
+			self.newxtitle = kwargs['newxtitle']
+
+		else: self.newxtitle = 'new x-title'
+		if 'newytitle' in kwargs.keys():
+			self.newytitle = kwargs['newytitle']
+
+		else: self.newytitle = 'new y-title'
+		mason = lgm.standard_mason(parent = self.parent)
+		if 'title' in kwargs.keys(): title = kwargs['title']
+		else: title = 'Change Plot Labels'
+		create_obj_dialog.__init__(self, None, mason = mason, 
+				title = title, button_regime = 'apply-cancel', 
+				from_sub = True)
+		self.set_settables()
+
+	def set_settables(self, *args, **kwargs):
+		self.widg_templates = []
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				keys = [['newtitle'], ['newxtitle'], ['newytitle']], 
+				instances = [[self], [self], [self]], 
+				widgets = ['text', 'text', 'text'], 
+				box_labels = ['New Title', 
+					'New X-Title', 'New Y-Title']))
+		self.set_up_widgets()
+
+def change_labels_dialog(title, x_ax, y_ax):
+	dlg = labels_dialog(newtitle = title, 
+		newxtitle = x_ax, newytitle = y_ax)
+	made = dlg()
+	if made: return (dlg.newtitle, dlg.newxtitle, dlg.newytitle)
+	else: return False
+
 class plot_page(QtGui.QWidget):
 
 	def __init__(self, plt_window, label, figure, canvas, 
@@ -268,7 +309,9 @@ class plot_page(QtGui.QWidget):
 
 	def hide(self, *args, **kwargs):
 		#print 'hide', self.page_label
-		self.hide()
+		lay = self.parent.layout()
+		lay.removeWidget(self)
+		QtGui.QWidget.hide(self)
 
 	def show_plot(self, *args, **kwargs):
 		if self.parent.plot_type is 'lines':
@@ -284,6 +327,8 @@ class plot_page(QtGui.QWidget):
 			self.show_plot_bars(*args, **kwargs)
 
 		else: print 'plot page is confused...'
+		lay = self.parent.layout()
+		lay.addWidget(self)
 
 	def show_plot_lines(self, *args, **kwargs):
 
@@ -335,7 +380,8 @@ class plot_page(QtGui.QWidget):
 			print 'surface was not resolved'
 			return
 
-		ax.set_title(self.surf_target)
+		self.title = self.surf_target
+		ax.set_title(self.title)
 		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, 
 								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
@@ -389,6 +435,7 @@ class plot_page(QtGui.QWidget):
 		self.resolve_surf_target()
 		self.figure.clf()
 		ax = Axes3D(self.figure)
+		self.newest_ax = ax
 		ax.cla()
 		ax.grid(False)
 		#color = (0.1843, 0.3098, 0.3098)
@@ -411,7 +458,8 @@ class plot_page(QtGui.QWidget):
 		ax.set_xlabel(self.x_ax_title, fontsize = 18)
 		ax.set_ylabel(self.y_ax_title, fontsize = 18)
 		ax.set_zlabel(self.surf_target, fontsize = 18)
-		ax.set_title(self.surf_target)
+		self.title = self.surf_target
+		ax.set_title(self.title)
 		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, 
 								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
@@ -451,6 +499,7 @@ class plot_page(QtGui.QWidget):
 		ax = self.add_plot()
 		#for now, assume only one bin_vectors object in the data set
 		try:
+			pdb.set_trace()
 			bin_vectors_dex = [hasattr(dater, 'bins') for dater 
 								in self._data_.data].index(True)
 
@@ -481,61 +530,205 @@ class plot_page(QtGui.QWidget):
 		#plt.show()
 		self.canvas.draw()
 
-	#def add_plot(self, code = 111, projection = None):
 	def add_plot(self, code = 111):
 		self.figure.clf()
 		#ax = self.figure.add_subplot(code)
 		#if projection: ax = self.figure.gca(projection='3d')
 		ax = self.figure.gca()
+		self.newest_ax = ax
 		ax.cla()
 		ax.set_xlabel(self.x_ax_title, fontsize = 18)
 		ax.set_ylabel(self.y_ax_title, fontsize = 18)
 		ax.set_title(self.title)
 		#self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 		#colormap = plt.cm.gist_stern
-		colormap = plt.cm.gist_ncar
+		#colormap = plt.cm.gist_ncar
 		#colormap = plt.cm.gist_earth
 		#colormap = plt.cm.gist_heat
 		#colormap = plt.cm.gist_rainbow
+		colormap = plt.get_cmap('jet')
 		self.colors = [colormap(i) for i in 
-			np.linspace(0, 0.9, self.max_line_count)]
+			np.linspace(0, 0.9, min([self.max_line_count, 
+							len(self._plot_targets_)]))]
 		return ax
 
-class plot_window_toolbar(NavigationToolbar):
-
-	toolitems = [t for t in NavigationToolbar.toolitems 
+class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
+	message = QtCore.Signal(str)
+	toolitems = [t for t in NavigationToolbar2.toolitems 
 					if t[0] in ('Pan', 'Zoom', 'Save')]
+	toolitems.append(('Labels', 
+		'Change the title and axes labels', 'gear', 'labels'))
+	toolitems.append(('Roll', 
+		'Roll through a series of plots', 'gear', 'roll'))
 
-	""" Subclasses the matplotlib toolbar so we can integrate more widgets into it """
-	def __init__(self, canvas, parent):
-		self._plt_window_ = parent
-		NavigationToolbar.__init__(self, canvas, parent)
-		#print 'new tool bar __init__', type(self)  # Built_in_function_or_method ?
+	def __init__(self, canvas, parent, coordinates=True):
+		""" coordinates: should we show the coordinates on the right? """
+		self.canvas = canvas
+		self.parent = parent
+		self.coordinates = coordinates
+		self._actions = {}
+		"""A mapping of toolitem method names to their QActions"""
 
-	def roll(self):
-		page = self._plt_window_.get_current_page()
-		while page.roll_dex < page.max_roll_dex:
-			#print page.roll_dex
-			page.show_plot_bars()
-			time.sleep(page.roll_delay)
-			page.roll_dex += 1
+		QtGui.QToolBar.__init__(self, parent)
+		NavigationToolbar2.__init__(self, canvas)
 
-		page.roll_dex = 0
+	def _icon(self, name):
+		if name in ['move.png', 'zoom_to_rect.png', 'filesave.png']:
+			return QtGui.QIcon(os.path.join(self.basedir, name))
+
+		else:
+			return QtGui.QIcon(os.path.join(
+				os.getcwd(), 'resources', name))
 
 	def _init_toolbar(self):
-		""" Add our extra widgets """
-		#print '_init_toolbar method'
-		NavigationToolbar._init_toolbar(self)
-		#self.layout().addWidget(QtGui.QPushButton("test"))  # Fails, layout has no addWidget method
-		gear_icon_path = os.path.join(
-			os.getcwd(), 'resources', 'gear.png')
-		gear_icon = lgb.create_icon(gear_icon_path)
-		roll_action = lgb.create_action(
-			parent = self, label = 'Roll Plots', 
-			bindings = lgb.create_thread_wrapper(self.roll), 
-					icon = gear_icon, shortcut = 'Alt+P', 
-					statustip = 'Roll Through Bar Plots')
-		self.addAction(roll_action)
+		self.basedir = os.path.join(
+			matplotlib.rcParams['datapath'], 'images')
+		for text, tooltip_text, image_file, callback in self.toolitems:
+			if text is None: self.addSeparator()
+			else:
+				a = self.addAction(self._icon(image_file + '.png'),
+				 text, getattr(self, callback))
+				self._actions[callback] = a
+
+			if callback in ['zoom', 'pan']: a.setCheckable(True)
+			if tooltip_text is not None: a.setToolTip(tooltip_text)
+
+		self.buttons = {}
+
+		# Add the x,y location widget at the right side of the toolbar
+		# The stretch factor is 1 which means any resizing of the toolbar
+		# will resize this label instead of the buttons.
+		if self.coordinates:
+			self.locLabel = QtGui.QLabel("", self)
+			self.locLabel.setAlignment(
+			QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+			self.locLabel.setSizePolicy(
+			QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+			  QtGui.QSizePolicy.Ignored))
+			labelAction = self.addWidget(self.locLabel)
+			labelAction.setVisible(True)
+
+		# reference holder for subplots_adjust window
+		self.adj_window = None
+
+	def _update_buttons_checked(self):
+		#sync button checkstates to match active mode
+		self._actions['pan'].setChecked(self._active == 'PAN')
+		self._actions['zoom'].setChecked(self._active == 'ZOOM')
+
+	def pan(self, *args):
+		super(plot_window_toolbar, self).pan(*args)
+		self._update_buttons_checked()
+
+	def zoom(self, *args):
+		super(plot_window_toolbar, self).zoom(*args)
+		self._update_buttons_checked()
+
+	def roll(self):
+
+		def _roll():
+			page = self.parent.get_current_page()
+			while page.roll_dex < page.max_roll_dex:
+				page.show_plot_bars()
+				time.sleep(page.roll_delay)
+				page.roll_dex += 1
+
+			page.roll_dex = 0
+			self._update_buttons_checked()
+
+		roll_ = lgb.create_thread_wrapper(_roll)
+		roll_()
+
+	def labels(self):
+		page = self.parent.get_current_page()
+		labels_dlg = change_labels_dialog(page.title, 
+					page.x_ax_title, page.y_ax_title)
+		if not labels_dlg: return
+		new_title, new_x_label, new_y_label = labels_dlg
+		page.title = new_title
+		page.x_ax_title = new_x_label
+		page.y_ax_title = new_y_label
+		ax = page.newest_ax
+		ax.set_xlabel(new_x_label, fontsize = 18)
+		ax.set_ylabel(new_y_label, fontsize = 18)
+		if self.parent.plot_type in ['surface']:
+			ax.set_zlabel(new_title, fontsize = 18)
+
+		ax.set_title(new_title)
+		self.canvas.draw()
+
+	def dynamic_update(self):
+		self.canvas.draw()
+
+	def set_message(self, s):
+		self.message.emit(s)
+		if self.coordinates:
+			self.locLabel.setText(s.replace(', ', '\n'))
+
+	def set_cursor(self, cursor):
+		DEBUG = False
+		if DEBUG:
+			print('Set cursor', cursor)
+			self.canvas.setCursor(cursord[cursor])
+
+	def draw_rubberband(self, event, x0, y0, x1, y1):
+		height = self.canvas.figure.bbox.height
+		y1 = height - y1
+		y0 = height - y0
+
+		w = abs(x1 - x0)
+		h = abs(y1 - y0)
+
+		rect = [int(val)for val in (min(x0, x1), min(y0, y1), w, h)]
+		self.canvas.drawRectangle(rect)
+
+	def configure_subplots(self):
+		image = os.path.join(matplotlib.rcParams['datapath'],
+		 'images', 'matplotlib.png')
+		dia = SubplotToolQt(self.canvas.figure, self.parent)
+		dia.setWindowIcon(QtGui.QIcon(image))
+		dia.exec_()
+
+	def save_figure(self, *args):
+		filetypes = self.canvas.get_supported_filetypes_grouped()
+		sorted_filetypes = list(six.iteritems(filetypes))
+		sorted_filetypes.sort()
+		default_filetype = self.canvas.get_default_filetype()
+
+		startpath = matplotlib.rcParams.get('savefig.directory', '')
+		startpath = os.path.expanduser(startpath)
+		start = os.path.join(startpath, 
+			self.canvas.get_default_filename())
+		filters = []
+		selectedFilter = None
+		for name, exts in sorted_filetypes:
+			exts_list = " ".join(['*.%s' % ext for ext in exts])
+			filter = '%s (%s)' % (name, exts_list)
+		if default_filetype in exts:
+			selectedFilter = filter
+			filters.append(filter)
+			filters = ';;'.join(filters)
+
+		#fname = _getSaveFileName(self.parent, 
+		#	"Choose a filename to save to",
+		#	start, filters, selectedFilter)
+		fname = create_dialog('Choose File', 'File?', 'file_save', 
+									'Image (*.png)', startpath)
+		fname = fname()
+		if fname:
+			if startpath == '':
+				# explicitly missing key or empty str signals to use cwd
+				matplotlib.rcParams['savefig.directory'] = startpath
+			else:
+				# save dir for next time
+				savefig_dir = os.path.dirname(six.text_type(fname))
+				matplotlib.rcParams['savefig.directory'] = savefig_dir
+			try:
+				self.canvas.print_figure(six.text_type(fname))
+			except Exception as e:
+				QtGui.QMessageBox.critical(
+					self, "Error saving file", str(e),
+					QtGui.QMessageBox.Ok, QtGui.QMessageBox.NoButton)
 
 class plot_window(create_obj_dialog):
 
@@ -580,9 +773,6 @@ class plot_window(create_obj_dialog):
 		#	QtGui.QSizePolicy.Expanding,
 		#	QtGui.QSizePolicy.Expanding)
 		#self.canvas.updateGeometry()
-
-		#this stupid class is buggy as hell... make it yourself...
-		#self.toolbar = NavigationToolbar(self.canvas, self)
 		self.toolbar = plot_window_toolbar(self.canvas, self)
 		self.set_settables()
 
@@ -672,7 +862,6 @@ class plot_window(create_obj_dialog):
 			self.update_axes_slicing(page_dex)
 			self.pages[page_dex]._plot_targets_ = self.current_targets
 			self.pages[page_dex]._axis_labels_ = self.current_axes
-			#self.pages[page_dex].show_plot(page_dex)
 			self.pages[page_dex].show_plot()
 
 		except IndexError: pass
@@ -782,24 +971,11 @@ class plot_window(create_obj_dialog):
 		page = self.create_plot_page(new_page, data_container, 
 			specifics, axes, filename, title, x_ax_title, y_ax_title)
 		self.pages.append(page)
-		lay = self.layout()
-		lay.addWidget(page)
 
 	def get_code(self):
 		try: return self.codes.pop(0)
 		except IndexError:
 			print 'no codes left'; return 111
-
-	'''
-	def add_plot(self, code = 111):
-		ax = self.figure.add_subplot(code)
-		ax.cla()
-		ax.set_xlabel(self.x_ax_title, fontsize = 18)
-		ax.set_ylabel(self.y_ax_title, fontsize = 18)
-		ax.set_title(self.title)
-		self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-		return ax
-	'''
 
 	def remake_plot(self):
 		dex = self.page_labels.index(self.selected_page_label)
@@ -815,11 +991,13 @@ class plot_window(create_obj_dialog):
 
 	def hide_irrelevant_widgets(self):
 		verbs = self.get_verbosities()
-		if verbs[7] > 0:
-			try: self.slice_group.hide()
-			except AttributeError: pass
+		if self.slice_group:
+			if verbs[7] > 0:
+				try: self.slice_group.hide()
+				except AttributeError: pass
 
-		else: self.slice_group.show()
+			else: self.slice_group.show()
+
 		if verbs[6] > 0: self.check_group.hide()
 		else: self.check_group.show()
 		if verbs[5] > 0: self.surf_target_selector[0].hide()
@@ -840,6 +1018,64 @@ class plot_window(create_obj_dialog):
 	def change_surf_target(self, new_dex):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_color_surface_target(new_dex)
+
+def quick_plot_display(domain, codomains, delay = 2):
+	qp = quick_plot(domain.scalers, [co.scalers for co in codomains], 
+						domain.label, [co.label for co in codomains])
+	time.sleep(delay)
+	qp.close()
+
+qp_fig = None
+class quick_plot(QtGui.QWidget):
+
+	def __init__(self, x, ys, x_lab, y_labs):
+		super(quick_plot, self).__init__()
+		global qp_fig
+		if qp_fig is None: qp_fig = plt.figure()
+		self.max_line_count = 20
+		self.set_up_widgets()
+		self.set_geometry()
+		self.plot(x, ys, x_lab, y_labs)
+		self.show()
+		self.repaint()
+
+	def set_up_widgets(self):
+		self.canvas = FigureCanvas(qp_fig)
+		self.setBackgroundRole(QtGui.QPalette.Window)
+		self.toolbar = plot_window_toolbar(self.canvas, self)
+		#layout = lgb.create_vert_box([self.canvas, self.toolbar])
+		layout = lgb.create_vert_box([self.canvas])
+		self.setLayout(layout)
+
+	def set_geometry(self):
+		x, y = lfu.convert_pixel_space(256, 256)
+		x_size, y_size = lfu.convert_pixel_space(1024, 768)
+		geometry = (x, y, x_size, y_size)
+		self.setGeometry(*geometry)
+
+	def plot(self, x, ys, x_lab, y_labs):
+
+		def plot_(x, y, label):
+			line = matplotlib.lines.Line2D(
+				x, y, color = self.colors.pop())
+			line.set_label(label)
+			ax.add_line(line)
+
+		qp_fig.clf()
+		ax = qp_fig.gca()
+		ax.cla()
+		ax.grid(True)
+		ax.set_xlabel(x_lab, fontsize = 18)
+		ax.set_ylabel(y_labs[0], fontsize = 18)
+		colormap = plt.get_cmap('jet')
+		self.colors = [colormap(i) for i in 
+			np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
+		[plot_(x, y, label) for x, y, label 
+			in zip([x]*len(ys), ys, y_labs)]
+		ax.axis([x.min(), x.max(), min([y.min() for y in ys]), 
+								max([y.max() for y in ys])])
+		ax.legend()
+		self.canvas.draw()
 
 ###################
 #plotting business#
@@ -862,6 +1098,7 @@ class trajectory_dialog(create_obj_dialog):
 		self.result_string = None
 		self.result = None
 		self.constructed = []
+		self.max_locations = 10000
 		#variations is a list (in 1-1 with subspaces)
 		#	of lists of values
 		self.variations = [None]*len(self.p_space.subspaces)
@@ -926,6 +1163,11 @@ class trajectory_dialog(create_obj_dialog):
 
 				else: fixed_tup.append(tup[dex])
 
+			if len(self.constructed) > self.max_locations:
+				print ''.join(['WILL NOT MAKE', str(len(
+					self.constructed)-1), '+LOCATIONS!'])
+				break
+
 			self.constructed.append(parameter_space_location(
 								location = list(fixed_tup)))
 
@@ -938,6 +1180,11 @@ class trajectory_dialog(create_obj_dialog):
 		from libs.modular_core.libgeometry import parameter_space_location
 		self.wrap_nones()
 		max_leng = max([len(variant) for variant in self.variations])
+		if max_leng > self.max_locations:
+			print ''.join(['WILL NOT MAKE', str(len(
+					self.constructed)-1), '+LOCATIONS!'])
+			return
+
 		for dex in range(len(self.variations)):
 			if self.variations[dex][0] is None:
 				self.variations[dex] =\
@@ -1021,42 +1268,6 @@ class range_maker(QtGui.QLabel):
 		if valid: self.display.box.setText(rng)
 
 	def make_range(self):
-		'''
-		def strip_separate(stg, delim = ':'):
-			return [item.strip() for item in stg.split(delim)]
-
-		def parse_range(stg):
-			if stg.strip() == '': return ''
-			elif not stg.count('-') > 0 and not stg.count(';') > 0:
-				res = ', '.join([str(float(item)) 
-					for item in stg.split(',')])
-				return res
-
-			elif stg.count('-') > 0 and not stg.count(';') > 0:
-				res = ', '.join([str(item) for item in np.arange(
-					float(stg[:stg.find('-')]), 
-					float(stg[stg.find('-') + 1:]) + 1.0, 1.0)])
-				return res
-
-			elif stg.count('-') > 0 and stg.count(';') > 0:
-				interval = float(stg[stg.rfind(';') + 1:])
-				front = float(stg[:stg.find('-')])
-				back = float(stg[stg.find('-') + 1:stg.find(';')])
-				values = list(np.arange(front, back, interval))
-				if back - values[-1] >= interval:
-					values.append(values[-1] + interval)
-
-				res = ', '.join([str(item) for item in values])
-				return res
-
-			elif not stg.count('-') > 0 and stg.count(';') > 0:
-				res = ', '.join([str(float(item)) for 
-					item in stg[:stg.find(';')].split(',')])
-				return res
-		'''
-		#ranges = strip_separate(self._range_, ':')
-		#ranges = [parse_range(stg) for stg in ranges]
-		#ranges = ', '.join(ranges)
 		ranges, valid = lm.make_range(self._range_)
 		return ranges, valid
 

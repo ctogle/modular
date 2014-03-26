@@ -5,12 +5,16 @@
 from libc.math cimport log
 #from libc.math cimport sin as sin
 #from libc.math cimport cos as cos
+from math import sin as sin
+from math import cos as cos
 # from libc.math cimport fmax
 # from math import log
 
 import random
 import numpy as np
 import re
+
+from numpy import pi
 
 #System State Variables
 cdef SIM_COUNTS
@@ -21,6 +25,13 @@ cdef SIM_COUNT_TARGETS
 #############
 ### Rates ###
 #############
+
+cpdef double heaviside(double value):
+	return 1.0 if value > 0.0 else 0.0
+
+cpdef double gauss_noise(double value, double SNR):
+	noise = random.gauss(0.0, 1.0)
+	return value + value*noise/SNR
 
 #TODO consider using __call__ instead of calculate
 cdef class Rate:
@@ -536,14 +547,16 @@ def generate_functions(count_targets, functions_string):
 		return ''.join([convert(substr) for substr in string])
 
 	func_names = [fu[:fu.find('=')] for fu in function_strs]
-	encoded_functions = [fu[fu.find('=') + 1:] for fu in function_strs]
+	encoded_functions = [fu[fu.find('=') + 1:].replace('&', ',') 
+										for fu in function_strs]
 	encoded_lambdas = ['lambda counts: ' + encode(re.split('(\W)', string))
 											for string in encoded_functions]
 	funcs = [eval(expr) for expr in encoded_lambdas]
 	return func_names, funcs
 
 
-def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,Product:0<variables>k:0.5<functions>ratio=Substrate/(Enzyme+k)<reactions>(1)Substrate+(1)Enzyme->1.0->(1)ES_Complex,(1)ES_Complex->0.01->(1)Substrate+(1)Enzyme,(1)ES_Complex->800.0->(1)Enzyme+(1)Product<end>time>=0.00098<capture>increment:time:0.00002<targets>ES_Complex,Product,iteration,time||'):
+#def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,Product:0<variables>k:0.5<functions>ratio=gauss_noise(heaviside(sin(time*62800.0))&10.0)<reactions>(1)Substrate+(1)Enzyme->1.0->(1)ES_Complex,(1)ES_Complex->0.01->(1)Substrate+(1)Enzyme,(1)ES_Complex->ratio->(1)Enzyme+(1)Product<end>time>=0.00098<capture>increment:time:0.00002<targets>ES_Complex,Product,iteration,time,ratio||'):
+def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,Product:0<variables>k:0.5<functions>ratio=Substrate/(Enzyme+k)<reactions>(1)ES_Complex->800.0->(1)Enzyme+(1)Product,(1)Substrate+(1)Enzyme->1.0->(1)ES_Complex,(1)ES_Complex->0.01->(1)Substrate+(1)Enzyme<end>time>=0.00098<capture>increment:time:0.00002<targets>ES_Complex,Product,iteration,time||'):
 #def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,Product:0<variables>k:0.5<functions>ratio=Substrate/(Enzyme+k)<reactions>(1)Substrate+(1)Enzyme->1.0->(1)ES_Complex,(1)ES_Complex->0.01->(1)Substrate+(1)Enzyme,(1)ES_Complex->800.0->(1)Enzyme+(1)Product<end>iteration>=10000<capture>increment:time:0.00002<targets>ES_Complex,Product,iteration,time||'):
 
 	#backward compatability
@@ -571,9 +584,6 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 	count_targets = ['iteration', 'time'] + list(species) + list(variables)
 	counts = [0, 0.0] + species_counts + var_vals
 
-	targets = targets.split(',')
-	targets = [targ for targ in count_targets if targ in targets]
-
 	func_names, functions = generate_functions(count_targets, functions_string)
 
 	cdef FunctionUpdater update_functions
@@ -584,6 +594,9 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 
 	count_targets.extend(func_names)
 	counts.extend([func(counts) for func in functions])
+
+	targets = targets.split(',')
+	targets = [targ for targ in count_targets if targ in targets]
 
 	global SIM_COUNTS, SIM_COUNTS_LIST, SIM_COUNTS_LENGTH
 	SIM_COUNTS = counts
@@ -640,12 +653,18 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 
 	cdef int rxn_dex
 	cdef double propensity_total_inv
+	cdef double last_time = 0.0
 	while capture_dex < total_captures:
-	#while not counts[end_crit_dex] >= end_crit_limit:
-		#if SIM_COUNTS[0] == 10000: print 'time', SIM_COUNTS[1]
-		#print 'end crit', counts[end_crit_dex], end_crit_limit
-		propensity_total = get_propensity(propensity_count, propensity_table,
-			rxn_table, validators)
+
+			#compute next reaction time: t := t + dt
+			#while(lastTime<t):
+				#output / store state of system
+				#lastTime := lastTime + sampleTime
+			#select and implement Gillespie reaction
+			#compute propensities
+
+		propensity_total = get_propensity(propensity_count, 
+					propensity_table, rxn_table, validators)
 
 		if propensity_total > 0.0:
 			propensity_total_inv = 1.0/propensity_total
@@ -653,25 +672,32 @@ def simulate(system_string = '<species>Substrate:10000,Enzyme:5000,ES_Complex:0,
 				rxn_table[dex] *= propensity_total_inv
 
 			time_step = -1.0 * log(<double> random.random()) * propensity_total_inv
-			time_step = min(capt_crit_thresh, time_step)
-
+			#time_step = min(capt_crit_thresh, time_step)
 			rxn_dex = pick_reaction(rxn_table, propensity_count)
 
 		else:
-			print 'all impossible.... continuing...'
+			#print 'all impossible.... continuing...'
 			time_step = capt_crit_thresh
 			rxn_dex = -1
 
 		SIM_COUNTS[0] += 1
 		SIM_COUNTS[1] += time_step
-		if SIM_COUNTS[capt_crit_dex] - data[capt_crit_dex][capture_dex] >= capt_crit_thresh:
-			time += capt_crit_thresh
+		while last_time < SIM_COUNTS[1] and capture_dex < total_captures:
 			real_time = SIM_COUNTS[1]
-			SIM_COUNTS[1] = time
+			SIM_COUNTS[1] = last_time
 			update_functions.update()
 			data[:,capture_dex] = [SIM_COUNTS[dex] for dex in target_dexes]
 			capture_dex += 1
 			SIM_COUNTS[1] = real_time
+			last_time += capt_crit_thresh
+		#if SIM_COUNTS[capt_crit_dex] - data[capt_crit_dex][capture_dex] >= capt_crit_thresh:
+		#	time += capt_crit_thresh
+		#	real_time = SIM_COUNTS[1]
+		#	SIM_COUNTS[1] = time
+		#	update_functions.update()
+		#	data[:,capture_dex] = [SIM_COUNTS[dex] for dex in target_dexes]
+		#	capture_dex += 1
+		#	SIM_COUNTS[1] = real_time
 
 		(<Reaction> reactions[rxn_dex]).react()
 		(<PropensityBase> propensity_updaters[rxn_dex]).update()
