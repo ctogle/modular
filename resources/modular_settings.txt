@@ -1,21 +1,21 @@
 
 
 <interface>
-multithread_gui = False
-debug_verbosity = 2
+multithread_gui = True
 interface_verbosity = 2
+debug_verbosity = 2
+
+<multiprocessing defaults>
+worker_processes = 8
+multiprocessing = True
+
+<run options>
+profile = False
 
 <ensemble defaults>
 mapparameterspace = True
 postprocessing = True
 fitting = True
-
-<run options>
-profile = False
-
-<multiprocessing defaults>
-worker_processes = 8
-multiprocessing = True
 
 <data handling>
 use_smart_pool = True

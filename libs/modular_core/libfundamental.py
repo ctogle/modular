@@ -250,7 +250,7 @@ class modular_object_qt(object):
 				self.__dict__[key] = base_example.__dict__[key]
 
 	def verify_criteria_list(self, crits, *args):
-		relevant_crits = [crit for crit in crits if crit.bRelevant]
+		'''
 		for crit in relevant_crits:
 			if crit.verify_pass(*args):
 				return True
@@ -260,6 +260,10 @@ class modular_object_qt(object):
 			return True
 
 		return False
+		'''
+		relevant_crits = [crit for crit in crits if crit.bRelevant]
+		passes = [crit.verify_pass(*args) for crit in relevant_crits]
+		return True in passes
 
 	def verify_criteria_list_boolean(self, crits, *args, **kwargs):
 		bool_expression = kwargs['bool_expression']

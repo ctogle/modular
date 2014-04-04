@@ -6,6 +6,33 @@ from copy import deepcopy as copy
 
 import pdb
 
+def parse_criterion_line(data):
+	split = [item.strip() for item in data.split(':')]
+	for crit_type in valid_criterion_base_classes:
+		if split[0] == crit_type._tag:
+			crit = crit_type._class()
+			if len(split) > 1:
+				if crit_type._tag == 'time limit':
+					crit.max_time = split[1]
+
+				elif crit_type._tag == 'iteration limit':
+					crit.max_iterations = split[1]
+
+				elif crit_type._tag == 'capture limit':
+					crit.max_captures = split[1]
+
+				elif crit_type._tag == 'scaler increment':
+					crit.increment = split[1]
+					if len(split) > 2: crit.key = split[2]
+
+				elif crit_type._tag == 'species count':
+					crit.spec_count_target = split[1]
+					if len(split) > 2: crit.key = split[2]
+
+				else: pdb.set_trace()
+
+	return crit
+
 class criterion(lfu.modular_object_qt):
 
 	#ABSTRACT
@@ -14,7 +41,7 @@ class criterion(lfu.modular_object_qt):
 					label = 'criterion', 
 					valid_base_classes = None, 
 					visible_attributes = ['label', 
-						'base_class', 'bRelevant']	):
+						'base_class', 'bRelevant'], **kwargs	):
 		if valid_base_classes is None:
 			global valid_criterion_base_classes
 			valid_base_classes = valid_criterion_base_classes
@@ -77,7 +104,7 @@ class criterion_iteration(criterion):
 
 	def __init__(self, parent = None, max_iterations = 1000, base_class = None, 
 			label = 'iteration criterion', visible_attributes =\
-			['label', 'base_class', 'bRelevant', 'max_iterations']):
+			['label', 'base_class', 'bRelevant', 'max_iterations'], **kwargs):
 		if base_class is None:
 			base_class = lfu.interface_template_class(
 				criterion_iteration, 'iteration limit')
@@ -233,7 +260,7 @@ class criterion_scaler_increment(criterion):
 		self.increment = increment
 
 	def to_string(self):
-		return '\tspecies scaler increment : ' + \
+		return '\tscaler increment : ' + \
 			str(self.increment) + ' : ' + self.key
 
 	def initialize(self): self.increment = float(self.increment)

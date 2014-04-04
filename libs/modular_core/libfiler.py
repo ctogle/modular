@@ -16,7 +16,8 @@ def load_pkl_object(filename):
 	pkl_file.close()
 	return data
 
-def output_lines(lines, direc, finame = None, overwrite = True):
+def output_lines(lines, direc, finame = None, 
+		overwrite = True, dont_ask = False):
 	#if no finame is given, direc should contain the full path
 	if finame is None: path = direc
 	else: path = os.path.join(direc, finame)
@@ -26,11 +27,13 @@ def output_lines(lines, direc, finame = None, overwrite = True):
 			return False
 
 		else:
-			msg = '\n'.join(['Are you sure you want', 
-				'to overwrite the module?:', path])
-			if lgd.message_dialog(None, msg, 'Overwrite', True):
-				print 'overwriting as instructed...'
+			if dont_ask: check = lambda: True
+			else:
+				msg = '\n'.join(['Are you sure you want', 
+					'to overwrite the module?:', path])
+				check = lgd.message_dialog(None, msg, 'Overwrite', True)
 
+			if check(): print 'overwriting as instructed...'
 			else:
 				print 'wont output without your permission; skipping!'
 				return False

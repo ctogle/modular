@@ -19,6 +19,30 @@ if __name__ == 'libs.modular_core.liboutput':
 
 if __name__ == '__main__': print 'this is a library!'
 
+def parse_output_plan_line(line, ensem, procs, routs):
+	spl = [item.strip() for item in line.split(' : ')]
+	dex = int(spl[0])
+	if dex == 0: output = ensem.output_plan
+	#else: output = procs[dex - 1].output
+	elif dex <= len(procs): output = procs[dex - 1].output
+	else: output = routs[dex - len(procs) - 1].output
+	output.save_directory = spl[1]
+	output.save_filename = spl[2]
+	if 'plt' in spl[3]: output.output_plt = True
+	else: output.output_plt = False
+	if 'vtk' in spl[3]: output.output_vtk = True
+	else: output.output_vtk = False
+	if 'pkl' in spl[3]: output.output_pkl = True
+	else: output.output_pkl = False
+	if 'txt' in spl[3]: output.output_txt = True
+	else: output.output_txt = False
+	relevant = [item.strip() for item in spl[4].split(',')]
+	if 'all' in relevant:
+		output.set_settables(0, ensem)
+		output.targeted = output.get_target_labels()
+
+	else: output.targeted = relevant
+
 class writer(lfu.modular_object_qt):
 
 	def __init__(self, parent = None, filenames = [], 

@@ -1,0 +1,19 @@
+Fit Routine Fitting Key: 
+
+
+Best fit from metric : pointwise difference metric0000000000 : 567.669795599
+	Trajectory : 266
+		Enzyme Substrate complex formation : rate : 1.99911347443
+		Enzyme Substrate complex dissociation : rate : 5392.37752985
+		Product formation : rate : 631.276172819
+		Enzyme : initial_count : 100001.0
+		Substrate : initial_count : 10000.0
+
+
+Best fit from metric : pointwise difference metric0000000000 : 759.051643155
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 1.0
+		Enzyme Substrate complex dissociation : rate : 1000.0
+		Product formation : rate : 1000.0
+		Enzyme : initial_count : 10000.0
+		Substrate : initial_count : 10000.0

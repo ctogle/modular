@@ -1,0 +1,31 @@
+Fit Routine Fitting Key: 
+
+
+Best fit from metric : pointwise difference metric : 228.387746656
+	Trajectory : 776
+		Enzyme Substrate complex formation : rate : 1.23143421708
+
+
+Best fit from metric : pointwise difference metric : 318.790947712
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 1.0
+
+
+Best fit from metric : slope metric : 923265.854505
+	Trajectory : 550
+		Enzyme Substrate complex formation : rate : 0.842025401267
+
+
+Best fit from metric : slope metric : 933089.46394
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 1.0
+
+
+Best fit from metric : 2nd derivative metric : 101185018.806
+	Trajectory : 831
+		Enzyme Substrate complex formation : rate : 0.0560212515671
+
+
+Best fit from metric : 2nd derivative metric : 469120573.81
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 1.0

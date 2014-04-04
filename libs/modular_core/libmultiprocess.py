@@ -149,5 +149,37 @@ class multiprocess_plan(lfu.plan):
 		super(multiprocess_plan, self).set_settables(
 							*args, from_sub = True)
 
+def run_with_time_out(run_func, args, pool, 
+			time_out = 10, worker = None):
+	#this function should not work if callback does not extend properly
+	begin = len(pool)
+	new = False
+	if not worker:
+		worker_pool = mp.Pool(processes = 1)
+		new = True
 
+	else: worker_pool = worker
+	result = worker_pool.map_async(run_func, 
+				args, callback = pool.extend)
+	worker_pool.close()
+	start_time = time.time()
+	time.sleep(0.1)
+	timed_out = time.time() - start_time > time_out
+	finished = len(pool) > begin
+	while not timed_out and not finished:
+		time.sleep(0.5)
+		timed_out = time.time() - start_time > time_out
+		finished = len(pool) > begin
+		#print 'waiting...', finished, timed_out
+
+	if timed_out:
+		worker_pool.terminate()
+		if new: worker_pool.join()
+		#print 'timed out...'
+		return True
+
+	else:
+		if new: worker_pool.join()
+		#worker_pool.join()
+		return False
 

@@ -1,0 +1,25 @@
+
+<end_criteria>
+	time limit : 0.005
+
+<capture_criteria>
+	scaler increment : 0.0002 : time
+
+<plot_targets>
+	time
+
+<output_plans>
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\particles\output : ensemble_output : plt : all
+
+<variables>
+	C : 5
+	#A : 18,18,18,18,18,18,235,235,239,18,18,235,18,239,18,18,235,235,235,18,18,18,18,18,18
+	G : 15
+	L : 10
+	S : 0
+	E : 0.001
+	F : 120000
+
+
+
+

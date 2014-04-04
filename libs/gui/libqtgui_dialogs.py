@@ -1019,7 +1019,7 @@ class plot_window(create_obj_dialog):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_color_surface_target(new_dex)
 
-def quick_plot_display(domain, codomains, delay = 2):
+def quick_plot_display(domain, codomains, delay = 1):
 	qp = quick_plot(domain.scalers, [co.scalers for co in codomains], 
 						domain.label, [co.label for co in codomains])
 	time.sleep(delay)

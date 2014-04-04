@@ -6,8 +6,9 @@ import libs.modular_core.libgeometry as lgeo
 import libs.modular_core.libfitroutine as lfr
 import libs.modular_core.libpostprocess as lpp
 import libs.modular_core.libcriterion as lc
+import libs.modular_core.libmodcomponents as lmc
 
-import libs.modules.stringchemical as chemfast
+import libs.modules.chemicallite_support.stringchemical as chemfast
 #import libs.modules.libchemicalstring_3 as chemfast
 
 import sys
@@ -15,6 +16,7 @@ import types
 import random
 import numpy as np
 from math import log as log
+import traceback
 
 import pdb
 
@@ -28,6 +30,8 @@ if __name__ == '__main__':
 	print 'this is the chemical lite module library!'
 
 module_name = 'chemicallite'
+
+'''
 run_param_keys = [	'End Criteria', 
 					'Capture Criteria', 
 					'Plot Targets', 
@@ -36,10 +40,20 @@ run_param_keys = [	'End Criteria',
 					'Parameter Space Map', 
 					'Multiprocessing', 
 					'Output Plans'	] +\
-				[	'Variables', 'Functions', 
-					'Reactions', 'Species']
+'''
+run_param_keys = lmc.run_param_keys +\
+	['Variables', 'Functions', 'Reactions', 'Species']
 
 def generate_gui_templates_qt(window, ensemble):
+	set_module_memory_(ensemble)
+	plot_target_labels = ['iteration', 'time'] +\
+		ensemble.run_params['species'].keys() +\
+		ensemble.run_params['variables'].keys() +\
+		ensemble.run_params['functions'].keys()
+	panel_template_lookup =\
+		lmc.generate_panel_template_lookup_standard(
+				window, ensemble, plot_target_labels)
+	'''
 	panel_template_lookup = []
 	plot_target_labels = ['iteration', 'time'] +\
 		ensemble.run_params['species'].keys() +\
@@ -89,6 +103,7 @@ def generate_gui_templates_qt(window, ensemble):
 			keys = [[None, 'output_plan_selected_memory']], 
 			initials = [[ensemble._module_memory_[\
 				0].output_plan_selected_memory]])))
+	'''
 	panel_template_lookup.append(('variables', 
 		lgm.generate_add_remove_select_inspect_box_template(
 			window = window, key = 'variables', 
@@ -145,8 +160,11 @@ def generate_gui_templates_qt(window, ensemble):
 	# and a list of lists of sub templates
 	#tree_book_panels_from_lookup looks at 
 	# ensemble.run_params to find templates for mobjects
-	return lgb.tree_book_panels_from_lookup(
-		panel_template_lookup, window, ensemble)
+
+	#return lgb.tree_book_panels_from_lookup(
+	#	panel_template_lookup, window, ensemble)
+	return lmc.generate_gui_templates_qt(window, 
+		ensemble, lookup = panel_template_lookup)
 
 def set_module_memory_(ensem):
 	ensem._module_memory_ = [lfu.data_container(
@@ -206,7 +224,103 @@ def set_parameters(ensem):
 	ensem.run_params.create_partition('template owners', 
 		['variables', 'functions', 'reactions', 'species'])
 
+def parse_variable_line(data, ensem):
+	split = [item.strip() for item in data.split(':')]
+	name, value = split[0], split[1]
+	varib = variable(label = name, value = value)
+	return name, varib
+
+def parse_function_line(data, ensem):
+	split = [item.strip() for item in data.split(':')]
+	name, value = split[0], split[1]
+	func = function_cont(label = name, func_statement = value)
+	return name, func
+
+def parse_reaction_line(data, ensem):
+
+	def left_right_process(left, right):
+		left = [(left[k + 1], int(left[k])) for k in 
+				[num*2 for num in range(len(left)/2)]]
+		right = [(right[k + 1], int(right[k])) for k in 
+				[num*2 for num in range(len(right)/2)]]
+		return left, right
+
+	data = data.split(' ')
+	try: label = ' '.join(data[data.index(':') + 1:])
+	except ValueError: label = 'a reaction'
+	try: divider = [item.find('-') for item in data].index(0)
+	except:
+		try: divider = [item.find('-') for item in data].index(1)
+		except:
+			print 'cant interpret divider in reaction'
+			return []
+
+	if data[divider] == '<->':
+		rates = [data[divider - 1], data[divider + 1]]
+		left = [item for item in data[:divider - 1] if item != '+']
+		try: right = [item for item in data[divider + 2:data.index(':')] if item != '+']
+		except ValueError: right = [item for item in data[divider + 2:] if item != '+']
+		left, right = left_right_process(left, right)
+		rxn1 = reaction(label, rates[0], 
+				propensity_scheme = 'classic', used = left, 
+						produced = right, parent = ensem)
+		rxn2 = reaction(label, rates[1], 
+				propensity_scheme = 'classic', used = right, 
+						produced = left, parent = ensem)
+		ensem._children_.extend([rxn1, rxn2])
+		return [rxn1, rxn2]
+
+	elif data[divider] == '->':
+		rates = [data[divider - 1]]
+		left = [item for item in data[:divider - 1] if item != '+']
+		try:
+			right = [item for item in 
+					data[divider + 1:data.index(':')] 
+									if item != '+']
+
+		except ValueError:
+			right = [item for item in data[divider + 1:] if item != '+']
+
+		left, right = left_right_process(left, right)
+		rxn = reaction(label, rates[0], propensity_scheme = 'classic', 
+						used = left, produced = right, parent = ensem)
+		ensem._children_.append(rxn)
+		return [rxn]
+
+	elif data[divider] == '<-':
+		rates = [data[divider + 1]]
+		left = [item for item in data[:divider] if item != '+']
+		try: right = [item for item in data[divider + 2:data.index(':')] if item != '+']
+		except ValueError:
+			right = [item for item in data[divider + 2:] if item != '+']
+
+		left, right = left_right_process(left, right)
+		rxn = reaction(label, rates[0], propensity_scheme = 'classic', 
+						used = right, produced = left, parent = ensem)
+		ensem._children_.append(rxn)
+		return [rxn]
+
+	if data != ['']:
+		print 'unable to parse reaction: ' + str(data)
+		pdb.set_trace()
+
+	return []
+
+def parse_species_line(data, ensem):
+	data = [dat.strip() for dat in data.split(':')]
+	spec, value = data[0], int(data[1])
+	new = species(spec, parent = ensem, 
+				initial_count = value, 
+				current_count = value)
+	return spec, new
+
 def parse_mcfg(lines, *args):
+	support = [['variables', 'functions', 'reactions', 'species'], 
+						[parse_variable_line, parse_function_line, 
+						parse_reaction_line, parse_species_line]]
+	lmc.parse_mcfg(lines, args[0], args[1], support)
+
+'''
 	params = args[0]
 	ensem = args[1]
 
@@ -520,6 +634,7 @@ def parse_mcfg(lines, *args):
 				if mobj_attr == p_temp.key:
 					p_temp.contribute_to_p_sp = True
 					p_temp.p_sp_bounds = rng_bounds[dex]
+					p_temp.p_sp_perma_bounds = rng_bounds[dex]
 					p_temp.p_sp_increment = increments[dex]
 
 		def read_increment(rng):
@@ -527,14 +642,30 @@ def parse_mcfg(lines, *args):
 			else: read = 10
 			return read
 
-		axes = [ax[0] for ax in p_sub[1:]]
-		variants = [ax[1] for ax in p_sub[1:]]
-		increments = [read_increment(rng) for rng in 
-						[ax[2] for ax in p_sub[1:]]]
-		ranges = [lm.make_range(rng)[0] for rng in 
-					[ax[2] for ax in p_sub[1:]]]
+		if p_sub[0][0].count('<product_space>'):
+			comp_meth = 'Product Space'
+
+		elif p_sub[0][0].count('<zip_space>'): comp_meth = '1 - 1 Zip'
+		elif p_sub[0][0].count('<fitting_space>'): comp_meth = 'Fitting'
+
+		if comp_meth == 'Product Space' or comp_meth == '1 - 1 Zip':
+			ax_lines = p_sub[1:]
+
+		elif comp_meth == 'Fitting':
+			pdb.set_trace()
+
+		def parse_axes(lines):
+			axes = [ax[0] for ax in lines]
+			variants = [ax[1] for ax in lines]
+			ax_rngs = [ax[2] for ax in lines]
+			return axes, variants, ax_rngs
+
+		axes, variants, ax_rngs = parse_axes(ax_lines)
+		increments = [read_increment(rng) for rng in ax_rngs]
+		ranges = [lm.make_range(rng)[0] for rng in ax_rngs]
 		rng_bounds = [[validate(rng)[0], validate(rng)[-1]] 
 										for rng in ranges]
+
 		poss_contribs = ['species', 'variables', 'reactions']
 		p_mobjs = ensem.cartographer_plan.parameter_space_mobjs
 		for key in p_mobjs.keys():
@@ -553,30 +684,35 @@ def parse_mcfg(lines, *args):
 		ensem.cartographer_plan.generate_parameter_space()
 		selected = [ensem.cartographer_plan.\
 			parameter_space.get_start_position()]
-		if p_sub[0][0].count('<product_space>'):
-			comp_meth = 'Product Space'
+		#if p_sub[0][0].count('<product_space>'):
+		#	comp_meth = 'Product Space'
+		#elif p_sub[0][0].count('<zip>'): comp_meth = '1 - 1 Zip'
 
-		elif p_sub[0][0].count('<zip>'): comp_meth = '1 - 1 Zip'
-		traj_dlg = lgd.trajectory_dialog(parent = None, 
-			base_object = selected, composition_method = comp_meth, 
-			p_space = ensem.cartographer_plan.parameter_space)
 
-		for ax, vari, rng in zip(axes, variants, ranges):
-			trj_dlg_dex = traj_dlg.axis_labels.index(
-							' : '.join([ax, vari]))
-			traj_dlg.variations[trj_dlg_dex] = validate(rng)
+		if comp_meth == 'Product Space' or comp_meth == '1 - 1 Zip':
+			traj_dlg = lgd.trajectory_dialog(parent = None, 
+				base_object = selected, composition_method = comp_meth, 
+				p_space = ensem.cartographer_plan.parameter_space)
 
-		traj_dlg.on_make()
-		if traj_dlg.made:
-			ensem.cartographer_plan.trajectory_string =\
-								traj_dlg.result_string
-			ensem.cartographer_plan.on_delete_selected_pts(
-										preselected = None)
-			ensem.cartographer_plan.on_reset_trajectory_parameterization()
-			ensem.cartographer_plan.on_append_trajectory(traj_dlg.result)
+			for ax, vari, rng in zip(axes, variants, ranges):
+				trj_dlg_dex = traj_dlg.axis_labels.index(
+								' : '.join([ax, vari]))
+				traj_dlg.variations[trj_dlg_dex] = validate(rng)
 
-		ensem.cartographer_plan.traj_count = p_sub[0][1]
-		ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
+			traj_dlg.on_make()
+			if traj_dlg.made:
+				ensem.cartographer_plan.trajectory_string =\
+									traj_dlg.result_string
+				ensem.cartographer_plan.on_delete_selected_pts(
+											preselected = None)
+				ensem.cartographer_plan.on_reset_trajectory_parameterization()
+				ensem.cartographer_plan.on_append_trajectory(traj_dlg.result)
+
+			ensem.cartographer_plan.traj_count = p_sub[0][1]
+			ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
+
+		elif comp_meth == 'Fitting':
+			pdb.set_trace()
 
 	plot_flag = False
 	post_proc_flag = False
@@ -698,6 +834,13 @@ def parse_mcfg(lines, *args):
 					cnt_per_loc = int(line[line.find('>') + 1:].strip())
 					p_sub_sps.append([('<product_space>', cnt_per_loc)])
 
+				elif line.strip().startswith('<zip_space>'):
+					cnt_per_loc = int(line[line.find('>') + 1:].strip())
+					p_sub_sps.append([('<zip_space>', cnt_per_loc)])
+
+				elif line.strip().startswith('<fitting_space>'):
+					p_sub_sps.append([('<fitting_space>', None)])
+
 				else:
 					p_sub_sps[-1].append([item.strip() for item in 
 									line[:-1].strip().split(':')])
@@ -725,11 +868,12 @@ def parse_mcfg(lines, *args):
 
 	if p_space_flag and (not post_proc_flag or not fitting_flag):
 		parse_p_space(p_sub_sps[0], ensem)
+	'''
 
 def write_mcfg(*args):
 	run_params = args[0]
 	ensem = args[1]
-
+	'''
 	def p_space_to_lines():
 		lines.append('<parameter_space>')
 		lines.extend(ensem.cartographer_plan.to_string())
@@ -755,56 +899,31 @@ def write_mcfg(*args):
 			else: lines.extend(['\t' + str(param) for param in params])
 
 		lines.append('')
-
+	'''
 	lines = ['']
-	params_to_lines('end_criteria')
-	params_to_lines('capture_criteria')
-	params_to_lines('variables')
-	params_to_lines('functions')
-	params_to_lines('reactions')
-	params_to_lines('species')
-	params_to_lines('plot_targets')
-	p_space_to_lines()
-	params_to_lines('post_processes')
-	mp_plan_to_lines()
-	params_to_lines('output_plans')
-	return lines
+	#params_to_lines('end_criteria')
+	#params_to_lines('capture_criteria')
+	lmc.params_to_lines(run_params, 'variables', lines)
+	lmc.params_to_lines(run_params, 'functions', lines)
+	lmc.params_to_lines(run_params, 'reactions', lines)
+	lmc.params_to_lines(run_params, 'species', lines)
+	#params_to_lines('plot_targets')
+	#p_space_to_lines()
+	#params_to_lines('post_processes')
+	#mp_plan_to_lines()
+	#params_to_lines('output_plans')
+	return lmc.write_mcfg(args[0], args[1], lines)
 
-class scalers(object):
+#class scalers(object):
+#
+#	def __init__(self, label = 'some scaler', scalers = []):
+#		self.label = label
+#		self.scalers = scalers
+#		self.tag = 'scaler'
 
-	def __init__(self, label = 'some scaler', scalers = []):
-		self.label = label
-		self.scalers = scalers
-		self.tag = 'scaler'
+class sim_system(lsc.sim_system_external):
 
-class sim_system(lsc.sim_system):
-	bAbort = False
-	capture_criteria = False
-
-	def __init__(self, ensem = None, params = {}):
-		self.ensemble = ensem
-		self.params = params
-		#lsc.sim_system.__init__(self, ensem, params)
-
-	def read_criteria(self, crits, start_string):
-		for crit in crits:
-			if issubclass(crit.__class__, lc.criterion_iteration):
-				value = crit.max_iterations
-				start_string += 'iteration>=' + str(value)
-
-			elif issubclass(crit.__class__, lc.criterion_sim_time):
-				value = crit.max_time
-				start_string += 'time>=' + str(value)
-
-			elif issubclass(crit.__class__, 
-					criterion_spec_included_scaler_increment):
-				target = crit.key
-				value = str(crit.increment)
-				start_string += ':'.join(['increment', target, value])
-
-		return start_string
-
-	def initialize(self):
+	def encode(self):
 
 		def make_rxn_string(rxn):
 			used = '+'.join([''.join(['(', str(agent[1]), ')', 
@@ -813,9 +932,13 @@ class sim_system(lsc.sim_system):
 						agent[0]]) for agent in rxn.produced])
 			return '->'.join([used, str(rxn.rate), prod])
 
-		self.iteration = 0
-		sub_spec = [':'.join([spec.label, str(int(spec.initial_count))]) 
-							for spec in self.params['species'].values()]
+		def int_fix(cnt):
+			if float(cnt) < 1: return 0
+			else: return cnt
+
+		sub_spec = [':'.join([spec.label, 
+			str(int_fix(spec.initial_count))]) 
+			for spec in self.params['species'].values()]
 		spec_string = '<species>' + ','.join(sub_spec)
 		sub_var = [':'.join([key, str(var.value)]) for key, var in 
 								self.params['variables'].items()]
@@ -839,30 +962,81 @@ class sim_system(lsc.sim_system):
 			function_string + reaction_string + end_string +\
 			capture_string + target_string
 
+	'''
+	def __init__(self, ensem = None, params = {}):
+		self.ensemble = ensem
+		self.params = params
+		#lsc.sim_system.__init__(self, ensem, params)
+
+	def read_criteria(self, crits, start_string):
+		for crit in crits:
+			if issubclass(crit.__class__, lc.criterion_iteration):
+				value = crit.max_iterations
+				start_string += 'iteration>=' + str(value)
+
+			elif issubclass(crit.__class__, lc.criterion_sim_time):
+				value = crit.max_time
+				start_string += 'time>=' + str(value)
+
+			elif issubclass(crit.__class__, 
+					#criterion_spec_included_scaler_increment):
+					lc.criterion_scaler_increment):
+				target = crit.key
+				value = str(crit.increment)
+				start_string += ':'.join(['increment', target, value])
+
+		return start_string
+
+	def initialize(self):
+
+		def make_rxn_string(rxn):
+			used = '+'.join([''.join(['(', str(agent[1]), ')', 
+							agent[0]]) for agent in rxn.used])
+			prod = '+'.join([''.join(['(', str(agent[1]), ')', 
+						agent[0]]) for agent in rxn.produced])
+			return '->'.join([used, str(rxn.rate), prod])
+
+		def int_fix(cnt):
+			if float(cnt) < 1: return 0
+			else: return cnt
+
+		self.iteration = 0
+		sub_spec = [':'.join([spec.label, 
+			str(int_fix(spec.initial_count))]) 
+			for spec in self.params['species'].values()]
+		spec_string = '<species>' + ','.join(sub_spec)
+		sub_var = [':'.join([key, str(var.value)]) for key, var in 
+								self.params['variables'].items()]
+		variable_string = '<variables>' + ','.join(sub_var)
+		sub_func = ['='.join([key, fu.func_statement.replace(',', '&')]) 
+					for key, fu in self.params['functions'].items()]
+		function_string = '<functions>' + ','.join(sub_func)
+		sub_rxn = ','.join([make_rxn_string(rxn) for rxn in 
+								self.params['reactions']])
+		reaction_string = '<reactions>' + sub_rxn
+		sub_end = self.read_criteria(
+			self.params['end_criteria'], '')
+		end_string = '<end>' + sub_end
+		sub_capt = self.read_criteria(
+			self.params['capture_criteria'], '')
+		capture_string = '<capture>' + sub_capt
+		targs = self.params['plot_targets']
+		sub_targ = ','.join(targs[3:] + targs[:3])
+		target_string = '<targets>' + sub_targ + '||'
+		self.system_string = spec_string + variable_string +\
+			function_string + reaction_string + end_string +\
+			capture_string + target_string
+	'''
+
 	def iterate(self):
-		'''
 		try:
-			self.data = self.finalize_data(*chemfast.simulate(
-										self.system_string))
+			self.data = self.finalize_data(
+				*chemfast.simulate(self.system_string))
 
 		except:
+			traceback.print_exc(file=sys.stdout)
 			print 'simulation failed; aborting'
 			self.bAbort = True
-		'''
-		self.data = self.finalize_data(*chemfast.simulate(
-									self.system_string))
-
-	def finalize_data(self, data, targets, toss = None):
-		data = [dater for dater in data if len(dater) > 1]
-		reorder = []
-		for name in self.params['plot_targets']:
-			dex = targets.index(name)
-			reorder.append(np.array(data[dex][:toss], dtype = np.float))
-
-		return np.array(reorder, dtype = np.float)
-
-	def verify_end_criteria(self):
-		return self.iteration == 1
 
 class variable(modular_object):
 
@@ -1011,8 +1185,6 @@ class reaction(modular_object):
 		modular_object.__init__(self, label = label, parent = parent, 
 							visible_attributes = visible_attributes, 
 			parameter_space_templates = parameter_space_templates)
-		#self._children_ = []
-		self._children_ = self.parameter_space_templates
 
 	def to_string(self):
 
@@ -1228,6 +1400,8 @@ class species(modular_object):
 				widgets = ['spin'], 
 				instances = [[self]], 
 				keys = [['initial_count']], 
+				minimum_values = [[0]], 
+				maximum_values = [[sys.maxint]], 
 				initials = [[self.initial_count]], 
 				box_labels = ['Initial Count'], 
 				parameter_space_templates =\
@@ -1241,6 +1415,7 @@ class species(modular_object):
 				box_labels = ['Species Name']))
 		modular_object.set_settables(self, *args, from_sub = True)
 
+'''
 class criterion_spec_included_scaler_increment(
 				lc.criterion_scaler_increment):
 
@@ -1347,7 +1522,9 @@ class criterion_species_count(lc.criterion):
 				box_labels = ['Target Species Count']))
 		super(criterion_species_count, self).set_settables(
 									*args, from_sub = True)
+'''
 
+'''
 lc.valid_criterion_base_classes = [
 	lfu.interface_template_class(
 		lc.criterion_sim_time, 'time limit'), 
@@ -1360,6 +1537,6 @@ lc.valid_criterion_base_classes = [
 					'species scaler increment'), 
 	lfu.interface_template_class(
 		criterion_species_count, 'species count')]
-
+'''
 
 

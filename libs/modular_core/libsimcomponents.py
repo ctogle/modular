@@ -20,6 +20,7 @@ import traceback
 import types
 import time
 from math import sqrt as sqrt
+import numpy as np
 
 import pdb
 
@@ -218,12 +219,12 @@ class ensemble(lfu.modular_object_qt):
 		global manager
 		print 'running ensemble: ', self.label
 		try:
-			multithread_gui = lset.get_setting('multithread_gui')
+			self.multithread_gui = lset.get_setting('multithread_gui')
 			self.sanitize()
 			self.__dict__.rid_widg_templates('template owners')
-			self.parent = None
 			self.set_data_scheme()
-			if multithread_gui:
+			self.parent = None
+			if self.multithread_gui:
 				manager.worker_threads.append(lwt.worker_thread(self, 
 							self.run, len(manager.worker_threads)))
 
@@ -237,7 +238,7 @@ class ensemble(lfu.modular_object_qt):
 		except:
 			traceback.print_exc(file=sys.stdout)
 			lgd.message_dialog(None, 'Failed to run ensemble!', 'Problem')
-			time.sleep(1)
+			time.sleep(2)
 			self.parent = manager
 
 	def describe_data_pool(self, pool):
@@ -1148,7 +1149,7 @@ class simulation_plan(lfu.plan):
 				templates = [targets_template]))
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
-class sim_system(lfu.modular_object_qt):
+class sim_system_python(lfu.modular_object_qt):
 
 	#def __init__(self, ensem, label = 'another system', params = {}):
 	def __init__(self, ensem, params = {}):
@@ -1236,6 +1237,55 @@ class sim_system(lfu.modular_object_qt):
 		return self.verify_criteria_list_boolean(
 						self.end_criteria, (self), 
 			bool_expression = self.end_bool_expression)
+
+class sim_system_external(sim_system_python):
+	bAbort = False
+	capture_criteria = False
+
+	def __init__(self, ensem = None, params = {}):
+		self.ensemble = ensem
+		self.params = params
+
+	def read_criteria(self, crits, start_string):
+		for crit in crits:
+			if issubclass(crit.__class__, lc.criterion_iteration):
+				value = crit.max_iterations
+				start_string += 'iteration>=' + str(value)
+
+			elif issubclass(crit.__class__, lc.criterion_sim_time):
+				value = crit.max_time
+				start_string += 'time>=' + str(value)
+
+			elif issubclass(crit.__class__, 
+					lc.criterion_scaler_increment):
+				target = crit.key
+				value = str(crit.increment)
+				start_string += ':'.join(['increment', target, value])
+
+		return start_string
+
+	def initialize(self, *args, **kwargs):
+		self.iteration = 0
+		self.encode()
+
+	def finalize_data(self, data, targets, toss = None):
+		data = [dater for dater in data if len(dater) > 1]
+		reorder = []
+		for name in self.params['plot_targets']:
+			dex = targets.index(name)
+			reorder.append(np.array(data[dex][:toss], dtype = np.float))
+
+		return np.array(reorder, dtype = np.float)
+
+	def verify_end_criteria(self):
+		return self.iteration == 1
+
+	def encode(self):
+		self.system_string = 'base class system string'
+		print 'base class encode'
+
+	def iterate(self):
+		print 'base class iterate'
 
 if __name__ == 'libs.modular_core.libsimcomponents':
 	if lfu.gui_pack is None: lfu.find_gui_pack()

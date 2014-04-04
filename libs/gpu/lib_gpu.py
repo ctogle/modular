@@ -1,5 +1,5 @@
 #import pyopencl as cl; gpu_support = True
-try: import pyopencl as cl; gpu_support = True; print 'gpu', gpu_support
+try: import pyopencl as cl; gpu_support = True#; print 'gpu', gpu_support
 except ImportError: cl = None; gpu_support = False; print 'gpu', gpu_support
 
 import numpy

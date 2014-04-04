@@ -134,14 +134,13 @@ def make_range(range_, rng_delim = ':'):
 			interval = float(stg[stg.rfind(';') + 1:])
 			front = float(stg[:stg.find('-')])
 			back = float(stg[stg.find('-') + 1:stg.find(';')])
-			values = list(np.arange(front, back, interval))
-			if back - values[-1] >= interval:
-				values.append(values[-1] + interval)
-
+			values = [float(val) for val in (np.arange(front, 
+								back + interval, interval))]
 			res = ', '.join([str(item) for item in values])
 			return res
 
 		elif not stg.count('-') > 0 and stg.count(';') > 0:
+			print 'mistake?'
 			res = ', '.join([str(float(item)) for 
 				item in stg[:stg.find(';')].split(',')])
 			return res

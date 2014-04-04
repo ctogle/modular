@@ -16,6 +16,15 @@ class interface_template_gui(lfu.interface_template_new_style):
 		lfu.interface_template_new_style.__init__(
 							self, *args, **kwargs)
 
+class interface_template_dummy(interface_template_gui):
+	def __init__(self, *args, **kwargs):
+		self.gui_package = 'PySide'
+		kwargs['widgets'] = ['image']
+		kwargs['paths'] = [os.path.join(os.getcwd(), 
+							'resources', 'gear.png')]
+		lfu.interface_template_new_style.__init__(
+							self, *args, **kwargs)
+
 class standard_mason(object):
 
 	def __init__(self, parent = None, label = \

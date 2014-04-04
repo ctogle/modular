@@ -146,6 +146,106 @@ class post_process_plan(lfu.plan):
 								self.move_process_down)]]))
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
+def parse_postproc_line(data, ensem, procs, routs):
+	split = [item.strip() for item in data.split(':')]
+	for proc_type in valid_postproc_base_classes:
+		if split: name = split[0]
+		if len(split) > 1:
+			if split[1].strip() == proc_type._tag:
+				proc = proc_type._class(label = name, 
+					parent = ensem.postprocess_plan)
+				procs.append(proc)
+				if len(split) > 2:
+					inputs = [int(item.strip()) for 
+						item in split[2].split(',')]
+					input_regime = []
+					for inp in inputs:
+						if inp == 0: input_regime.append('simulation')
+						elif inp < len(procs):
+							input_regime.append(procs[inp].label)
+
+						else:
+							print ' '.join(['process', 'couldnt', 
+										'reach', 'input', 'from', 
+											'hierarchy']), proc
+
+					proc.input_regime = input_regime
+					if proc_type._tag == 'standard statistics':
+						try:
+							targs = split[3].split(' of ')
+							proc.mean_of = targs[0]
+							proc.function_of = targs[1]
+
+						except IndexError: pass
+						try: proc.bin_count = int(split[4].strip())
+						except IndexError: pass
+						try:
+							if split[5].strip().count('ordered') > 0:
+								proc.ordered = True
+
+						except IndexError: pass
+
+					elif proc_type._tag == 'counts to concentrations':
+						print 'counts to concentrations parsing not done'
+
+					elif proc_type._tag == 'correlation':
+						try:
+							targs = split[3].replace(
+								' and ', '||').replace(' of ', '||')
+							targs = targs.split('||')
+							proc.target_1 = targs[0]
+							proc.target_2 = targs[1]
+							proc.function_of = targs[2]
+
+						except IndexError: pass
+						try: proc.bin_count = int(split[4].strip())
+						except IndexError: pass
+						try:
+							if split[5].strip().count('ordered') > 0:
+								proc.ordered = True
+
+						except IndexError: pass
+
+					elif proc_type._tag == 'slice from trajectory':
+						try:
+							relevant = [item.strip() for item 
+									in split[3].split(',')]
+							proc.slice_dex = split[4].strip()
+
+						except IndexError: pass
+						if 'all' in relevant:
+							proc.dater_ids =\
+								proc.get_targetables(0, ensem)
+
+						else: proc.dater_ids = relevant
+
+					elif proc_type._tag == 'reorganize data':
+						try:
+							relevant = [item.strip() for item 
+									in split[3].split(',')]
+
+						except IndexError: pass
+						if 'all' in relevant:
+							proc.dater_ids =\
+								proc.get_targetables(0, ensem)
+
+						else: proc.dater_ids = relevant
+
+					elif proc_type._tag == 'one to one binary operation':
+						print 'one to one binary operation parsing not done'
+
+					elif proc_type._tag == 'probability':
+						print 'probability parsing not done'
+
+					elif proc_type._tag == 'period finding':
+						print 'period finding parsing not done'
+
+					else: pdb.set_trace()
+
+	ensem.postprocess_plan.add_process(new = proc)
+	proc.set_settables(0, ensem)
+	return proc
+
 class post_process(lfu.modular_object_qt):
 
 	#ABSTRACT
