@@ -6,7 +6,10 @@ from copy import deepcopy as copy
 
 import pdb
 
-def parse_criterion_line(data):
+def parse_criterion_line(*args, **kwargs):
+	data = args[0]
+	ensem = args[1]
+	parser = args[2]
 	split = [item.strip() for item in data.split(':')]
 	for crit_type in valid_criterion_base_classes:
 		if split[0] == crit_type._tag:
@@ -21,7 +24,7 @@ def parse_criterion_line(data):
 				elif crit_type._tag == 'capture limit':
 					crit.max_captures = split[1]
 
-				elif crit_type._tag == 'scaler increment':
+				elif crit_type._tag == 'scalar increment':
 					crit.increment = split[1]
 					if len(split) > 2: crit.key = split[2]
 
@@ -31,7 +34,12 @@ def parse_criterion_line(data):
 
 				else: pdb.set_trace()
 
-	return crit
+	if parser == 'end_criteria':
+		ensem.simulation_plan.add_end_criteria(crit = crit)
+
+	elif parser == 'capture_criteria':
+		ensem.simulation_plan.add_capture_criteria(crit = crit)
+	#return crit
 
 class criterion(lfu.modular_object_qt):
 
@@ -61,8 +69,11 @@ class criterion(lfu.modular_object_qt):
 											base_class = base_class)
 		self._children_ = []
 
+	def __call__(self, *args, **kwargs):
+		return self.verify_pass(*args, **kwargs)
+
 	def verify_pass(self, *args, **kwargs):
-		print 'abstract criterion always returns True'
+		print 'abstract criterion always passes'
 		return True
 
 	def set_settables(self, *args, **kwargs):
@@ -213,7 +224,7 @@ class criterion_capture_count(criterion):
 
 	def verify_pass(self, system):
 		try:
-			if len(system.data[0].scalers) >= self.max_captures:
+			if len(system.data[0].scalars) >= self.max_captures:
 				print 'criterion: passed capture count limit'
 				return True
 
@@ -244,13 +255,13 @@ class criterion_capture_count(criterion):
 		super(criterion_capture_count, self).set_settables(
 									*args, from_sub = True)
 
-class criterion_scaler_increment(criterion):
+class criterion_scalar_increment(criterion):
 
 	def __init__(self, parent = None, increment = 10.0, key = 'time', 
 			keys = ['iteration', 'time'], 
 			base_class = lfu.interface_template_class(
-							object, 'scaler increment'), 
-			label = 'scaler increment criterion', visible_attributes =\
+							object, 'scalar increment'), 
+			label = 'scalar increment criterion', visible_attributes =\
 			['label', 'base_class', 'bRelevant', 'key', 'increment']):
 		criterion.__init__(self, parent = parent, label = label, 
 										base_class = base_class)
@@ -260,7 +271,7 @@ class criterion_scaler_increment(criterion):
 		self.increment = increment
 
 	def to_string(self):
-		return '\tscaler increment : ' + \
+		return '\tscalar increment : ' + \
 			str(self.increment) + ' : ' + self.key
 
 	def initialize(self): self.increment = float(self.increment)
@@ -284,7 +295,7 @@ class criterion_scaler_increment(criterion):
 		last_value = self.find_last_value(system)
 		scaldex = [dater.label == self.key 
 					for dater in system.data].index(True)
-		return abs(last_value - system.data[scaldex].scalers[-1])\
+		return abs(last_value - system.data[scaldex].scalars[-1])\
 												>= self.increment
 
 	def set_uninheritable_settables(self, *args, **kwargs):
@@ -313,11 +324,63 @@ class criterion_scaler_increment(criterion):
 				initials = [[self.key]], 
 				instances = [[self]], 
 				keys = [['key']], 
-				box_labels = ['Scaler to Check']))
-		super(criterion_scaler_increment, self).set_settables(
+				box_labels = ['scalar to Check']))
+		super(criterion_scalar_increment, self).set_settables(
 										*args, from_sub = True)
 
-#MUST create an eval function criterion
+class trajectory_criterion(criterion):
+
+	#ABSTRACT
+	def __init__(self, *args, **kwargs):
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] =\
+				lfu.interface_template_class(
+					object, 'trajectory criterion abstract')
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'trajectory criterion'
+		global valid_trajectory_criterion_base_classes
+		kwargs['valid_base_classes'] =\
+			valid_trajectory_criterion_base_classes
+		criterion.__init__(self, *args, **kwargs)
+
+	def verify_pass(self, trajectory):
+		print 'abstract trajectory criterion base class always passes'
+		return True
+
+	#def set_settables(self, *args, **kwargs):
+	#	self.handle_widget_inheritance(*args, from_sub = False)
+		#self.widg_templates.append(
+		#	lgm.interface_template_gui())
+	#	criterion.set_settables(self, *args, from_sub = True)
+
+class trajectory_criterion_ceiling(trajectory_criterion):
+
+	def __init__(self, *args, **kwargs):
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+				trajectory_criterion_ceiling, 'ceiling limit')
+		self.impose_default('ceiling', 2500, **kwargs)
+		trajectory_criterion.__init__(self, *args, **kwargs)
+		self._children_ = []
+	'''
+	def verify_pass(self, trajectory):
+		pdb.set_trace()
+		return False
+
+	def set_settables(self, *args, **kwargs):
+		self.handle_widget_inheritance(*args, from_sub = False)
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['spin'], 
+				doubles = [[False]], 
+				initials = [[int(self.ceiling)]], 
+				minimum_values = [[0]], 
+				maximum_values = [[sys.maxint]], 
+				instances = [[self]], 
+				keys = [['ceiling']], 
+				box_labels = ['Ceiling Limit']))
+		trajectory_criterion.set_settables(self, *args, from_sub = True)
+	'''
 
 valid_criterion_base_classes = [
 		lfu.interface_template_class(
@@ -327,7 +390,11 @@ valid_criterion_base_classes = [
 		lfu.interface_template_class(
 	criterion_capture_count, 'capture limit'), 
 		lfu.interface_template_class(
-	criterion_scaler_increment, 'scaler increment')]
+	criterion_scalar_increment, 'scalar increment')]
+
+valid_trajectory_criterion_base_classes = [
+		lfu.interface_template_class(
+	trajectory_criterion_ceiling, 'ceiling limit')]
 
 if __name__ == 'libs.modular_core.libcriterion':
 	if lfu.gui_pack is None: lfu.find_gui_pack()

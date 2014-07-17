@@ -117,6 +117,21 @@ def set_module_memory_(ensem):
 	ensem._module_memory_ = [lfu.data_container(
 		output_plan_selected_memory = 'Simulation')]
 
+universal_support = [['end_criteria', 
+					'capture_criteria', 
+					'post_processes', 
+					'fit_routines', 
+					'output_plans', 
+					'parameter_space', 
+					'plot_targets', 
+					'multiprocessing'], 
+					[lc.parse_criterion_line, 
+					lc.parse_criterion_line, 
+					lpp.parse_postproc_line, 
+					lfr.parse_fitting_line, 
+					lo.parse_output_plan_line, 
+					None, None, None]]
+
 def parse_mcfg(lines, *args):
 	params = args[0]
 	ensem = args[1]
@@ -126,18 +141,29 @@ def parse_mcfg(lines, *args):
 	post_proc_flag = False
 	fitting_flag = False
 	p_space_flag = False
+	p_space_parsed_flag = False
 	targs = []
 	procs = []
 	routs = []
 	parser = ''
+	parsers = {}
+
+	for dex in range(len(module_support[0])):
+		parsers[module_support[0][dex]] = module_support[1][dex]
+
+	for dex in range(len(universal_support[0])):
+		if not universal_support[0][dex] in parsers.keys():
+			parsers[universal_support[0][dex]] =\
+						universal_support[1][dex]
 
 	l_cnt = 0
 	while l_cnt < len(lines):
 		li = lines[l_cnt].strip()
 		l_cnt += 1
-		if li.startswith('#') or not li: pass
+		if li.startswith('#') or not li: continue
 		elif li.startswith("'''"): pdb.set_trace()
-		elif li.startswith('<') and li.endswith('>'):
+		elif li.startswith('<') and li.endswith('>') and\
+								li[1:-1] in parsers.keys():
 			parser = li[1:-1]
 			if parser == 'plot_targets': plot_flag = True
 			elif parser == 'parameter_space':
@@ -150,7 +176,9 @@ def parse_mcfg(lines, *args):
 					if len(p_sub_sps) > 1:
 						print 'only parsing first p-scan space'
 
-					lgeo.parse_p_space(p_sub_sps[0], ensem)
+					if not p_space_parsed_flag:
+						lgeo.parse_p_space(p_sub_sps[0], ensem)
+						p_space_parsed_flag = True
 
 			elif parser == 'fit_routines':
 				fitting_flag = True
@@ -158,25 +186,12 @@ def parse_mcfg(lines, *args):
 					if len(p_sub_sps) > 1:
 						print 'only parsing first p-scan space'
 
-					lgeo.parse_p_space(p_sub_sps[0], ensem)
+					if not p_space_parsed_flag:
+						lgeo.parse_p_space(p_sub_sps[0], ensem)
+						p_space_parsed_flag = True
 
 		else:
-			if parser == 'end_criteria':
-				crit = lc.parse_criterion_line(li)
-				ensem.simulation_plan.add_end_criteria(crit = crit)
-
-			elif parser == 'capture_criteria':
-				crit = lc.parse_criterion_line(li)
-				ensem.simulation_plan.add_capture_criteria(crit = crit)
-
-			elif parser == 'plot_targets':
-				targs.append(li)
-
-			elif parser == 'post_processes':
-				lpp.parse_postproc_line(li, ensem, procs, routs)
-
-			elif parser == 'fit_routines':
-				lfr.parse_fitting_line(li, ensem, procs, routs)
+			if parser == 'plot_targets': targs.append(li)
 
 			elif parser == 'parameter_space':
 				if li.startswith('<product_space>'):
@@ -201,25 +216,28 @@ def parse_mcfg(lines, *args):
 						w_count = int(spl[1])
 						ensem.multiprocess_plan.worker_count = w_count
 
-			elif parser == 'output_plans':
-				lo.parse_output_plan_line(li, ensem, procs, routs)
+			elif parser in parsers.keys():
+				new = parsers[parser](li, ensem, parser, procs, routs)
+				if not new is None:
+					if type(new) is types.TupleType:
+						label, item = new[0], new[1]
+						params[parser][new[0]] = new[1]
 
-			elif parser in module_support[0]:
-				p_dex = module_support[0].index(parser)
-				new = module_support[1][p_dex](li, ensem)
-				if type(new) is types.TupleType:
-					label, item = new[0], new[1]
-					params[parser][new[0]] = new[1]
+					elif type(new) is types.ListType:
+						params[parser].extend(new)
 
-				elif type(new) is types.ListType:
-					params[parser].extend(new)
+					else: params[parser].append(new)
 
-				else: params[parser].append(new)
+			else:
+				print 'parsing error', parser, li
+				pdb.set_trace()
 
-			else: pdb.set_trace()
+	if p_space_flag and not p_space_parsed_flag:
+		lgeo.parse_p_space(p_sub_sps[0], ensem)
 
 	if plot_flag:
-		params['plot_targets'] = targs
+		params['plot_targets'] = targs[:]
+		#ensem.simulation_plan.plot_targets = targs[:]
 		targetables = []
 		for param in module_support[0]:
 			group = params[param]
@@ -235,8 +253,8 @@ def parse_mcfg(lines, *args):
 				if not targable.label in targs:
 					targable.brand_new = False
 
-	if p_space_flag and (not post_proc_flag or not fitting_flag):
-		lgeo.parse_p_space(p_sub_sps[0], ensem)
+	#if p_space_flag and not p_space_parsed_flag:
+	#	lgeo.parse_p_space(p_sub_sps[0], ensem)
 
 def params_to_lines(run_params, key, lines):
 	lines.append('<' + key + '>')

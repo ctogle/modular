@@ -1,6 +1,26 @@
 import libs.modular_core.libfundamental as lfu
+import libs.modular_core.libmath as lm
 
-from PySide import QtGui, QtCore
+#from Quaternion import Quat
+from OpenGL import GL
+from OpenGL import GLU
+
+#import OpenGLContext.scenegraph.basenodes as glbn
+
+import numpy as np
+import math
+
+from PySide import QtGui, QtCore, QtOpenGL
+
+import matplotlib
+matplotlib.use('Qt4Agg')
+matplotlib.rcParams['backend.qt4'] = 'PySide'
+
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backend_bases import NavigationToolbar2
+
+import matplotlib.pyplot as plt
+
 QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 20))
 #QWebView: a WebKit based control to render HTML/CSS/XML/XSLT pages
 
@@ -14,6 +34,7 @@ code_metrics = QtGui.QFontMetrics(code_font);
 #for all uses of lfu.debug_filter
 debug_filter_thresh = 5
 
+import six
 import types
 import ctypes
 import glob
@@ -104,8 +125,9 @@ def create_style(style):
 	if style == 'clean':
 		return QtGui.QStyleFactory.create('Cleanlooks')
 
-def create_color(r = 0, g = 0, b = 0):
-	return QtGui.QColor(r, g, b)
+def create_color(r = 0, g = 0, b = 0, al = 0, alt = True):
+	if alt: return QtGui.QColor.fromCmykF(r, g, b, al)
+	else: return QtGui.QColor(r, g, b)
 
 def create_qimage(path):
 	image = QtGui.QImage(path)
@@ -129,19 +151,22 @@ def create_icon(icon_path):
 def create_spin_box(parent = None, double = False, min_val = None, 
 				max_val = None, sing_step = None, initial = None, 
 					instance = None, key = None, rewidget = True, 
-												decimals = 10):
+								decimals = 10, callback = None):
 
 	def spin_function():
+		if callable(callback): val = callback(
+					spin.value(), instance, key)
+		else: val = spin.value()
 		if type(instance) is types.DictionaryType or\
 					type(instance) is types.ListType:
-			instance[key] = spin.value()
-			print 'update_widgets!'
-
-		else: instance.__dict__[key] = spin.value()
+			instance[key] = val
+		else: instance.__dict__[key] = val
 		if rewidget and issubclass(instance.__class__, 
 			lfu.modular_object_qt): instance.rewidget(True)
+		elif rewidget and hasattr(parent, 'rewidget'):
+			parent.rewidget(True)
 
-	if parent is None and double:
+	if double:
 		spin = QtGui.QDoubleSpinBox()
 		spin.setDecimals(decimals)
 		if max_val is not None: top = max_val
@@ -149,7 +174,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
 		if min_val is not None: bottom = min_val
 		else: bottom = -sys.float_info.max
 
-	elif parent is None and not double:
+	else:
 		spin = QtGui.QSpinBox()
 		if max_val is not None: top = max_val
 		else: top = sys.maxint
@@ -165,9 +190,11 @@ def create_spin_box(parent = None, double = False, min_val = None,
 
 	if initial is not None: spin.setValue(initial)
 	else: spin.setValue(1)
-	if not instance is None and not key is None:
+	#if not callback: spin.valueChanged.connect(callback)
+	if callback: spin.valueChanged.connect(callback)
+	elif not instance is None and not key is None:
 		spin.valueChanged.connect(spin_function)
-
+	else: print 'spin widget is not method-bound...'
 	return spin
 
 def create_radios(parent = None, options = [], title = '', 
@@ -319,10 +346,21 @@ def create_timer(parent = None):
 		self.step = self.step + 1
 		self.pbar.setValue(self.step)
 	'''
+	'''
+	def timerEvent(self, event):
+		if event.timerId() == timer.timerId():
+			self.step += 1
+			self.update()
+		else:
+			super(WigglyWidget, self).timerEvent(event)
+	'''
+
 	#self.timer.start(100, self)
 	if parent is not None: timer = QtCore.QBasicTimer(parent)
 	else: timer = QtCore.QBasicTimer()
 	return timer
+
+timer = QtCore.QBasicTimer()
 
 def create_calender(parent = None, show_date_func = None):
 
@@ -784,7 +822,10 @@ def create_slider(instance, key, orientation = 'horizontal',
 	if orientation == 'horizontal': orient = QtCore.Qt.Horizontal
 	elif orientation == 'vertical': orient = QtCore.Qt.Vertical
 	if initial is None: initial = 0
-	if initial not in range(minimum, maximum): initial = maximum
+	#if initial not in range(int(minimum), int(maximum)):
+	if initial not in np.arange(minimum, maximum):
+		initial = maximum
+
 	slide = QtGui.QSlider(orient)
 	slide.setMinimum(minimum)
 	slide.setMaximum(maximum)
@@ -827,8 +868,8 @@ def create_slider(instance, key, orientation = 'horizontal',
 	return slide
 
 def create_check_boxes(append_instead, keys, instances, labels, 
-					inst_is_list = None, inst_is_dict = None, 
-					rewidget = True, provide_master = False):
+		inst_is_list = None, inst_is_dict = None, rewidget = True, 
+						provide_master = False, callbacks = []):
 	'''
 	def apply_to_inst(*args, **kwargs):
 		dat = args[0]
@@ -983,6 +1024,9 @@ def create_check_boxes(append_instead, keys, instances, labels,
 		[check.stateChanged.connect(
 		create_mobj_rewidget_function(inst)) 
 		for check, inst, key in zip(checks, instances, keys)]
+
+	if callbacks:
+		[check.stateChanged.connect(call) for call in callbacks]
 
 	if provide_master: checks = [create_master(checks)] + checks
 	return checks
@@ -1142,6 +1186,7 @@ def tree_book_panels_from_lookup(panel_template_lookup,
 									window, ensemble):
 	#this is a hack!
 	infos = (window.settables_infos[0], ensemble)
+	rp = ensemble.run_params
 
 	def set_up_sub_panel(mobj, mobj_templates, mobj_labels, ltg):
 		if issubclass(mobj.__class__, mobj_class):
@@ -1159,14 +1204,16 @@ def tree_book_panels_from_lookup(panel_template_lookup,
 	for key, panel_template in panel_template_lookup:
 		mobj_templates = []
 		mobj_labels = []
-		if type(ensemble.run_params[key]) == types.ListType:
-			for mobj in ensemble.run_params[key]:
-				set_up_sub_panel(mobj, mobj_templates, mobj_labels, ltg)
+		if type(rp[key]) == types.ListType:
+			for mobj in rp[key]:
+				set_up_sub_panel(mobj, 
+					mobj_templates, mobj_labels, ltg)
 
-		elif type(ensemble.run_params[key]) == types.DictionaryType:
-			for sub_key in ensemble.run_params[key].keys():
-				mobj = ensemble.run_params[key][sub_key]
-				set_up_sub_panel(mobj, mobj_templates, mobj_labels, ltg)
+		elif type(rp[key]) == types.DictionaryType:
+			for sub_key in rp[key].keys():
+				mobj = rp[key][sub_key]
+				set_up_sub_panel(mobj, 
+					mobj_templates, mobj_labels, ltg)
 
 		panel_templates.append(panel_template)
 		sub_panel_templates.append(mobj_templates)
@@ -1175,9 +1222,12 @@ def tree_book_panels_from_lookup(panel_template_lookup,
 	return panel_templates, sub_panel_templates, sub_panel_labels
 
 def create_tab_book(pages, mason, initial = None, 
-						inst = None, key = None):
+		inst = None, key = None, rewidg = True):
 
-	def keep_index_func(dex): inst.__dict__[key] = dex
+	def keep_index_func(dex):
+		inst.__dict__[key] = dex
+		if rewidg: inst.rewidget(True)
+
 	#pages is a list of tuples
 	# each tuple: ('page label', page_template_list)
 	tabs = tab_book(pages = pages, mason = mason)
@@ -1279,7 +1329,8 @@ def create_text_box(parent = None, instance = None, key = None,
 		def text_edited_func_rewidget():
 			try: apply_to_inst(box.text())
 			except AttributeError:
-				apply_to_inst(box.toPlainText())
+				try: apply_to_inst(box.toPlainText())
+				except AttributeError: apply_to_inst(box.text())
 
 			if rewidget and not instance is None:
 				rewidg_on_inst(True)
@@ -1595,13 +1646,10 @@ class advanced_slider(central_widget_wrapper):
 		#self.clear()
 		if kwargs['orientation'] == 'vertical':
 			layout = QtGui.QVBoxLayout()
-
 		elif kwargs['orientation'] == 'horizontal':
 			layout = QtGui.QHBoxLayout()
-
 		for widg in self.widgs:
 			layout.addWidget(widg)
-
 		return layout
 
 	def setValue(self, value):
@@ -1610,8 +1658,10 @@ class advanced_slider(central_widget_wrapper):
 	def make_widgets(self, *args, **kwargs):
 		def update_text_func(): text.setText(str(slide.value()))
 		def update_slider_func():
-			try: slide.setValue(int(text.text()))
-			except ValueError: pass
+			#try: slide.setValue(int(float(text.text())))
+			try: slide.setValue(float(text.text()))
+			except ValueError:
+				print 'verror'; pdb.set_trace()
 
 		initial_value = str(kwargs['inst'].__dict__[kwargs['key']])
 		slide = create_slider(kwargs['inst'], kwargs['key'], 
@@ -1909,6 +1959,348 @@ def create_console_listener():
 	print lfu.pipe_mirror
 	#stderr.terminal = terminal
 	return terminal
+
+def create_opengl_view():
+	glwidget = opengl_view()
+	return glwidget
+
+class opengl_view(QtOpenGL.QGLWidget):
+	def __init__(self, parent = None, key_callback = None, 
+				idle_callback = None, draw_callback = None, 
+							data_callback = None, fps = 5):
+		QtOpenGL.QGLWidget.__init__(self, parent)
+		self.setFocusPolicy(QtCore.Qt.StrongFocus)
+		self.last_m_pos = QtCore.QPoint()
+		self._l_button_ = QtCore.Qt.LeftButton
+		self._r_button_ = QtCore.Qt.RightButton
+		self._m_button_ = QtCore.Qt.MidButton
+		self.last_m_but = None
+		self.green = create_color(0.4,0,1.0,0)
+		self.purple = create_color(0.4,0.4,0,0)
+
+		#setup primary callbacks
+		self.key_callback = key_callback
+		self.idle_callback = idle_callback
+		self.draw_callback = draw_callback
+		self.data_callback = data_callback
+
+		self.fps = fps
+		self.timer = create_timer()
+		self.timer.start(1000.0/self.fps, self)
+	def timerEvent(self, event):
+		if event.timerId() == self.timer.timerId(): self.updateGL()
+		else: QtOpenGL.QGLWidget.timerEvent(self, event)
+	def keyPressEvent(self, event):
+		QtOpenGL.QGLWidget.keyPressEvent(self, event)
+		ch = event.text()
+		if ch == 'r': self.camera.reset()
+		elif ch == 'x': self.camera.toggle_ortho()
+		elif ch == 'c': self.camera.toggle_regime()
+		elif ch == ',': self.camera.toggle_select('backward')
+		elif ch == '.': self.camera.toggle_select('forward')
+		elif self.key_callback:
+			self.key_callback(event.text(), 'xx', 'yy')
+	def mousePressEvent(self, event):
+		self.last_m_pos = QtCore.QPoint(event.pos())
+		self.last_m_but = event.button()
+		QtOpenGL.QGLWidget.mousePressEvent(self, event)
+	def mouseMoveEvent(self, event):
+		dx = event.x() - self.last_m_pos.x()
+		dy = event.y() - self.last_m_pos.y()
+		modifiers = QtGui.QApplication.keyboardModifiers()
+		if modifiers == QtCore.Qt.ShiftModifier:
+			dx, dy = dx/32.0, dy/32.0
+		#elif modifiers == QtCore.Qt.ControlModifier:
+
+		if self.last_m_but is self._l_button_: self.camera.orbit(dx, dy)
+		elif self.last_m_but is self._r_button_: self.camera.pan(dx, dy)
+		elif self.last_m_but is self._m_button_: print 'pan middle!'
+		self.last_m_pos = QtCore.QPoint(event.pos())
+	def wheelEvent(self, event):
+		num_degrees = event.delta() / 8
+		num_steps = num_degrees / 15
+		step = -2*num_steps
+		self.camera.zoom(step)
+		event.accept()
+	def minimumSizeHint(self): return QtCore.QSize(50, 50)
+	def sizeHint(self): return QtCore.QSize(400, 400)
+	def initializeGL(self):
+		import libs.world3d_simulator.lib3dworld as l3d
+		import libs.world3d_simulator.libopenglutilities as lgl
+		lgl._depth()
+		self.camera = l3d.camera(2,2,2)
+		self.object_ = l3d.cube(shader = self.camera.shader)
+		self.camera.selectables = [self.object_]
+		self.qglClearColor(self.purple.darker())
+		if callable(self.data_callback):
+			self.data_callback(self.camera.shader)
+	def paintGL(self):
+		if self.idle_callback: self.idle_callback()
+		GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+		self.camera.draw_gl()
+		if self.draw_callback: self.draw_callback(self.camera.shader)
+		else: self.object_.draw_gl(self.camera.shader)
+	def resizeGL(self, width, height):
+		self.width = width
+		self.height = height
+		side = min(width, height)
+		GL.glViewport((width - side) / 2, 
+			(height - side) / 2, side, side)
+		self.camera.update_projection(width, height)
+
+def create_plot_widget(data):
+	domains = data.domains
+	codomains = data.codomains
+	qp = quick_plot(domains, codomains)
+	return qp
+
+qp_fig = None
+class quick_plot(QtGui.QWidget):
+
+	def __init__(self, xs, ys):
+		super(quick_plot, self).__init__()
+		global qp_fig
+		if qp_fig is None: qp_fig = plt.figure()
+		self.max_line_count = 20
+		self.set_up_widgets()
+		self.set_geometry()
+		self.plot(xs, ys)
+		self.show()
+		self.repaint()
+
+	def set_up_widgets(self):
+		self.canvas = FigureCanvas(qp_fig)
+		self.setBackgroundRole(QtGui.QPalette.Window)
+		self.toolbar = plot_window_toolbar(self.canvas, self)
+		layout = create_vert_box([self.canvas, self.toolbar])
+		#layout = create_vert_box([self.canvas])
+		self.setLayout(layout)
+
+	def set_geometry(self):
+		x, y = lfu.convert_pixel_space(256, 256)
+		x_size, y_size = lfu.convert_pixel_space(1024, 768)
+		geometry = (x, y, x_size, y_size)
+		self.setGeometry(*geometry)
+
+	def plot(self, xs, ys):
+
+		def plot_(x, y, label, color):
+			line = matplotlib.lines.Line2D(
+				x, y, color = color)
+			if not label == '__skip__': line.set_label(label)
+			ax.add_line(line)
+
+		qp_fig.clf()
+		ax = qp_fig.gca()
+		ax.cla()
+		ax.grid(True)
+		x_labs = [x.label for x in xs]
+		y_labs = [y.label for y in ys]
+		ax.set_xlabel(x_labs[0], fontsize = 18)
+		ax.set_ylabel(y_labs[0], fontsize = 18)
+		colormap = plt.get_cmap('jet')
+		self.colors = [colormap(i) for i in 
+			np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
+		for d, da in enumerate(ys):
+			if hasattr(da, 'color'):
+				self.colors[d] = da.color
+		xs_ = [x.scalars for x in xs]
+		ys_ = [y.scalars for y in ys]
+		[plot_(x, y, lab, col) for x, y, lab, col 
+			in zip(xs_, ys_, y_labs, self.colors)]
+		ax.axis([
+			min([x.min() for x in xs_]), 
+			max([x.max() for x in xs_]), 
+			min([y.min() for y in ys_]), 
+			max([y.max() for y in ys_])])
+		ax.legend()
+		self.canvas.draw()
+
+class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
+	message = QtCore.Signal(str)
+	toolitems = [t for t in NavigationToolbar2.toolitems 
+					if t[0] in ('Pan', 'Zoom', 'Save')]
+	toolitems.append(('Labels', 
+		'Change the title and axes labels', 'gear', 'labels'))
+	toolitems.append(('Roll', 
+		'Roll through a series of plots', 'gear', 'roll'))
+
+	def __init__(self, canvas, parent, coordinates=True):
+		""" coordinates: should we show the coordinates on the right? """
+		self.canvas = canvas
+		self.parent = parent
+		self.coordinates = coordinates
+		self._actions = {}
+		"""A mapping of toolitem method names to their QActions"""
+
+		QtGui.QToolBar.__init__(self, parent)
+		NavigationToolbar2.__init__(self, canvas)
+
+	def _icon(self, name):
+		if name in ['move.png', 'zoom_to_rect.png', 'filesave.png']:
+			return QtGui.QIcon(os.path.join(self.basedir, name))
+
+		else:
+			return QtGui.QIcon(os.path.join(
+				os.getcwd(), 'resources', name))
+
+	def _init_toolbar(self):
+		self.basedir = os.path.join(
+			matplotlib.rcParams['datapath'], 'images')
+		for text, tooltip_text, image_file, callback in self.toolitems:
+			if text is None: self.addSeparator()
+			else:
+				a = self.addAction(self._icon(image_file + '.png'),
+				 text, getattr(self, callback))
+				self._actions[callback] = a
+
+			if callback in ['zoom', 'pan']: a.setCheckable(True)
+			if tooltip_text is not None: a.setToolTip(tooltip_text)
+
+		self.buttons = {}
+
+		# Add the x,y location widget at the right side of the toolbar
+		# The stretch factor is 1 which means any resizing of the toolbar
+		# will resize this label instead of the buttons.
+		if self.coordinates:
+			self.locLabel = QtGui.QLabel("", self)
+			self.locLabel.setAlignment(
+			QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+			self.locLabel.setSizePolicy(
+			QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+			  QtGui.QSizePolicy.Ignored))
+			labelAction = self.addWidget(self.locLabel)
+			labelAction.setVisible(True)
+
+		# reference holder for subplots_adjust window
+		self.adj_window = None
+
+	def _update_buttons_checked(self):
+		#sync button checkstates to match active mode
+		self._actions['pan'].setChecked(self._active == 'PAN')
+		self._actions['zoom'].setChecked(self._active == 'ZOOM')
+
+	def pan(self, *args):
+		super(plot_window_toolbar, self).pan(*args)
+		self._update_buttons_checked()
+
+	def zoom(self, *args):
+		super(plot_window_toolbar, self).zoom(*args)
+		self._update_buttons_checked()
+
+	def roll(self):
+
+		def _roll():
+			page = self.parent.get_current_page()
+			while page.roll_dex < page.max_roll_dex:
+				page.show_plot_bars()
+				time.sleep(page.roll_delay)
+				page.roll_dex += 1
+
+			page.roll_dex = 0
+			self._update_buttons_checked()
+
+		roll_ = lgb.create_thread_wrapper(_roll)
+		roll_()
+
+	def labels(self):
+		page = self.parent.get_current_page()
+		domain = self.parent.get_current_page().x_ax_title
+		labels_dlg = change_labels_dialog(page.title, 
+					page.x_ax_title, page.y_ax_title, 
+					page.max_line_count, page.colors, 
+						page._plot_targets_, domain, 
+							page.x_log, page.y_log)
+		if not labels_dlg: return
+		new_title,new_x_label,new_y_label,colors,xlog,ylog = labels_dlg
+		page.title = new_title
+		page.x_ax_title = new_x_label
+		page.x_log = xlog
+		page.y_ax_title = new_y_label
+		page.y_log = ylog
+		page.colors = colors
+		ax = page.newest_ax
+		ax.set_xlabel(new_x_label, fontsize = 18)
+		ax.set_ylabel(new_y_label, fontsize = 18)
+		if self.parent.plot_type in ['surface']:
+			ax.set_zlabel(new_title, fontsize = 18)
+		ax.set_title(new_title)
+		#self.canvas.draw()
+		self.parent.get_current_page().show_plot()
+
+	def dynamic_update(self):
+		self.canvas.draw()
+
+	def set_message(self, s):
+		self.message.emit(s)
+		if self.coordinates:
+			self.locLabel.setText(s.replace(', ', '\n'))
+
+	def set_cursor(self, cursor):
+		DEBUG = False
+		if DEBUG:
+			print('Set cursor', cursor)
+			self.canvas.setCursor(cursord[cursor])
+
+	def draw_rubberband(self, event, x0, y0, x1, y1):
+		height = self.canvas.figure.bbox.height
+		y1 = height - y1
+		y0 = height - y0
+
+		w = abs(x1 - x0)
+		h = abs(y1 - y0)
+
+		rect = [int(val)for val in (min(x0, x1), min(y0, y1), w, h)]
+		self.canvas.drawRectangle(rect)
+
+	def configure_subplots(self):
+		image = os.path.join(matplotlib.rcParams['datapath'],
+		 'images', 'matplotlib.png')
+		dia = SubplotToolQt(self.canvas.figure, self.parent)
+		dia.setWindowIcon(QtGui.QIcon(image))
+		dia.exec_()
+
+	def save_figure(self, *args):
+		filetypes = self.canvas.get_supported_filetypes_grouped()
+		sorted_filetypes = list(six.iteritems(filetypes))
+		sorted_filetypes.sort()
+		default_filetype = self.canvas.get_default_filetype()
+
+		startpath = matplotlib.rcParams.get('savefig.directory', '')
+		startpath = os.path.expanduser(startpath)
+		start = os.path.join(startpath, 
+			self.canvas.get_default_filename())
+		filters = []
+		selectedFilter = None
+		for name, exts in sorted_filetypes:
+			exts_list = " ".join(['*.%s' % ext for ext in exts])
+			filter = '%s (%s)' % (name, exts_list)
+		if default_filetype in exts:
+			selectedFilter = filter
+			filters.append(filter)
+			filters = ';;'.join(filters)
+
+		#fname = _getSaveFileName(self.parent, 
+		#	"Choose a filename to save to",
+		#	start, filters, selectedFilter)
+		from libqtgui_dialogs import create_dialog						# UNACCEPTABLE HACK!!!   FIX THIS!!!
+		fname = create_dialog('Choose File', 'File?', 'file_save', 
+								'Image (*.png, *.pdf)', startpath)
+		fname = fname()
+		if fname:
+			if startpath == '':
+				# explicitly missing key or empty str signals to use cwd
+				matplotlib.rcParams['savefig.directory'] = startpath
+			else:
+				# save dir for next time
+				savefig_dir = os.path.dirname(six.text_type(fname))
+				matplotlib.rcParams['savefig.directory'] = savefig_dir
+			try:
+				self.canvas.print_figure(six.text_type(fname))
+			except Exception as e:
+				QtGui.QMessageBox.critical(
+					self, "Error saving file", str(e),
+					QtGui.QMessageBox.Ok, QtGui.QMessageBox.NoButton)
 
 if __name__ == '__main__': print 'this is a library!'
 

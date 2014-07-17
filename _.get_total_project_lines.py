@@ -2,7 +2,7 @@ import os
 import glob
 import time
 
-def get_fi_lengths(extensions = ['.py', '.cl', '.pyx']):
+def get_fi_lengths(extensions = ['.py', '.pyx']):
 	
 	def check_fi(file_):
 		with open(file_, 'r') as hand:

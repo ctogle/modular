@@ -68,8 +68,9 @@
 
 using namespace std;
 
-int main(int argc, char* argv[])
+int mainly(int argc, char* argv[])
 {
+	//cout << arvg << '\n';
 // [1] BEGIN PROBLEM SETUP
   // Start timer
   int t_initial=time(NULL);

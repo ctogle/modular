@@ -2,6 +2,10 @@ import libs.modular_core.libfundamental as lfu
 import libs.modular_core.libsettings as lset
 import libs.gpu.lib_gpu as lgpu
 
+if lfu.using_os('windows'):
+	try: from win32com.client import GetObject
+	except ImportError: pass
+
 import multiprocessing as mp
 import numpy as np
 import types
@@ -21,7 +25,7 @@ class multiprocess_plan(lfu.plan):
 	def __init__(self, parent = None, label = 'multiprocess plan'):
 		self.worker_count = lset.get_setting('worker_processes')
 		self.worker_report = []
-		self.gpu_worker = lgpu.CL()
+		if lgpu.gpu_support: self.gpu_worker = lgpu.CL()
 		use_plan = lset.get_setting('multiprocessing')
 		lfu.plan.__init__(self, parent = parent, 
 			label = label, use_plan = use_plan)
@@ -48,7 +52,7 @@ class multiprocess_plan(lfu.plan):
 			pool = mp.Pool(processes = processor_count)
 			move_to = target_processes[0]
 			update_filenames = target_processes[1]
-			run_system = target_processes[2]			
+			run_system = target_processes[2]
 			worker_report = []
 			#data_pool = []
 			#data_pool = ensem_reference.data_pool.batch_pool
@@ -62,20 +66,26 @@ class multiprocess_plan(lfu.plan):
 					runs_left = target_counts[1][dex0] - dex1
 					if runs_left >= processor_count: 
 						runs_this_round = processor_count
-
 					else: runs_this_round = runs_left % processor_count
 					check_time = time.time()
 					try:
-						result = pool.map_async(run_system, 
-							args[2]*runs_this_round, callback = \
-												data_pool.extend)
-
+						IDs = [int(str(dex1) + str(x)) 
+							for x in range(runs_this_round)]
+						argus = [args[2] + (id_,) for id_ in IDs]
+						#result = pool.map_async(run_system, 
+						result = [pool.apply_async(run_system, 
+							#zip(args[2]*runs_this_round, IDs), 
+							args = argus[d], 
+							#args[2]*runs_this_round, 
+								callback = data_pool.append) for d in range(runs_this_round)]
+								#callback = data_pool.extend) for d in range(runs_this_round)]
 					except MemoryError: print 'AMNESIA!'; pdb.set_trace()
-					result.wait()
+					#result.wait()
+					[res.wait() for res in result]
 					dex1 += runs_this_round
 					report = ' '.join(['location dex:', str(dex0), 
 						'runs this round:', str(runs_this_round), 'in:', 
-						str(time.time() - check_time), 'seconds'])
+							str(time.time() - check_time), 'seconds'])
 					worker_report.append(report)
 					print 'multicore reported...', ' location: ', dex0
 
@@ -90,7 +100,6 @@ class multiprocess_plan(lfu.plan):
 			try:
 				ensem_reference.data_pool.batch_pool =\
 					np.array(data_pool, dtype = np.float)
-
 			except ValueError: pdb.set_trace()
 			self.worker_report = worker_report
 
@@ -113,16 +122,17 @@ class multiprocess_plan(lfu.plan):
 			runs_left = run_count - dex0
 			if runs_left >= processor_count: 
 				runs_this_round = processor_count
-
 			else: runs_this_round = runs_left % processor_count
+			IDs = [int(str(dex0) + str(x)) 
+				for x in range(runs_this_round)]
 			dex0 += runs_this_round
 			update_func()
 			result = pool.map_async(run_func, 
-					[ensem_reference]*runs_this_round, 
-					callback = result_pool.extend)
+				zip([ensem_reference]*runs_this_round, IDs), 
+							callback = result_pool.extend)
 			result.wait()
 			report = ' '.join(['location dex:', str(dex0), 
-						'runs this round:', str(runs_this_round), 'in:', 
+				'runs this round:', str(runs_this_round), 'in:', 
 						str(time.time() - check_time), 'seconds'])
 			worker_report.append(report)
 			print 'multicore reported...', ' location: ', dex0
@@ -149,37 +159,49 @@ class multiprocess_plan(lfu.plan):
 		super(multiprocess_plan, self).set_settables(
 							*args, from_sub = True)
 
-def run_with_time_out(run_func, args, pool, 
-			time_out = 10, worker = None):
+#def run_with_time_out(run_func, args, pool, time_out = 10):
+def run_with_time_out(*args):
 	#this function should not work if callback does not extend properly
+	#print 'rwto', args
+	args = args[0]
+	run_func = args[0]
+	sub_args = args[1]
+	pool = args[2]
+	time_out = args[3]
 	begin = len(pool)
-	new = False
-	if not worker:
-		worker_pool = mp.Pool(processes = 1)
-		new = True
-
-	else: worker_pool = worker
+	worker_pool = mp.Pool(processes = 1)
 	result = worker_pool.map_async(run_func, 
-				args, callback = pool.extend)
+			sub_args, callback = pool.extend)
 	worker_pool.close()
 	start_time = time.time()
 	time.sleep(0.1)
 	timed_out = time.time() - start_time > time_out
 	finished = len(pool) > begin
 	while not timed_out and not finished:
-		time.sleep(0.5)
+		time.sleep(0.1)
 		timed_out = time.time() - start_time > time_out
 		finished = len(pool) > begin
-		#print 'waiting...', finished, timed_out
 
 	if timed_out:
 		worker_pool.terminate()
-		if new: worker_pool.join()
+		worker_pool.join()
 		#print 'timed out...'
 		return True
 
 	else:
-		if new: worker_pool.join()
-		#worker_pool.join()
+		worker_pool.join()
 		return False
+
+def using_hyperthreading():
+	if not lfu.using_os('windows'):
+		print 'cant test hyperthreading when not using windows'
+		return
+	winmgmts_root = GetObject("winmgmts:root\cimv2")
+	cpus = winmgmts_root.ExecQuery("Select * from Win32_Processor")
+	for cpu in cpus:
+		if cpu.NumberOfCores <= cpu.NumberOfLogicalProcessors:
+			return True, cpu.DeviceID
+		else: return False, cpu.DeviceID
+
+
 

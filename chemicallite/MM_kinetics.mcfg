@@ -3,36 +3,31 @@
 	time limit : 0.005
 
 <capture_criteria>
-	#species scaler increment : 0.0002 : time
-	scaler increment : 0.0002 : time
-
-#<variables>
-#	K : 0.000000000000001
-#<functions>
-#	g : Enzyme/(K + Substrate)
+	scalar increment : 0.00005 : time
 
 <reactions>
 	#k_f = 0.1 (1/#*s) <-> k_r = 0.01 (1/s)
 	#1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
-	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
+	1 Enzyme + 1 Substrate 0.05 -> 1 ES_Complex : Enzyme Substrate complex formation
 
-	1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
-	#1 ES_Complex 0.1 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+	#1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+	1 ES_Complex 0.5 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
 
 	#(Values from wiki)
 	#	Chymotrypsin : k_cat = 0.14 (1/s) ->
 	#	Fumarase : k_cat = 800 (1/s) ->
-	1 ES_Complex 800.0 -> 1 Enzyme + 1 Product : Product formation
-	#1 ES_Complex 10 -> 1 Enzyme + 1 Product : Product formation
+	#1 ES_Complex 800.0 -> 1 Enzyme + 1 Product : Product formation
+	1 ES_Complex 2000 -> 1 Enzyme + 1 Product : Product formation
 
 <species>
-	Enzyme : 5000
-	#Enzyme : 1000
-	Substrate : 10000
-	#Substrate : 1000
-	ES_Complex : 0
+	#Enzyme : 5000
+	Enzyme : 1000
+	#Substrate : 10000
+	Substrate : 1000
+	#ES_Complex : 0
+	ES_Complex : 100
 	#Product : 100
-	Product : 100
+	Product : 1000
 
 <plot_targets>
 	time
@@ -41,37 +36,22 @@
 	Substrate
 	Enzyme
 
-<post_processes>
-	ES stats : standard statistics : 0 : ES_Complex of time : 50 : ordered
-
 <parameter_space>
-	<product_space> 500
-		#Enzyme Substrate complex formation : rate : 0.00000001-10000000;10000000
-		Enzyme Substrate complex formation : rate : 0.5-5;1
-		#Enzyme Substrate complex dissociation : rate : 0.00000001-10000000;10000000
-		#Enzyme Substrate complex dissociation : rate : 0.005-0.1;0.01
-		#Product formation : rate : 0.00000001-10000000;10000000
-		#Product formation : rate : 200-1000;10
-		#Enzyme : initial_count : 1-10000000;10000000
-		#Enzyme : initial_count : 1000-10000;100
-		#Substrate : initial_count : 1-10000000;10000000
-		#Substrate : initial_count : 1000-100000;100
-		#ES_Complex : initial_count : 0-10000;10000
-		#Product : initial_count : 1-10000000;10000000
-		#Product : initial_count : 1-1000;10
+	<fitting_space>
+		<axes>
+			Enzyme Substrate complex formation : rate : 0.05-5.0
+			Enzyme Substrate complex dissociation : rate : 0.0005-0.5
+			Product formation : rate : 10-2000
+			Enzyme : initial_count : 1-10000;10000
+			Substrate : initial_count : 1-50000;50000
+			ES_Complex : initial_count : 1-100;100
+			Product : initial_count : 1-1000;1000
+		#<constraints>
+		#	1 < 2
+		#	0 > 1
+		#	4 > 3
 
 <fit_routines>
-	#sim-anneal-coarse_m1 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m2 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m3 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m4 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m5 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m6 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m7 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m8 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m9 : simulated annealing : coarse-magnitude
-	#sim-anneal-coarse_m10 : simulated annealing : coarse-magnitude
-
 	#sim-anneal-coarse_d1 : simulated annealing : coarse-decimate
 	#sim-anneal-coarse_d2 : simulated annealing : coarse-decimate
 	#sim-anneal-coarse_d3 : simulated annealing : coarse-decimate
@@ -84,26 +64,15 @@
 	workers : 16
 
 <output_plans>
-	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : standard_statistics_output_ES : plt : all
-	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_fine : plt : all
+	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_fine : none : all
 
-	#15 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
-	#14 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
-	#13 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
-	#12 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d2 : none : all
-	#11 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d1 : none : all
+	#6 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d5 : none : all
+	#5 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d4 : none : all
+	#4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
+	#2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d2 : none : all
+	#1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d1 : none : all
 
-	#10 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m10 : none : all
-	#9 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m9 : none : all
-	#8 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m8 : none : all
-	#7 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m7 : none : all
-	#6 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m6 : none : all
-	#5 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m5 : none : all
-	#4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m4 : none : all
-	#3 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m3 : none : all
-	#2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m2 : none : all
-	#1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m1 : none : all
-	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
 
 #	Correct Values :
 #		Enzyme Substrate complex formation : rate : 1.0

@@ -3,7 +3,7 @@
 	time limit : 8000.0
 
 <capture_criteria>
-	species scaler increment : 50.0 : time
+	species scalar increment : 50.0 : time
 
 <variables>
 	#km controls the pulse duration

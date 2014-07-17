@@ -4,7 +4,7 @@
 #lc.criterion_sim_time, 'time limit', 1000
 #lc.criterion_iteration, 'iteration limit', 1000
 #lc.criterion_capture_count, 'capture limit', 1000
-#criterion_spec_included_scaler_increment, 'species scaler increment', 10, spec
+#criterion_spec_included_scalar_increment, 'species scalar increment', 10, spec
 #criterion_species_count, 'species count', 10000, spec
 
 <end_criteria>
@@ -12,10 +12,10 @@
 	#iteration limit : 1000
 	#capture limit : 1000
 	#species count : 1000 : x1
-	#species scaler increment : 10 : time
+	#species scalar increment : 10 : time
 
 <capture_criteria>
-	species scaler increment : 10 : time
+	species scalar increment : 10 : time
 
 
 ###

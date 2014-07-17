@@ -138,8 +138,8 @@ def write_unstructured(system, vtk_filename, specifics = []):
 	root_element.appendChild(dataType)
 
 	piece = setup_element(doc, 'Piece', {
-		'NumberOfPoints' : str(len(plot_targets['scalers'][
-						plot_targets['scalers'].keys()[0]])), 
+		'NumberOfPoints' : str(len(plot_targets['scalars'][
+						plot_targets['scalars'].keys()[0]])), 
 		'NumberOfCells' : '0'})
 	dataType.appendChild(piece)
 
@@ -169,29 +169,29 @@ def write_unstructured(system, vtk_filename, specifics = []):
 		node_Data = doc.createTextNode(point_coords_string)
 		node.appendChild(node_Data)
 
-	elif len(plot_targets['scalers'].keys()) > 0:
+	elif len(plot_targets['scalars'].keys()) > 0:
 		node = setup_element(doc, 'DataArray', {
 			'Name' : 'Points', 
 			'type' : 'Float32', 
 			'format' : 'ascii'})
 		point_data.appendChild(node)
-		keydex = plot_targets['scalers'].keys()[0]
+		keydex = plot_targets['scalars'].keys()[0]
 		point_coords_string = lgeo.coords_to_string(
-			plot_targets['scalers'][keydex],
-			plot_targets['scalers'][keydex],
-			plot_targets['scalers'][keydex])
+			plot_targets['scalars'][keydex],
+			plot_targets['scalars'][keydex],
+			plot_targets['scalars'][keydex])
 		node_Data = doc.createTextNode(point_coords_string)
 		node.appendChild(node_Data)		
 
 	point_coords.appendChild(copy(node_Data))
 
-	for key in plot_targets['scalers'].keys():
+	for key in plot_targets['scalars'].keys():
 		node = setup_element(doc, 'DataArray', {
 			'Name' : key, 
 			'type' : 'Float32', 
 			'format' : 'ascii'})
 		point_data.appendChild(node)
-		string = lgeo.array_to_string(plot_targets['scalers'][key])
+		string = lgeo.array_to_string(plot_targets['scalars'][key])
 		node_Data = doc.createTextNode(string)
 		node.appendChild(node_Data)
 

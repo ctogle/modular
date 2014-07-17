@@ -8,22 +8,29 @@ import pdb
 
 class daw_commander(lfu.modular_object_qt):
 	label = 'daw commander'
-	udp_receiver = ludp.receiver()
-	udp_transceiver = ludp.transceiver()
+	#udp_receiver = ludp.receiver()
+	#udp_transceiver = ludp.transceiver()
 	script_sorter = lso.sorter_script()
 	daw_signaler = lsg.signaler()
-	_children_ = [script_sorter, daw_signaler, udp_transceiver]
+	#_children_ = [script_sorter, daw_signaler, udp_transceiver]
 	#_children_ = [script_sorter, udp_receiver, udp_transceiver]
 
 	def __init__(self, *args, **kwargs):
 		self.settings_manager = lset.settings_manager(
 			parent = self, filename = 'daw_trans_settings.txt')
 		self.settings = self.settings_manager.read_settings()
-		self.udp_receiver.parent = self
-		self.udp_transceiver.parent = self
+		def_ip = lset.get_setting('default_IP')
+		self.udp_receiver = ludp.receiver(
+			parent = self, default_IP = def_ip)
+		self.udp_transceiver = ludp.receiver(
+			parent = self, default_IP = def_ip)
+		#self.udp_receiver.parent = self
+		#self.udp_transceiver.parent = self
 		self.script_sorter.parent = self
 		self.daw_signaler.parent = self
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+		self._children_ = [self.script_sorter, 
+			self.daw_signaler, self.udp_transceiver]
 
 	def on_test_udp_receiver_transceiver(self, *args, **kwargs):
 		self.udp_receiver.listen(*args, **kwargs)
@@ -74,8 +81,9 @@ class daw_commander(lfu.modular_object_qt):
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['button_set'], 
-				labels = [['Update GUI']], 
-				bindings = [[lgb.create_reset_widgets_function(window)]]))
+				labels = [['Change Settings', 'Update GUI']], 
+				bindings = [[self.change_settings, 
+					lgb.create_reset_widgets_function(window)]]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 

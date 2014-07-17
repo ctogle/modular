@@ -28,7 +28,11 @@ manager = None
 
 class ensemble(lfu.modular_object_qt):
 
+	current_tab_index = 0
+
 	def __init__(self, *args, **kwargs):
+		#self.impose_default('current_tab_index', 0, **kwargs)
+		#self.current_tab_index = 0
 		self.aborted = False
 		self.data_pool = lfu.data_container(
 			data = [], postproc_data = [])
@@ -37,9 +41,11 @@ class ensemble(lfu.modular_object_qt):
 		if 'parent' in kwargs.keys(): self.parent = kwargs['parent']
 		self.cancel_make = False
 		self.skip_simulation = False
-		#self.aggregate_anyway = False
 		self.mcfg_path = ''
-		self.num_trajectories = 1
+		#self.num_trajectories = 1
+		num_traj = lset.get_setting('trajectory_count')
+		if num_traj: self.num_trajectories = num_traj
+		else: self.num_trajectories = 1
 		self.data_pool_descr = ''
 		self.treebook_memory = [0, [], []]
 		self._module_memory_ = []
@@ -51,7 +57,8 @@ class ensemble(lfu.modular_object_qt):
 		self.cartographer_plan = lgeo.cartographer_plan(
 				label = 'Parameter Scan', parent = self)
 		self.postprocess_plan = lpp.post_process_plan(
-			label = 'Post Process Plan', parent = self)
+			label = 'Post Process Plan', parent = self, 
+				_always_sourceable_ = ['simulation'])
 		self.multiprocess_plan = lmp.multiprocess_plan(parent = self)
 
 		self.run_params = lfu.dictionary(parent = self)
@@ -156,7 +163,8 @@ class ensemble(lfu.modular_object_qt):
 		else:
 			if self.fitting_plan.use_plan:
 				if not self.cartographer_plan.parameter_space:
-					print 'fitting requires a parameter space!'; return
+					print 'fitting requires a parameter space!'
+					return False
 
 				else: self.fitting_plan(self)
 
@@ -346,7 +354,7 @@ class ensemble(lfu.modular_object_qt):
 											self.data_pool_id, 'pkl']))
 
 		else:
-			data_pool = lgeo.batch_scalers(
+			data_pool = lgeo.batch_scalars(
 				self.run_params['plot_targets'])
 			self.data_scheme = 'batch'
 			self.output_plan.flat_data = False
@@ -358,19 +366,20 @@ class ensemble(lfu.modular_object_qt):
 	#no multiprocessing, no parameter variation, and no fitting
 	def run_systems_boring(self):
 		self.data_pool = self.set_data_scheme()
-		#self.data_pool = lgeo.batch_scalers(
+		#self.data_pool = lgeo.batch_scalars(
 		#	self.run_params['plot_targets'])
 		current_trajectory = 1
 		while current_trajectory <= self.num_trajectories:
 			self.output_plan.update_filenames()
-			self.data_pool.batch_pool.append(lis.run_system(self))
+			self.data_pool.batch_pool.append(lis.run_system(
+					self, identifier = current_trajectory))
 			#lis.run_system(self)
 			current_trajectory += 1
 
 	#multiprocessing, no parameter variation, no fitting
 	def run_systems_mutliproc(self):
 		self.data_pool = self.set_data_scheme()
-		#self.data_pool = lgeo.batch_scalers(
+		#self.data_pool = lgeo.batch_scalars(
 		#	self.run_params['plot_targets'])
 		self.multiprocess_plan.distribute_work_simple_runs(
 			update_func = self.output_plan.update_filenames, 
@@ -390,7 +399,9 @@ class ensemble(lfu.modular_object_qt):
 			for dex in range(self.cartographer_plan.trajectory[
 								iteration][1].trajectory_count):
 				self.output_plan.update_filenames()
-				self.data_pool.live_pool.append(run_func(self))
+				ID = int(str(iteration) + str(dex))
+				self.data_pool.live_pool.append(
+					run_func(self, identifier = ID))
 				#run_func(self)
 				print 'location dex:', iteration, 'run dex:', dex
 
@@ -405,7 +416,7 @@ class ensemble(lfu.modular_object_qt):
 		#self.data_pool = lgeo.batch_data_pool(
 		#	self.run_params['plot_targets'], 
 		#			self.cartographer_plan)
-		#self.data_pool = lgeo.batch_scalers(
+		#self.data_pool = lgeo.batch_scalars(
 		#	self.run_params['plot_targets'])
 		self.multiprocess_plan.distribute_work(self, 
 			target_processes =\
@@ -414,7 +425,7 @@ class ensemble(lfu.modular_object_qt):
 				target_counts = [len(self.cartographer_plan.trajectory), 
 					[traj[1].trajectory_count for traj in 
 					self.cartographer_plan.trajectory], 1], 
-							args = [('dex'), (), (self, )])
+							args = [('dex'), (), (self,)])
 
 	def on_save(self):
 		dirdlg = lgd.create_dialog('Choose File', 'File?', 'directory')
@@ -524,11 +535,12 @@ class ensemble(lfu.modular_object_qt):
 		top_half_template = lgm.interface_template_gui(
 				layout = 'grid', 
 				panel_scrollable = True, 
-				widg_positions = [(0, 0), (0, 1), (0, 2), 
-								(1, 0), (2, 0), (0, 3)], 
+				widg_positions = [(0, 0), (0, 3), (0, 1), 
+								(1, 2), (1, 0), (0, 2)], 
 				layouts = ['vertical', 'vertical', 'vertical', 
 							'vertical', 'vertical', 'vertical'], 
-				widg_spans = [None, (2, 1), (4, 1), None, None, None], 
+				#widg_spans = [None, (2, 1), (2, 1), None, None, None], 
+				widg_spans = [None, None, (2, 1), None, None, None], 
 				grid_spacing = 10, 
 				box_labels = ['Ensemble Name', None, 'Run Options', 
 					'Number of Trajectories', 'Data Pool Description', 
@@ -536,24 +548,27 @@ class ensemble(lfu.modular_object_qt):
 				widgets = ['text', 'button_set', 
 					'check_set', 'spin', 'text', 'panel'], 
 				#verbosities = [0, [0, 0, 0, 0, 2], 0, 0, 2, 0], 
-				verbosities = [0, [0, 0, 0, 2], 0, 0, 2, 0], 
+				verbosities = [0, [0, 0, 0, 5], 0, 0, 2, 0], 
 				multiline = [False, None, None, None, True, None], 
 				templates = [None, None, None, None, None, 
 							[config_file_box_template]], 
 				append_instead = [None, None, False, None, None, None], 
 				read_only = [None, None, None, None, True, None], 
-				instances = [[self], [None], [self.output_plan, 
+				#instances = [[self], [None], [self.output_plan, 
+				instances = [[self], [None], [
 					self.fitting_plan, self.cartographer_plan, 
 					self.postprocess_plan, self.multiprocess_plan, 
 							self, self], [self], [self], [None]], 
-				keys = [['label'], [None], ['use_plan', 'use_plan', 
+				#keys = [['label'], [None], ['use_plan', 'use_plan', 
+				keys = [['label'], [None], ['use_plan', 
 								'use_plan', 'use_plan', 'use_plan', 
 							'skip_simulation'], 
 					['num_trajectories'], ['data_pool_descr'], [None]], 
 				labels = [[None], ['Run Ensemble', 'Save Ensemble', 
 							#'Reset Ensemble', 'Update Ensemble', 
 							'Update Ensemble', 'Print Label Pool'], 
-							['use output plan', 'use fitting plan', 
+							#['use output plan', 'use fitting plan', 
+							['use fitting plan', 
 					'map parameter space', 'use post processing', 
 					'use multiprocessing', 'skip simulation', 
 						], [None], [None], [None]], 
@@ -590,12 +605,31 @@ class ensemble(lfu.modular_object_qt):
 						zip(main_panel_templates, sub_panel_templates, 
 								run_param_keys, sub_panel_labels)]], 
 				headers = [['Ensemble Run Parameters']])
+		#self.widg_templates.append(
+		#	lgm.interface_template_gui(
+		#		widgets = ['splitter'], 
+		#		verbosities = [0], 
+		#		orientations = [['vertical']], 
+		#		templates = [[top_half_template, tree_half_template]]))
+		#self.widg_templates.append(
+		#	lgm.interface_template_gui(
+		#		widgets = ['tab_book'], 
+		#		verbosities = [0], 
+		#		pages = [[('Main', [top_half_template]), 
+		#				('Run Parameters', [tree_half_template])]]))
+		#if not hasattr(self, 'current_tab_index'):
+		#	print 'yea'
+		#	self.current_tab_index = 0
 		self.widg_templates.append(
 			lgm.interface_template_gui(
-				widgets = ['splitter'], 
+				widgets = ['tab_book'], 
 				verbosities = [0], 
-				orientations = [['vertical']], 
-				templates = [[top_half_template, tree_half_template]]))
+				handles = [(self, 'tab_ref')], 
+				pages = [[('Main', [top_half_template]), 
+						('Run Parameters', [tree_half_template])]], 
+				initials = [[self.current_tab_index]], 
+				instances = [[self]], 
+				keys = [['current_tab_index']]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
@@ -757,8 +791,17 @@ class ensemble_manager(lfu.modular_object_qt):
 		self.current_tab_index += 1
 		if self.current_tab_index >= self.tab_ref[0].count():
 			self.current_tab_index = 0
-
 		self.tab_ref[0].setCurrentIndex(self.current_tab_index)
+
+	def cycle_current_ensem_tab(self):
+		current_ensem = self.ensembles[self.current_tab_index - 1]
+		current_ensem.current_tab_index += 1
+		if current_ensem.current_tab_index > 1:
+			current_ensem.current_tab_index = 0
+		if not current_ensem.tab_ref: current_ensem.rewidget(True)
+		else:
+			current_ensem.tab_ref[0].setCurrentIndex(
+					current_ensem.current_tab_index)
 
 	def choose_mcfg(self):
 		if self.current_tab_index > 0:
@@ -945,6 +988,10 @@ class ensemble_manager(lfu.modular_object_qt):
 			label = 'Next Tab', icon = Next, shortcut = 'Ctrl+Tab', 
 			bindings = self.cycle_current_tab, 
 			statustip = 'Display The Next Tab (Ctrl+Tab)')
+		cycle_ensem_tabs_ = lgb.create_action(parent = window, 
+			label = 'Next Tab', icon = Next, shortcut ='E+Tab', 
+			bindings = self.cycle_current_ensem_tab, 
+			statustip = 'Display The Ensemble\'s Next Tab (E+Tab)')
 		run_current_ = lgb.create_action(parent = window, 
 			label = 'Run Current Ensemble', icon = RunEnsemble, 
 			shortcut = 'Alt+R', bindings = self.run_current_ensemble, 
@@ -963,12 +1010,13 @@ class ensemble_manager(lfu.modular_object_qt):
 				tool_labels = ['&Tools', '&Tools', '&Tools', 
 						'&Tools', '&Tools', '&Tools', 
 						'&Tools', '&Tools', '&Tools', 
-						'&EnsemTools', '&EnsemTools',
+						'&EnsemTools', '&EnsemTools', '&EnsemTools', 
 						'&EnsemTools', '&EnsemTools'], 
 				tool_actions = [settings_, save_, open_file, 
 						center_, make_ensem_, run_current_, 
 						update_gui_, cycle_tabs_, quit_, 
-						expand_, collapse_, find_mcfg_, make_mcfg_]))
+						expand_, collapse_, cycle_ensem_tabs_, 
+						find_mcfg_, make_mcfg_]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
@@ -1014,7 +1062,7 @@ class simulation_plan(lfu.plan):
 
 	def add_capture_criteria(self, crit = None):
 		if crit is None:
-			new = lc.criterion_scaler_increment(parent = self)
+			new = lc.criterion_scalar_increment(parent = self)
 
 		else:
 			new = crit
@@ -1151,6 +1199,8 @@ class simulation_plan(lfu.plan):
 
 class sim_system_python(lfu.modular_object_qt):
 
+	identifier = 0
+
 	#def __init__(self, ensem, label = 'another system', params = {}):
 	def __init__(self, ensem, params = {}):
 		self.ensemble = ensem
@@ -1171,7 +1221,7 @@ class sim_system_python(lfu.modular_object_qt):
 			self.end_capture_expression = ''
 
 		try:
-			data = lgeo.scalers_from_labels(
+			data = lgeo.scalars_from_labels(
 				self.parameters['plot_targets'])
 
 		except KeyError: print 'simulating with no resultant data!'
@@ -1218,11 +1268,11 @@ class sim_system_python(lfu.modular_object_qt):
 		baddex = validation[0](validation[1])
 		for data_obj in self.data:
 			try:
-				del data_obj.scalers[baddex:]
+				del data_obj.scalars[baddex:]
 
 			except MemoryError:
 				pdb.set_trace()
-			#data_obj.scalers = data_obj.scalers[:baddex]
+			#data_obj.scalars = data_obj.scalars[:baddex]
 
 	def verify_capture_criteria(self):
 		if not self.capture_criteria:
@@ -1240,6 +1290,7 @@ class sim_system_python(lfu.modular_object_qt):
 
 class sim_system_external(sim_system_python):
 	bAbort = False
+	timeout = False
 	capture_criteria = False
 
 	def __init__(self, ensem = None, params = {}):
@@ -1257,7 +1308,7 @@ class sim_system_external(sim_system_python):
 				start_string += 'time>=' + str(value)
 
 			elif issubclass(crit.__class__, 
-					lc.criterion_scaler_increment):
+					lc.criterion_scalar_increment):
 				target = crit.key
 				value = str(crit.increment)
 				start_string += ':'.join(['increment', target, value])
@@ -1268,7 +1319,14 @@ class sim_system_external(sim_system_python):
 		self.iteration = 0
 		self.encode()
 
+	def toss_bad_daters(self, *args, **kwargs):
+		pass
+
 	def finalize_data(self, data, targets, toss = None):
+		if data is False:
+			self.bAbort = True
+			return data
+
 		data = [dater for dater in data if len(dater) > 1]
 		reorder = []
 		for name in self.params['plot_targets']:

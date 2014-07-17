@@ -115,7 +115,7 @@ class sim_system(lsc.sim_system):
 		except ValueError: pass
 
 		def validate_time(dex):
-			return len(self.data[dex].scalers) - 10
+			return len(self.data[dex].scalars) - 10
 
 		timedex = [dater.label for dater in self.data].index('iteration')
 		self.determine_end_valid_data = (validate_time, (timedex))
@@ -327,17 +327,17 @@ class sim_system(lsc.sim_system):
 					[len(vertex) for vertex in self.lattice])
 				self.data[k].time.append(self.time[-1])
 
-			elif self.data[k].tag == 'scaler':
+			elif self.data[k].tag == 'scalar':
 				if self.data[k].label == 'time':
-					self.data[k].scalers.append(
+					self.data[k].scalars.append(
 						self.__dict__[self.data[k].label][-1])
 
 				elif self.data[k].label == 'total population':
-					self.data[k].scalers.append(sum(
+					self.data[k].scalars.append(sum(
 						[len(vertex) for vertex in self.lattice]))
 
 				else:
-					self.data[k].scalers.append(
+					self.data[k].scalars.append(
 						self.__dict__[self.data[k].label])
 
 class species(modular_object):

@@ -6,7 +6,7 @@
 time limit : 1000.0
 
 <capture_criteria>
-species scaler increment : 10.0 : time
+species scalar increment : 10.0 : time
 
 <variables>
 

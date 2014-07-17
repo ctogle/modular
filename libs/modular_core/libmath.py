@@ -2,8 +2,10 @@ import libs.modular_core.libfundamental as lfu
 
 import math
 import numpy as np
+#import cgkit.cgtypes as cgt
 import scipy.interpolate as sp
 from copy import deepcopy as copy
+import types
 
 import pdb
 
@@ -85,6 +87,77 @@ def normalize_by_magnitude(values):
 	magnitude = math.sqrt(sum([val**2.0 for val in values]))
 	return [val/magnitude for val in values]
 
+###
+#GEOMETRIC UTILITY FUNCTIONS
+###
+def scalp (vec, scal):
+	vec[0] *= scal
+	vec[1] *= scal
+	vec[2] *= scal
+
+def length(vec):
+	return math.sqrt(dot_product(vec, vec))
+
+def dot_product(v1, v2):
+	return sum((a*b) for a, b in zip(v1, v2))
+
+def cross_product(x_hat, y_hat):
+	return np.cross(x_hat, y_hat)
+
+def angle(v1, v2, unit = None, conv = 1.0):
+	#provide a conversion factor, unit, both, or neither
+	# use the conv factor
+	# determine the conv factor
+	# use units instead of conv
+	# use 1.0 for conv
+	if unit == 'degree': conv = 180.0/np.pi
+	elif unit == 'radian': conv = 1.0
+	return conv*math.acos(dot_product(v1,v2)/(length(v1)*length(v2)))
+
+def in_bbox(bbox1, bbox2, v_):
+	def in_bbox1d(rng, x): return x >= rng[0] and x <= rng[1]
+	in_x = in_bbox1d((bbox1[0], bbox2[0]), v_[0])
+	in_y = in_bbox1d((bbox1[1], bbox2[1]), v_[1])
+	in_z = in_bbox1d((bbox1[2], bbox2[2]), v_[2])
+	return in_x and in_y and in_z
+
+def normalize_angle(angle):
+	while angle < 0: angle += 360
+	while angle > 360: angle -= 360
+	return angle
+
+def normalize_vect(vect):
+	return np.array([ve/length(vect) for ve in vect])
+
+def clamp(val, min_, max_):
+	if val < min_: return min_
+	elif val > max_: return max_
+	else: return val
+
+def clamp_periodic(val, min_, max_):
+	while val < min_: val += (max_ - min_)
+	while val > max_: val -= (max_ - min_)
+	else: return val
+
+def identity_mat(dim = 4):
+	iden = np.zeros((dim, dim), dtype = 'f')
+	for d in range(dim): iden[d][d] = 1
+	return iden
+
+###
+###
+###
+
+def mid(arr):
+	leng = len(arr)
+	if leng % 2: mid = arr[leng/2]
+	else: mid = np.mean(arr[leng/2-1:leng/2+1])
+	return mid
+
+###
+###
+###
+
 pwm = []
 
 def pwm_square(*args):
@@ -134,8 +207,10 @@ def make_range(range_, rng_delim = ':'):
 			interval = float(stg[stg.rfind(';') + 1:])
 			front = float(stg[:stg.find('-')])
 			back = float(stg[stg.find('-') + 1:stg.find(';')])
-			values = [float(val) for val in (np.arange(front, 
-								back + interval, interval))]
+			#values = [float(val) for val in (np.arange(front, 
+			#					back + interval, interval))]
+			values = [float(val) for val in 
+				np.linspace(front, back, interval)]
 			res = ', '.join([str(item) for item in values])
 			return res
 
@@ -150,10 +225,85 @@ def make_range(range_, rng_delim = ':'):
 	ranges = ', '.join(ranges)
 	return ranges, True
 
+def differences(*args, **kwargs):
+	weights = args[0]
+	to_fit_to_y = args[1]
+	runinterped = args[2]
+	bounds = args[3]
+	diffs = [abs(to_fit_to_y[k] - runinterped[k])*weight for 
+		weight, k in zip(weights, range(bounds[0], bounds[1]))]
+	return diffs
+
+def deriv_first_differences(*args, **kwargs):
+	dom_weights = args[0]
+	to_fit_to_y = args[1]
+	runinterped = args[2]
+	bounds = args[3]
+	to_fit_to_x = args[4]
+	runinterped_slope = [(runinterped[k] - runinterped[k - 1])\
+				/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
+				for k in range(1, len(to_fit_to_x))]
+	to_fit_to_y_slope = [(to_fit_to_y[k] - to_fit_to_y[k - 1])\
+						/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
+						for k in range(1, len(to_fit_to_x))]
+	return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+								for weight, k in zip(dom_weights, 
+								range(bounds[0], bounds[1] -1))]
+
+def deriv_second_differences(*args, **kwargs):
+
+	def calc_2nd_deriv(x, y, dex):
+		del_x_avg = (x[dex + 1] - x[dex - 1])/2.0
+		#try:
+		val = (y[dex + 1] - (2*y[dex]) + y[dex - 1])\
+							/((x[dex] - del_x_avg)**2)
+
+		#except FloatingPointError: val = None
+		return val
+
+	dom_weights = args[0]
+	to_fit_to_y = args[1]
+	runinterped = args[2]
+	bounds = args[3]
+	to_fit_to_x = args[4]
+	runinterped_slope = [
+		calc_2nd_deriv(to_fit_to_x, runinterped, k) 
+			for k in range(1, len(to_fit_to_x) -1)]
+	for val in [(x, y) for x, y in zip(to_fit_to_x, to_fit_to_y)]: print val
+	to_fit_to_y_slope = [
+		calc_2nd_deriv(to_fit_to_x, to_fit_to_y, k) 
+			for k in range(1, len(to_fit_to_x) -1)]
+	return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+						for weight, k in zip(dom_weights, range(
+								bounds[0] + 1, bounds[1] - 2))]
+
+def deriv_third_differences(*args, **kwargs):
+
+	def calc_3rd_deriv(x, y, dex):
+		top = (y[dex - 2] - (3*y[dex - 1]) +\
+					(3*y[dex]) + y[dex + 1])
+		del_x_avg = ((x[dex + 1] - x[dex - 2]))/3.0
+		return top/((x[dex] - del_x_avg)**3)
+
+	dom_weights = args[0]
+	to_fit_to_y = args[1]
+	runinterped = args[2]
+	bounds = args[3]
+	to_fit_to_x = args[4]
+	runinterped_slope = [
+		calc_3rd_deriv(to_fit_to_x, runinterped, k) 
+			for k in range(1, len(to_fit_to_x) -1)]
+	to_fit_to_y_slope = [
+		calc_3rd_deriv(to_fit_to_x, to_fit_to_y, k) 
+			for k in range(1, len(to_fit_to_x) -1)]
+	return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+								for weight, k in zip(dom_weights, 
+							range(bounds[0] + 2, bounds[1] - 2))]
+
 if __name__ == 'libs.modular_core.libmath':
 	if lfu.gui_pack is None: lfu.find_gui_pack()
-	lgm = lfu.gui_pack.lgm
-	lgb = lfu.gui_pack.lgb
+	#lgm = lfu.gui_pack.lgm
+	#lgb = lfu.gui_pack.lgb
 
 if __name__ == '__main__': print 'this is a library!'
 

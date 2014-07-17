@@ -16,7 +16,7 @@ class application_daw_rec(lqg.application):
 		lqg.application.__init__(self, *args, **kwargs)
 		lqg.application.setStyle(lgb.create_style('plastique'))
 		x, y = lfu.convert_pixel_space(1024, 256)
-		x_size, y_size = lfu.convert_pixel_space(512, 512)
+		x_size, y_size = lfu.convert_pixel_space(512, 768)
 		self._standards_ = {
 			'title' : 'DAW Receiver', 
 			'geometry' : (x, y, x_size, y_size), 

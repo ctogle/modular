@@ -9,11 +9,14 @@ import libs.modular_core.libsettings as lset
 import libs.modular_core.libmath as lm
 import libs.modular_core.libmultiprocess as lmp
 
+from copy import deepcopy as copy
 import multiprocessing as mp
 import traceback
 import numpy as np
 import time
+import heapq
 import math
+import types
 import os
 import random
 import sys
@@ -40,6 +43,7 @@ class fit_routine_plan(lfu.plan):
 		lfu.plan.__init__(self, *args, **kwargs)
 
 	def __call__(self, *args, **kwargs):
+		self.parent.data_pool = self.parent.set_data_scheme()
 		if self.show_progress_plots:
 			if self.parent.multithread_gui:
 				app = lgb.QtGui.QApplication(sys.argv)
@@ -187,7 +191,12 @@ class fit_routine_plan(lfu.plan):
 		'''
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
-def parse_fitting_line(data, ensem, procs, routs):
+def parse_fitting_line(*args):
+	data = args[0]
+	ensem = args[1]
+	parser = args[2]
+	procs = args[3]
+	routs = args[4]
 	split = [item.strip() for item in data.split(':')]
 	for fit_type in valid_fit_routine_base_classes:
 		if split: name = split[0]
@@ -201,12 +210,11 @@ def parse_fitting_line(data, ensem, procs, routs):
 
 	ensem.fitting_plan.add_routine(new = rout)
 	rout.set_settables(0, ensem)
-	return rout
 
 class fit_routine(lfu.modular_object_qt):
 
 	#ABSTRACT
-	#base class should not assume scalers are the data object
+	#base class should not assume scalars are the data object
 	'''
 	fit_routine subclasses should have several regimes
 	fine: runs the routine on the parameter space as specified
@@ -216,14 +224,19 @@ class fit_routine(lfu.modular_object_qt):
 		on the best fit
 	coarse-decimate: coerce the parameter space into a discrete 
 		space with bounds and increments such that each space has
-		ten values; impose results as coarse-magnitude does
-	these two regimes can run in either of the above two regimes
-		=> 4 modes of operation
-	on_simulation: run a simulation; use its output as input 
-		any relevant metrics
-	on_process: run a batch of simulations; feed its output into
-		a series of post processes whose results are used as input
-		to any relevant metrics
+		some number of values; impose results as coarse-magnitude does
+	these secondary regimes can run in either of the above two regimes:
+		on_simulation: run a simulation; use its output as input 
+			any relevant metrics
+		on_process: a series of post processes can be run
+			on the output of a simulation at a location
+				processes can be run in the 'per trajectory' or
+					'all trajectories' regimes
+			must specify how many trajectories are run per
+				location and then fed into the post process chain
+			input data must be based on final post process output goal
+			measurement and acceptance/rejection is exactly the same
+			can't use raw_measure pipeline... -> slow
 
 	fitting routines can be used in series, which is particularly 
 		useful when each provides information for the next
@@ -248,7 +261,7 @@ class fit_routine(lfu.modular_object_qt):
 		for now)
 
 	input data should be identical to the output of modular via
-		pkl format - scalers objects wrapped in a data_container
+		pkl format - scalars objects wrapped in a data_container
 	'''
 	def __init__(self, *args, **kwargs):
 		self.impose_default('parameter_space', None, **kwargs)
@@ -260,36 +273,38 @@ class fit_routine(lfu.modular_object_qt):
 		self.impose_default('brand_new', True, **kwargs)
 		self.impose_default('iteration', 0, **kwargs)
 		self.impose_default('auto_overwrite_key', True, **kwargs)
-		self.impose_default('initial_creep_factor', 4, **kwargs)
-		self.impose_default('display_frequency', 100, **kwargs)
-		self.impose_default('max_sim_wait_time', 2, **kwargs)
+		self.impose_default('initial_creep_factor', 20, **kwargs)
+		self.impose_default('display_frequency', 500, **kwargs)
+		self.impose_default('max_sim_wait_time', 1.0, **kwargs)
 		self.impose_default('last_best', 0, **kwargs)
 		self.impose_default('timeouts', 0, **kwargs)
 		self.impose_default('use_time_out', True, **kwargs)
+		self.impose_default('use_genetics', False, **kwargs)
+		self.impose_default('use_mean_fitting', False, **kwargs)
 		self.impose_default('regime', 'fine', **kwargs)
 		self.impose_default('valid_regimes', 
 			['fine', 'coarse-magnitude', 'coarse-decimate'], **kwargs)
 
 		self.impose_default('metrics', [], **kwargs)
 		self.metrics.append(
-			lgeo.metric_avg_ptwise_diff_on_domain(parent = self))
+			lgeo.metric_avg_ptwise_diff_on_domain(
+				parent = self, acceptance_weight = 1.0))
 		self.metrics.append(
-			lgeo.metric_slope_1st_derivative(parent = self))
+			lgeo.metric_slope_1st_derivative(
+				parent = self, acceptance_weight = 0.9))
 		self.metrics.append(
-			lgeo.metric_slope_2nd_derivative(parent = self))
-		#self.metrics.append(
-		#	lgeo.metric_slope_3rd_derivative(parent = self))
-		#self.metrics.append(
-		#	lgeo.metric_integral_fit_quality(parent = self))
-		self.impose_default('metric_weights', [
-				met.acceptance_weight for met 
-				in self.metrics], **kwargs)
-		#self.metric_weights = [1.0, 1.0, 1.0, 1.0]
-		self.metric_weights = [1.0, 1.0, 1.0/2.0, 1.0/6.0]
-		#self.metric_weights = [1.0, 0.5, 0.5, 0.25]
-		#self.metric_weights = [1.0, 0.75, 0.5, 0.25]
-		#self.metric_weights = [1.0, 0.5, 0.25, 0.125]
-		#self.metric_weights = [1.0, 0.85, 0.7, 0.55]
+			lgeo.metric_slope_2nd_derivative(
+				parent = self, acceptance_weight = 0.75))
+		self.metrics.append(
+			lgeo.metric_slope_3rd_derivative(
+				parent = self, acceptance_weight = 0.5))
+		self.impose_default('metric_weights', 
+				[met.acceptance_weight for met 
+					in self.metrics], **kwargs)
+		self.metric_rulers = [lm.differences, 
+				lm.deriv_first_differences, 
+				lm.deriv_second_differences, 
+				lm.deriv_third_differences]
 		self.impose_default('prime_metric', 0, **kwargs)
 		self.prime_metric =\
 			self.metric_weights.index(max(self.metric_weights))
@@ -297,10 +312,10 @@ class fit_routine(lfu.modular_object_qt):
 
 		self.impose_default('fitted_criteria', [], **kwargs)
 		self.fitted_criteria.append(lc.criterion_iteration(
-					parent = self, max_iterations = 10000))
+					parent = self, max_iterations = 5000))
 		self.fitted_criteria.append(criterion_impatient(
 					parent = self, max_timeouts = 50, 
-								max_last_best = 500))
+							max_last_best = 2000))
 
 		self.impose_default('fitter_criteria', [], **kwargs)
 		self.fitter_criteria.append(
@@ -310,13 +325,22 @@ class fit_routine(lfu.modular_object_qt):
 		self.impose_default('input_data_file', '', **kwargs)
 		self.impose_default('input_data_domain', '', **kwargs)
 		self.impose_default('input_data_codomains', [], **kwargs)
+		self.impose_default('input_data_targets', [], **kwargs)
+		self.impose_default('input_data_aliases', {}, **kwargs)
 		self.input_data_file = os.path.join(os.getcwd(), 
-			'chemicallite', 'output', 'ensemble_output.1.pkl')
-		self.input_data_domain = 'time'
+			'chemicallite', 'output', 'mm_fit_input.0.pkl')
+			#				'imager', 'fit_data.pkl')
+		#self.input_data_domain = 'time'
 		#self.input_data_codomains = ['ES_Complex', 'Product', 
-		#								'Enzyme', 'Substrate']
+		#							'Substrate', 'Enzyme']
+		#self.input_data_aliases = {'time':'time', 
+		#		'ES_Complex mean':'ES_Complex', 
+		#		'Product mean':'Product', 
+		#		'Enzyme mean':'Enzyme', 
+		#		'Substrate mean':'Substrate'}
 		#self.input_data_codomains = ['ES_Complex', 'Product']
-		self.input_data_codomains = ['ES_Complex']
+		#self.input_data_codomains = ['ES_Complex']
+		#self.input_data_codomains = ['lacI', 'tetR', 'cl']
 
 		if not 'visible_attributes' in kwargs.keys():
 			kwargs['visible_attributes'] = None
@@ -332,40 +356,131 @@ class fit_routine(lfu.modular_object_qt):
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self.output = lo.output_plan(label = ' '.join(
 				[self.label, 'output']), parent = self)
+		#self.output.flat_data = False
 		#self._children_ = [self.output] + self.metrics +\
 		#	self.fitted_criteria + self.fitter_criteria
 		self._children_ = [self.output]
 
 	def __call__(self, *args, **kwargs):
-		self.initialize(*args, **kwargs)				
-		run_func = lis.run_system
-		#worker = mp.Pool(processes = 1)
-		worker = None
+		self.initialize(*args, **kwargs)
+		run_func = lis.run_system_measurement
+		data_pool = self.ensemble.data_pool.batch_pool
+		worker_pool = None
+		if self.use_mean_fitting or self.use_genetics:
+			worker_pool = mp.Pool(processes = self.worker_count)
+
+		if self.use_genetics:
+			iterate = self.iterate_genetic
+			self.iterate(run_func, data_pool, worker_pool)
+
+		else:
+			iterate = self.iterate
+
 		while not self.bAbort and not self.verify_criteria_list(
 									self.fitted_criteria, self):
-			self.iterate(run_func, worker)
+			iterate(run_func, data_pool, worker_pool)
 
-		if worker: worker.join()
+		if self.use_genetics:
+			worker_pool.close()
+			worker_pool.join()
+
 		self.finalize(*args, **kwargs)
 
-	def get_input_data(self):
-		relevant = [self.input_data_domain] + self.input_data_codomains
+	def get_input_data(self, read = True):
 		data = lf.load_pkl_object(self.input_data_file)
-		data = [dater for dater in data.data 
-				if dater.label in relevant]
-		return data
+		self.input_data_targets = [dater.label for dater in data.data]
+		self.rewidget(True)
+		if read:
+			self.input_data_domain = self.input_data_targets[0]
+			self.input_data_codomains = self.input_data_targets[1:]
+			#pdb.set_trace()
+			#self.parent.parent.run_params['plot_targets']
+			#self.input_data_codomains = ['ES_Complex', 'Product', 
+			#							'Substrate', 'Enzyme']
+			self.input_data_aliases = {}
+			#print 'prealias', self.input_data_targets, self.input_data_codomains
+			for targ, codom in zip(self.input_data_targets, 
+								[self.input_data_domain] +\
+								self.input_data_codomains):
+				self.input_data_aliases[targ] = codom
+
+		#print 'alias!', self.input_data_aliases
+		else:
+			if not self.input_data_aliases.keys():
+				#THIS IS A HACK!!!
+				self.input_data_aliases = {'time':'time', 
+					'ES_Complex mean':'ES_Complex', 
+					'Product mean':'Product', 
+					'Enzyme mean':'Enzyme', 
+					'Substrate mean':'Substrate'}
+
+			for dater in data.data:
+				dater.label = self.input_data_aliases[dater.label]
+
+			relevant = self.input_data_aliases.values()
+			data = [dater for dater in data.data 
+					if dater.label in relevant]
+			for dater in data:
+				if type(dater.scalars) is types.ListType:
+					dater.scalars = np.array(dater.scalars)
+
+			return data
 
 	def initialize(self, *args, **kwargs):
 		self.output.flat_data = True
 		self.ensemble = self.parent.parent
-		self.ensemble.data_pool = self.ensemble.set_data_scheme()
-		self.data_to_fit_to = self.get_input_data()
+		self.worker_count =\
+			self.parent.parent.multiprocess_plan.worker_count
+		self.proginy_count = 100
+		if False and self.ensemble.multiprocess_plan.use_plan and\
+				not self.regime.endswith('magnitude'):
+			self.use_genetics = True
+			self.proginy_count = 100
+
+		else: self.use_genetics = False
+		#self.ensemble.data_pool = self.ensemble.set_data_scheme()
 		self.run_targets = self.ensemble.run_params['plot_targets']
+		self.data_to_fit_to = self.get_input_data(read = False)
+		self.target_key = [[dat.label for dat in 
+			self.data_to_fit_to], self.run_targets]
+
+		def expo_weights(leng):
+			dom_weight_max = 5.0
+			dom_weight_x = np.linspace(dom_weight_max, 0, leng)
+			return np.exp(dom_weight_x)
+
+		def para_weights(leng):
+			dom_weight_max = 9.0
+			x = np.linspace(0, leng, leng)
+			y = x*(x - x[-1])
+			y_0 = min(y)
+			y = y - y_0
+			y = dom_weight_max*y/max(y) + 1
+			#for k in range(0, 2) + range(-3, -1): y[k] = 0.0
+			return y
+
+		def affi_weights(leng):
+			x = np.linspace(0, leng, leng)
+			b = 5.0
+			m = -4.0/x[-1]
+			y = m*x + b
+			return y
+
+		def flat_weights(leng):
+			y = [1.0 for val in range(leng)]
+			return y
+
+		fit_x_leng = len(self.data_to_fit_to[0].scalars)
+		#self.domain_weights = expo_weights(fit_x_leng)
+		self.domain_weights = para_weights(fit_x_leng)
+		#self.domain_weights = affi_weights(fit_x_leng)
+		#self.domain_weights = flat_weights(fit_x_leng)
 		self.iteration = 0
 		self.timeouts = 0
 		self.parameter_space =\
 			self.parent.parent.cartographer_plan.parameter_space
 		if self.regime == 'coarse-magnitude':
+			self.use_mean_fitting = False
 			self.parameter_space, valid =\
 				lgeo.generate_coarse_parameter_space_from_fine(
 						self.parameter_space, magnitudes = True)
@@ -375,6 +490,7 @@ class fit_routine(lfu.modular_object_qt):
 					'P-Spaced couldnt be coarsened!', 'Problem')
 
 		elif self.regime == 'coarse-decimate':
+			self.use_mean_fitting = False
 			self.parameter_space, valid =\
 				lgeo.generate_coarse_parameter_space_from_fine(
 						self.parameter_space, decimates = True)
@@ -383,94 +499,261 @@ class fit_routine(lfu.modular_object_qt):
 				lgd.message_dialog(None, 
 					'P-Spaced couldnt be coarsened!', 'Problem')
 
-		elif self.regime == 'fine':
-			#self.parameter_space =\
-			#	self.parent.parent.cartographer_plan.parameter_space
-			print 'REGIME', self.regime
-
-		self.parameter_space.set_start_pt()
+		elif self.regime == 'fine': pass
+		print '\tstarted fit routine', self.label, 'regime', self.regime
+		self.parameter_space.set_start_position()
 		for metric in self.metrics:
 			metric.initialize(self, *args, **kwargs)
 
-		self.data = lgeo.scalers_from_labels(['fitting iteration'] +\
+		self.data = lgeo.scalars_from_labels(['fitting iteration'] +\
 				[met.label + ' measurement' for met in self.metrics])
 
-	def iterate(self, run_func, worker = None):
-		data_pool = self.ensemble.data_pool.batch_pool
-		if self.use_time_out:
-			timed_out = lmp.run_with_time_out(run_func, 
-					(self.ensemble,), data_pool, 
-					time_out = self.max_sim_wait_time, 
-									worker = worker)
+	def kill_proginy(self, *args):
+		measurements = args[0]
+		survivor_weights = []
+		group_data = zip(*measurements)
+		group_means = [np.mean(measure) for measure in group_data]
+		group_mins = [min(measure) for measure in group_data]
+		met_weights = self.metric_weights
+		for surv_dex, proginy in enumerate(measurements):
+			improves = []
+			for meas_dex, measure in enumerate(proginy):
+				min_ = group_mins[meas_dex]
+				improves.append(
+					group_data[meas_dex][surv_dex] - min_ <=\
+							(group_means[meas_dex] - min_))
 
-			if timed_out:
-				print 'location timed out...', self.iteration
-				self.move_in_parameter_space(bypass = True)
-				#self.parameter_space.undo_step()
-				self.iteration += 1
-				self.timeouts += 1
-				return False
+			weights = [we/sum(met_weights) for we, imp in 
+						zip(met_weights, improves) if imp]
+			weight = sum(weights)
+			survivor_weights.append(weight)
 
-			else: run_data = data_pool[-1]
+		survivors = heapq.nlargest(1, survivor_weights)
+		return [survivor_weights.index(surv) for surv in survivors]
 
-		else:
-			run_data = run_func(self.ensemble)
-			data_pool.append(run_data)
+	#proginy are acceptable arguments for run_system_measurement
+	def create_proginy(self, dex, start, fact):
+		deviation = [[item for item in tup] for tup in start]
+		subs = self.parameter_space.subspaces
+		norm = self.parameter_space.step_normalization
+		initial_factor = self.parameter_space.initial_factor
+		dims = self.parameter_space.dimensions
+		many_steps = int(min([dims, 
+			max([1, abs(random.gauss(dims, dims))*\
+			(self.p_sp_step_factor/initial_factor)])]))
+		dirs_ = random.sample(range(dims), many_steps)
+		#for dir_ in dirs_:
+		#	ax, subsp = deviation[dir_], subs[dir_]
+		for sp_dex in range(len(deviation)):
+			if sp_dex in dirs_:
+				ax = deviation[sp_dex]
+				subsp = subs[sp_dex]
+				new_location =\
+					subsp.step_sample(norm, fact) +\
+							subsp.current_location()
+				ax[-1] = new_location
 
-		run_data = [lgeo.scalers(label = dater, scalers = dats) 
-			for dater, dats in zip(self.run_targets, run_data)]
+		child = (self.ensemble, self.data_to_fit_to, 
+				self.target_key, self.domain_weights, 
+					self.parameter_space, deviation, 
+							self.metric_rulers, dex)
+		return child
+
+	#def iterate_genetic(self, run_func, data_pool, worker_pool):
+	def iterate_genetic(self, *args, **kwargs):
+		run_func = args[0]
+		data_pool = args[1]
+		worker_pool = args[2]
+		dims = self.parameter_space.dimensions
+		st_loc = self.parameter_space.get_current_position()
+		fact = self.p_sp_step_factor/self.parameter_space.initial_factor
+		print 'making', self.proginy_count, 'children'
+		children = [self.create_proginy(dex, st_loc, fact) 
+					for dex in range(self.proginy_count)]
+		processor_count = self.worker_count
+		measurements = []
+		dex0 = 0
+		while dex0 < self.proginy_count:
+			check_time = time.time()
+			runs_left = self.proginy_count - dex0
+			if runs_left >= processor_count: 
+				runs_this_round = processor_count
+
+			else: runs_this_round = runs_left % processor_count
+			dex0 += runs_this_round
+			result = worker_pool.map_async(run_func, 
+				children[dex0:dex0+runs_this_round], 
+					callback = measurements.extend)
+			result.wait()
+			print 'multicore reported...', ' location: ', dex0
+
+		survivors = self.kill_proginy(measurements)
+		axial_motions = [[] for d in range(dims)]
+		for winner in survivors:
+			survivor_deviation = children[winner][5]
+			[axial_motions[sub_dex].append(float(
+				survivor_deviation[sub_dex][-1])) 
+					for sub_dex in range(dims)]
+
+		axial_motions = [np.mean(ax) for ax in axial_motions]
+		print 'axial motions', axial_motions, 'at', self.iteration
+		self.parameter_space.steps.append(
+				lgeo.parameter_space_step(
+			location = [], initial = [], final = []))
+		for dex, subsp in enumerate(self.parameter_space.subspaces):
+			curr = subsp.current_location()
+			new = axial_motions[dex]
+			self.parameter_space.steps[-1].location.append(
+									(subsp.inst, subsp.key))
+			self.parameter_space.steps[-1].initial.append(curr)
+			self.parameter_space.steps[-1].final.append(new)
+
+		self.parameter_space.steps[-1].step_forward()
+		self.parameter_space.validate_position()
+		iterat = self.iterate(run_func, data_pool, worker_pool)
+
+	def iterate(self, *args, **kwargs):
+		self.iteration += 1
+		run_func = args[0]
+		worker_pool = args[2]
 		display = self.iteration % self.display_frequency == 0
 		if display:
 			print ' '.join(['\niteration:', str(self.iteration), 
 						'temperature:', str(self.temperature)])
 
-		self.last_best += 1
-		for met_weight, metric in zip(self.metric_weights, self.metrics):
-			metric.measure(self.data_to_fit_to, 
-					run_data, display = display, 
-							weight = met_weight)
-			last_dat_dex = len(metric.data[0].scalers) - 1
-			if metric.best_measure == last_dat_dex and\
-									metric.is_heaviest:
-				self.last_best = 0
+		current_position = self.parameter_space.get_current_position()
+		argu = (self.ensemble, self.data_to_fit_to, 
+			self.target_key, self.domain_weights, 
+			self.parameter_space, current_position, 
+							self.metric_rulers, 0)
+		kwds = {'timeout': self.max_sim_wait_time}
+		if self.use_mean_fitting:
+			processor_count = self.worker_count
+			measurements = []
+			dex0 = 0
+			while dex0 < self.proginy_count:
+				check_time = time.time()
+				runs_left = self.proginy_count - dex0
+				if runs_left >= processor_count: 
+					runs_this_round = processor_count
 
+				else: runs_this_round = runs_left % processor_count
+				dex0 += runs_this_round
+				result = worker_pool.map_async(run_func, 
+						[(argu, kwds)]*runs_this_round, 
+						callback = measurements.extend)
+				result.wait()
+				print 'multicore reported...', ' location: ', dex0
+
+			measurements = [meas for meas in measurements 
+									if not meas is False]
+			if not measurements: measurements = False
+			else:
+				measurements = [np.mean(measure) for 
+					measure in zip(*measurements)]
+
+		else: measurements = run_func((argu, kwds))
+		if measurements is False:
+			print 'no valid measurements...undoing...'
+			self.timeouts += 1
+			self.move_in_parameter_space(bypass = True)
+			return False
+
+		for dex, met in enumerate(self.metrics):
+			met.data[0].scalars.append(measurements[dex])
+			met.check_best(display)
+
+		if self.metrics[self.prime_metric].best_flag:
+			self.last_best = 0
+
+		else: self.last_best += 1
 		self.capture_plot_data()
-		self.p_sp_trajectory.append(
-			self.parameter_space.get_current_position())
+		self.p_sp_trajectory.append(current_position)
 		self.move_in_parameter_space()
-		self.iteration += 1
 		return True
 
+	def move_in_parameter_space_genetic(self, bypass = False):
+		if bypass or not self.verify_criteria_list(
+				self.fitter_criteria, self.metrics):
+			self.parameter_space.undo_step()
+			print 'undoing...'
+
+		else: print 'keeping...'
+		self.parameter_space.validate_position()
+
+	def move_in_parameter_space(self, bypass = False, insist = False):
+		initial_factor = self.parameter_space.initial_factor
+		dims = self.parameter_space.dimensions
+		self.many_steps = int(max([1, abs(random.gauss(dims, dims))]))
+		#self.many_steps = int(max([1, abs(random.gauss(dims, 
+		#	dims))*(self.p_sp_step_factor/initial_factor)]))
+		if (not bypass and self.verify_criteria_list(
+				self.fitter_criteria, self.metrics)) or insist:
+			#power = 1.0/(self.parameter_space.step_normalization*2)
+			#creep_factor = self.initial_creep_factor*\
+			#	(self.parameter_space.initial_factor/\
+			#			self.p_sp_step_factor)**(power)
+			creep_factor = self.initial_creep_factor
+			self.parameter_space.take_biased_step_along_axis(
+				factor = self.p_sp_step_factor/creep_factor)
+						#	factor = self.p_sp_step_factor)
+
+		else:
+			self.parameter_space.undo_step()
+			self.parameter_space.take_proportional_step(
+						factor = self.p_sp_step_factor, 
+						many_steps = self.many_steps)
+
+		self.parameter_space.validate_position()
+
+	def capture_plot_data(self, *args, **kwargs):
+		self.data[0].scalars.append(self.iteration)
+		bump = 1#number of daters preceding metric daters
+		for dex, met in enumerate(self.metrics):
+			try:
+				self.data[dex + bump].scalars.append(
+						met.data[0].scalars[-1])
+			except IndexError: pdb.set_trace()
+
 	def finalize(self, *args, **kwargs):
+
 		def get_interped_y(label, data, x, x_to):
 			run_y = lfu.grab_mobj_by_name(label, data)
-			run_interped = lgeo.scalers(
+			run_interped = lgeo.scalars(
 				label = 'interpolated best result - ' + label, 
-				scalers = lm.linear_interpolation(
-					x.scalers, run_y.scalers, 
-					x_to.scalers, 'linear'))
+				scalars = lm.linear_interpolation(
+					x.scalars, run_y.scalars, 
+					x_to.scalars, 'linear'))
 			return run_interped
 
 		self.best_fits = [(met.best_measure, 
-			met.data[0].scalers[met.best_measure]) 
+			met.data[0].scalars[met.best_measure]) 
 			for met in self.metrics]
 		self.handle_fitting_key()
-		best_run_data = self.ensemble.data_pool[
-			self.best_fits[self.prime_metric][0]]
+		self.parameter_space.set_current_position(
+			self.p_sp_trajectory[self.best_fits[
+						self.prime_metric][0]])
+		best_run_data = lis.run_system(self.ensemble)
+		best_run_data = [lgeo.scalars(label = lab, scalars = dat) 
+			for lab, dat in zip(self.run_targets, best_run_data)]
 		best_run_data_x = lfu.grab_mobj_by_name(
 			self.data_to_fit_to[0].label, best_run_data)
 		best_run_data_ys = [get_interped_y(
 			lab, best_run_data, best_run_data_x, self.data_to_fit_to[0]) 
 				for lab in lfu.grab_mobj_names(self.data_to_fit_to[1:])]
-		for metric in self.metrics:
-			metric.finalize(*args, **kwargs)
 
 		print 'fit routine:', self.label, 'best fit:', self.best_fits
-		print 'ran using regime:', self.regime
-		lgd.quick_plot_display(self.data_to_fit_to[0], 
-			self.data_to_fit_to[1:] + best_run_data_ys, delay = 5)
+		print '\tran using regime:', self.regime
+		best_data = self.data_to_fit_to + best_run_data_ys
+		lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
+		self.ensemble.data_pool.pool_names =\
+			[dat.label for dat in best_data]
+		self.ensemble.data_pool.batch_pool.append(best_data)
 		if self.regime.startswith('coarse'):
 			self.impose_coarse_result_to_p_space()
+			self.ensemble.cartographer_plan.parameter_space.\
+				set_current_position(self.p_sp_trajectory[
+					self.best_fits[self.prime_metric][0]])
 
 	def impose_coarse_result_to_p_space(self):
 
@@ -490,37 +773,27 @@ class fit_routine(lfu.modular_object_qt):
 		orders = [10**k for k in [val - 20 for val in range(40)]]
 		for spdex, finesp, subsp in zip(range(len(fine_space.subspaces)), 
 				fine_space.subspaces, self.parameter_space.subspaces):
-			wheres = range(len(subsp.scalers))
+			wheres = range(len(subsp.scalars))
 			best_val = float(self.p_sp_trajectory[
 				self.best_fits[self.prime_metric][0]][spdex][-1])
-			delts = [abs(val - best_val) for val in subsp.scalers]
+			delts = [abs(val - best_val) for val in subsp.scalars]
 			where = delts.index(min(delts))
-			finesp.inst.__dict__[finesp.key] = best_val
-			#cut = int(len(wheres) / 4)
+			finesp.move_to(best_val)
 			cut = int(len(wheres) / 6)
 			print 'THE CUT', cut
 
 			#if len(wheres) >= 4:
 			if cut > 0:
 				if where in wheres[2*cut:-2*cut]:
-					keep = subsp.scalers[cut:-cut]
-					print 'keep middle', where, wheres
-					print keep
+					keep = subsp.scalars[cut:-cut]
 
 				elif where in wheres[:-2*cut]:
-					keep = subsp.scalers[:-cut]
-					print 'keep left', where, wheres
-					print keep
+					keep = subsp.scalars[:-cut]
 
 				elif where in wheres[2*cut:]:
-					keep = subsp.scalers[cut:]
-					print 'keep right', where, wheres
-					print keep
+					keep = subsp.scalars[cut:]
 
-				else:
-					keep = subsp.scalers[:]
-					print 'keep all', where, wheres
-					print keep
+				else: keep = subsp.scalars[:]
 
 			else:
 				print 'CUT IS ZERO', cut
@@ -528,7 +801,7 @@ class fit_routine(lfu.modular_object_qt):
 					pdb.set_trace()
 
 				elif self.regime.endswith('magnitude'):
-					current = subsp.scalers[where]
+					current = subsp.scalars[where]
 					if current in orders[:2]:
 						left = orders[0]
 						right = orders[4]
@@ -554,7 +827,7 @@ class fit_routine(lfu.modular_object_qt):
 						print 'out of bounds right', left, right
 
 					keep = [left, right]
-					print 'slid from', subsp.scalers[wheres[0]:wheres[-1]+1], 'to', keep
+					print 'slid from', subsp.scalars[wheres[0]:wheres[-1]+1], 'to', keep
 
 				else:
 					print 'WHAT SHOULD HAPPEN HERE??'
@@ -567,19 +840,10 @@ class fit_routine(lfu.modular_object_qt):
 			print sub.label
 			print sub.inst.__dict__[sub.key], sub.increment, sub.bounds
 
-	def capture_plot_data(self, *args, **kwargs):
-		self.data[0].scalers.append(self.iteration)
-		bump = 1#number of daters preceding metric daters
-		for dex, met in enumerate(self.metrics):
-			try:
-				self.data[dex + bump].scalers.append(
-						met.data[0].scalers[-1])
-			except IndexError: pdb.set_trace()
-
 	def handle_fitting_key(self):
 
 		def location_to_lines(k, met_dex):
-			loc_measure = self.metrics[met_dex].data[0].scalers[k]
+			loc_measure = self.metrics[met_dex].data[0].scalars[k]
 			lines.append(' : '.join(['Best fit from metric', 
 				self.metrics[met_dex].label, str(loc_measure)]))
 			lines.append('\tTrajectory : ' + str(k + 1))
@@ -597,68 +861,6 @@ class fit_routine(lfu.modular_object_qt):
 		lf.output_lines(lines, self.output.save_directory, 
 			'fitting_key.txt', dont_ask = self.auto_overwrite_key)
 
-	#def move_in_parameter_space(self, bypass = False, many_steps = 3):
-	def move_in_parameter_space(self, bypass = False):
-		if not bypass and self.verify_criteria_list(
-				self.fitter_criteria, self.metrics):
-			power = 1.0/(self.parameter_space.step_normalization*2)
-			creep_factor = self.initial_creep_factor*\
-				(self.parameter_space.initial_factor/\
-						self.p_sp_step_factor)**(power)
-			#print 'creepin', creep_factor
-			self.parameter_space.take_biased_step_along_axis(
-						#factor = self.p_sp_step_factor/4.0)
-				factor = self.p_sp_step_factor/creep_factor)
-						#	factor = self.p_sp_step_factor)
-
-		else:
-			self.parameter_space.undo_step()
-			self.parameter_space.take_proportional_step(
-						factor = self.p_sp_step_factor, 
-						many_steps = self.many_steps)
-
-
-
-	def generate_add_crit_func(self, frame, select = 'fitter'):
-
-		def on_add_crit(event):
-			targets = self.__dict__['_'.join([
-						select, 'criteria'])]
-			targets.append(lc.criterion_iteration())
-			targets[-1].set_settables(
-				*frame.settables_infos)
-
-		return on_add_crit
-
-	def generate_remove_crit_func(self, frame, select = 'fitter'):
-
-		def on_remove_crit(event):
-			try:
-				selected = self.__dict__['_'.join([
-					'selected', select, 'criterion'])]
-				targets = self.__dict__['_'.join([
-							select, 'criteria'])]
-				targets.remove(selected)
-				selected = targets[-1]
-
-			except AttributeError:
-				pass
-
-			except IndexError:
-				selected = None
-
-		return on_remove_crit
-
-	def generate_select_crit_func(self, frame, select = 'fitter'):
-
-		def on_select_crit(event):
-			key = '_'.join(['selected', select, 'criterion'])
-			targets = self.__dict__['_'.join([select, 'criteria'])]
-			self.__dict__[key] = lfu.grab_mobj_by_name(
-				event.GetEventObject().GetLabel(), targets)
-
-		return on_select_crit
-
 	def set_settables(self, *args, **kwargs):
 		ensem = args[1]
 		if self.brand_new:
@@ -669,6 +871,60 @@ class fit_routine(lfu.modular_object_qt):
 
 		self.output.label = self.label + ' output'
 		self.handle_widget_inheritance(*args, **kwargs)
+		domain_alias_templates = []
+		codomains_alias_templates = []
+		if self.input_data_targets:
+			domain_alias_templates.append(
+				lgm.interface_template_gui(
+					widgets = ['text'], 
+					instances = [[self.input_data_aliases]], 
+					keys = [[self.input_data_domain]], 
+					initials = [[self.input_data_aliases[
+								self.input_data_domain]]], 
+					inst_is_dict = [(True, self)]))
+			[codomains_alias_templates.append(
+				lgm.interface_template_gui(
+					widgets = ['text'], 
+					instances = [[self.input_data_aliases]], 
+					keys = [[self.input_data_codomains[k]]], 
+					initials = [[self.input_data_aliases[
+							self.input_data_codomains[k]]]], 
+					inst_is_dict = [(True, self)])) for k in 
+						range(len(self.input_data_codomains))]
+
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['radio', 'check_set', 'panel', 'panel'], 
+				layout = 'grid', 
+				layouts = ['vertical', 'vertical', 
+						'vertical', 'vertical'], 
+				widg_positions = [(0, 0), (1, 0), (0, 1), (1, 1)], 
+				#widg_spans = [None, None, (2, 1)], 
+				labels = [self.input_data_targets, 
+					self.input_data_targets, None, None], 
+				append_instead = [None, True, None, None], 
+				provide_master = [None, True, None, None], 
+				initials = [[self.input_data_domain], 
+					self.input_data_codomains, None, None], 
+				instances = [[self], [self], None, None], 
+				keys = [['input_data_domain'], 
+					['input_data_codomains'], None, None], 
+				templates = [None, None, 
+					domain_alias_templates, 
+					codomains_alias_templates], 
+				box_labels = [None, None, 
+					'Domain Alias', 'Codomain Aliases'], 
+				panel_label = 'Input Data Domain/Codomains'))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['button_set', 'full_path_box'], 
+				initials = [None, [self.input_data_file, 
+								'Pickled Data (*.pkl)']], 
+				instances = [None, [self]], 
+				keys = [None, ['input_data_file']], 
+				labels = [['Read Data'], ['Choose Input File']], 
+				bindings = [[self.get_input_data], None], 
+				panel_label = 'Input Data'))
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['radio'], 
@@ -698,114 +954,6 @@ class fit_routine(lfu.modular_object_qt):
 				instances = [[self]], 
 				widgets = ['text'], 
 				box_labels = ['Fit Routine Name']))
-		'''
-		#widgets for sources
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget_mason = recaster, 
-				widget_layout = 'vert', 
-				key = ['_class'], 
-				instance = [[self.base_class, self]], 
-				widget = ['rad'], 
-				hide_none = [True], 
-				box_label = 'Data Sources', 
-				initial = [self.base_class._tag], 
-				possibles = [tags], 
-				possible_objs = [classes], 
-				sizer_position = (0, 1)))
-		if not self.selected_fitter_criterion is None:
-			selected_fitter_crit_label =\
-				self.selected_fitter_criterion.label
-			self.selected_fitter_criterion.set_settables(*args, **kwargs)
-			self.widg_templates.append(
-				lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					box_label = 'Is Fitter Criterion', 
-					widget = ['panel'], 
-					sizer_position = (0, 3), 
-					instance = self.selected_fitter_criterion, 
-					frame = frame, 
-					widget_mason = frame.mason, 
-					widget_templates =\
-						self.selected_fitter_criterion.widg_templates))
-
-		else:
-			selected_fitter_crit_label = None
-
-		if not self.selected_fitted_criterion is None:
-			selected_fitted_crit_label =\
-				self.selected_fitted_criterion.label
-			self.selected_fitted_criterion.set_settables(*args, **kwargs)
-			self.widg_templates.append(
-				lgm.interface_template_gui(
-					widget_layout = 'vert', 
-					box_label = 'Is Fitted Criterion', 
-					widget = ['panel'], 
-					sizer_position = (1, 3), 
-					instance = self.selected_fitted_criterion, 
-					frame = frame, 
-					widget_mason = frame.mason, 
-					widget_templates =\
-						self.selected_fitted_criterion.widg_templates))
-
-		else:
-			selected_fitted_crit_label = None
-
-		if self.fitter_bool_expression is None:
-			self.fitter_bool_expression = ''
-
-		if self.fitted_bool_expression is None:
-			self.fitted_bool_expression = ''
-
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget = ['button_set', 'selector', 'text'], 
-				widget_layout = 'vert', 
-				key = [None, None, 'fitter_bool_expression'], 
-				instance = [None, None, self], 
-				functions = [[	self.generate_add_crit_func(frame), 
-							self.generate_remove_crit_func(frame)], 
-							[self.generate_select_crit_func(frame)], 
-															None], 
-				gui_labels = [	[	'Add Fitter Criterion', 
-									'Remove Fitter Criterion'	], 
-								[	crit.label for crit 
-									in self.fitter_criteria	], None	], 
-				initial = [None, selected_fitter_crit_label, 
-								self.fitter_bool_expression], 
-				sub_box_labels = [	'', '', 
-									'Boolean Expression of Criteria'], 
-				sizer_proportions = [1, 1, 1, 2], 
-				box_label = 'Is Fitter Criteria', 
-				sizer_position = (0, 2)))
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widget = ['button_set', 'selector', 'text'], 
-				widget_layout = 'vert', 
-				key = [None, None, 'fitted_bool_expression'], 
-				instance = [None, None, self], 
-				functions = [[self.generate_add_crit_func(
-								frame, select = 'fitted'), 
-							self.generate_remove_crit_func(
-								frame, select = 'fitted')], 
-							[self.generate_select_crit_func(
-								frame, select = 'fitted')], None], 
-				gui_labels = [	[	'Add Fitted Criterion', 
-									'Remove Fitted Criterion'	], 
-								[	crit.label for crit 
-									in self.fitted_criteria	], None	], 
-				initial = [None, selected_fitted_crit_label, 
-								self.fitted_bool_expression], 
-				sub_box_labels = [	'', '', 
-									'Boolean Expression of Criteria'], 
-				sizer_proportions = [1, 1, 1, 2], 
-				box_label = 'Is Fitted Criteria', 
-				sizer_position = (1, 2)))
-
-		#widgets for parameter space
-		#widgets for metrics
-		#widgets for controlling pyplot display
-		'''
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
@@ -830,50 +978,125 @@ class fit_routine_simulated_annealing(fit_routine):
 				self.fitted_criteria[0].max_iterations
 			lam = -1.0 * np.log(self.max_temperature)/\
 								self.final_iteration
-			#lam = -1.0 * np.log(self.max_temperature) / (2*final_iteration)
 			cooling_domain = np.array(range(self.final_iteration))
 			cooling_codomain = self.max_temperature*np.exp(
 										lam*cooling_domain)
-			self.cooling_curve = lgeo.scalers(
-				label = 'cooling curve', scalers = cooling_codomain)
+			self.cooling_curve = lgeo.scalars(
+				label = 'cooling curve', scalars = cooling_codomain)
 
 		fit_routine.initialize(self, *args, **kwargs)
-		self.data.extend(lgeo.scalers_from_labels(
+		self.data.extend(lgeo.scalars_from_labels(
 						['annealing temperature']))
-		self.temperature = self.cooling_curve.scalers[self.iteration]
+		self.temperature = self.cooling_curve.scalars[self.iteration]
 		self.parameter_space.initial_factor = self.temperature
 
+	def iterate_genetic(self, *args, **kwargs):
+		self.temperature = self.cooling_curve.scalars[self.iteration]
+		rev_iter =\
+			len(self.cooling_curve.scalars) - 1  - self.iteration
+		self.proginy_count =\
+			int(self.cooling_curve.scalars[rev_iter]) +\
+										self.worker_count
+		self.p_sp_step_factor = self.temperature
+		fit_routine.iterate_genetic(self, *args, **kwargs)
+
 	def iterate(self, *args, **kwargs):
-		self.temperature = self.cooling_curve.scalers[self.iteration]
-		#initial_factor = self.parameter_space.initial_factor
-		#self.metric_weights = [(self.temperature/initial_factor)
+		self.temperature = self.cooling_curve.scalars[self.iteration]
+		rev_iter =\
+			len(self.cooling_curve.scalars) - 1  - self.iteration
+		self.proginy_count =\
+			int(self.cooling_curve.scalars[rev_iter]) +\
+										self.worker_count
+		self.p_sp_step_factor = self.temperature
+		fit_routine.iterate(self, *args, **kwargs)
+
+	'''
+	def move_in_parameter_space(self, *args, **kwargs):
+		self.temperature = self.cooling_curve.scalars[self.iteration]
+		self.p_sp_step_factor = self.temperature
+		initial_factor = self.parameter_space.initial_factor
+		dims = self.parameter_space.dimensions
+		self.many_steps = int(max([1, abs(random.gauss(1, 
+			dims))*(self.p_sp_step_factor/initial_factor)]))
+		fit_routine.move_in_parameter_space(self, *args, **kwargs)
+	'''
+
+	def capture_plot_data(self, *args, **kwargs):
+		fit_routine.capture_plot_data(self, *args, **kwargs)
+		self.data[-1].scalars.append(self.temperature)
+
+	def set_settables(self, *args, **kwargs):
+		self.capture_targets =\
+				['fitting iteration'] +\
+				[met.label + ' measurement' 
+					for met in self.metrics] +\
+					['annealing temperature']
+		self.handle_widget_inheritance(*args, from_sub = False)
+		fit_routine.set_settables(self, *args, from_sub = True)
+
+class fit_routine_autopilot(fit_routine):
+	'''
+	autopilot should facilitate several things
+		management of iterative routines
+			run coarse-magnitudes, coarse-decimate, and fine
+			in such a way to best fit a system
+		has to control attributes for fitting
+			creep_factor
+			max_iterations
+			max_last_best
+			step_normalization
+			domain_weights
+	'''
+	def __init__(self, *args, **kwargs):
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'autopilot routine'
+
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+											object, 'autopilot')
+
+		self.impose_default('cooling_curve', None, **kwargs)
+		self.impose_default('max_temperature', 1000, **kwargs)
+		self.impose_default('temperature', None, **kwargs)
+		fit_routine.__init__(self, *args, **kwargs)
+
+	def initialize(self, *args, **kwargs):
+		if not self.cooling_curve:
+			self.final_iteration =\
+				self.fitted_criteria[0].max_iterations
+			lam = -1.0 * np.log(self.max_temperature)/\
+								self.final_iteration
+			cooling_domain = np.array(range(self.final_iteration))
+			cooling_codomain = self.max_temperature*np.exp(
+										lam*cooling_domain)
+			self.cooling_curve = lgeo.scalars(
+				label = 'cooling curve', scalars = cooling_codomain)
+
+		fit_routine.initialize(self, *args, **kwargs)
+		self.data.extend(lgeo.scalars_from_labels(
+						['annealing temperature']))
+		self.temperature = self.cooling_curve.scalars[self.iteration]
+		self.parameter_space.initial_factor = self.temperature
+
+	def iterate_genetic(self, *args, **kwargs):
+		self.temperature = self.cooling_curve.scalars[self.iteration]
+		fit_routine.iterate_genetic(self, *args, **kwargs)
+
+	def iterate(self, *args, **kwargs):
+		self.temperature = self.cooling_curve.scalars[self.iteration]
 		fit_routine.iterate(self, *args, **kwargs)
 
 	def capture_plot_data(self, *args, **kwargs):
 		fit_routine.capture_plot_data(self, *args, **kwargs)
-		self.data[-1].scalers.append(self.temperature/\
-					self.parameter_space.initial_factor)
+		self.data[-1].scalars.append(self.temperature)
+				#self.parameter_space.initial_factor)
 
 	def move_in_parameter_space(self, *args, **kwargs):
 		self.p_sp_step_factor = self.temperature
 		initial_factor = self.parameter_space.initial_factor
-		#many_steps = 1 + int(self.parameter_space.dimensions*\
-		#				((self.temperature/initial_factor)**\
-		#				(self.parameter_space.dimensions/2)))
-		#dims = self.parameter_space.dimensions
-		#old_many_steps = self.many_steps
-		#self.many_steps =\
-		#	int(dims**((self.temperature/initial_factor)**(dims**(-2.0))))
-		#		#(1-self.iteration/self.final_iteration))
-
-		self.many_steps = int(max([1, abs(random.gauss(0, 
-					self.parameter_space.dimensions))*\
-					(self.temperature/initial_factor)]))
-
-		#if not self.many_steps == old_many_steps:
-		#	print ' '.join(['changed number of axial steps:', 
-		#		str(old_many_steps), 'to', str(self.many_steps), 
-		#							'at', str(self.iteration)])
+		dims = self.parameter_space.dimensions
+		self.many_steps = int(max([1, abs(random.gauss(1, 
+			dims))*(self.temperature/initial_factor)]))
 		fit_routine.move_in_parameter_space(self, *args, **kwargs)
 
 	def set_settables(self, *args, **kwargs):
@@ -954,25 +1177,22 @@ class criterion_minimize_measures(lc.criterion):
 		#print 'crit accept ratio: ', ratio
 		improves = []
 		for met in metrics:
-			sca = met.data[0].scalers
+			sca = met.data[0].scalars
 			if len(sca) <= 100 or not self.use_window:
 				improves.append(sca[-1] - min(sca) <=\
-						#(np.mean(sca) - min(sca))*ratio)
-						(np.mean(sca) - min(sca))/20.0)
-						#(np.mean(sca) - min(sca))/10.0)
+						#	(np.mean(sca) - min(sca)))
+						(np.mean(sca) - min(sca))/25.0)
 
 			else:
 				improves.append(sca[-1] - min(sca) <=\
-						(np.mean(sca[-100:]) - min(sca))/20.0)
-					#(np.mean(sca) - min(sca)))
-					#(np.mean(sca) - min(sca))/(len(sca)+1))
+					(np.mean(sca[-100:]) - min(sca))/20.0)
 
 		weights = [met.acceptance_weight for met in metrics]
 		weights = [we/sum(weights) for we, imp in 
 					zip(weights, improves) if imp]
 		weight = sum(weights)
-		#if weight >= self.reject_probability:
-		if improves.count(True) > int(len(improves)/2):
+		if weight >= self.reject_probability:
+		#if improves.count(True) > int(len(improves)/2):
 		#if improves.count(True) == len(improves):
 			self.accepts += 1
 			return True
@@ -982,29 +1202,10 @@ class criterion_minimize_measures(lc.criterion):
 
 
 
-
 valid_fit_routine_base_classes = [
 	lfu.interface_template_class(
 		fit_routine_simulated_annealing, 
 				'simulated annealing')]
-
-'''
-#information about routine type specific metrics/criteria
-#[metrics, fitter, fitted]
-valid_fit_routine_base_classes_supports = [
-	[[lfu.interface_template_class(
-		lgeo.metric_avg_ptwise_diff_on_domain, 
-					'pointwise difference')], 
-	[lfu.interface_template_class(
-		criterion_minimize_measures, 
-			'minimize measurement')], 
-	[lfu.interface_template_class(
-			lc.criterion_iteration, 
-			'iteration limit')]]]
-'''
-
-
-
 
 
 

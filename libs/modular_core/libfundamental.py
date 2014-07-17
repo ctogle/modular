@@ -45,6 +45,13 @@ def initialize_gui(params):
 	app = application(params, sys.argv)
 	sys.exit(app.exec_())
 
+def using_os(os_):
+	if os_ == 'windows' and (sys.platform.startswith('win') or\
+				sys.platform.startswith('cygwin')): return True
+	elif os_ == 'mac' and sys.platform.startswith('darwin'): return True
+	elif os_ == 'linux' and sys.platform.startswith('linux'): return True
+	else: return False
+
 def convert_pixel_space(width, height):
 	_screensize_ = gui_pack.lgb.set_screensize()
 	good_width = 1920.0
@@ -100,7 +107,7 @@ def fill_lists(lists, fill = None):
 class interface_template_new_style(object):
 
 	def __init__(self, *args, **kwargs):
-		self.args = args
+		#self.args = args
 		for key in kwargs.keys(): self.__dict__[key] = kwargs[key]
 
 	def _q_purge_(self):
@@ -176,6 +183,10 @@ class modular_object_qt(object):
 		for child in self._children_: child._q_purge_()
 		for item in [type(di) for di in dir(self)]:
 			if repr(item).count('PySide') > 0: pdb.set_trace()
+
+	def change_settings(self):
+		if hasattr(self, 'settings_manager'):
+			self.settings_manager.display()
 
 	def __init__(self, *args, **kwargs):
 		#if 'label' in kwargs.keys(): label = kwargs['label']
@@ -300,7 +311,7 @@ class modular_object_qt(object):
 			if name is 'label':
 				try: return self._get_label_()
 				except:
-					print 'the most unholiest of errors...'
+					print 'the most unholiest of errors...', self
 					raise AttributeError(name)
 
 			try: return getattr(self, '__dict__')[name]
@@ -558,7 +569,7 @@ def add_program_to_registry(program_name,
 		comments = [line for line in reg if line.startswith('#')]
 		registered = [line for line in reg if 
 			not line.startswith('#') and not line.strip() == '']
-		registered.append(' : '.join([program_name, 
+		registered.append('\n'+' : '.join([program_name, 
 			program_run_option, program_description]))
 
 	with open(registry_path, 'w') as handle:
@@ -738,7 +749,6 @@ def zip_list(target, new_list):
 			valid = [dater for dater in new_list[k] 
 				if dater.label not in target_names]
 			target[k].extend(valid)
-
 	else: target.extend(new_list)
 
 class interface_template_dependance(interface_template_new_style):

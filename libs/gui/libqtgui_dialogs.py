@@ -190,40 +190,130 @@ class labels_dialog(create_obj_dialog):
 	def __init__(self, *args, **kwargs):
 		if 'newtitle' in kwargs.keys():
 			self.newtitle = kwargs['newtitle']
-
 		else: self.newtitle = 'new title'
+
 		if 'newxtitle' in kwargs.keys():
 			self.newxtitle = kwargs['newxtitle']
-
 		else: self.newxtitle = 'new x-title'
+		if 'x_log' in kwargs.keys():
+			self.x_log = kwargs['x_log']
+		else: self.x_log = False
+
 		if 'newytitle' in kwargs.keys():
 			self.newytitle = kwargs['newytitle']
-
 		else: self.newytitle = 'new y-title'
+		if 'y_log' in kwargs.keys():
+			self.y_log = kwargs['y_log']
+		else: self.y_log = False
+
+		if 'max_line_count' in kwargs.keys():
+			self.max_line_count = kwargs['max_line_count']
+
+		else: self.max_line_count = 20
+		if 'plot_targets' in kwargs.keys():
+			self.plot_targets = kwargs['plot_targets']
+
+		else: self.plot_targets = ['NO TARGETS']
+		if 'domain' in kwargs.keys():
+			self.domain = kwargs['domain']
+
+		else: self.domain = None
+		if self.plot_targets: self.target = self.plot_targets[0]
+		else: self.target = None
+		colormap = plt.get_cmap('jet')
+		if 'colors' in kwargs.keys(): self.colors = kwargs['colors']
+		else:
+			self.colors = [colormap(i) for i in np.linspace(
+							0, 0.9, min([self.max_line_count, 
+							len(self.plot_targets) - 1]))]
+
 		mason = lgm.standard_mason(parent = self.parent)
 		if 'title' in kwargs.keys(): title = kwargs['title']
 		else: title = 'Change Plot Labels'
+
 		create_obj_dialog.__init__(self, None, mason = mason, 
 				title = title, button_regime = 'apply-cancel', 
 				from_sub = True)
 		self.set_settables()
 
+	def pick_color(self):
+		col = QtGui.QColorDialog.getColor()
+		if col.isValid():
+			targ_dex = self.plot_targets.index(self.target) - 1
+			self.colors[targ_dex] = col.getRgbF()
+
 	def set_settables(self, *args, **kwargs):
 		self.widg_templates = []
+		title_box = lgm.interface_template_gui(
+			widgets = ['text'], 
+			keys = [['newtitle']], 
+			instances = [[self]], 
+			box_labels = ['New Title'])
+		title_panel = lgm.interface_template_gui(
+			widgets = ['panel'], 
+			layout = 'vertical', 
+			templates = [[title_box]], 
+			box_labels = ['General Settings'])
+		x_title_box = lgm.interface_template_gui(
+			widgets = ['text'], 
+			keys = [['newxtitle']], 
+			instances = [[self]], 
+			box_labels = ['New X-Title'])
+		x_log_box = lgm.interface_template_gui(
+			widgets = ['check_set'], 
+			labels = [['Use Log Scale']], 
+			append_instead = [False], 
+			instances = [[self]], 
+			keys = [['x_log']])
+		x_panel = lgm.interface_template_gui(
+			widgets = ['panel'], 
+			layout = 'vertical', 
+			templates = [[x_title_box, x_log_box]], 
+			box_labels = ['X-Axis Settings'])
+		y_title_box = lgm.interface_template_gui(
+			widgets = ['text'], 
+			keys = [['newytitle']], 
+			instances = [[self]], 
+			box_labels = ['New Y-Title'])
+		y_log_box = lgm.interface_template_gui(
+			widgets = ['check_set'], 
+			labels = [['Use Log Scale']], 
+			append_instead = [False], 
+			instances = [[self]], 
+			keys = [['y_log']])
+		y_panel = lgm.interface_template_gui(
+			widgets = ['panel'], 
+			layout = 'vertical', 
+			templates = [[y_title_box, y_log_box]], 
+			box_labels = ['Y-Axis Settings'])
+		left_panel = title_panel + x_panel + y_panel
+		self.widg_templates.append(left_panel)
+		codomains = [item for item in self.plot_targets 
+							if not item == self.domain]
 		self.widg_templates.append(
 			lgm.interface_template_gui(
-				keys = [['newtitle'], ['newxtitle'], ['newytitle']], 
-				instances = [[self], [self], [self]], 
-				widgets = ['text', 'text', 'text'], 
-				box_labels = ['New Title', 
-					'New X-Title', 'New Y-Title']))
+				widgets = ['radio', 'button_set'], 
+				labels = [codomains, ['Change Line Color']], 
+				initials = [[self.target], None], 
+				instances = [[self], None], 
+				keys = [['target'], None], 
+				bindings = [None, [self.pick_color]], 
+				panel_label = 'Line Colors', 
+				box_labels = ['Plot Target']))
 		self.set_up_widgets()
 
-def change_labels_dialog(title, x_ax, y_ax):
-	dlg = labels_dialog(newtitle = title, 
-		newxtitle = x_ax, newytitle = y_ax)
+def change_labels_dialog(title, x_ax, y_ax, max_lines, 
+				colors, targets, domain, xlog, ylog):
+	dlg = labels_dialog(newtitle = title, newxtitle = x_ax, 
+		newytitle = y_ax, max_line_count = max_lines, colors = colors, 
+							plot_targets = targets, domain = domain, 
+										x_log = xlog, y_log = ylog)
 	made = dlg()
-	if made: return (dlg.newtitle, dlg.newxtitle, dlg.newytitle)
+	if made:
+		return (dlg.newtitle, dlg.newxtitle, 
+				dlg.newytitle, dlg.colors, 
+				dlg.x_log, dlg.y_log)
+
 	else: return False
 
 class plot_page(QtGui.QWidget):
@@ -236,6 +326,7 @@ class plot_page(QtGui.QWidget):
 		self.page_label = label
 		self.figure = figure
 		self.canvas = canvas
+		self.colors = []
 		self.roll_dex = 0
 		self.roll_delay = 0.1
 
@@ -247,6 +338,8 @@ class plot_page(QtGui.QWidget):
 		self.title = title
 		self.x_ax_title = x_ax_title
 		self.y_ax_title = y_ax_title
+		self.x_log = False
+		self.y_log = False
 		self.surf_target = title
 
 	def change_domain(self, dom_dex = 0):
@@ -337,27 +430,46 @@ class plot_page(QtGui.QWidget):
 			print 'interpolation for incorrectly '+\
 				'structured data is not supported'
 
-		def plot_(x, y, label):
+		def plot_(x, y, label, col):
 			if not x.size == y.size: x, y = fill_via_interpolation(x, y)
-			line = matplotlib.lines.Line2D(
-				x, y, color = self.colors.pop())
+			try:
+				line = matplotlib.lines.Line2D(
+					#x, y, color = self.colors.pop())
+					x, y, color = self.colors[col])
+			except IndexError: print 'too many lines!'; return
+			except: pdb.set_trace()
 			line.set_label(label)
 			ax.add_line(line)
 
 		self.resolve_x_domain()
 		ax = self.add_plot()
 		ax.grid(True)
+		if type(self._data_.data[0]) is types.ListType:
+			self._data_.data = lfu.flatten(self._data_.data)
+
 		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, self._data_.data)
 		y_axes = [dater for dater in self._data_.data if dater.label 
 			in self._plot_targets_ and not dater.label is x_ax.label]
-		x = np.array(x_ax.scalers)
-		ys = [np.array(y_ax.scalers) for y_ax in y_axes 
-							if hasattr(y_ax, 'scalers')]
-		[plot_(x, y, label) for x, y, label in 
-			zip([x]*len(ys), ys, [dater.label for dater in y_axes])]
+			#in self._plot_targets_]
+		if not y_axes:
+			print 'incorrect plot targets...reconciling...'
+			y_axes = [dater for dater in self._data_.data]
+			self.colors = [self.colormap(i) for i in np.linspace(
+				0, 0.9, min([self.max_line_count, len(y_axes)]))]
+
+		x = np.array(x_ax.scalars)
+		ys = [np.array(y_ax.scalars) for y_ax in y_axes 
+							if hasattr(y_ax, 'scalars')]
+		[plot_(x, y, label, col_dex) for x, y, label, col_dex in 
+			zip([x]*len(ys), ys, [dater.label for dater in y_axes], 
+				range(len(ys)))]
 		ax.axis([x.min(), x.max(), min([y.min() for y in ys]), 
 								max([y.max() for y in ys])])
 		ax.legend()
+		#pylab.gca().set_xscale('log',basex=2)
+		#ax.set_yscale('log')
+		if self.x_log: ax.set_xscale('log')
+		if self.y_log: ax.set_yscale('log')
 		self.canvas.draw()
 
 	def show_plot_color(self, *args, **kwargs):
@@ -386,10 +498,10 @@ class plot_page(QtGui.QWidget):
 								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
 								surf_vect.axis_values)
-		x = np.array(x_ax.scalers, dtype = float)
-		y = np.array(y_ax.scalers, dtype = float)
+		x = np.array(x_ax.scalars, dtype = float)
+		y = np.array(y_ax.scalars, dtype = float)
 		try:
-			surf = np.array(surf_vect.reduced[1].scalers, 
+			surf = np.array(surf_vect.reduced[1].scalars, 
 					dtype = float).reshape(len(x), len(y))
 
 		except ValueError:
@@ -464,10 +576,10 @@ class plot_page(QtGui.QWidget):
 								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
 								surf_vect.axis_values)
-		x = np.array(x_ax.scalers, dtype = float)
-		y = np.array(y_ax.scalers, dtype = float)
+		x = np.array(x_ax.scalars, dtype = float)
+		y = np.array(y_ax.scalars, dtype = float)
 		try:
-			surf = np.array(surf_vect.reduced[1].scalers, 
+			surf = np.array(surf_vect.reduced[1].scalars, 
 					dtype = float).reshape(len(x), len(y))
 
 		except ValueError:
@@ -546,10 +658,13 @@ class plot_page(QtGui.QWidget):
 		#colormap = plt.cm.gist_earth
 		#colormap = plt.cm.gist_heat
 		#colormap = plt.cm.gist_rainbow
-		colormap = plt.get_cmap('jet')
-		self.colors = [colormap(i) for i in 
-			np.linspace(0, 0.9, min([self.max_line_count, 
-							len(self._plot_targets_)]))]
+		self.colormap = plt.get_cmap('jet')
+		if not self.colors or\
+				len(self.colors) < len(self._plot_targets_) - 1:
+			self.colors = [self.colormap(i) for i in 
+				np.linspace(0, 0.9, min([self.max_line_count, 
+							len(self._plot_targets_) - 1]))]
+
 		return ax
 
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
@@ -641,21 +756,28 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 
 	def labels(self):
 		page = self.parent.get_current_page()
+		domain = self.parent.get_current_page().x_ax_title
 		labels_dlg = change_labels_dialog(page.title, 
-					page.x_ax_title, page.y_ax_title)
+					page.x_ax_title, page.y_ax_title, 
+					page.max_line_count, page.colors, 
+						page._plot_targets_, domain, 
+							page.x_log, page.y_log)
 		if not labels_dlg: return
-		new_title, new_x_label, new_y_label = labels_dlg
+		new_title,new_x_label,new_y_label,colors,xlog,ylog = labels_dlg
 		page.title = new_title
 		page.x_ax_title = new_x_label
+		page.x_log = xlog
 		page.y_ax_title = new_y_label
+		page.y_log = ylog
+		page.colors = colors
 		ax = page.newest_ax
 		ax.set_xlabel(new_x_label, fontsize = 18)
 		ax.set_ylabel(new_y_label, fontsize = 18)
 		if self.parent.plot_type in ['surface']:
 			ax.set_zlabel(new_title, fontsize = 18)
-
 		ax.set_title(new_title)
-		self.canvas.draw()
+		#self.canvas.draw()
+		self.parent.get_current_page().show_plot()
 
 	def dynamic_update(self):
 		self.canvas.draw()
@@ -713,7 +835,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		#	"Choose a filename to save to",
 		#	start, filters, selectedFilter)
 		fname = create_dialog('Choose File', 'File?', 'file_save', 
-									'Image (*.png)', startpath)
+								'Image (*.png, *.pdf)', startpath)
 		fname = fname()
 		if fname:
 			if startpath == '':
@@ -909,7 +1031,7 @@ class plot_window(create_obj_dialog):
 						zip(cur_slices, str_defaults)]
 		changed_dex = changed.index(True)
 		surf_vect.axis_defaults[changed_dex] =\
-			surf_vect.axis_values[changed_dex].scalers[
+			surf_vect.axis_values[changed_dex].scalars[
 				self.slice_selectors[changed_dex].currentIndex()]
 		self.pages[page_dex].show_plot()
 
@@ -928,13 +1050,17 @@ class plot_window(create_obj_dialog):
 		surf_vect = daters[surf_vector_dex]
 		ax_labs, ax_vals = surf_vect.axis_labels, surf_vect.axis_values
 		slice_widgets = []
+		self.slice_widgets = slice_widgets
 		self.slice_selectors = []
 		for lab, sca, def_ in zip(ax_labs, ax_vals, 
 							surf_vect.axis_defaults):
-			dummy = [None]*len(sca.scalers)
+			dummy = [None]*len(sca.scalars)
 			selector = lgb.create_combo_box(
 				sca.as_string_list(), dummy, dummy)
-			initial = sca.scalers.index(def_)
+			if hasattr(sca.scalars, 'index'):
+				initial = sca.scalars.index(def_)
+
+			else: initial = np.nonzero(sca.scalars == def_)[0][0]
 			selector.setCurrentIndex(initial)
 			self.slice_selectors.append(selector)
 			selector.currentIndexChanged.connect(
@@ -943,6 +1069,8 @@ class plot_window(create_obj_dialog):
 			ax_box = QtGui.QGroupBox(title = lab)
 			ax_box.setLayout(lgb.create_vert_box([selector]))
 			slice_widgets.append(ax_box)
+			#determine if ax_box corresponds to a domain axis
+			# hide it if so
 
 		title = 'P-Space Axis Handling'
 		self.slice_group = QtGui.QGroupBox(title = title)
@@ -980,8 +1108,9 @@ class plot_window(create_obj_dialog):
 	def remake_plot(self):
 		dex = self.page_labels.index(self.selected_page_label)
 		if not self.current_targets:
-			print 'nothing to plot; renabling curves'
 			self.current_targets = copy(self._all_plot_targets_[dex])
+			if not self.current_targets:
+				print 'nothing to plot; renabling curves'; return
 
 		self.update_check_boxes(dex)
 		self.update_axes_slicing(dex)
@@ -996,7 +1125,14 @@ class plot_window(create_obj_dialog):
 				try: self.slice_group.hide()
 				except AttributeError: pass
 
-			else: self.slice_group.show()
+			else:
+				page = self.get_current_page()
+				xy_axes = (page.x_ax_title, page.y_ax_title)
+				for widg in self.slice_widgets:
+					if widg.title() in xy_axes: widg.hide()
+					else: widg.show()
+
+				self.slice_group.show()
 
 		if verbs[6] > 0: self.check_group.hide()
 		else: self.check_group.show()
@@ -1010,17 +1146,20 @@ class plot_window(create_obj_dialog):
 	def change_domain(self, new_dex):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_domain(new_dex)
+		self.hide_irrelevant_widgets()
 
 	def change_y_domain(self, new_dex):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_color_domain_y(new_dex)
+		self.hide_irrelevant_widgets()
 
 	def change_surf_target(self, new_dex):
 		dex = self.page_labels.index(self.selected_page_label)
 		self.pages[dex].change_color_surface_target(new_dex)
+		self.hide_irrelevant_widgets()
 
 def quick_plot_display(domain, codomains, delay = 1):
-	qp = quick_plot(domain.scalers, [co.scalers for co in codomains], 
+	qp = quick_plot(domain.scalars, [co.scalars for co in codomains], 
 						domain.label, [co.label for co in codomains])
 	time.sleep(delay)
 	qp.close()

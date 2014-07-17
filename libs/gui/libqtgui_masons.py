@@ -10,15 +10,98 @@ import os
 import pdb
 
 class interface_template_gui(lfu.interface_template_new_style):
+	gui_package = 'PySide'
+	_depth_lookup_ =\
+			{
+		'layout' : 0, 
+		'grid_spacing' : 0, 
+		'widgets' : 1, 
+		'layouts' : 1, 
+		'handles' : 1, 
+		'box_positions' : 1, 
+		'widg_positions' : 1, 
+		'append_instead' : 1, 
+		'provide_master' : 1, 
+		'widg_spans' : 1, 
+		'keep_frame' : 1, 
+		'read_only' : 1, 
+		'multiline' : 1, 
+		'box_labels' : 1, 
+		'parents' : 2, 
+		'instances' : 2, 
+		'keys' : 2, 
+		'datas' : 2, 
+		'callbacks' : 2, 
+		'minimum_values' : 2, 
+		'maximum_values' : 2, 
+		'minimum_sizes' : 2, 
+		'maximum_sizes' : 2, 
+		'max_lengths' : 2, 
+		'doubles' : 2, 
+		'positions' : 2, 
+		'intervals' : 2, 
+		'orientations' : 2, 
+		'initials' : 2, 
+		'labels' : 2, 
+		'templates' : 2, 
+		'icons' : 2, 
+		'single_steps' : 2, 
+		'placeholders' : 2, 
+		'alignments' : 2, 
+		'subspacers' : 2, 
+		'tooltips' : 2, 
+		'bindings' : 2, 
+		'bind_events' : 2, 
+			}
 
 	def __init__(self, *args, **kwargs):
-		self.gui_package = 'PySide'
-		lfu.interface_template_new_style.__init__(
-							self, *args, **kwargs)
+		lfu.interface_template_new_style.__init__(self, *args, **kwargs)
+
+	def __str__(self):
+		_str = []
+		for key in self.__dict__.keys():
+			_str.append(' : '.join([key, self.__dict__[key].__str__()]))
+		return '\n'.join(_str)
+
+	def __add__(self, other):
+
+		def wrap_none(depth, count):
+			if depth == 1: nones = [None]*count
+			elif depth == 2: nones = [[None]]*count
+			return nones
+
+		def wrap_side(inst, key, depth):
+			try: side = inst.__dict__[key]
+			except KeyError:
+				count = len(inst.widgets)
+				if key == 'widg_spans':
+					try: count = len(lfu.flatten(inst.labels))
+					except: pdb.set_trace()
+				side = wrap_none(depth, count)
+			return side
+
+		dom_keys = self.__dict__.keys()
+		sub_keys = other.__dict__.keys()
+		all_keys = lfu.uniqfy(dom_keys + sub_keys)
+		new_dict = {}
+		for key in all_keys:
+			depth = self._depth_lookup_[key]
+			if depth == 0:
+				try: new_item = self.__dict__[key]
+				except KeyError: new_item = other.__dict__[key]
+			elif depth == 1 or depth == 2:
+				left = wrap_side(self, key, depth)
+				right = wrap_side(other, key, depth)
+				new_item = left + right
+			else: print 'depth cant be >2'; pdb.set_trace()
+			new_dict[key] = new_item
+
+		new = interface_template_gui(**new_dict)
+		return new
 
 class interface_template_dummy(interface_template_gui):
+	gui_package = 'PySide'
 	def __init__(self, *args, **kwargs):
-		self.gui_package = 'PySide'
 		kwargs['widgets'] = ['image']
 		kwargs['paths'] = [os.path.join(os.getcwd(), 
 							'resources', 'gear.png')]
@@ -154,6 +237,14 @@ class standard_mason(object):
 				widg_list = self.interpret_template_console_listener(
 												template, widg_dex)
 
+			elif widget_type == 'opengl_view':
+				widg_list = self.interpret_template_opengl_view(
+											template, widg_dex)
+
+			elif widget_type == 'plot':
+				widg_list = self.interpret_template_plot(
+									template, widg_dex)
+
 			else:
 				print 'no interpretation of widget type: ' + widget_type
 				return None
@@ -249,9 +340,11 @@ class standard_mason(object):
 		except AttributeError: rewidget = True
 		try: provide_master = template.provide_master[widg_dex]
 		except AttributeError: provide_master = False
+		try: callbacks = template.callbacks[widg_dex]
+		except AttributeError: callbacks = []
 		check_widget = lgb.create_check_boxes(append_instead, 
 							keys, instances, labels, is_list, 
-							None, rewidget, provide_master)
+					None, rewidget, provide_master, callbacks)
 		try:
 			title = template.box_labels[widg_dex]
 			group = QtGui.QGroupBox(title = title)
@@ -283,6 +376,8 @@ class standard_mason(object):
 		except AttributeError: for_code = False
 		try: alignment = template.alignments[widg_dex][0]
 		except AttributeError: alignment = 'left'
+		try: inst_is_dict = template.inst_is_dict[widg_dex]
+		except AttributeError: inst_is_dict = None
 		try: instance = template.instances[widg_dex][0]
 		except AttributeError: instance = None
 		try: key = template.keys[widg_dex][0]
@@ -296,7 +391,9 @@ class standard_mason(object):
 
 				else:
 					try: initial = instance.__dict__[key]
-					except: pdb.set_trace()
+					except AttributeError:
+						try: initial = instance[key]
+						except: pdb.set_trace()
 
 			else: initial = ''
 
@@ -309,7 +406,7 @@ class standard_mason(object):
 							alignment = alignment, initial = initial, 
 				keep_frame = keep_frame, bind_events = bind_events, 
 						bindings = bindings, rewidget = rewidget, 
-											for_code = for_code)]
+				inst_is_dict = inst_is_dict, for_code = for_code)]
 		try:
 			title = template.box_labels[widg_dex]
 			group = QtGui.QGroupBox(title = title)
@@ -367,6 +464,8 @@ class standard_mason(object):
 		return [lgb.create_pixmap(path)]
 
 	def interpret_template_spin(self, template, widg_dex):
+		try: parent = template.parents[widg_dex][0]
+		except AttributeError: parent = None
 		try: double = template.doubles[widg_dex][0]
 		except AttributeError: double = False
 		try: min_val = template.minimum_values[widg_dex][0]
@@ -383,11 +482,13 @@ class standard_mason(object):
 		except AttributeError: key = None
 		try: rewidget = template.rewidget[widg_dex][0]
 		except AttributeError: rewidget = True
-		spin_widget = [lgb.create_spin_box(double = double, 
-					min_val = min_val, max_val = max_val, 
-				sing_step = sing_step, initial = initial, 
-						instance = instance, key = key, 
-								rewidget = rewidget)]
+		try: callback = template.callbacks[widg_dex][0]
+		except AttributeError: callback = None
+		spin_widget = [lgb.create_spin_box(parent = parent, 
+			double = double, min_val = min_val, max_val = max_val, 
+			sing_step = sing_step, initial = initial, 
+					instance = instance, key = key, 
+					rewidget = rewidget, callback = callback)]
 		try:
 			title = template.box_labels[widg_dex]
 			group = QtGui.QGroupBox(title = title)
@@ -711,6 +812,13 @@ class standard_mason(object):
 
 	def interpret_template_console_listener(self, template, widg_dex):
 		return [lgb.create_console_listener()]
+
+	def interpret_template_opengl_view(self, template, widg_dex):
+		return [lgb.create_opengl_view()]
+
+	def interpret_template_plot(self, template, widg_dex):
+		data = template.datas[widg_dex]
+		return [lgb.create_plot_widget(data)]
 
 class recasting_mason(standard_mason):
 

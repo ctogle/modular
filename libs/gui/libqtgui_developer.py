@@ -8,7 +8,7 @@ import libs.developer.libdeveloper as ldev
 import os
 
 class application_developer(lqg.application):
-	_content_ = [ldev.modular_developer()]
+	_content_ = [ldev.modular_developer2()]
 	gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
 
 	def __init__(self, *args, **kwargs):

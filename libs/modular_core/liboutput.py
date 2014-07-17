@@ -3,6 +3,7 @@ import libs.modular_core.libfiler as lf
 import libs.modular_core.libvtkoutput as lvtk
 import libs.modular_core.libtxtoutput as ltxt
 import libs.modular_core.libgeometry as lgeo
+import libs.modular_core.libsettings as lset
 
 #from cStringIO import StringIO
 import os
@@ -19,8 +20,13 @@ if __name__ == 'libs.modular_core.liboutput':
 
 if __name__ == '__main__': print 'this is a library!'
 
-def parse_output_plan_line(line, ensem, procs, routs):
-	spl = [item.strip() for item in line.split(' : ')]
+def parse_output_plan_line(*args):
+	data = args[0]
+	ensem = args[1]
+	parser = args[2]
+	procs = args[3]
+	routs = args[4]
+	spl = [item.strip() for item in data.split(' : ')]
 	dex = int(spl[0])
 	if dex == 0: output = ensem.output_plan
 	#else: output = procs[dex - 1].output
@@ -261,20 +267,26 @@ class output_plan(lfu.plan):
 							writer_plt(parent = self)	]
 		self.flat_data = True
 		#if label is not 'another output plan': one_of_a_kind = True
-		self.targeted = []	#lists of strings to list of scalers
-		self.outputs = [[], [], [], []]	#strings pointing to targeted scalers
+		self.targeted = []	#lists of strings to list of scalars
+		self.outputs = [[], [], [], []]	#strings pointing to targeted scalars
 		self.save_directory = save_directory
 		self.save_filename = save_filename
 		self.filenames = {'vtk filename': '', 'pkl filename': '', 
 						'txt filename': '', 'plt filename': ''}
 		self.directories = {'vtk directory': '', 'pkl directory': '', 
 							'txt directory': '', 'plt directory': ''}
-		self.output_vtk = False
-		#self.output_vtk = True
-		self.output_pkl = False
-		self.output_txt = False
-		#self.output_plt = False
-		self.output_plt = True
+		op_vtk = lset.get_setting('output_vtk')
+		op_pkl = lset.get_setting('output_pkl')
+		op_txt = lset.get_setting('output_txt')
+		op_plt = lset.get_setting('output_plt')
+		if not op_vtk is None: self.output_vtk = op_vtk
+		else: self.output_vtk = False
+		if not op_pkl is None: self.output_pkl = op_pkl
+		else: self.output_pkl = False
+		if not op_txt is None: self.output_txt = op_txt
+		else: self.output_txt = False
+		if not op_plt is None: self.output_plt = op_plt
+		else: self.output_plt = False
 		self.default_targets_vtk = True
 		self.default_targets_pkl = True
 		self.default_targets_txt = True
@@ -422,9 +434,12 @@ class output_plan(lfu.plan):
 				try:
 					self.save_directory = os.path.join(os.getcwd(), 
 									self.parent.module, 'output')
-
 				except AttributeError:
-					self.save_directory = os.getcwd()
+					try:
+						self.save_directory = os.path.join(os.getcwd(), 
+								self.parent._modu_program_, 'output')
+					except AttributeError:
+						self.save_directory = os.getcwd()
 
 	def verify_nonempty_save_filename(self):
 		if self.save_filename == None or self.save_filename == '':
@@ -444,8 +459,11 @@ class output_plan(lfu.plan):
 		return target_labels
 
 	def set_settables(self, *args, **kwargs):
-		ensem = args[1]
+		#ensem = args[1]
 		target_labels = self.get_target_labels(*args, **kwargs)
+		#set_settables gets called bottom up
+		# always have issues when childs templates depend on information
+		#  which is updated in the parents set_settables function
 
 		self.targeted = lfu.intersect_lists(self.targeted, target_labels)
 		for dex in range(len(self.outputs)):
@@ -459,6 +477,7 @@ class output_plan(lfu.plan):
 		self.writers[3].set_settables(*args, **kwargs)
 		plt_page_template = lgm.interface_template_gui(
 				panel_label = 'plt Writer Options', 
+				panel_scrollable = True, 
 				panel_position = (1, 3), 
 				widgets = ['panel', 'check_set', 'check_set', 
 						'directory_name_box', 'file_name_box'], 
@@ -488,6 +507,7 @@ class output_plan(lfu.plan):
 								None, None, None, None])
 		txt_page_template = lgm.interface_template_gui(
 				panel_label = 'csv Writer Options', 
+				panel_scrollable = True, 
 				widgets = ['panel', 'check_set', 'check_set', 
 						'directory_name_box', 'file_name_box'], 
 				box_labels = [None, 'csv Plot Targets', '', 
@@ -516,6 +536,7 @@ class output_plan(lfu.plan):
 								None, None, None, None])
 		pkl_page_template = lgm.interface_template_gui(
 				panel_label = 'pkl Writer Options', 
+				panel_scrollable = True, 
 				widgets = ['panel', 'check_set', 'check_set', 
 						'directory_name_box', 'file_name_box'], 
 				box_labels = [None, 'pkl Plot Targets', '', 
@@ -542,6 +563,7 @@ class output_plan(lfu.plan):
 							None, None, None, None])
 		vtk_page_template = lgm.interface_template_gui(
 				panel_label = 'vtk Writer Options', 
+				panel_scrollable = True, 
 				widgets = ['panel', 'check_set', 'check_set', 
 						'directory_name_box', 'file_name_box'], 
 				box_labels = [None, 'vtk Plot Targets', '', 
@@ -617,6 +639,7 @@ class output_plan(lfu.plan):
 				box_labels = ['Output Types']))
 		top_template = lgm.interface_template_gui(
 				widgets = ['panel'], 
+				scrollable = [True], 
 				templates = [top_templates])
 		self.widg_templates.append(
 			lgm.interface_template_gui(

@@ -3,7 +3,7 @@
 	time limit : 800
 
 <capture_criteria>
-	species scaler increment : 20 : time
+	species scalar increment : 20 : time
 
 <variables>
 	mu : 10.0

@@ -3,6 +3,7 @@ import libs.modular_core.libgeometry as lgeo
 import libs.modular_core.libvtkoutput as lvtk
 import libs.modular_core.liboutput as lo
 import libs.modular_core.libsettings as lset
+import libs.modular_core.libcriterion as lc
 import libs.gpu.lib_gpu as lgpu
 
 from copy import deepcopy as copy
@@ -18,6 +19,8 @@ import math
 import time
 import types
 
+np.seterr(divide = 'raise')
+
 import pdb
 
 if __name__ == 'libs.modular_core.libpostprocess':
@@ -31,11 +34,20 @@ if __name__ == '__main__':
 
 class post_process_plan(lfu.plan):
 
+	_display_for_children_ = False
+	_fitting_aware_ = True
+	_always_sourceable_ = []
+
 	def __init__(self, *args, **kwargs):
+		self.current_tab_index = 0
 		self.impose_default('label', 'post process plan', **kwargs)
 		self.impose_default('post_processes', [], **kwargs)
 		use = lset.get_setting('postprocessing')
 		kwargs['use_plan'] = use
+		fit = lset.get_setting('fitting_aware')
+		self._fitting_aware_ = fit
+		if '_always_sourceable_' in kwargs.keys():
+			self._always_sourceable_ = kwargs['_always_sourceable_']
 		self.selected_process_label = None
 		lfu.plan.__init__(self, *args, **kwargs)
 
@@ -51,7 +63,12 @@ class post_process_plan(lfu.plan):
 		del self._children_[:]
 
 	def add_process(self, new = None):
-		if not new: new = post_process_meanfield(parent = self)
+		proc_class_def = valid_postproc_base_classes[0]._class
+		#if not new: new = post_process_meanfields(parent = self, 
+		if not new: new = proc_class_def(parent = self, 
+				_always_sourceable_ = self._always_sourceable_)
+		new._fitting_aware_ = self._fitting_aware_
+		#new._always_sourceable_ = self._always_sourceable_
 		self.post_processes.append(new)
 		self._children_.append(new)
 		self.rewidget(True)
@@ -62,10 +79,10 @@ class post_process_plan(lfu.plan):
 		if select:
 			self.post_processes.remove(select)
 			self._children_.remove(select)
-			del self.parent.run_params['output_plans'][
-							select.label + ' output']
+			if hasattr(self.parent, 'run_params'):
+				del self.parent.run_params['output_plans'][
+								select.label + ' output']
 			select._destroy_()
-
 		self.rewidget(True)
 
 	def move_process_up(self, *args, **kwargs):
@@ -113,14 +130,25 @@ class post_process_plan(lfu.plan):
 		except IndexError:
 			print 'no post process selected'; return
 
+	def make_tab_book_pages(self, *args, **kwargs):
+		pages = []
+		for proc in self.post_processes:
+			proc.set_settables(*args, **kwargs)
+			pp_page = lgm.interface_template_gui(
+				widgets = ['panel'], 
+				scrollable = [True], 
+				templates = [proc.widg_templates])
+			pages.append((proc.label, [pp_page]))
+		return pages
+
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
 		#ensemble = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
 		try: select_label = self.selected_process_label
 		except AttributeError: select_label = None
-		self.widg_templates.append(
-			lgm.interface_template_gui(
+		#self.widg_templates.append(
+		primary_template = lgm.interface_template_gui(
 				layout = 'grid', 
 				widg_positions = [(0, 0), (0, 2), (1, 2), 
 								(2, 2), (3, 2), (4, 2)], 
@@ -143,17 +171,39 @@ class post_process_plan(lfu.plan):
 						lgb.create_reset_widgets_wrapper(window, 
 								self.move_process_up), 
 						lgb.create_reset_widgets_wrapper(window, 
-								self.move_process_down)]]))
+								self.move_process_down)]])
+		if self._display_for_children_:
+			childrens_template = lgm.interface_template_gui(
+				widgets = ['tab_book'], 
+				verbosities = [0], 
+				pages = [self.make_tab_book_pages(*args, **kwargs)], 
+				initials = [[self.current_tab_index]], 
+				handles = [(self, 'tab_ref')], 
+				instances = [[self]], 
+				keys = [['current_tab_index']])
+			split_template = lgm.interface_template_gui(
+				widgets = ['splitter'], 
+				orientations = [['horizontal']], 
+				templates = [[primary_template, childrens_template]])
+			self.widg_templates.append(split_template)
+		else: self.widg_templates.append(primary_template)
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
-def parse_postproc_line(data, ensem, procs, routs):
+def parse_postproc_line(*args):
+	data = args[0]
+	ensem = args[1]
+	parser = args[2]
+	procs = args[3]
+	routs = args[4]
 	split = [item.strip() for item in data.split(':')]
 	for proc_type in valid_postproc_base_classes:
 		if split: name = split[0]
 		if len(split) > 1:
 			if split[1].strip() == proc_type._tag:
+				_always = ensem.postprocess_plan._always_sourceable_
 				proc = proc_type._class(label = name, 
-					parent = ensem.postprocess_plan)
+					parent = ensem.postprocess_plan, 
+					_always_sourceable_ = _always)
 				procs.append(proc)
 				if len(split) > 2:
 					inputs = [int(item.strip()) for 
@@ -162,7 +212,8 @@ def parse_postproc_line(data, ensem, procs, routs):
 					for inp in inputs:
 						if inp == 0: input_regime.append('simulation')
 						elif inp < len(procs):
-							input_regime.append(procs[inp].label)
+							#input_regime.append(procs[inp].label)
+							input_regime.append(procs[inp - 1].label)
 
 						else:
 							print ' '.join(['process', 'couldnt', 
@@ -170,7 +221,29 @@ def parse_postproc_line(data, ensem, procs, routs):
 											'hierarchy']), proc
 
 					proc.input_regime = input_regime
-					if proc_type._tag == 'standard statistics':
+					if proc_type._tag == 'meanfields':
+						try:
+							targs = split[3].split(' of ')
+							means_of = targs[0]
+							proc.function_of = targs[1]
+							relevant = [item.strip() for item 
+									in means_of.split(',')]
+							if 'all' in relevant:
+								proc.means_of =\
+									proc.get_targetables(0, ensem)
+
+							else: proc.means_of = relevant
+
+						except IndexError: pass
+						try: proc.bin_count = int(split[4].strip())
+						except IndexError: pass
+						try:
+							if split[5].strip().count('ordered') > 0:
+								proc.ordered = True
+
+						except IndexError: pass
+
+					elif proc_type._tag == 'standard statistics':
 						try:
 							targs = split[3].split(' of ')
 							proc.mean_of = targs[0]
@@ -232,9 +305,19 @@ def parse_postproc_line(data, ensem, procs, routs):
 						else: proc.dater_ids = relevant
 
 					elif proc_type._tag == 'one to one binary operation':
-						print 'one to one binary operation parsing not done'
+						ops = ['/', '*', '+', '-']
+						li = split[3]
+						for op in ops:
+							if op in li: proc.operation = op
+
+						proc.domain = li[li.find('of') + 2:].strip()
+						inputs = [item.strip() for item in 
+							li[:li.rfind('of')].split(proc.operation)]
+						proc.input_1, proc.input_2 = inputs[0], inputs[1]
+						#print 'one to one binary operation parsing not done'
 
 					elif proc_type._tag == 'probability':
+						proc.probability_criterion.set_settables(0, ensem)
 						print 'probability parsing not done'
 
 					elif proc_type._tag == 'period finding':
@@ -244,7 +327,6 @@ def parse_postproc_line(data, ensem, procs, routs):
 
 	ensem.postprocess_plan.add_process(new = proc)
 	proc.set_settables(0, ensem)
-	return proc
 
 class post_process(lfu.modular_object_qt):
 
@@ -266,6 +348,9 @@ class post_process(lfu.modular_object_qt):
 	#			Note: this is not the current implementation but should be
 	#			if necessary to support nontrivial post process hierarchies
 	'''
+
+	_fitting_aware_ = True
+	_always_sourceable_ = []
 
 	def _set_label_(self, value):
 		before = self.label
@@ -291,7 +376,8 @@ class post_process(lfu.modular_object_qt):
 			regime = None, capture_targets = [], 
 			#input_regime = 'simulation', valid_inputs = ['simulation'], 
 			input_regime = None, valid_inputs = None, 
-			visible_attributes = ['label'], base_class = None):
+			visible_attributes = ['label'], base_class = None, 
+			_always_sourceable_ = None):
 
 		if valid_base_classes is None:
 			valid_base_classes = valid_postproc_base_classes
@@ -300,11 +386,16 @@ class post_process(lfu.modular_object_qt):
 			base_class = lfu.interface_template_class(
 					object, 'post process abstract')
 
+		if not _always_sourceable_ is None:
+			self._always_sourceable_ = _always_sourceable_[:]
+
 		if valid_inputs is None:
-			valid_inputs = ['simulation']
+			#valid_inputs = ['simulation']
+			valid_inputs = self._always_sourceable_[:]
 
 		if input_regime is None:
-			input_regime = ['simulation']
+			#input_regime = ['simulation']
+			input_regime = self._always_sourceable_[:]
 
 		self.input_regime = input_regime
 		self.valid_inputs = valid_inputs
@@ -341,7 +432,8 @@ class post_process(lfu.modular_object_qt):
 		inps = []
 		valid_inputs = self.get_valid_inputs(None, self.parent.parent)
 		for input_ in self.input_regime:
-			if input_.startswith('simulation'): numb = 0
+			#if input_.startswith('simulation'): numb = 0
+			if input_.startswith(self._always_sourceable_[0]): numb = 0
 			else: numb = valid_inputs.index(input_) - 1
 			inps.append(numb)
 
@@ -357,17 +449,31 @@ class post_process(lfu.modular_object_qt):
 		self.use_bar_plot = True
 
 	def get_source_reference(self, *args, **kwargs):
-		sources = args[1].postprocess_plan.post_processes + \
-								args[1].fitting_plan.routines
+		if self._fitting_aware_:
+			return self.get_source_reference_fit(*args, **kwargs)
+		else: return self.get_source_reference_nofit(*args, **kwargs)
+	def get_source_reference_nofit(self, *args, **kwargs):
+		sources = args[1].postprocess_plan.post_processes
 		try:
-			inputs = [lfu.grab_mobj_by_name(inp, sources) for inp 
-				in self.input_regime if not inp == 'simulation']
-
+			inputs = [lfu.grab_mobj_by_name(inp, sources) for inp in 
+				self.input_regime if not inp in self._always_sourceable_]
+				#in self.input_regime if not inp == 'simulation']
 		except ValueError:
 			self.fix_inputs()
 			#return self.get_source_reference(*args, **kwargs)
 			return []
-
+		return inputs
+	def get_source_reference_fit(self, *args, **kwargs):
+		sources = args[1].postprocess_plan.post_processes + \
+								args[1].fitting_plan.routines
+		try:
+			inputs = [lfu.grab_mobj_by_name(inp, sources) for inp in 
+				self.input_regime if not inp in self._always_sourceable_]
+				#in self.input_regime if not inp == 'simulation']
+		except ValueError:
+			self.fix_inputs()
+			#return self.get_source_reference(*args, **kwargs)
+			return []
 		return inputs
 
 	def fix_inputs(self, *args, **kwargs):
@@ -375,20 +481,30 @@ class post_process(lfu.modular_object_qt):
 		pdb.set_trace()
 
 	def get_valid_inputs(self, *args, **kwargs):
+		if self._fitting_aware_:
+			return self.get_valid_inputs_fit(*args, **kwargs)
+		else: return self.get_valid_inputs_nofit(*args, **kwargs)		
+	def get_valid_inputs_nofit(self, *args, **kwargs):
+		post_procs = args[1].postprocess_plan.post_processes
+		self_dex = lfu.grab_mobj_dex_by_name(self.label, post_procs)
+		processes = lfu.grab_mobj_names(post_procs)[:self_dex]
+		#return ['simulation'] + processes
+		return self._always_sourceable_ + processes
+	def get_valid_inputs_fit(self, *args, **kwargs):
 		post_procs = args[1].postprocess_plan.post_processes
 		self_dex = lfu.grab_mobj_dex_by_name(self.label, post_procs)
 		processes = lfu.grab_mobj_names(post_procs)[:self_dex]
 		routines = lfu.grab_mobj_names(args[1].fitting_plan.routines)
-		return ['simulation'] + processes + routines
+		#return ['simulation'] + processes + routines
+		return self._always_sourceable_ + processes + routines
 
 	def get_targetables(self, *args, **kwargs):
 		targets = []
 		if 'simulation' in self.input_regime:
 			targets.extend(copy(args[1].run_params['plot_targets']))
-
+		#elif self.input_regime: targets.extend(self._always_sourceable_)
 		for source in self.get_source_reference(*args, **kwargs):
 			targets.extend(copy(source.capture_targets))
-
 		return lfu.uniqfy(targets)
 
 	def initialize(self, *args, **kwargs):
@@ -430,7 +546,7 @@ class post_process(lfu.modular_object_qt):
 		for src in sources: lfu.zip_list(pool, src.data)
 		if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']
 		else: p_space = args[0].cartographer_plan
-		self.p_space = p_space
+		self.p_space = p_space		#THIS LINE MIGHT BE UNNECESSARY
 		if self.regime == 'all trajectories':
 			self.handle_all_trajectories(kwargs['method'], pool, p_space)
 
@@ -443,14 +559,14 @@ class post_process(lfu.modular_object_qt):
 		elif self.regime == 'per trajectory':
 			self.handle_per_trajectory(kwargs['method'], pool, p_space)
 
-	def handle_all_trajectories(self, method, pool, p_space):
+	def handle_all_trajectories(self, method, pool, p_space = None):
 		#self.data = method(pool)
 		#self.output.flat_data = True
 
 		#is this a hack?? might present a problem
 		#not doing this creates bugs with per trajectory processes downstream
 
-		#DATAFLAG - wrap pool in scalers before method()!
+		#DATAFLAG - wrap pool in scalars before method()!
 		self.data = [method(pool)]
 
 	def handle_by_parameter_space(self, method, pool, p_space):
@@ -470,12 +586,12 @@ class post_process(lfu.modular_object_qt):
 
 		self.data = result_pool
 
-	def handle_manual_grouping(self, method, pool, p_space):
+	def handle_manual_grouping(self, method, pool, p_space = None):
 		pdb.set_trace()
 
-	def handle_per_trajectory(self, method, pool, p_space):
+	def handle_per_trajectory(self, method, pool, p_space = None):
 		result_pool = []
-		#DATAFLAG - wrap trajectory in scalers before method()!
+		#DATAFLAG - wrap trajectory in scalars before method()!
 		[result_pool.append(method(trajectory)) 
 						for trajectory in pool]
 		self.data = result_pool
@@ -494,15 +610,17 @@ class post_process(lfu.modular_object_qt):
 
 	def set_settables(self, *args, **kwargs):
 		#self.provide_axes_manager_input()
-		#window = args[0]
+		window = args[0]
 		ensem = args[1]
 		if self.brand_new:
 			self.brand_new = not self.brand_new
-			self.mp_plan_ref = ensem.multiprocess_plan
-			ensem.run_params['output_plans'][
-				self.label + ' output'] = self.output
+			try: self.mp_plan_ref = ensem.multiprocess_plan
+			except AttributeError: pass
+			if hasattr(ensem, 'run_params'):
+				ensem.run_params['output_plans'][
+					self.label + ' output'] = self.output
 
-		where_reference = ensem.run_params['output_plans']
+		#where_reference = ensem.run_params['output_plans']
 		self.output.label = self.label + ' output'
 		self.handle_widget_inheritance(*args, **kwargs)
 		if self.valid_inputs:
@@ -518,8 +636,7 @@ class post_process(lfu.modular_object_qt):
 					labels = [self.valid_inputs], 
 					box_labels = ['Input Data']))
 
-		#recaster = lgm.recasting_mason(parent = window)
-		recaster = lgm.recasting_mason()
+		recaster = lgm.recasting_mason(parent = window)
 		classes = [template._class for template 
 					in self.valid_base_classes]
 		tags = [template._tag for template 
@@ -548,7 +665,121 @@ class post_process(lfu.modular_object_qt):
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
-class post_process_meanfield(post_process):
+class post_process_meanfields(post_process):
+
+	def __init__(self, *args, **kwargs):
+		if not 'base_class' in kwargs.keys():
+			kwargs['base_class'] = lfu.interface_template_class(
+											object, 'meanfields')
+
+		if not 'label' in kwargs.keys():
+			kwargs['label'] = 'meanfields'
+
+		if not 'valid_regimes' in kwargs.keys():
+			kwargs['valid_regimes'] = ['all trajectories', 
+								'by parameter space map']
+
+		if not 'regime' in kwargs.keys():
+			kwargs['regime'] = 'all trajectories'
+
+		self.impose_default('function_of', None, **kwargs)
+		self.impose_default('means_of', None, **kwargs)
+		self.impose_default('bin_count', 100, **kwargs)
+		self.impose_default('ordered', True, **kwargs)
+		post_process.__init__(self, *args, **kwargs)
+
+	def to_string(self):
+		#x stats : standard statistics : 0 : x of time : 10 : ordered
+		inps = self.inputs_to_string()
+		phrase = ' of '.join([self.means_of, self.function_of])
+		bins = str(self.bin_count)
+		if self.ordered: ordered = 'ordered'
+		else: ordered = 'unordered'
+		return '\t' + ' : '.join([self.label, 'meanfields', 
+							inps, phrase, bins, ordered])
+
+	def postproc(self, *args, **kwargs):
+		kwargs['method'] = self.meanfields
+		post_process.postproc(self, *args, **kwargs)
+
+	def meanfields(self, *args, **kwargs):
+		data = lgeo.scalars_from_labels(self.target_list)
+		for dex, mean_of in enumerate(self.means_of):
+			bin_axes, mean_axes = select_for_binning(
+				args[0], self.function_of, mean_of)
+			bins, vals = bin_scalars(bin_axes, mean_axes, 
+							self.bin_count, self.ordered)
+			means = [mean(val) for val in vals]
+			data[dex + 1].scalars = means
+
+		data[0].scalars = bins
+		return data
+
+	#this is a stupid hack!
+	def provide_axes_manager_input(self):
+		self.use_line_plot = True
+		self.use_color_plot = False
+		self.use_bar_plot = False
+		self.x_title = self.function_of
+
+	def set_settables(self, *args, **kwargs):
+		self.valid_regimes = ['all trajectories', 
+			#'by parameter space map', 'manual grouping']
+			'by parameter space map']
+		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
+		capture_targetable = self.get_targetables(*args, **kwargs)
+		if self.means_of is None and capture_targetable:
+			self.means_of = capture_targetable
+
+		if self.function_of is None and capture_targetable:
+			self.function_of = capture_targetable[0]
+
+		self.target_list = [self.function_of] +\
+			[item + ' mean' for item in self.means_of]
+		self.capture_targets = self.target_list
+		self.handle_widget_inheritance(*args, from_sub = False)
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				panel_position = (1, 3), 
+				widgets = ['check_set'], 
+				append_instead = [False], 
+				instances = [[self]], 
+				#rewidget = [[True]], 
+				keys = [['ordered']], 
+				labels = [['Domain is Ordered']], 
+				box_labels = ['Ordered Domain']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['spin'], 
+				initials = [[self.bin_count]], 
+				minimum_values = [[1]], 
+				maximum_values = [[100000]], 
+				instances = [[self]], 
+				#rewidget = [[True]], 
+				keys = [['bin_count']], 
+				box_labels = ['Number of Bins']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['radio'], 
+				labels = [capture_targetable], 
+				initials = [[self.function_of]], 
+				instances = [[self]], 
+				keys = [['function_of']], 
+				box_labels = ['As a Function of']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['check_set'], 
+				append_instead = [True], 
+				provide_master = [True], 
+				labels = [capture_targetable], 
+				initials = [[self.means_of]], 
+				instances = [[self]], 
+				keys = [['means_of']], 
+				box_labels = ['Means of']))
+		super(post_process_meanfields, self).set_settables(
+									*args, from_sub = True)
+
+class post_process_standard_statistics(post_process):
 
 	def __init__(self, *args, **kwargs):
 		if not 'base_class' in kwargs.keys():
@@ -588,35 +819,35 @@ class post_process_meanfield(post_process):
 	def meanfield(self, *args, **kwargs):
 		bin_axes, mean_axes = select_for_binning(
 			args[0], self.function_of, self.mean_of)
-		bins, vals = bin_scalers(bin_axes, mean_axes, 
+		bins, vals = bin_scalars(bin_axes, mean_axes, 
 						self.bin_count, self.ordered)
 		means = [mean(val) for val in vals]
-		if 0.0 in means: coeff_var_dont_flag = True
-		else: coeff_var_dont_flag = False
 		medians = [median(val) for val in vals]
 		stddevs = [stddev(val) for val in vals]
+		if 0.0 in means or 0.0 in stddevs: coeff_var_dont_flag = True
+		else: coeff_var_dont_flag = False
 		if coeff_var_dont_flag:
 			print 'COEFFICIENT OF VARIATIONS WAS SET TO ZERO TO SAVE THE DATA'
 			coeff_variations = [0.0 for stddev_, mean_ 
 								in zip(stddevs, means)]
 
 		else:
-			coeff_variations = [stddev_ / mean_ for stddev_, mean_ 
-											in zip(stddevs, means)]
+			coeff_variations = [stddev_ / mean_ for 
+				stddev_, mean_ in zip(stddevs, means)]
 
-		variances = [variance(val) for val in vals]
 		#variances = [mean(val) for val in vals]
-		data = lgeo.scalers_from_labels(self.target_list)
-		data[0].scalers = bins
-		data[1].scalers = means
-		data[2].scalers = medians
-		data[3].scalers = variances
-		data[4].scalers = stddevs
-		data[5].scalers = [means[k] + stddevs[k] 
+		variances = [variance(val) for val in vals]
+		data = lgeo.scalars_from_labels(self.target_list)
+		data[0].scalars = bins
+		data[1].scalars = means
+		data[2].scalars = medians
+		data[3].scalars = variances
+		data[4].scalars = stddevs
+		data[5].scalars = [means[k] + stddevs[k] 
 					for k in range(len(means))]
-		data[6].scalers = [means[k] - stddevs[k] 
+		data[6].scalars = [means[k] - stddevs[k] 
 					for k in range(len(means))]
-		data[7].scalers = coeff_variations
+		data[7].scalars = coeff_variations
 		return data
 
 	#this is a stupid hack!
@@ -681,7 +912,7 @@ class post_process_meanfield(post_process):
 				instances = [[self]], 
 				keys = [['mean_of']], 
 				box_labels = ['Statistics of']))
-		super(post_process_meanfield, self).set_settables(
+		super(post_process_standard_statistics, self).set_settables(
 									*args, from_sub = True)
 
 class post_process_correlation_values(post_process):
@@ -755,17 +986,17 @@ class post_process_correlation_values(post_process):
 			args[0], self.function_of, self.target_1)
 		bin_axes, targ_2_axes = select_for_binning(
 			args[0], self.function_of, self.target_2)
-		bins, vals_1 = bin_scalers(bin_axes, targ_1_axes, 
+		bins, vals_1 = bin_scalars(bin_axes, targ_1_axes, 
 							self.bin_count, self.ordered)
-		bins, vals_2 = bin_scalers(bin_axes, targ_2_axes, 
+		bins, vals_2 = bin_scalars(bin_axes, targ_2_axes, 
 							self.bin_count, self.ordered)
 		correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
 						for val_1, val_2 in zip(vals_1, vals_2)])
-		data = lgeo.scalers_from_labels([self.function_of, 
+		data = lgeo.scalars_from_labels([self.function_of, 
 			'correlation coefficients', 'correlation p-value'])
-		data[0].scalers = bins
-		data[1].scalers = [verify(val) for val in correlations]
-		data[2].scalers = [verify(val) for val in p_values]
+		data[0].scalars = bins
+		data[1].scalars = [verify(val) for val in correlations]
+		data[2].scalars = [verify(val) for val in p_values]
 		return data
 
 	def set_settables(self, *args, **kwargs):
@@ -874,16 +1105,16 @@ class post_process_counts_to_concentrations(post_process):
 
 	#currently converts # molecules to nM??
 	def count_to_concentration(self, *args, **kwargs):
-		#FIX THIS TO HANDLE A FULL TRAJECTORY AND NOT JUST ONE SCALER OBJECT
+		#FIX THIS TO HANDLE A FULL TRAJECTORY AND NOT JUST ONE scalar OBJECT
 		trajectory = args[0]
 		conv_factor = ((6.02*10.0**23)*(10.0**(-9))*self.volume)**(-1)
-		data = lgeo.scalers_from_labels([trajectory.label])[0]
+		data = lgeo.scalars_from_labels([trajectory.label])[0]
 		if data.label in self.dater_ids:
-			data.scalers = [float(count)*conv_factor 
-					for count in trajectory.scalers]
+			data.scalars = [float(count)*conv_factor 
+					for count in trajectory.scalars]
 
 		else:
-			data.scalers = trajectory.scalers
+			data.scalars = trajectory.scalars
 
 		return data
 
@@ -969,7 +1200,7 @@ class post_process_slice_from_trajectory(post_process):
 
 	def slice_from_trajectory(self, *args, **kwargs):
 		trajectory = args[0]
-		data = lgeo.scalers_from_labels([label 
+		data = lgeo.scalars_from_labels([label 
 				for label in self.dater_ids])
 		for dater in data:
 			try:
@@ -978,13 +1209,13 @@ class post_process_slice_from_trajectory(post_process):
 
 			except ValueError: continue
 			if self.slice_dex.count(':') == 0:
-				dater.scalers = [sub_traj.scalers[int(self.slice_dex)]]
+				dater.scalars = [sub_traj.scalars[int(self.slice_dex)]]
 
 			else:
 				col_dex = self.slice_dex.index(':')
 				slice_1 = int(self.slice_dex[:col_dex])
 				slice_2 = int(self.slice_dex[col_dex:])
-				dater.scalers = sub_traj.scalers[slice_1:slice_2]
+				dater.scalars = sub_traj.scalars[slice_1:slice_2]
 
 		return data
 
@@ -1076,7 +1307,8 @@ class post_process_reorganize_data(post_process):
 		self.use_bar_plot = False
 
 	def postproc(self, *args, **kwargs):
-		if not args[0].cartographer_plan.use_plan:
+		if not args[0].cartographer_plan.use_plan and\
+					not args[0].fitting_plan.use_plan:
 			print 'ensemble is not mapping p-space' +\
 						'\n\treorganize will be ignored'
 			return
@@ -1098,20 +1330,22 @@ class post_process_reorganize_data(post_process):
 	def data_by_trajectory(self, *args, **kwargs):
 		trajectory = args[0]
 		p_space_map = args[1]
-		data = lgeo.scalers_from_labels(
+		data = lgeo.scalars_from_labels(
 				['parameter space location index'] +\
 				self.axis_labels + [label for label in self.dater_ids])
 		for dex, locale in enumerate(trajectory):
-			data[0].scalers.append(dex)
+			data[0].scalars.append(dex)
 			p_space_locale_values =\
 				p_space_map.trajectory[dex][1].location
-			[dater.scalers.append(float(loc)) for loc, dater in 
+			[dater.scalars.append(float(loc)) for loc, dater in 
 									zip(p_space_locale_values, 
 						data[1:len(self.axis_labels) + 1])]
 			for dater in data[len(self.axis_labels) + 1:]:
-				value = lfu.grab_mobj_by_name(
-					dater.label, locale).scalers[-1]
-				dater.scalers.append(value)
+				try:
+					value = lfu.grab_mobj_by_name(
+						dater.label, locale).scalars[-1]
+				except: pdb.set_trace()
+				dater.scalars.append(value)
 
 		surf_targets =\
 			['parameter space location index'] + self.dater_ids
@@ -1163,6 +1397,7 @@ class post_process_1_to_1_binary_operation(post_process):
 		if not 'regime' in kwargs.keys():
 			kwargs['regime'] = 'per trajectory'
 
+		self.impose_default('use_gpu', False, **kwargs)
 		self.impose_default('input_1', None, **kwargs)
 		self.impose_default('input_2', None, **kwargs)
 		self.impose_default('domain', None, **kwargs)
@@ -1186,43 +1421,48 @@ class post_process_1_to_1_binary_operation(post_process):
 		trajectory = args[0]
 		dater_1 = lfu.grab_mobj_by_name(self.input_1, trajectory)
 		dater_2 = lfu.grab_mobj_by_name(self.input_2, trajectory)
-		data = lgeo.scalers_from_labels(['_'.join(
+		data = lgeo.scalars_from_labels(['_'.join(
 			[self.input_1, self.input_2]), self.domain])
-		data[1].scalers = lfu.grab_mobj_by_name(
-						self.domain, trajectory).scalers
-		return dater_1.scalers, dater_2.scalers, data
+		data[1].scalars = lfu.grab_mobj_by_name(
+						self.domain, trajectory).scalars
+		return dater_1.scalars, dater_2.scalars, data
 
 	def gpu_operation(self, *args, **kwargs):
 		dater_1, dater_2, data = self.grab_daters(*args, **kwargs)
-		data[0].scalers = self.mp_plan_ref.gpu_1to1_operation(
+		data[0].scalars = self.mp_plan_ref.gpu_1to1_operation(
 											dater_1, dater_2)
 		return data
 
 	def addition(self, *args, **kwargs):
 		dater_1, dater_2, data = self.grab_daters(*args, **kwargs)
-		data[0].scalers = [sum(pair) for pair in zip(dater_1, dater_2)]
+		data[0].scalars = [sum(pair) for pair in zip(dater_1, dater_2)]
 		return data
 
 	def subtraction(self, *args, **kwargs):
 		dater_1, dater_2, data = self.grab_daters(*args, **kwargs)
-		data[0].scalers = [pair[0] - pair[1] for 
+		data[0].scalars = [pair[0] - pair[1] for 
 				pair in zip(dater_1, dater_2)]
 		return data
 
 	def multiplication(self, *args, **kwargs):
 		dater_1, dater_2, data = self.grab_daters(*args, **kwargs)
-		data[0].scalers = [pair[0]*pair[1] for pair 
+		data[0].scalars = [pair[0]*pair[1] for pair 
 						in zip(dater_1, dater_2)]
 		return data
 
 	def division(self, *args, **kwargs):
 		dater_1, dater_2, data = self.grab_daters(*args, **kwargs)
-		data[0].scalers = [pair[0]/pair[1] for pair 
-						in zip(dater_1, dater_2)]
+		data[0].scalars =\
+			[pair[0]/pair[1] if not pair[1] == 0 else None 
+						for pair in zip(dater_1, dater_2)]
+		if None in data[0].scalars:
+			print 'avoided zero division...'
+			pdb.set_trace()
+
 		return data
 
 	def postproc(self, *args, **kwargs):
-		if lgpu.gpu_support:
+		if lgpu.gpu_support and self.use_gpu:
 			self.mp_plan_ref.gpu_worker.initialize()
 			method = self.gpu_operation
 			if self.operation == '+':
@@ -1258,9 +1498,9 @@ class post_process_1_to_1_binary_operation(post_process):
 		post_process.postproc(self, *args, **kwargs)
 
 	#this is a stupid hack!
-	def provide_axes_manager_input(self):
-		post_process.provide_axes_manager_input(self)
-		self.x_title = 'time'
+	#def provide_axes_manager_input(self):
+	#	post_process.provide_axes_manager_input(self)
+	#	self.x_title = 'time'
 
 	def set_settables(self, *args, **kwargs):
 		self.valid_regimes = ['per trajectory']
@@ -1371,8 +1611,8 @@ class post_process_period_finding(post_process):
 	#this is where the actual algorithm for period finding goes
 	# args[0] will be the data set
 	# at this function, the data set will always appear to be a list
-	# of lists of libs.modular_core.libgeometry.scalers objects
-	#each trajectory results in a list of scalers objects
+	# of lists of libs.modular_core.libgeometry.scalars objects
+	#each trajectory results in a list of scalars objects
 	# these lists are put in a list which is what appears as args[0]
 	#use pdb.set_trace() to investigate if this isn't clear
 	def find_period(self, *args, **kwargs):
@@ -1383,11 +1623,11 @@ class post_process_period_finding(post_process):
 		time = args[0][time_dex]
 		targ = args[0][targ_dex]
 		periods, amplitudes = self.find_period_in_window(
-							time.scalers, targ.scalers)
-		data = lgeo.scalers_from_labels(self.target_list)
-		data[1].scalers, data[2].scalers = self.fill_in(
-					periods, amplitudes, time.scalers)
-		data[0].scalers = copy(time.scalers[:len(data[1].scalers)])
+							time.scalars, targ.scalars)
+		data = lgeo.scalars_from_labels(self.target_list)
+		data[1].scalars, data[2].scalars = self.fill_in(
+					periods, amplitudes, time.scalars)
+		data[0].scalars = copy(time.scalars[:len(data[1].scalars)])
 		return data
 
 	#fill in values for codomain so that it is 1 - 1 with domain
@@ -1466,24 +1706,10 @@ class post_process_period_finding(post_process):
 		super(post_process_period_finding, self).set_settables(
 										*args, from_sub = True)
 
-#completely unfinished
 class post_process_measure_probability(post_process):
 
 	def __init__(self, *args, **kwargs):
-	#def __init__(self, label = 'probability measurement', 
-	#		bin_counts = [100], fill_values = [-100.0], 
-	#		regime = 'all trajectories', base_class = None, 
-	#		capture_targets = [], input_regime = ['simulation'], 
-	#		valid_inputs = ['simulation'], 
-	#		valid_regimes = ['all trajectories', 
-	#						'by parameter space map']):
-							#'by parameter space map', 
-							#	'manual grouping']):
-
 		if not 'base_class' in kwargs.keys():
-			#class is used for recasting processes as other process instances
-			# second argument is a string to look up the appropriate class
-			#subsequently also appears in valid_postproc_base_classes
 			kwargs['base_class'] = lfu.interface_template_class(
 										object, 'probability')
 
@@ -1497,13 +1723,10 @@ class post_process_measure_probability(post_process):
 		if not 'regime' in kwargs.keys():
 			kwargs['regime'] = 'all trajectories'
 
-		self.impose_default('bin_counts', [100], **kwargs)
-		self.impose_default('fill_values', [-100], **kwargs)
-		#post_process.__init__(self, label = label, regime = regime, 
-		#	base_class = base_class, valid_regimes = valid_regimes, 
-		#	input_regime = input_regime, valid_inputs = valid_inputs, 
-		#	capture_targets = capture_targets)
+		self.probability_criterion =\
+			lc.trajectory_criterion_ceiling(parent = self)
 		post_process.__init__(self, *args, **kwargs)
+		self._children_ = [self.probability_criterion]
 
 	def to_string(self):
 		#label : probability : 0
@@ -1520,71 +1743,28 @@ class post_process_measure_probability(post_process):
 		post_process.postproc(self, *args, **kwargs)
 
 	def measure_probability(self, *args, **kwargs):
-		'''
-		def verify(val):
-			if math.isnan(val): return self.fill_value
-			else: return val
-
-		bin_axes, targ_1_axes = select_for_binning(
-			args[0], self.function_of, self.target_1)
-		bin_axes, targ_2_axes = select_for_binning(
-			args[0], self.function_of, self.target_2)
-		bins, vals_1 = bin_scalers(bin_axes, targ_1_axes, 
-							self.bin_count, self.ordered)
-		bins, vals_2 = bin_scalers(bin_axes, targ_2_axes, 
-							self.bin_count, self.ordered)
-		correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
-						for val_1, val_2 in zip(vals_1, vals_2)])
-		'''
-		pdb.set_trace()
-		data = lgeo.scalers_from_labels([self.function_of, 
-			'correlation coefficients', 'correlation p-value'])
-		#data[0].scalers = bins
-		#data[1].scalers = [verify(val) for val in correlations]
-		#data[2].scalers = [verify(val) for val in p_values]
+		passes = 0.0
+		for traj in args[0]:
+			if self.probability_criterion(traj): passes += 1.0
+		data = lgeo.scalars_from_labels(['probability'])
+		data[0].scalars = [passes/len(args[0])]
 		return data
 
 	def set_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
-			#'by parameter space map', 'manual grouping']
-			'by parameter space map']
+						'by parameter space map']
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
 
 		self.capture_targets = ['probability']
 		self.handle_widget_inheritance(*args, from_sub = False)
+		self.probability_criterion.set_settables(*args, **kwargs)
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['panel'], 
+				templates = [self.probability_criterion.widg_templates]))
 		super(post_process_measure_probability, self).set_settables(
 											*args, from_sub = True)
-
-#if this can be made into not an instance method, it can be parallelized
-def correlate(self, *args, **kwargs):
-
-	def verify(val):
-		if math.isnan(val): return self.fill_value
-		else: return val
-
-	print 'correlating', self.target_1, 'and', self.target_2
-	bin_axes, targ_1_axes = select_for_binning(
-		args[0], self.function_of, self.target_1)
-	bin_axes, targ_2_axes = select_for_binning(
-		args[0], self.function_of, self.target_2)
-	check2 = time.time()
-	bins, vals_1 = bin_scalers(bin_axes, targ_1_axes, 
-						self.bin_count, self.ordered)
-	bins, vals_2 = bin_scalers(bin_axes, targ_2_axes, 
-						self.bin_count, self.ordered)
-	check3 = time.time()
-	print 'binning scalers time: ', check3 - check2
-	correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
-					for val_1, val_2 in zip(vals_1, vals_2)])
-	print 'correlating scalers time: ', time.time() - check3
-	data = lgeo.scalers_from_labels([self.function_of, 
-		'correlation coefficients', 'correlation p-value'])
-	data[0].scalers = bins
-	self.fill_value = -100.0
-	data[1].scalers = [verify(val) for val in correlations]
-	data[2].scalers = [verify(val) for val in p_values]
-	return data
 
 def select_for_binning(pool, be_binned, be_meaned):
 	#print 'be meaned', be_meaned
@@ -1605,9 +1785,9 @@ def select_for_binning(pool, be_binned, be_meaned):
 									if mean_lookup[k] == True]
 	return bin_axes, mean_axes
 
-def bin_scalers(axes, ax_vals, bin_res, ordered = True):
-	bin_min = min([min(ax.scalers) for ax in axes])
-	bin_max = max([max(ax.scalers) for ax in axes])
+def bin_scalars(axes, ax_vals, bin_res, ordered = True):
+	bin_min = min([min(ax.scalars) for ax in axes])
+	bin_max = max([max(ax.scalars) for ax in axes])
 	orders = 1000000000000000000.0
 	bin_res = (bin_max - bin_min) / bin_res
 	bins = [x / orders for x in 
@@ -1623,10 +1803,10 @@ def bin_scalers(axes, ax_vals, bin_res, ordered = True):
 			threshold_top = bins[i] + bin_bump
 			for k in range(len(axes)):
 				last_j = j_last[k]
-				for j in range(last_j, len(axes[k].scalers)):
+				for j in range(last_j, len(axes[k].scalars)):
 
-					if axes[k].scalers[j] < threshold_top:
-						vals[i].append(ax_vals[k].scalers[j])
+					if axes[k].scalars[j] < threshold_top:
+						vals[i].append(ax_vals[k].scalars[j])
 
 					else:
 						j_last[k] = j
@@ -1643,15 +1823,19 @@ def bin_scalers(axes, ax_vals, bin_res, ordered = True):
 
 			threshold_top = bins[i] + bin_bump
 			for k in range(len(axes)):
-				for j in range(len(axes[k].scalers)):
-					if axes[k].scalers[j] < threshold_top and axes[k].scalers[j] > threshold_bottom:
-						vals[i].append(ax_vals[k].scalers[j])		
+				for j in range(len(axes[k].scalars)):
+					if axes[k].scalars[j] < threshold_top and axes[k].scalars[j] > threshold_bottom:
+						vals[i].append(ax_vals[k].scalars[j])		
 
 	return bins, vals
 
-valid_postproc_base_classes = [lfu.interface_template_class(
-						post_process_meanfield, 
-								'standard statistics'), 
+valid_postproc_base_classes = [
+							lfu.interface_template_class(
+						post_process_meanfields, 
+									'meanfields'), 
+							lfu.interface_template_class(
+						post_process_standard_statistics, 
+									'standard statistics'), 
 							lfu.interface_template_class(
 						post_process_counts_to_concentrations, 
 								'counts to concentrations'), 

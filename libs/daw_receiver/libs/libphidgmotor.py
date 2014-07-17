@@ -14,7 +14,7 @@ class motor_state(lfu.modular_object_qt):
 
 	def __init__(self, parent = None, label = 'motor state', 
 			motor = None, target_position = 0, target_tolerance = 1, 
-			previous_state = None, max_time = 10, timed_out = False):
+			previous_state = None, max_time = 120, timed_out = False):
 		self.motor = motor
 		self.target_position = target_position
 		self.target_tolerance = target_tolerance
@@ -150,10 +150,23 @@ class motor_state_custom(motor_state):
 		super(motor_state_custom, self).set_settables(
 								*args, from_sub = True)
 
+'''
+getAccel
+setAccel
+getMaxAccel
+getMinAccel
+
+getVel
+getVelLimit
+setVelLimit
+getVelMax
+getVelMin
+'''
+
 class motor(ST.Stepper):
 
-	#dex is the index of the motor. Defaults to zero. 
-	#This may need to be changed if more than one motor is used.
+	_connected_ = False
+
 	def __init__(self, dex=0):
 		try:
 			ST.Stepper.__init__(self)
@@ -173,187 +186,78 @@ class motor(ST.Stepper):
 		try:
 			self.waitForAttach(2000)
 			self.setEngaged(self.dex, True)
+			self._connected_ = True
 
 		except phidg_except.PhidgetException:
 			print 'motor couldnt be attached!'
 
-	#Returns current acceleration, within a valid range between AccerationMin and AccelerationMax
-	def getAcceleration(self):
-		try:
-			return self.getCurrentAcceleration(self.dex)
+	#within a valid range between AccerationMin and AccelerationMax
+	def getAccel(self):
+		return self.getAcceleration(self.dex)
 
-		except:
-			return None
+	def setAccel(self, value):
+		self.setAcceleration(self.dex, value)
 
-	#To set the acceleration of the motor, use the following function.	
-	#Set the accleration to a numeric value between AcclerationMin and AccelerationMax	
-	def setAcceleration(self, value):
-		try:
-			self.setCurrentAcceleration(self.dex, value)
-
-		except:
-			print "Error in setAcceleration"
-		
-	#For current position, whenever the device is plugged and unplugged, it will default to zero. This may need to be fixed.
-	#Has not been tested what happens if the motor needs a "reset", the default position for this is unknown. 
-	#Dex is the index, if many motors it will need to be changed. DEFAULT is 0.
 	def get_position(self):
-		try:
-			return self.getCurrentPosition(self.dex)
+		try: return self.getCurrentPosition(self.dex)
+		except: return None
 
-		except:
-			return None
-
-	#Just as it says, determines the max acceleration the motor can handle. 
-	#This value is a double		
 	def getMaxAccel(self):
-		try:
-			return self.getAccelerationMax(self.dex)
+		return self.getAccelerationMax(self.dex)
 
-		except:	
-			return None
-
-	#Just as it says, determines the min acceleration the motor can handle. 
-	#This value is a double	
 	def getMinAccel(self):
-		try:
-			return self.getAccelerationMin(self.dex)
+		return self.getAccelerationMin(self.dex)
 
-		except:
-			return None
-		
-	#Just as it speaks, this function returns the max velocity the stepper motor can handle
-	#The units for this value is in steps per second. Dependent on the stepper motor. 
-	#Returns a double.
-	def getVelocityLimit(self):
-		try:
-			return self.getVelocityLimit(self.dex)
+	#The units for this are steps per second
+	def getVelLimit(self):
+		return self.getVelocityLimit(self.dex)
 
-		except:
-			return None		
-	
-	#Sets the max velocity to some numeric value.
-	#This value is between the ranges of getVelocityMin and getVelocityMax, with 0 being stopped.
-	def setVelocityLimit(self, value):
-		try:
-			self.setVelocityLimit(self.dex, value)
+	def setVelLimit(self, value):
+		self.setVelocityLimit(self.dex, value)
 
-		except:
-			print "Error in setVelocityLimit"		
-	
-	#This gets the current velocity of the motor.
-	#This is a double between the range of VelocityMin and VelocityMax.	
-	def getVelocity(self):
-		try:
-			return self.getVelocity(self.dex)
+	def getVel(self):
+		return self.getVelocity(self.dex)
 
-		except:	
-			return None
-	
-	#Self explaintory, gets the max velocity of the motor. Returns a double.
-	def getVelocityMax(self):
-		try:
-			return self.getVelocityMax(self.dex)
+	def getVelMax(self):
+		return self.getVelocityMax(self.dex)
 
-		except:	
-			return None
+	def getVelMin(self):
+		return self.getVelocityMin(self.dex)
 
-	#Self explaintory, gets the min velocity of the motor. Returns a double.
-	def getVelocityMin(self):
-		try:
-			return self.getVelocityMax(self.dex)
-
-		except:	
-			return None
-
-	#Gets target position for the motor
-	#If motor has none, returns 0.
-	#Keep in mind the default will be reset to 0.	
 	def get_target_position(self):
-		try:
-			return self.getTargetPosition(self.dex)
+		return self.getTargetPosition(self.dex)
 
-		except:
-			return None
-			
 	#Sets motors target position.		
 	#If motor is engaged and it is between TargetMax and TargetMin, the motor will move
 	def set_target_position(self, value):
-		#try:
-			self.setTargetPosition(self.dex, value)
-
-		#except:
-		#	print "Error in setTargetPosition"
+		self.setTargetPosition(self.dex, value)
 
 	#Resets default of current position
 	#Will be useful if the defualt needs to be set to a specific location (0).
 	def set_current_position(self, value):
-		try:
-			self.setCurrent(self.dex, value)
+		self.setCurrent(self.dex, value)
 
-		except:
-			return None
-	
-	#Gets max allowed position for the stepper motor.
-	#Returns a double.
 	def get_position_max(self):
-		try:
-			return self.getPositionMax(self.dex)
+		return self.getPositionMax(self.dex)
 
-		except:
-			return None
-
-	#Gets min allowed position for the stepper motor.
-	#Returns a double.
 	def get_position_min(self):
-		try:
-			return self.getPositionMin(self.dex)
+		return self.getPositionMin(self.dex)
 
-		except:
-			return None
-			
-	#Gets motor's current usage	
-	#Gets the max current that a motor will be allowed to draw.
 	def getCurrentLimit(self):
-		try:
-			return self.getCurrentLimit(self.dex)
+		return self.getCurrentLimit(self.dex)
 
-		except:	
-			return None
-
-	#Sets motors current usage limit.
 	def setCurrentLimit(self, value):
-		try:
-			self.setCurrentLimit(self.dex, value)
+		self.setCurrentLimit(self.dex, value)
 
-		except:
-			print "Error in setCurrentLimit"
-			
-	#Returns the stopped state of the motor. Returns a boolean
-	#Might need your help on this one, with it returning a booling
 	def get_stopped(self):
-		try:
-			return self.getStopped(self.dex)
+		return self.getStopped(self.dex)
 
-		except:
-			return None
-	
-	#Returns the serial number of the phidget.
 	def get_serial_num(self):
-		try:
-			return self.getSerialNum(self.dex)
+		return self.getSerialNum(self.dex)
 
-		except:
-			return None
-
-	#The following are imported from Phidget, which is imported within stepper.			
-	#Closes everything running on the phidget.		
 	def close_phidget(self):
-		try:
-			self.closePhidget(self.dex)
-
-		except:
-			print "Error in Close Phidget"
+		try: self.closePhidget(self.dex)
+		except: print "Error in Close Phidget"
 
 if __name__ == '__main__':
 	print 'This is a library!'

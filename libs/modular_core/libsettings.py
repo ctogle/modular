@@ -21,12 +21,11 @@ class settings_manager(lfu.modular_object_qt):
 		self.cfg_path = os.path.join(os.getcwd(), 'resources')
 		self.true_strings = ['true', 'True', 'On', 'on']
 		self.false_strings = ['false', 'False', 'Off', 'off']
-		self.settings = {}
-		self.settings_types = {}
+		self.impose_default('settings', {}, **kwargs)
+		self.impose_default('settings_types', {}, **kwargs)
 		self.mason = lgm.standard_mason()
 		if 'filename' in kwargs.keys():
 			self.filename = kwargs['filename']
-
 		else: self.filename = None
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
@@ -141,10 +140,10 @@ class settings_manager(lfu.modular_object_qt):
 		return template
 
 	def generate_string_widget_template(self, key, sub_key):
-		print 'untested string setting thing!!'
 		template = lgm.interface_template_gui(
 					widgets = ['text'], 
 					verbosities = [0], 
+					inst_is_dict = [(True, self)], 
 					instances = [[self.settings[key]]], 
 					keys = [[sub_key]], 
 					initials = [[self.settings[key][sub_key]]], 

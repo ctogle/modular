@@ -22,7 +22,9 @@ class receiver(lfu.modular_object_qt):
 	parent = None
 
 	def __init__(self, *args, **kwargs):
-		self.socket_ip = default_socket_ip
+		if 'default_IP' in kwargs.keys():
+			self.socket_ip = kwargs['default_IP']
+		else: self.socket_ip = default_socket_ip
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
 	def listen(self, *args, **kwargs):
@@ -85,7 +87,9 @@ class transceiver(lfu.modular_object_qt):
 	message = 'hello world!'
 
 	def __init__(self, *args, **kwargs):
-		self.socket_ip = default_socket_ip
+		if 'default_IP' in kwargs.keys():
+			self.socket_ip = kwargs['default_IP']
+		else: self.socket_ip = default_socket_ip
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
 	def speak(self, *args, **kwargs):

@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.7
+import libs.modular_core.libfundamental as lfu
 
 import argparse
 
@@ -14,17 +15,28 @@ import pdb
 _filter_endings_ = ['pyc', 'vtu', 'db', '.pkl', 
 					'pvsm', 'sh', 'zip', 'xmind']
 
+_filter_programs_ = ['dispatcher', 'world3d_simulator', 
+					'gui_template_sandbox', 'imager']
+
+_program_libs_ = lfu.get_modular_program_list()
+
 def ignore_filter_(fi):
 	endings = _filter_endings_
 	ended = [fi.endswith(ending) for ending in endings]
 	return True in ended or fi.startswith('_.') or fi.startswith('.')
 
+def ignore_filter_prog_(pa, home = 'Modular'):
+	endings = _filter_programs_
+	ended = [pa.endswith(os.path.join('libs', ending)) 
+			or pa.endswith(os.path.join(home, ending)) 
+								for ending in endings]
+	return True in ended
+
 def ignore_paths():
 
 	def ignoref(pa, files):
-		if pa.startswith('_.') or pa.startswith('.'):
-			return (f for f in files)
-
+		ign_ = pa.startswith('_.') or pa.startswith('.')
+		if ign_ or ignore_filter_prog_(pa): return files
 		else: fis = [f for f in files if ignore_filter_(f)]
 		return fis
 
@@ -76,6 +88,7 @@ def zip_(src, dst):
 	zf = zipfile.ZipFile("%s.zip" % (dst), "w")
 	abs_src = os.path.abspath(src)
 	for dirname, subdirs, files in os.walk(src):
+		#pdb.set_trace()
 		if files:
 			for filename in files:
 				absname = os.path.abspath(os.path.join(dirname, filename))
@@ -84,7 +97,7 @@ def zip_(src, dst):
 				#	os.path.join(dirname, filename), arcname)
 				zf.write(absname, arcname)
 
-		else:
+		elif not ignore_filter_prog_(dirname, home = src):
 			absname = os.path.abspath(os.path.join(
 							dirname, 'dummy.txt'))
 			open(absname, 'a').close()
@@ -131,4 +144,8 @@ if __name__ == '__main__':
 	src_copied = copy_to_src(new)
 	src_used, dst_used = zip_(src_copied, "modular")
 	if options.__dict__[reg[0]]: shutil.rmtree(src_used)
+
+
+
+
 

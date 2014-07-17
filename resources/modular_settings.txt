@@ -1,22 +1,30 @@
 
 
-<interface>
-multithread_gui = True
-interface_verbosity = 2
-debug_verbosity = 2
+<run options>
+profile = False
+
+<data handling>
+use_smart_pool = True
+auto_clear_data_pools = True
 
 <multiprocessing defaults>
 worker_processes = 8
 multiprocessing = True
 
-<run options>
-profile = False
+<interface>
+multithread_gui = True
+interface_verbosity = 2
+debug_verbosity = 2
 
 <ensemble defaults>
 mapparameterspace = True
+trajectory_count = 100
+fitting = False
+fitting_aware = True
 postprocessing = True
-fitting = True
 
-<data handling>
-use_smart_pool = True
-auto_clear_data_pools = True
+<output defaults>
+output_txt = False
+output_plt = True
+output_vtk = False
+output_pkl = False

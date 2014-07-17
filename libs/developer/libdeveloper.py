@@ -2,6 +2,10 @@ import libs.modular_core.libfundamental as lfu
 import libs.modular_core.libsettings as lset
 import libs.modular_core.libfiler as lf
 
+import libs.developer.libprogramdeveloper as lprogd
+import libs.developer.libmoduledeveloper as lmodud
+import libs.developer.libmobjectdeveloper as lmobjd
+
 import importlib
 from copy import deepcopy as copy
 import inspect
@@ -10,6 +14,124 @@ import sys
 import os
 
 import pdb
+
+class modular_developer2(lfu.modular_object_qt):
+
+	def __init__(self, *args, **kwargs):
+
+		self.prog_mngr = lprogd.program_manager(parent = self)
+		self.pmod_mngr = lmodud.module_manager(parent = self)
+		self.smod_mngr = lmodud.simulation_module_manager(parent = self)
+		self.mobj_mngr = lmobjd.modular_object_manager(parent = self)
+
+		self.current_tab_index = 0
+		self.settings_manager = lset.settings_manager(
+			parent = self, filename = 'developer_settings.txt')
+		self.settings = self.settings_manager.read_settings()
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+		self._children_ = [
+			self.prog_mngr, self.pmod_mngr, 
+			self.smod_mngr, self.mobj_mngr]
+
+	def change_settings(self):
+		self.settings_manager.display()
+
+	def make_tab_book_pages(self, *args, **kwargs):
+		window = args[0]
+		prog_templates = self.prog_mngr.widg_templates
+		pmod_templates = self.pmod_mngr.widg_templates
+		smod_templates = self.smod_mngr.widg_templates
+		mobj_templates = self.mobj_mngr.widg_templates
+		pages = [
+			('Create/Edit Programs', prog_templates), 
+			('Create/Edit Program Modules', pmod_templates), 
+			('Create/Edit Simulation Modules', smod_templates), 
+			('Create/Edit Modular Objects', mobj_templates)]
+		return pages
+
+	def set_settables(self, *args, **kwargs):
+		window = args[0]
+		self.handle_widget_inheritance(*args, **kwargs)
+
+		wrench_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'wrench_icon.png')
+		refresh_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'refresh.png')
+		center_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'center.png')
+		wrench_icon = lgb.create_icon(wrench_icon_path)
+		refresh_icon = lgb.create_icon(refresh_icon_path)
+		center_icon = lgb.create_icon(center_icon_path)
+
+		settings_ = lgb.create_action(parent = window, label = 'Settings', 
+					bindings = lgb.create_reset_widgets_wrapper(
+					window, self.change_settings), icon = wrench_icon, 
+					shortcut = 'Ctrl+Shift+S', statustip = 'Settings')
+		self.refresh_ = lgb.create_reset_widgets_function(window)
+		update_gui_ = lgb.create_action(parent = window, 
+			label = 'Refresh GUI', icon = refresh_icon, 
+			shortcut = 'Ctrl+G', bindings = self.refresh_, 
+			statustip = 'Refresh the GUI (Ctrl+G)')
+		center_ = lgb.create_action(parent = window, label = 'Center', 
+					bindings = [window.on_resize, window.on_center], 
+							icon = center_icon, shortcut = 'Ctrl+C', 
+										statustip = 'Center Window')
+
+		self.menu_templates.append(
+			lgm.interface_template_gui(
+				menu_labels = ['&File', '&File', '&File'], 
+				menu_actions = [settings_, center_, update_gui_]))
+		self.tool_templates.append(
+			lgm.interface_template_gui(
+				tool_labels = ['&Tools', '&Tools', '&Tools'], 
+				tool_actions = [settings_, center_, update_gui_]))
+
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['tab_book'], 
+				verbosities = [0], 
+				pages = [self.make_tab_book_pages(*args, **kwargs)], 
+				initials = [[self.current_tab_index]], 
+				handles = [(self, 'tab_ref')], 
+				instances = [[self]], 
+				keys = [['current_tab_index']]))
+		lfu.modular_object_qt.set_settables(
+				self, *args, from_sub = True)
+
+'''
+the goal of the libdeveloper program is to procedurally generate
+code which is useful in many contexts
+
+it operates at several levels:
+	program level
+		create programs
+		add/remove program modules (from anywhere)
+	program module level
+		create modules associated with any program or modular_core
+		add/remove modular objects
+	simulation module level
+		create simulation modules for Modular Simulator
+		there are many options for this - encapsulate
+	modular object level
+		create modular objects
+		add/remove widgets and methods
+		test these by running them locally as a program
+'''
+
+if __name__ == 'libs.developer.libdeveloper':
+	if lfu.gui_pack is None: lfu.find_gui_pack()
+	lgm = lfu.gui_pack.lgm
+	lgd = lfu.gui_pack.lgd
+	lgb = lfu.gui_pack.lgb
+
+if __name__ == '__main__': print 'this is a library!'
+
+
+
+
+
+
+
 
 class code_examples(lfu.modular_object_qt):
 
@@ -82,18 +204,20 @@ if __name__ == '__main__': print 'this is a library!'
 
 	ex_simulation_module = '''\
 import libs.modular_core.libfundamental as lfu
+from libs.modular_core.libfundamental import modular_object_qt as modular_object
+import libs.modular_core.libmodcomponents as lmc
+import libs.modular_core.libsimcomponents as lsc
+import libs.modular_core.libgeometry as lgeo
+
+import libs.modules.particles_support.generic_wrap as wrapper
+
+import traceback
+import sys
 
 import pdb
 
 module_name = <module_name>
-run_param_keys = [	'End Criteria', 
-					'Capture Criteria', 
-					'Plot Targets', 
-					'Fit Routines', 
-					'Post Processes', 
-					'Parameter Space Map', 
-					'Multiprocessing', 
-					'Output Plans'	]
+run_param_keys = lmc.run_param_keys + ['Variables', 'Vectors']
 
 if __name__ == '<full_module_path>':
 	if lfu.gui_pack is None: lfu.find_gui_pack()
@@ -103,83 +227,237 @@ if __name__ == '<full_module_path>':
 
 if __name__ == '__main__': print 'this is the', module_name, 'module!'
 
+class sim_system(lsc.sim_system_external):
+
+	def encode(self):
+		sub_var = [var.to_string().replace(' ','').replace('\t','') 
+				for key, var in self.params['variables'].items()]
+		variable_string = '<variables>' + ','.join(sub_var)
+		sub_vec = [vec.to_string().replace(' ','').replace('\t','')
+				for key, vec in self.params['vectors'].items()]
+		vector_string = '<vectors>' + ','.join(sub_vec)
+		self.system_string = variable_string + vector_string
+		print 'encoded', self.system_string
+
+	def iterate(self):
+		try:
+			self.data = self.finalize_data(
+				*wrapper.simulate(self.system_string))
+			#self.data = [['DATA!']]
+
+		except:
+			traceback.print_exc(file=sys.stdout)
+			print 'simulation failed; aborting'
+			self.bAbort = True
+
+	def finalize_data(self, data, targets, toss = None):
+		if data is False:
+			self.bAbort = True
+			return data
+
+		pdb.set_trace()
+		data = [dater for dater in data if len(dater) > 1]
+		reorder = []
+		for name in self.params['plot_targets']:
+			dex = targets.index(name)
+			reorder.append(np.array(data[dex][:toss], dtype = np.float))
+
+		return np.array(reorder, dtype = np.float)
+
+class variable(modular_object):
+
+	def _set_label_(self, value):
+		before = self._label
+		if modular_object._set_label_(self, value):
+			del self.parent.run_params['variables'][before]
+			self.parent.run_params['variables'][self._label] = self
+
+	def __init__(self, *args, **kwargs):
+		if 'label' not in kwargs.keys(): kwargs['label'] = 'variable'
+		self.impose_default('value', 1.0, **kwargs)
+		self.brand_new = True
+		parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(instance = self, 
+								p_sp_bounds = ['-10e64', '10e64'], 
+									parent = self, key = 'value')]
+		modular_object.__init__(self, *args, 
+			parameter_space_templates =\
+				parameter_space_templates, **kwargs)
+
+	def to_string(self):
+		self.ensem = None
+		return '\t' + self.label + ' : ' + str(self.value)
+
+	def set_settables(self, *args, **kwargs):
+		ensem = args[1]
+		self.parent = ensem
+		window = args[0]
+		if self.brand_new:
+			ensem.run_params['plot_targets'].append(self.label)
+			plan = ensem.run_params['output_plans']['Simulation']
+			plan.targeted.append(self.label)
+			plan.rewidget(True)
+			for subtargeted in plan.outputs:
+				subtargeted.append(self.label)
+
+			self.brand_new = not self.brand_new
+
+		#dictionary_support = lgm.dictionary_support_mason(window)
+		where_reference = ensem.run_params['variables']
+		cartographer_support = lgm.cartographer_mason(window)
+		self.handle_widget_inheritance(*args, **kwargs)
+		self.parameter_space_templates =\
+			[lgeo.interface_template_p_space_axis(parent = self, 
+							p_sp_bounds = self._p_sp_bounds_[0], 
+								instance = self, key = 'value')]
+		self.parameter_space_templates[0].set_settables(*args, **kwargs)
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['spin'], 
+				doubles = [[True]], 
+				initials = [[float(self.value)]], 
+				instances = [[self]], 
+				keys = [['value']], 
+				box_labels = ['Variable Value'], 
+				mason = cartographer_support, 
+				parameter_space_templates =\
+					[self.parameter_space_templates[0]]))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['text'], 
+				#mason = dictionary_support, 
+				#wheres = [[where_reference]], 
+				keys = [['label']], 
+				instances = [[self]], 
+				initials = [[self.label]], 
+				box_labels = ['Variable Name']))
+		modular_object.set_settables(self, *args, from_sub = True)
+
+class vector(modular_object):
+
+	def _set_label_(self, value):
+		before = self._label
+		if modular_object._set_label_(self, value):
+			del self.parent.run_params['vectors'][before]
+			self.parent.run_params['vectors'][self._label] = self
+
+	def __init__(self, *args, **kwargs):
+		if 'label' not in kwargs.keys(): kwargs['label'] = 'vector'
+		self.impose_default('values', [1.0], **kwargs)
+		self.brand_new = True
+		parameter_space_templates = []
+		modular_object.__init__(self, *args, 
+			parameter_space_templates =\
+				parameter_space_templates, **kwargs)
+
+	def to_string(self):
+		self.ensem = None
+		return '\t' + self.label + ' : ' + ','.join(self.values)
+
+	def set_settables(self, *args, **kwargs):
+		ensem = args[1]
+		self.parent = ensem
+		window = args[0]
+		self.handle_widget_inheritance(*args, **kwargs)
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				keys = [['values']], 
+				instances = [[self]], 
+				widgets = ['text'], 
+				box_labels = ['Vector Components']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['text'], 
+				keys = [['label']], 
+				instances = [[self]], 
+				initials = [[self.label]], 
+				box_labels = ['Vector Name']))
+		modular_object.set_settables(self, *args, from_sub = True)
+
+def parse_variable_line(*args):
+	data = args[0]
+	ensem = args[1]
+	split = [item.strip() for item in data.split(':')]
+	name, value = split[0], split[1]
+	varib = variable(label = name, value = value)
+	return name, varib
+
+def parse_vector_line(*args):
+	data = args[0]
+	ensem = args[1]
+	split = [item.strip() for item in data.split(':')]
+	name, value = split[0], split[1]
+	values = value.split(',')
+	vect = vector(label = name, values = values)
+	return name, vect
+
 def set_parameters(ensem):
-	if ensem.run_params['end_criteria']:
-		ensem.simulation_plan.end_criteria = []
+	if 'variables' in ensem.run_params.keys():
+		for key, val in ensem.run_params['variables'].items():
+			ensem.run_params['variables'][key]._destroy_()
 
-	if ensem.run_params['capture_criteria']:
-		ensem.simulation_plan.capture_criteria = []
+	if 'vectors' in ensem.run_params.keys():
+		for key, val in ensem.run_params['vectors'].items():
+			ensem.run_params['vector'][key]._destroy_()
 
-	ensem.run_params['plot_targets'] = ['iteration', 'time']
-
-	output_plan = ensem.run_params['output_plans']['Simulation']
-	output_plan.targeted = ['iteration', 'time']
-	for dex in range(len(output_plan.outputs)):
-		output_plan.outputs[dex] = ['iteration', 'time']
-
+	ensem.run_params['variables'] = {}
+	ensem.run_params['vectors'] = {}
+	lmc.set_parameters(ensem)
 	ensem.run_params.create_partition('system', 
-		[	'end_criteria', 'capture_criteria', 'plot_targets'	])
-	ensem.cartographer_plan.parameter_space_mobjs =\\
-				ensem.run_params.partition['system']
-	ensem.run_params.create_partition('template owners', [])
+		[	'variables', 'vectors', 
+			'end_criteria', 'capture_criteria', 'plot_targets'	])
 
 def generate_gui_templates_qt(window, ensemble):
-	panel_template_lookup = []
-	plot_target_labels = ['iteration', 'time']
-	ensemble.simulation_plan.plot_targets = plot_target_labels
-	sim_plan = ensemble.simulation_plan
-	panel_template_lookup.append(('end_criteria', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [sim_plan.widg_templates_end_criteria]))), 
-	panel_template_lookup.append(('capture_criteria', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [sim_plan.widg_templates_capture_criteria])))
-	panel_template_lookup.append(('plot_targets', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [sim_plan.widg_templates_plot_targets])))
-	ensemble.fitting_plan.set_settables(window, ensemble)
-	panel_template_lookup.append(('fit_routines', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [ensemble.fitting_plan.widg_templates])))
-	ensemble.postprocess_plan.set_settables(window, ensemble)
-	panel_template_lookup.append(('post_processes', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [ensemble.postprocess_plan.widg_templates])))
-	ensemble.cartographer_plan.set_settables(window, ensemble)
-	panel_template_lookup.append(('p_space_map', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [ensemble.cartographer_plan.widg_templates])))
-	ensemble.multiprocess_plan.set_settables(window, ensemble)
-	panel_template_lookup.append(('multiprocessing', 
-		lgm.interface_template_gui(
-			widgets = ['panel'], 
-			templates = [ensemble.multiprocess_plan.widg_templates])))
 	set_module_memory_(ensemble)
-	panel_template_lookup.append(('output_plans', 
-		lgm.interface_template_gui(
-			widgets = ['mobj_catalog'], 
-			instances = [[ensemble.run_params['output_plans'], 
-								ensemble._module_memory_[0]]], 
-			keys = [[None, 'output_plan_selected_memory']], 
-			initials = [[ensemble._module_memory_[\\
-				0].output_plan_selected_memory]])))
-
-	#should return a list of main templates, 
-	# and a list of lists of sub templates
-	#tree_book_panels_from_lookup looks at 
-	# ensemble.run_params to find templates for mobjects
-	return lgb.tree_book_panels_from_lookup(
-		panel_template_lookup, window, ensemble)
+	panel_template_lookup =\
+		lmc.generate_panel_template_lookup_standard(window, ensemble)
+	panel_template_lookup.append(('variables', 
+		lgm.generate_add_remove_select_inspect_box_template(
+			window = window, key = 'variables', 
+			labels = ['Add Variable', 'Remove Variable'], 
+			wheres = [ensemble._children_, 
+				ensemble.run_params['variables']], 
+			parent = ensemble, 
+			selector_handle = (ensemble._module_memory_[0], 
+									'variable_selector'), 
+			memory_handle = (ensemble._module_memory_[0], 
+							'variable_selected_memory'), 
+			base_class = variable)))
+	panel_template_lookup.append(('vectors', 
+		lgm.generate_add_remove_select_inspect_box_template(
+			window = window, key = 'vectors', 
+			labels = ['Add Vector', 'Remove Vector'], 
+			wheres = [ensemble._children_, 
+				ensemble.run_params['vectors']], 
+			parent = ensemble, 
+			selector_handle = (ensemble._module_memory_[0], 
+									'vector_selector'), 
+			memory_handle = (ensemble._module_memory_[0], 
+							'vector_selected_memory'), 
+			base_class = vector)))
+	return lmc.generate_gui_templates_qt(window, ensemble, 
+						lookup = panel_template_lookup)
 
 def set_module_memory_(ensem):
 	ensem._module_memory_ = [lfu.data_container(
-		output_plan_selected_memory = 'Simulation')]
+		output_plan_selected_memory = 'Simulation', 
+				variable_selected_memory = 'None', 
+				vector_selected_memory = 'None')]
+
+def parse_mcfg(lines, *args):
+	support = [['variables', 'vectors'], 
+				[parse_variable_line, 
+				parse_vector_line]]
+	lmc.parse_mcfg(lines, args[0], args[1], support)
+
+def write_mcfg(*args):
+	run_params = args[0]
+	ensem = args[1]
+	lines = ['']
+	lmc.params_to_lines(run_params, 'variables', lines)
+	lmc.params_to_lines(run_params, 'vectors', lines)
+	return lmc.write_mcfg(args[0], args[1], lines)
+
 '''
 
 	ex_program = '''\
@@ -195,16 +473,23 @@ import os
 class application_<program_name>(lqg.application):
 	_content_ = [lprog.<base_class>()]
 	gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
-	x, y = lfu.convert_pixel_space(1024, 256)
-	x_size, y_size = lfu.convert_pixel_space(512, 512)
-	_standards_ = {
-		'title' : '<program_name>', 
-		'geometry' : (x, y, x_size, y_size), 
-		'window_icon' : gear_icon}
 
 	def __init__(self, *args, **kwargs):
 		lqg.application.__init__(self, *args, **kwargs)
+		x, y = lfu.convert_pixel_space(1024, 256)
+		x_size, y_size = lfu.convert_pixel_space(512, 512)
+		self._standards_ = {
+			'title' : '<program_name>', 
+			'geometry' : (x, y, x_size, y_size), 
+			'window_icon' : self.gear_icon}
+		lqg._window_.apply_standards(self._standards_)
+		#lqg.application.setStyle(lgb.create_style('windows'))
+		#lqg.application.setStyle(lgb.create_style('xp'))
+		#lqg.application.setStyle(lgb.create_style('vista'))
+		#lqg.application.setStyle(lgb.create_style('motif'))
+		#lqg.application.setStyle(lgb.create_style('cde'))
 		lqg.application.setStyle(lgb.create_style('plastique'))
+		#lqg.application.setStyle(lgb.create_style('clean'))
 
 _application_ = application_<program_name>
 _application_locked_ = False
@@ -215,14 +500,14 @@ _application_locked_ = False
 '''
 
 	def make_mobject(self, name = '_new_mobject_', 
-					attributes = [], methods = []):
+			attributes = [], methods = [], inits = []):
 		new = copy(self.ex_modular_object)
 		new = new.replace('<name>', name)
 		attr_lines = [attr.write_template() for attr in attributes]
 		new = new.replace('<attributes>', ''.join(attr_lines))
 		meth_lines = [meth.write_method() for meth in methods]
 		new = new.replace('<methods>', '\n'.join(meth_lines))
-		init_lines = [attr.write_init() for attr in attributes]
+		init_lines = [attr.write_init() for attr in attributes] + inits
 		new = new.replace('<inits>', ''.join(init_lines))
 		return new
 
@@ -286,9 +571,9 @@ _application_locked_ = False
 	def make_program(self, base_class, base_class_module, 
 							program = '_new_program_'):
 		new = copy(self.ex_program)
-		new = new.replace('<program_name>', program)
 		new = new.replace('<base_class_module>', base_class_module)
 		new = new.replace('<base_class>', base_class)
+		new = new.replace('<program_name>', program)
 		return new
 
 	def make__init_(self):
@@ -1281,10 +1566,17 @@ class modular_developer(lfu.modular_object_qt):
 				self.examples.make_prog_module(
 					program = program_name, 
 					module = program_name)
+			#inits should contain lines for added setting manager instance!
+			inits = [
+				'\n\t\tself.settings_manager = lset.settings_manager(\n', 
+				'\t\t\tparent = self, filename = "<program_name>_settings.txt")\n'
+				'\t\tself.settings = self.settings_manager.read_settings()\n']
 			self.new_base_class_module_text =\
 				self.add_mobject_to_module(
 				self.new_base_class_module_text, 
-				self.examples.make_mobject(name = program_name))
+				self.examples.make_mobject(
+						name = program_name, 
+							inits = inits))
 			self.current_text_prog_baseclass =\
 				self.new_base_class_module_text
 			self.prog_baseclass_text_box[0].children()[1].setText(
@@ -1659,19 +1951,6 @@ class modular_developer(lfu.modular_object_qt):
 				keys = [['current_tab_index']]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
-
-if __name__ == 'libs.developer.libdeveloper':
-	if lfu.gui_pack is None: lfu.find_gui_pack()
-	lgm = lfu.gui_pack.lgm
-	lgd = lfu.gui_pack.lgd
-	lgb = lfu.gui_pack.lgb
-
-if __name__ == '__main__': print 'this is a library!'
-
-
-
-
-
 
 
 

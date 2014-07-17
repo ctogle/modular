@@ -27,13 +27,15 @@ def output_lines(lines, direc, finame = None,
 			return False
 
 		else:
-			if dont_ask: check = lambda: True
+			#if dont_ask: check = lambda: True
+			if dont_ask: True
 			else:
 				msg = '\n'.join(['Are you sure you want', 
 					'to overwrite the module?:', path])
 				check = lgd.message_dialog(None, msg, 'Overwrite', True)
 
-			if check(): print 'overwriting as instructed...'
+			#if check(): print 'overwriting as instructed...'
+			if check: print 'overwriting as instructed...'
 			else:
 				print 'wont output without your permission; skipping!'
 				return False

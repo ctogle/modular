@@ -26,23 +26,29 @@ if __name__ == 'libs.modular_core.libgeometry':
 
 if __name__ == '__main__': print 'this is a library!'
 
-class scalers(object):
+class scalars(object):
 
-	def __init__(self, label = 'some scaler', scalers = None):
+	def __init__(self, label = 'some scalar', scalars = None, **kwargs):
 		self.label = label
-		if not scalers is None: self.scalers = scalers
-		else: self.scalers = []
-		self.tag = 'scaler'
+		self.tag = 'scalar'
+		if not scalars is None:
+			if type(scalars) is types.ListType:
+				scalars = np.array(scalars)
+
+			self.scalars = scalars
+
+		else: self.scalars = []
+		for key in kwargs.keys(): self.__dict__[key] = kwargs[key]
 
 	def as_string_list(self):
-		return [str(val) for val in self.scalers]
+		return [str(val) for val in self.scalars]
 
 	def as_string(self):
-		return ', '.join([str(val) for val in self.scalers])
+		return ', '.join([str(val) for val in self.scalars])
 
-class batch_scalers(object):
+class batch_scalars(object):
 
-	def __init__(self, targets, label = 'batch of scalers'):
+	def __init__(self, targets, label = 'batch of scalars'):
 		self.batch_pool = []
 		self.pool_names = targets
 		self.current = 0
@@ -75,8 +81,13 @@ class batch_scalers(object):
 	def _get_trajectory_(self, traj_dex):
 
 		def _wrap_(values, dex):
-			sca = scalers(label = self.pool_names[dex])
-			sca.scalers = values
+			#if not type(values) is types.ListType:
+			if hasattr(values, 'scalars'):
+				values = values.scalars
+				#pdb.set_trace()
+
+			sca = scalars(label = self.pool_names[dex])
+			sca.scalars = values
 			return sca
 
 		relevant = self.batch_pool[traj_dex]
@@ -124,11 +135,11 @@ class batch_data_pool(object):
 	def _get_pool_(self, dex):
 		self.current = dex
 		try:
-			self.live_pool = lf.load_pkl_object(os.path.join(
-								os.getcwd(), 'data_pools', 
-								self.data_pool_ids[dex]))
+			sub_pool_id = os.path.join(os.getcwd(), 
+				'data_pools', self.data_pool_ids[dex])
+			self.live_pool = lf.load_pkl_object(sub_pool_id)
 
-		except: raise IndexError
+		except IndexError: raise IndexError
 		batch = [self._get_trajectory_(dex) for 
 			dex in range(len(self.live_pool))]
 		return batch
@@ -136,8 +147,8 @@ class batch_data_pool(object):
 	def _get_trajectory_(self, traj_dex):
 
 		def _wrap_(values, dex):
-			sca = scalers(label = self.targets[dex])
-			sca.scalers = values
+			sca = scalars(label = self.targets[dex])
+			sca.scalars = values
 			return sca
 
 		relevant = self.live_pool[traj_dex]
@@ -148,9 +159,8 @@ class batch_data_pool(object):
 	def _rid_pool_(self, dex):
 		if self.live_pool:
 			print 'saving sub pool', dex
-			lf.save_pkl_object(self.live_pool, 
-				os.path.join(os.getcwd(), 'data_pools', 
-							self.data_pool_ids[dex]))
+			lf.save_pkl_object(self.live_pool, os.path.join(
+				os.getcwd(), 'data_pools', self.data_pool_ids[dex]))
 			print 'saved sub pool', dex
 			self.live_pool = []
 
@@ -170,18 +180,18 @@ class surface_vector(object):
 					label = 'another surface vector'):
 		self.tag = 'surface'
 		self.label = label
-		self.data_scalers = [data for data in data if not data is self]
+		self.data_scalars = [data for data in data if not data is self]
 		self.axis_labels = axes
-		self.axis_values = [scalers(label = dat.label, 
-			scalers = lfu.uniqfy(dat.scalers)) for dat in 
-			self.data_scalers if dat.label in self.axis_labels]
-		self.axis_defaults = [da.scalers[0] for da in self.axis_values]
+		self.axis_values = [scalars(label = dat.label, 
+			scalars = lfu.uniqfy(dat.scalars)) for dat in 
+			self.data_scalars if dat.label in self.axis_labels]
+		self.axis_defaults = [da.scalars[0] for da in self.axis_values]
 		self.surf_targets = surfs
 		self.reduced = None
 
 	def make_surface(self, x_ax = '', y_ax = '', surf_target = ''):
 
-		data = self.data_scalers
+		data = self.data_scalars
 		daters = [dater.label for dater in data]
 		are_ax = [label in self.axis_labels for label in daters]
 		axes = [copy(dater) for dater, is_ax in 
@@ -204,20 +214,20 @@ class surface_vector(object):
 		in_slices = []
 		for ax_dex, ax in enumerate(axes):
 			if ax_slices[ax_dex] is None:
-				in_slices.append([True for val in ax.scalers])
+				in_slices.append([True for val in ax.scalars])
 
 			else:
 				in_slices.append([(val == ax_slices[ax_dex]) 
-									for val in ax.scalers])
+									for val in ax.scalars])
 
 		in_every_slice = [(False not in row) for row in zip(*in_slices)]
-		sub_surf = scalers_from_labels([surf_target])[0]
-		sub_surf.scalers = [sur for sur, in_ in 
-			zip(surf.scalers, in_every_slice) if in_]
-		sub_axes = scalers_from_labels(self.axis_labels)
+		sub_surf = scalars_from_labels([surf_target])[0]
+		sub_surf.scalars = [sur for sur, in_ in 
+			zip(surf.scalars, in_every_slice) if in_]
+		sub_axes = scalars_from_labels(self.axis_labels)
 		for sub_ax, ax in zip(sub_axes, axes):
-			sub_ax.scalers = lfu.uniqfy([val for val, in_ 
-				in zip(ax.scalers, in_every_slice) if in_])
+			sub_ax.scalars = lfu.uniqfy([val for val, in_ 
+				in zip(ax.scalars, in_every_slice) if in_])
 
 		self.reduced = (sub_axes, sub_surf)
 		return True
@@ -279,16 +289,13 @@ def generate_coarse_parameter_space_from_fine(fine,
 		found = vals[where]
 		return found
 
-	#def decimate_subsp(fine):
-	#	pdb.set_trace()
-
 	def decimate(fine, orders):
 
 		def create_subrange(dex, num_values):
 			lower = relev_mags[dex - 1]
 			upper = relev_mags[dex]
 			new = np.linspace(lower, upper, num_values)
-			return [np.round(val, 10) for val in new]
+			return [np.round(val, 20) for val in new]
 
 		left  = locate(fine.bounds[0], orders)
 		right = locate(fine.bounds[1], orders)
@@ -301,11 +308,11 @@ def generate_coarse_parameter_space_from_fine(fine,
 			#many_orders = len(rng)
 			relev_mags = orders[rng[0]:rng[-1] + 1]
 
-		total_values = 100
+		total_values = 20
 		num_values = max([10, int(total_values/len(relev_mags))])
 		new_axis = []
 		for dex in range(1, len(relev_mags)):
-			new_axis.extend([np.round(val, 10) for val in 
+			new_axis.extend([np.round(val, 20) for val in 
 					create_subrange(dex, num_values)])
 
 		new_axis = lfu.uniqfy(new_axis)
@@ -318,16 +325,15 @@ def generate_coarse_parameter_space_from_fine(fine,
 		coerced_bounds =\
 			[locate(fine.bounds[0], orders), 
 			locate(fine.bounds[1], orders)]
-		#print 'for subsp', fine.label
-		#print coerced_increment, coerced_bounds
 		coarse_subsp = one_dim_space(
 			interface_template_p_space_axis(
 				instance = fine.inst, key = fine.key, 
 				p_sp_bounds = coerced_bounds, 
 				p_sp_continuous = False, 
 				p_sp_perma_bounds = fine.perma_bounds, 
-				p_sp_increment = coerced_increment))
-		coarse_subsp.scalers = orders[
+				p_sp_increment = coerced_increment, 
+					constraints = fine.constraints))
+		coarse_subsp.scalars = orders[
 			orders.index(coerced_bounds[0]):
 			orders.index(coerced_bounds[1])+1]
 		return coarse_subsp
@@ -364,46 +370,125 @@ def generate_coarse_parameter_space_from_fine(fine,
 
 class one_dim_space(object):
 
-	def __init__(self, template, scalers_ = None):
+	'''
+	one_dim_space objects represent a single axis in a parameter space
+	they contain references to alter attributes on mobjects, 
+	they contain two sets of bounds, one which is used while
+	exploring parameter space, and one which is permenant, and respected
+	by the other set
+	they can be continuous or discrete
+	they can contain constraints which represent some information about
+	the value of this axis relative to another axis
+	constraints on this axis will change its value to be acceptable
+	relative to the values of the axes which this axis is constrained to
+	'''
+	def __init__(self, template, scalars_ = None):
 		self.inst = template.instance
 		self.key = template.key
 		self.bounds = template.p_sp_bounds
 		self.perma_bounds = template.p_sp_perma_bounds
 		self.continuous = template.p_sp_continuous
 		self.increment = template.p_sp_increment
-		#print 'INCREMENT', self.increment, self.bounds, self.perma_bounds
-		#if not self.bounds == self.perma_bounds:
-		#	print 'PROBABLY ABOUT TO HAPPEN!!'
-		label = ' : '.join([template.instance.label, template.key])
-		self.label = label
-		if not self.continuous and not scalers_:
-			if self.increment < 10e-30:
-				self.increment = max(self.bounds)
-				print 'set increment to top'
-				print self.label, self.increment, self.bounds
-
-			if self.bounds[0] > self.bounds[1]:
-				print 'did that thing', self.bounds
-				self.bounds[1] = self.bounds[0] + self.increment
-				print 'did that thing!!!', self.bounds
-
-			scalers_ = np.arange(self.bounds[0], 
+		self.constraints = template.constraints
+		self.label = ' : '.join([template.instance.label, template.key])
+		if not self.continuous and not scalars_:
+			scalars_ = np.linspace(self.bounds[0], 
 				self.bounds[1], self.increment)
-			scalers_ = list(scalers_)
-			try:
-				if self.bounds[1] - scalers_[-1] >= self.increment:
-					scalers_.append(scalers_[-1] + self.increment)
-			except:
-				traceback.print_exc(file=sys.stdout)
-				pdb.set_trace()
-		self.scalers = scalers_
+			scalars_ = list(scalars_)
+
+		self.scalars = scalars_
+
+	def initialize(self, *args, **kwargs):
+		for con in self.constraints: con.initialize(*args, **kwargs)
+
+	def honor_constraints(self):
+		for con in self.constraints: con.abide()
 
 	def move_to(self, value):
 		#if not self.continuous: pdb.set_trace()
 		self.inst.__dict__[self.key] = value
 
 	def current_location(self):
-		return self.inst.__dict__[self.key]
+		return float(self.inst.__dict__[self.key])
+
+	def validate_step_continuous(self, step):
+		old_value = self.current_location()
+		if old_value + step < self.bounds[0]:
+			over_the_line = abs(step) - abs(old_value - self.bounds[0])
+			step = over_the_line - old_value
+
+		elif old_value + step > self.bounds[1]:
+			over_the_line = abs(step) - abs(self.bounds[1] - old_value)
+			step = self.bounds[1] - over_the_line - old_value
+
+		return step
+
+	def validate_step_discrete(self, step):
+		old_value = self.current_location()
+		space_leng = len(self.scalars)
+		val_dex_rng = range(space_leng)
+		try: val_dex = self.scalars.index(old_value)
+		except ValueError:
+			delts = [abs(val - old_value) for val in self.scalars]
+			closest = delts.index(min(delts))
+			val_dex = closest
+
+		if val_dex + step > (len(val_dex_rng) - 1):
+			over = val_dex + step - (len(val_dex_rng) - 1)
+			step = (len(val_dex_rng) - 1) - val_dex - over
+
+		if val_dex + step < 0:
+			over = abs(val_dex + step)
+			step = over - val_dex
+
+		return self.scalars[val_dex + step] - old_value
+
+	def validate_step(self, step):
+		if self.continuous:
+			return np.round(self.validate_step_continuous(step), 20)
+
+		else: return np.round(self.validate_step_discrete(step), 20)
+
+	def step_sample(self, norm = 3, fact = 1):
+		if self.continuous: leng = self.bounds[1] - self.bounds[0]
+		else: leng = len(self.scalars)
+		sig = leng/norm
+		self.direct = random.choice([-1.0, 1.0])
+		raw_step = random.gauss(sig, sig)
+		if self.continuous: step = abs(raw_step)*fact*self.direct
+		else: step = int(max([1, abs(raw_step*fact)])*self.direct)
+		step = self.validate_step(step)
+		return step
+
+class axis_constraint(lfu.modular_object_qt):
+
+	def __init__(self, *args, **kwargs):
+		self.impose_default('inst', None, **kwargs)
+		self.impose_default('key', None, **kwargs)
+		self.impose_default('inst_ruler', None, **kwargs)
+		self.impose_default('key_ruler', None, **kwargs)
+		self.impose_default('op', None, **kwargs)
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+
+	def get_values(self):
+		this_ax_val = self.inst.__dict__[self.key]
+		the_ax_val = self.inst_ruler.__dict__[self.key_ruler]
+		return this_ax_val, the_ax_val
+
+	def less(self):
+		this_ax_val, the_ax_val = self.get_values()
+		return this_ax_val < the_ax_val
+
+	def more(self):
+		this_ax_val, the_ax_val = self.get_values()
+		return this_ax_val > the_ax_val
+
+	def abide(self, *args, **kwargs):
+		if self.op in ['<', '<=']: rule = self.less
+		elif self.op in ['>', '>=']: rule = self.more
+		if not rule():
+			self.inst.__dict__[self.key] =\
+				self.inst_ruler.__dict__[self.key_ruler]
 
 class parameter_space_location(lfu.modular_object_qt):
 
@@ -484,13 +569,38 @@ def parse_p_space(p_sub, ensem):
 		ax_lines = p_sub[1:]
 
 	elif comp_meth == 'Fitting':
-		pdb.set_trace()
+		ax_lines = []
+		con_lines = []
+		for li in p_sub[1:]:
+			if li[0].startswith('#'): continue
+			elif li[0].count('<axes>'): sub_parser = 'axes'
+			elif li[0].count('<constraints>'): sub_parser = 'constraints'
+			else:
+				if sub_parser == 'axes': ax_lines.append(li)
+				elif sub_parser == 'constraints': con_lines.append(li)
 
 	def parse_axes(lines):
 		axes = [ax[0] for ax in lines]
 		variants = [ax[1] for ax in lines]
 		ax_rngs = [ax[2] for ax in lines]
 		return axes, variants, ax_rngs
+
+	def parse_constraint(li, subspaces):
+		ops = ['<', '>', '<=', '>=']
+		op_in = [li.count(op) for op in ops]
+		try:
+			op = ops[op_in.index(True)]
+			spl = li.split(op)
+			which = subspaces[int(spl[0])]
+			target = subspaces[int(spl[-1])]
+			con = axis_constraint(
+				op = op, inst = which.inst, key = which.key, 
+				inst_ruler = target.inst, key_ruler = target.key)
+			which.constraints.append(con)
+
+		except:
+			traceback.print_exc(file=sys.stdout)
+			print 'unable to parse constraint', li
 
 	axes, variants, ax_rngs = parse_axes(ax_lines)
 	increments = [read_increment(rng) for rng in ax_rngs]
@@ -515,9 +625,6 @@ def parse_p_space(p_sub, ensem):
 	ensem.cartographer_plan.generate_parameter_space()
 	selected = [ensem.cartographer_plan.\
 		parameter_space.get_start_position()]
-		#if p_sub[0][0].count('<product_space>'):
-		#	comp_meth = 'Product Space'
-		#elif p_sub[0][0].count('<zip>'): comp_meth = '1 - 1 Zip'
 
 	if comp_meth == 'Product Space' or comp_meth == '1 - 1 Zip':
 		traj_dlg = lgd.trajectory_dialog(parent = None, 
@@ -542,7 +649,9 @@ def parse_p_space(p_sub, ensem):
 		ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
 
 	elif comp_meth == 'Fitting':
-		pdb.set_trace()
+		subspaces = ensem.cartographer_plan.parameter_space.subspaces
+		for li in lfu.flatten(con_lines):
+			parse_constraint(li, subspaces)
 
 class parameter_space(lfu.modular_object_qt):
 
@@ -553,25 +662,38 @@ class parameter_space(lfu.modular_object_qt):
 		subsps are one_dim_space objects
 	the first overrides the second
 	'''
-	def __init__(self, base_obj = None, subspaces = [], 
-							parent = None, steps = []): 
-
-		if not base_obj is None:
+	def __init__(self, *args, **kwargs):
+		if 'base_obj' in kwargs.keys():
+		#if not base_obj is None:
 			self.subspaces = []
 			for template in base_obj.parameter_space_templates:
 				if template.contribute_to_p_sp:
 					self.subspaces.append(one_dim_space(template)) 
 
 		else:
-			self.subspaces = subspaces
+			try: self.subspaces = kwargs['subspaces']
+			except KeyError:
+				traceback.print_exc(file=sys.stdout)
+				msg = '''\
+					parameter space __init__ requires either subspaces\
+					or a base_obj to make subspaces from\
+					'''
+				lfu.debug_filter(msg, verbosity = 0)
+				self.subspaces = []
+
 			self.set_simple_space_lookup()
 
-		self.steps = steps
-		self.step_normalization = 8.0
+		self.impose_default('steps', [], **kwargs)
+		self.impose_default('step_normalization', 5.0, **kwargs)
 		self.dimensions = len(self.subspaces)
-		lfu.modular_object_qt.__init__(self, 
-			#label = label, parent = parent)
-			parent = parent)
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+
+	def set_start_position(self):
+		self.undo_level = 0
+		for subsp in self.subspaces:
+			subsp.initialize()
+			rele_val = subsp.current_location()
+			print 'starting position of', subsp.label, ':', rele_val, ':', subsp.bounds
 
 	def get_start_position(self):
 		location = [sp.inst.__dict__[sp.key] 
@@ -580,8 +702,19 @@ class parameter_space(lfu.modular_object_qt):
 
 	def get_current_position(self):
 		return [(axis.inst.label, axis.key, 
-			str(axis.inst.__dict__[axis.key])) 
-					for axis in self.subspaces]
+			str(axis.current_location())) 
+			for axis in self.subspaces]
+
+	def set_current_position(self, position):
+		for pos, axis in zip(position, self.subspaces):
+			axis.move_to(pos[-1])
+
+		self.validate_position()
+
+	def validate_position(self):
+		for axis in self.subspaces:
+			if axis.constraints:
+				axis.honor_constraints()
 
 	#bias_axis is the index of the subspace in subspaces
 	#bias is the number of times more likely that axis is than the rest
@@ -623,38 +756,6 @@ class parameter_space(lfu.modular_object_qt):
 		#print 'subsp prob: ' + str(self.param_lookup)
 		self.param_lookup = lm.normalize_numeric_list(self.param_lookup)
 
-	def set_start_pt(self):
-		self.undo_level = 0
-		for subsp in self.subspaces:
-			rele_val = subsp.inst.__dict__[subsp.key]
-			print 'rv', rele_val
-			'''
-			for subsubsp in subsp.subspaces:
-				rele_val = subsubsp.base_obj.__dict__[
-							subsubsp.base_template.name]
-				if subsubsp.base_template.p_sp_continuous:
-					check_rele_val = [rule(rele_val) for rule in 
-						subsubsp.base_template.p_sp_continuous_rules]
-					if False in check_rele_val:
-						print 'initial value "' + str(rele_val) +\
-							'" not found in continuous parameter' +\
-								' space - adjusting to 0'
-						subsubsp.base_obj.__dict__[
-							subsubsp.base_template.name] = 0.0
-
-					else:
-						if subsubsp.base_template.conditioning(rele_val)\
-												not in subsubsp.scalers:
-							new_dex = int(len(subsubsp.scalers)/2)
-							subsubsp.base_obj.__dict__[
-								subsubsp.base_template.name] =\
-											subsubsp.scalers[new_dex]
-							print 'initial value "' + str(rele_val) +\
-								'" not found in specified parameter' +\
-									' space - adjusting to ' +\
-										str(subsubsp.scalers[new_dex])
-			'''
-
 	def undo_step(self):
 		try:
 			#print 'undoing a step!'
@@ -665,8 +766,7 @@ class parameter_space(lfu.modular_object_qt):
 				final = self.steps[-1].initial))
 			self.steps[-1].step_forward()
 
-		except IndexError:
-			print 'no steps to undo!'
+		except IndexError: print 'no steps to undo!'
 
 	def step_up_discrete(self, step, dex, rng):
 		if dex + step not in rng:
@@ -685,64 +785,25 @@ class parameter_space(lfu.modular_object_qt):
 
 	def set_up_discrete_step(self, param_dex, factor, direc):
 		subsp = self.subspaces[param_dex]
-		old_value = float(subsp.inst.__dict__[subsp.key])
-		space_leng = len(subsp.scalers)
-		val_dex_rng = range(space_leng)
-		try:val_dex = subsp.scalers.index(old_value)
-		except ValueError:
-			delts = [abs(val - old_value) for val in subsp.scalers]
-			closest = delts.index(min(delts))
-			val_dex = closest
-			#print 'discrete parameter was off of lattice', param_dex
-			#print 'placed back at', subsp.scalers[closest], 'from', old_value
-
-		step = 1 + abs(int(random.gauss(0, 
-			space_leng/self.step_normalization)*\
-					(factor/self.initial_factor)))
+		old_value = subsp.current_location()
+		step = subsp.step_sample(self.step_normalization, 
+							factor/self.initial_factor)
 		self.steps[-1].location.append((subsp.inst, subsp.key))
 		self.steps[-1].initial.append(old_value)
-		if not direc: rand = random.random()
-		else: rand = direc
-		if rand < 0.5:
-			val_dex = self.step_down_discrete(
-					step, val_dex, val_dex_rng)
-
-		else:
-			val_dex = self.step_up_discrete(
-				step, val_dex, val_dex_rng)
-
-		try: param = subsp.scalers[val_dex]
-		except: pdb.set_trace()
-		return param - old_value, old_value
+		self.steps[-1].final.append(step + old_value)
+		return step, old_value
 
 	def set_up_continuous_step(self, param_dex, factor, direc):
-		old_value = float(self.subspaces[param_dex].inst.__dict__[
-									self.subspaces[param_dex].key])
-		space_leng =\
-			self.subspaces[param_dex].bounds[1] -\
-			self.subspaces[param_dex].bounds[0]
-		step = random.gauss(0, 
-			space_leng/self.step_normalization)*\
-					(factor/self.initial_factor)
-		if direc:
-			if not step/abs(step) == direc: step = -1.0 * step
-
-		if old_value + step < self.subspaces[param_dex].bounds[0]:
-			over_the_line = abs(step) -\
-				abs(old_value - self.subspaces[param_dex].bounds[0])
-			step = over_the_line - old_value
-
-		if old_value + step > self.subspaces[param_dex].bounds[1]:
-			over_the_line = abs(step) -\
-				abs(self.subspaces[param_dex].bounds[1] - old_value)
-			step = self.subspaces[param_dex].bounds[1] -\
-								over_the_line - old_value
-
+		subsp = self.subspaces[param_dex]
+		old_value = subsp.current_location()
+		step = subsp.step_sample(
+			self.step_normalization, 
+			factor/self.initial_factor)
 		self.steps[-1].location.append((
 			self.subspaces[param_dex].inst, 
 			self.subspaces[param_dex].key))
 		self.steps[-1].initial.append(old_value)
-		#print 'took cont step', self.subspaces[param_dex].__dict__
+		self.steps[-1].final.append(step + old_value)
 		return step, old_value
 
 	def take_biased_step_along_axis(self, factor = 1.0, bias = 1000.0):
@@ -778,18 +839,16 @@ class parameter_space(lfu.modular_object_qt):
 		for param_dex in param_dexes:
 			if param_dex in last_axes:
 				direc = last_direcs[last_axes.index(param_dex)]
+				if direc is None: direc = random.choice([-1.0, 1.0])
 
-			else: direc = None
+			else: direc = random.choice([-1.0, 1.0])
 			if self.subspaces[param_dex].continuous:
-
 				step, param = self.set_up_continuous_step(
 								param_dex, factor, direc)
-				self.steps[-1].final.append(step + float(param))
 
 			else:
 				step, param = self.set_up_discrete_step(
 								param_dex, factor, direc)
-				self.steps[-1].final.append(step + float(param))
 
 		self.steps[-1].step_forward()
 
@@ -812,9 +871,11 @@ class interface_template_p_space_axis(lfu.interface_template_new_style):
 			contribute_to_p_sp = False, gui_give_p_sp_control = True, 
 			p_sp_continuous = True, p_sp_bounds = [1, 10], 
 			p_sp_perma_bounds = [0, 100], p_sp_increment = 1.0, 
-			gui_give_p_sp_cont_disc_control = False):
+			gui_give_p_sp_cont_disc_control = False, constraints = None):
 		self.instance = instance
 		self.key = key
+		if constraints: self.constraints = constraints
+		else: self.constraints = []
 		self.contribute_to_p_sp = contribute_to_p_sp
 		self.gui_give_p_sp_control = gui_give_p_sp_control
 		self.p_sp_continuous = p_sp_continuous
@@ -1137,18 +1198,18 @@ class cartographer_plan(lfu.plan):
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
-def scalers_from_labels(targeted):
-	return [scalers(label = target) for target in targeted]
+def scalars_from_labels(targeted):
+	return [scalars(label = target) for target in targeted]
 
 def bin_vectors_from_labels(targeted):
 	return [bin_vectors(label = target) for target in targeted]
 
 def sort_data_by_type(data, specifics = []):
 	if not specifics: specifics = [dater.label for dater in data]
-	sorted_data = {'scalers': {}, 'coords': {}}
+	sorted_data = {'scalars': {}, 'coords': {}}
 	for dater in [dater for dater in data if dater.label in specifics]:
-		if dater.tag == 'scaler':
-			sorted_data['scalers'][dater.label] = dater.scalers
+		if dater.tag == 'scalar':
+			sorted_data['scalars'][dater.label] = dater.scalars
 
 		elif dater.tag == 'coordinates':
 			sorted_data['coords']['_'.join(dater.coords.keys())] = dater.coords
@@ -1160,7 +1221,7 @@ class metric(lfu.modular_object_qt):
 	#ABSTRACT
 	'''
 	a metric takes two sets of data and runs some method which
-	returns one scaler representing some sort of distance
+	returns one scalar representing some sort of distance
 	'''
 	def __init__(self, *args, **kwargs):
 		if not 'valid_base_classes' in kwargs.keys():
@@ -1175,23 +1236,51 @@ class metric(lfu.modular_object_qt):
 		self.impose_default('display_threshold', 0, **kwargs)
 		self.impose_default('display_time', 1.0, **kwargs)
 		self.impose_default('acceptance_weight', 1.0, **kwargs)
+		self.impose_default('best_advantage', 2.0, **kwargs)
 		self.impose_default('best_flag', False, **kwargs)
 		self.impose_default('is_heaviest', False, **kwargs)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self._children_ = []
 
-	def finalize(self, *args, **kwargs):
-	#	dat = self.data[0].scalers
-	#	norm = max(dat)
-	#	self.data[0].scalers = [val/norm for val in dat]
-		pass
+	def check_best(self, display = False):
+		if self.best_flag:
+			if not self.is_heaviest:
+				self.acceptance_weight /= self.best_advantage
+
+		self.best_flag = False
+		if self.data[0].scalars[-1] == min(self.data[0].scalars):
+			self.best_measure = len(self.data[0].scalars) - 1
+			self.best_flag = True
+			if not self.is_heaviest:
+				self.acceptance_weight *= self.best_advantage
+
+		if (self.best_flag or display) and self.is_heaviest:
+			meas = self.data[0].scalars[-1]
+			print ' '.join(['\nmetric', self.label, 'measured best', 
+					str(meas), str(len(self.data[0].scalars) - 1)])
+			for pos in self.parent.parameter_space.get_current_position():
+				print pos
+			#lgd.quick_plot_display(to_fit_to[0], 
+			#	to_fit_to[1:] + run_data_interped, 
+			#			delay = self.display_time)
+			print '\n'
 
 	def measure(self, *args, **kwargs):
 		to_fit_to = args[0]
 		run_data = args[1]
+		dom_weight_max = 5.0
+		domain_weights = np.exp(np.linspace(dom_weight_max, 
+							0, len(to_fit_to[0].scalars)))
+		#domain_weights = [1 for val in 
+		#	np.linspace(0, 1, len(to_fit_to[0].scalars))]
+		#domain_weights = np.linspace(dom_weight_max, 
+		#				1, len(to_fit_to[0].scalars))
 		if self.best_flag:
 			self.best_flag = False
 			self.acceptance_weight /= 2.0
+
+		try: report_only = kwargs['report_only']
+		except KeyError: report_only = False
 
 		labels = [[do.label for do in de] for de in args]
 		run_data_domain = run_data[labels[1].index(labels[0][0])]
@@ -1200,66 +1289,40 @@ class metric(lfu.modular_object_qt):
 					labels[0][lab_dex+1])] for lab_dex 
 						in range(len(labels[0][1:]))]
 		except ValueError: pdb.set_trace()
-		run_data_interped = [scalers(
+		run_data_interped = [scalars(
 			label = 'interpolated result - ' + codomain.label, 
-			scalers = lm.linear_interpolation(run_data_domain.scalers, 
-					codomain.scalers, to_fit_to[0].scalers, 'linear')) 
+			scalars = lm.linear_interpolation(run_data_domain.scalars, 
+					codomain.scalars, to_fit_to[0].scalars, 'linear')) 
 								for codomain in run_data_codomains]
-		x_meas_bnds = (0, len(to_fit_to[0].scalers))
+		x_meas_bnds = (0, len(to_fit_to[0].scalars))
 		meas = [[diff for diff in kwargs['measurement'](
-			fit_to.scalers, interped.scalers, x_meas_bnds, 
-			to_fit_to[0].scalers) if not math.isnan(diff)] 
-								for fit_to, interped in 
+			fit_to.scalars, interped.scalars, x_meas_bnds, 
+			to_fit_to[0].scalars, domain_weights) if not 
+				math.isnan(diff)] for fit_to, interped in 
 					zip(to_fit_to[1:], run_data_interped)]
 		meas = np.mean([np.mean(mea) for mea in meas])
-		self.data[0].scalers.append(meas)
-		if meas == min(self.data[0].scalers) and\
-				meas < self.data[0].scalers[self.best_measure]:
-			self.best_measure = len(self.data[0].scalers) - 1
-			self.best_flag = self.best_measure > self.display_threshold
+		if not report_only:
+			self.data[0].scalars.append(meas)
+			if meas == min(self.data[0].scalars) and\
+					meas < self.data[0].scalars[self.best_measure]:
+				self.best_measure = len(self.data[0].scalars) - 1
+				#self.best_flag = self.best_measure > self.display_threshold
+				self.best_flag = True
 
-		if self.best_flag:
-			if 'weight' in kwargs.keys():
-				self.acceptance_weight = kwargs['weight']
+			if self.best_flag:
+				if 'weight' in kwargs.keys():
+					self.acceptance_weight = kwargs['weight']
 
-			else: self.acceptance_weight *= 2.0
-		if (self.best_flag or kwargs['display']) and self.is_heaviest:
-			print ' '.join(['metric', self.label, 'measured', 
-				str(meas), str(len(self.data[0].scalers))])
-			lgd.quick_plot_display(to_fit_to[0], 
-				to_fit_to[1:] + run_data_interped, 
-						delay = self.display_time)
+				else: self.acceptance_weight *= 2.0
+			if (self.best_flag or kwargs['display']) and self.is_heaviest:
+				print ' '.join(['metric', self.label, 'measured', 
+					str(meas), str(len(self.data[0].scalars))])
+				print self.parent.parameter_space.get_current_position()
+				lgd.quick_plot_display(to_fit_to[0], 
+					to_fit_to[1:] + run_data_interped, 
+							delay = self.display_time)
 
-		return meas
-
-class metric_integral_fit_quality(metric):
-
-	def __init__(self, *args, **kwargs):
-		if not 'label' in kwargs.keys():
-			kwargs['label'] = 'integral metric'
-
-		metric.__init__(self, *args, **kwargs)
-
-	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean integral difference'])
-		metric.initialize(self, *args, **kwargs)
-
-	def measure(self, *args, **kwargs):
-		kwargs['measurement'] = self.integral_differences
-		metric.measure(self, *args, **kwargs)
-
-	def integral_differences(self, *args, **kwargs):
-		to_fit_to_y = np.array(args[0])
-		runinterped = [val for val in np.array(args[1]) 
-								if not math.isnan(val)]
-		to_fit_to_x = np.array(args[3])
-		#integral_diffs = [abs(integrate(runinterped, 
-		#				to_fit_to_x, even = 'avg')-\
-		#	integrate(to_fit_to_y, to_fit_to_x, 
-		#		even = 'avg'))]*len(runinterped)
-		integral_diffs = [abs(sum(runinterped) - sum(to_fit_to_y))]
-		if math.isnan(integral_diffs[0]): pdb.set_trace()
-		return integral_diffs
+		else: return meas
 
 class metric_avg_ptwise_diff_on_domain(metric):
 
@@ -1270,19 +1333,23 @@ class metric_avg_ptwise_diff_on_domain(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean difference'])
+		self.data = scalars_from_labels(['mean difference'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
+		#if not 'report_only' in kwargs.keys():
+		#	kwargs['report_only'] = False
 		kwargs['measurement'] = self.differences
-		metric.measure(self, *args, **kwargs)
+		return metric.measure(self, *args, **kwargs)
 
 	def differences(self, *args, **kwargs):
 		to_fit_to_y = args[0]
 		runinterped = args[1]
 		bounds = args[2]
-		return [abs(to_fit_to_y[k] - runinterped[k]) 
-				for k in range(bounds[0], bounds[1])]
+		dom_weights = args[4]
+		return [weight*abs(to_fit_to_y[k] - runinterped[k]) 
+						for weight, k in zip(dom_weights, 
+							range(bounds[0], bounds[1]))]
 
 class metric_slope_1st_derivative(metric):
 
@@ -1293,26 +1360,28 @@ class metric_slope_1st_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean slope difference'])
+		self.data = scalars_from_labels(['mean slope difference'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
 		kwargs['measurement'] = self.slope_differences
-		metric.measure(self, *args, **kwargs)
+		return metric.measure(self, *args, **kwargs)
 
 	def slope_differences(self, *args, **kwargs):
 		to_fit_to_y = args[0]
 		runinterped = args[1]
 		bounds = args[2]
 		to_fit_to_x = args[3]
+		dom_weights = args[4]
 		runinterped_slope = [(runinterped[k] - runinterped[k - 1])\
 					/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
 					for k in range(1, len(to_fit_to_x))]
 		to_fit_to_y_slope = [(to_fit_to_y[k] - to_fit_to_y[k - 1])\
 							/(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
 							for k in range(1, len(to_fit_to_x))]
-		return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
-						for k in range(bounds[0], bounds[1] -1)]
+		return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+				for weight, k in zip(dom_weights, 
+				range(bounds[0], bounds[1] -1))]
 
 class metric_slope_2nd_derivative(metric):
 
@@ -1323,12 +1392,12 @@ class metric_slope_2nd_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean 2nd derivative'])
+		self.data = scalars_from_labels(['mean 2nd derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
 		kwargs['measurement'] = self.second_derivative_differences
-		metric.measure(self, *args, **kwargs)
+		return metric.measure(self, *args, **kwargs)
 
 	def second_derivative_differences(self, *args, **kwargs):
 
@@ -1341,14 +1410,16 @@ class metric_slope_2nd_derivative(metric):
 		runinterped = args[1]
 		bounds = args[2]
 		to_fit_to_x = args[3]
+		dom_weights = args[4]
 		runinterped_slope = [
 			calc_2nd_deriv(to_fit_to_x, runinterped, k) 
 				for k in range(1, len(to_fit_to_x) -1)]
 		to_fit_to_y_slope = [
 			calc_2nd_deriv(to_fit_to_x, to_fit_to_y, k) 
 				for k in range(1, len(to_fit_to_x) -1)]
-		return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
-				for k in range(bounds[0] + 1, bounds[1] - 2)]
+		return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+							for weight, k in zip(dom_weights, range(
+									bounds[0] + 1, bounds[1] - 2))]
 
 class metric_slope_3rd_derivative(metric):
 
@@ -1359,12 +1430,12 @@ class metric_slope_3rd_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean 3rd derivative'])
+		self.data = scalars_from_labels(['mean 3rd derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
 		kwargs['measurement'] = self.third_derivative_differences
-		metric.measure(self, *args, **kwargs)
+		return metric.measure(self, *args, **kwargs)
 
 	def third_derivative_differences(self, *args, **kwargs):
 
@@ -1378,14 +1449,16 @@ class metric_slope_3rd_derivative(metric):
 		runinterped = args[1]
 		bounds = args[2]
 		to_fit_to_x = args[3]
+		dom_weights = args[4]
 		runinterped_slope = [
 			calc_3rd_deriv(to_fit_to_x, runinterped, k) 
 				for k in range(1, len(to_fit_to_x) -1)]
 		to_fit_to_y_slope = [
 			calc_3rd_deriv(to_fit_to_x, to_fit_to_y, k) 
 				for k in range(1, len(to_fit_to_x) -1)]
-		return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
-				for k in range(bounds[0] + 2, bounds[1] - 2)]
+		return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
+				for weight, k in zip(dom_weights, 
+				range(bounds[0] + 2, bounds[1] - 2))]
 
 class metric_slope_4th_derivative(metric):
 
@@ -1396,12 +1469,12 @@ class metric_slope_4th_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalers_from_labels(['mean 4th derivative'])
+		self.data = scalars_from_labels(['mean 4th derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
 		kwargs['measurement'] = self.fourth_derivative_differences
-		metric.measure(self, *args, **kwargs)
+		return metric.measure(self, *args, **kwargs)
 
 	def fourth_derivative_differences(self, *args, **kwargs):
 
@@ -1471,10 +1544,7 @@ valid_metric_base_classes = [
 			'slope-3 comparison metric'), 
 	lfu.interface_template_class(
 		metric_avg_ptwise_diff_on_domain, 
-			'pointwise difference metric'), 
-	lfu.interface_template_class(
-		metric_integral_fit_quality, 
-			'integral comparison metric')]
+			'pointwise difference metric')]
 
 
 

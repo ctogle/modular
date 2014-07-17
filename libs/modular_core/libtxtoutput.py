@@ -16,11 +16,11 @@ def write_csv(system, csv_filename, specifics = []):
 		delimiter =',',quoting=csv.QUOTE_NONE)
 	out.writerow([data.label for data in system.data 
 						if data.label in specifics])
-	for dex in range(len(system.data[0].scalers)):
+	for dex in range(len(system.data[0].scalars)):
 		row = []
 		for data in system.data:
 			if data.label in specifics:
-				row.append(data.scalers[dex])
+				row.append(data.scalars[dex])
 				
 		out.writerow(row)
 
