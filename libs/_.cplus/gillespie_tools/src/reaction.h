@@ -1,9 +1,0 @@
-
-class reaction
-{
-	public:
-		reaction ();
-};
-
-
-
