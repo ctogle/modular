@@ -1,0 +1,30 @@
+
+<end_criteria>
+time limit : 1000
+
+<capture_criteria>
+species scalar increment : 10 : time
+
+<variables>
+mu : 10.0
+K : 1.0
+omega : 5.0
+Lambda : 5.0
+
+<functions>
+lambda2 : Lambda * (0.5 - 0.25 * sin(omega*time))
+lambda1 : Lambda * (0.5 + 0.25 * sin(omega*time))
+g : mu/(K + x1 + x2)
+
+<reactions>
+nothing lambda1 -> 1 x1 : formation of x1 (rate is lambda1)
+nothing lambda2 -> 1 x2 : formation of x2 (rate is lambda2)
+1 x1 0.01 -> nothing : dilution of x1 (rate is gamma)
+1 x2 0.01 -> nothing : dilution of x2 (rate is gamma)
+1 x1 g -> nothing : degradation of x1 (rate is g1)
+1 x2 g -> nothing : degradation of x1 (rate is g2)
+
+<species>
+x2 : 10
+x1 : 10
+

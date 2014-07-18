@@ -1,0 +1,94 @@
+
+###
+#5 types of crits for chemicallite:
+#lc.criterion_sim_time, 'time limit', 1000
+#lc.criterion_iteration, 'iteration limit', 1000
+#lc.criterion_capture_count, 'capture limit', 1000
+#criterion_spec_included_scalar_increment, 'species scalar increment', 10, spec
+#criterion_species_count, 'species count', 10000, spec
+
+<end_criteria>
+	time limit : 1000
+	#iteration limit : 1000
+	#capture limit : 1000
+	#species count : 1000 : x1
+	#species scalar increment : 10 : time
+
+<capture_criteria>
+	species scalar increment : 10 : time
+
+
+###
+#variables, functions, reactions, species pertain to the chemicallite module only
+
+<variables>
+	mu : 10.0
+	K : 1.0
+	Lambda : 5.0
+	omega : 5.0
+
+<functions>
+	g = mu/(K + x1 + x2)
+	lambda1 = Lambda * (0.5 + 0.25 * sin(omega*time))
+	lambda2 = Lambda * (0.5 - 0.25 * sin(omega*time))
+
+<reactions>
+	nothing lambda1 -> 1 x1 : formation of x1 (rate is lambda1)
+	nothing lambda2 -> 1 x2 : formation of x2 (rate is lambda2)
+
+	1 x1 0.01 -> nothing : dilution of x1 (rate is gamma)
+	1 x2 0.01 -> nothing : dilution of x2 (rate is gamma)
+
+	1 x1 g -> nothing : degradation of x1 (rate is g1)
+	1 x2 g -> nothing : degradation of x1 (rate is g2)
+
+<species>
+	x1 : 10
+	x2 : 10
+
+<plot_targets>
+	time
+	fixed_time
+	x1
+	x2
+
+###
+
+
+#8 types of post processes for chemicallite
+#standards statistics
+#counts to concentrations
+#correlation
+#slice from trajectory
+#reorganize data
+#one to one binary operation
+#probability
+#period finding
+<post_processes>
+	x2 stats : standard statistics : 0 : x2 of time : 10 : ordered
+	#counts to concentrations
+	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 10 : ordered
+	slices : slice from trajectory : 1 : all : -1
+	reorg : reorganize data : 2 : all
+	#one to one binary operation
+	#probability
+	#period finding
+
+<parameter_space>
+	<product_space> 1000
+		omega : 5-50;5
+		K : 0.5-1.5;0.1
+
+<multiprocessing>
+	workers : 16
+
+<output_plans>
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
+	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : standard_statistics_output : plt : all
+	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : correlation_output : plt : all
+	3 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : slices_output : plt : all
+	4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : reorg_output : plt : all
+
+
+
+

@@ -1,0 +1,38 @@
+
+<functions>
+	R : r
+	D : d
+
+<variables>
+	r : 5.0
+	d : 1.0
+
+<reactions>
+	nothing r -> 1 x : x formation
+	1 x d -> nothing : x annihilation
+
+<species>
+	x : 1
+
+<end_criteria>
+	time limit : 50
+
+<capture_criteria>
+	scalar increment : 0.5 : time
+
+<plot_targets>
+	time
+	x
+
+<post_processes>
+	std stats : standard statistics : 0 : x of time : 50 : ordered
+	fano factor : one to one binary operation : 1 : x variance / x mean of time
+
+<multiprocessing>
+	workers : 16
+
+<output_plans>
+	1 : C:\Users\bartl_000\Desktop\Work\Modular : std_stats_output : plt : all
+	2 : C:\Users\bartl_000\Desktop\Work\Modular : fano_output : plt : all
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+

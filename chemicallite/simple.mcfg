@@ -1,0 +1,11 @@
+
+<reactions>
+nothing 5.0 -> 1 protein1 : formation of protein1
+nothing 5.0 -> 1 protein2 : formation of protein2
+1 protein1 10.0 -> nothing : degradation of protein1
+1 protein2 10.0 -> nothing : degradation of protein2
+
+<species>
+protein1 : 0
+protein2 : 0
+

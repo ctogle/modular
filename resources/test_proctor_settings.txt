@@ -1,0 +1,6 @@
+
+<interface>
+interface_verbosity = 2
+
+<defaults>
+test_directory = C:\Users\bartl_000\Desktop\Work\Modular\libs\modules\chemicallite_support\tests

@@ -1,0 +1,117 @@
+
+<end_criteria>
+	time limit : 8000.0
+
+<capture_criteria>
+	species scalar increment : 50.0 : time
+
+<variables>
+	#km controls the pulse duration
+	#kp controls the pulse frequency.
+	#R scales kp relative to km.
+		km : 0.1
+		R : 0.05
+	#	kp : km*R
+
+	#constants
+	#alpha modifies production fairly
+	#g modifies degradation
+		alpha : 10.0
+		g : 10.0
+
+	#kappa1 kappa2 are affinities
+		K1 : 100000
+		K2 : 10
+
+	#gamma1 gamma2 are dilutions
+	#or the rate constant for q1, q2 to go to the "bad" reaction
+		gamma_q1 : 0.01
+		gamma_q2 : 0.01
+
+<functions>
+		m1_on : (1 - m1) * (km*R)
+		m1_off : m1 * km
+		m2_on : (1 - m2) * (km*R)
+		m2_off : m2 * km
+
+	#BRANCH computer the ratio of bad to good reactions for q2
+		BRANCH : q2_b/(q2_g + q2_b + (0.00001))
+
+		lambda_q1 : m1 * alpha
+		lambda_q2 : m2 * alpha
+
+	#degradation
+		g1 : (g * K1 * q1)/(1 + (K1 * q1) + (K2 * q2))
+		g2 : (g * K2 * q2)/(1 + (K1 * q1) + (K2 * q2))
+
+<reactions>
+	nothing m1_on -> 1 m1 : m1 is turned on
+	1 m1 m1_off -> nothing : m1 is turned off
+
+	nothing m2_on -> 1 m2 : m2 is turned on
+	1 m2 m2_off -> nothing : m2 is turned off
+
+	#	model 1 assumes uncorrelated noise for the pulsing
+	#	model 2 assumes perfectly correlated noise for the pulsing.
+	# model 1 - uncorrelated
+		nothing lambda_q1 -> 1 q1 : q1 production
+		nothing lambda_q2 -> 1 q2 : q2 production
+	# model 2 - correlated
+	#	nothing lambda_q1 -> 1 q1 : q1 production
+	#	nothing lambda_q1 -> 1 q2 : q2 production
+
+	#degradation path for q1 and q2
+		1 q1 g1 -> 1 q1_g : q1 degradation
+		1 q2 g2 -> 1 q2_g : q2 degradation
+		1 q1 gamma_q1 -> 1 q1_b : q1 dilution
+		1 q2 gamma_q2 -> 1 q2_b : q2 dilution
+
+<species>
+	#q1 is the count of the high priority job, and q2 is the count of the low priority job
+		q1 : 0
+		q2 : 0
+
+	#q2_g is the count of "good" reactions (members of q2 degraded by the protease), while q2_b keeps track of the "bad" reaction
+		q1_g : 0
+		q1_b : 0
+		q2_g : 0
+		q2_b : 0
+
+	#m1 and m2 are the "telegraph noise" variables
+		m1 : 0
+		m2 : 0
+
+<plot_targets>
+	time
+	BRANCH
+	#m1
+	#m2
+	q1
+	#q2
+	#q1_g
+	#q1_b
+	#q2_g
+	#q2_b
+
+<parameter_space>
+	<product_space> 2000
+		R : value : 0.01-0.1;0.01
+
+<post_processes>
+	q1 stats : standard statistics : 0 : q1 of time : 4 : ordered
+	branch stats : standard statistics : 0 : BRANCH of time : 4 : ordered
+	slices : slice from trajectory : 1 : all : -1
+	reorg : reorganize data : 2 : all
+
+<multiprocessing>
+	workers : 16
+
+<output_plans>
+	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : q1_mean_output : none : all
+	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : branch_mean_output2 : none : all
+	4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : reorg_output : plt : all
+	3 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : slices_output : none : all
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+
+
+

@@ -1,0 +1,25 @@
+
+<variables>
+mu : 10.0
+K : 1.0
+kappa1 : 1.0
+kappa2 : 1.0
+
+<functions>
+g1 = mu*kappa1/(K + kappa1*x1 + kappa2*x2)
+g2 = mu*kappa2/(K + kappa1*x1 + kappa2*x2)
+
+<reactions>
+nothing 5.0 -> 1 x1 : formation of x1 (rate is lambda1)
+nothing 5.0 -> 1 x2 : formation of x2 (rate is lambda2)
+
+1 x1 0.01 -> nothing : dilution of x1 (rate is gamma)
+1 x2 0.01 -> nothing : dilution of x2 (rate is gamma)
+
+1 x1 g1 -> nothing : degradation of x1 (rate is g1)
+1 x2 g2 -> nothing : degradation of x1 (rate is g2)
+
+<species>
+x1 : 10
+x2 : 10
+

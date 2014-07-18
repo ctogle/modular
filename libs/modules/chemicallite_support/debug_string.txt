@@ -1,0 +1,1 @@
+<species>x2:10,x1:10<variables>mu:10.0,gamma:0.01,K:0.000000000000001,lambda1:5,lambda2:5<functions>g=mu/(K + x1 + x2)<reactions>->lambda1->(1)x1,->lambda2->(1)x2,(1)x1->gamma->,(1)x2->gamma->,(1)x1->g->,(1)x2->g-><end>time>=800<capture>increment:time:20<targets>time,x2,x1||

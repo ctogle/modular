@@ -1,0 +1,17 @@
+
+<wrapper>
+	bindings
+
+<headers>
+	# src
+	src/reaction.h
+	src/sim_system.h
+	src/species.h
+
+
+<sources>
+	# src
+	src/reaction.cpp
+	src/sim_system.cpp
+	src/species.cpp
+

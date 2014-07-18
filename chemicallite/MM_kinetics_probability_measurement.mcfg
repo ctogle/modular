@@ -1,0 +1,43 @@
+
+<end_criteria>
+	time limit : 0.005
+
+<capture_criteria>
+	scalar increment : 0.00005 : time
+
+<reactions>
+	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
+	1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+	1 ES_Complex 800.0 -> 1 Enzyme + 1 Product : Product formation
+
+<species>
+	Enzyme : 5000
+	Substrate : 10000
+	ES_Complex : 0
+	Product : 100
+
+<plot_targets>
+	time
+	ES_Complex
+	Product
+	Substrate
+	Enzyme
+
+#<post_processes>
+	#means : meanfields : 0 : ES_Complex of time : 5 : ordered
+#	mm probability : probability : 0
+	#reorg : reorganize data : 1 : all
+
+<parameter_space>
+	<product_space> 100
+		Enzyme Substrate complex dissociation : rate : 0.01,0.1,1.0,10.0,100.0
+
+<multiprocessing>
+	workers : 16
+
+<output_plans>
+#	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : mm_prob_output : plt : all
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+
+
+

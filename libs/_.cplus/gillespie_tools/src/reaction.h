@@ -1,0 +1,9 @@
+
+class reaction
+{
+	public:
+		reaction ();
+};
+
+
+

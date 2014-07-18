@@ -1,0 +1,104 @@
+
+
+#	Correct Values :
+#		Enzyme Substrate complex formation : rate : 1.0
+#		Enzyme Substrate complex dissociation : rate : 0.01
+#		Product formation : rate : 800
+#		Enzyme : initial_count : 5000
+#		ES_Complex : initial_count : 0
+#		Substrate : initial_count : 10000
+#		Product : initial_count : 100
+
+
+<end_criteria>
+	time limit : 0.005
+
+<capture_criteria>
+	scalar increment : 0.00005 : time
+
+<reactions>
+	1 Enzyme + 1 Substrate 1 -> 1 ES_Complex : Enzyme Substrate complex formation
+	1 ES_Complex 1 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+	1 ES_Complex 1 -> 1 Enzyme + 1 Product : Product formation
+
+<species>
+	Enzyme : 1
+	Substrate : 1
+	ES_Complex : 1
+	Product : 1
+
+<plot_targets>
+	time
+	ES_Complex
+	Product
+	Enzyme
+	Substrate
+
+<parameter_space>
+	<fitting_space>
+		<axes>
+			Enzyme Substrate complex formation : rate : 0.00000000001-10000000000;10
+			Enzyme Substrate complex dissociation : rate : 0.00000000001-10000000000;10
+			Product formation : rate : 0.00000000001-10000000000;10
+			Enzyme : initial_count : 1-10000000000;10
+			Substrate : initial_count : 1-10000000000;10
+			Product : initial_count : 1-10000000000;10
+			ES_Complex : initial_count : 1-10000000000;10
+		#<constraints>
+		#	0 > 1
+		#	1 < 2
+		#	4 < 3
+
+<fit_routines>
+	sim-anneal-coarse_m1 : simulated annealing : coarse-magnitude
+	sim-anneal-coarse_m2 : simulated annealing : coarse-magnitude
+	sim-anneal-coarse_m3 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m4 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m5 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m6 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m7 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m8 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m9 : simulated annealing : coarse-magnitude
+	#sim-anneal-coarse_m10 : simulated annealing : coarse-magnitude
+
+	sim-anneal-coarse_d1 : simulated annealing : coarse-decimate
+	sim-anneal-coarse_d2 : simulated annealing : coarse-decimate
+	sim-anneal-coarse_d3 : simulated annealing : coarse-decimate
+	sim-anneal-coarse_d4 : simulated annealing : coarse-decimate
+	#sim-anneal-coarse_d5 : simulated annealing : coarse-decimate
+	#sim-anneal-coarse_d6 : simulated annealing : coarse-decimate
+	#sim-anneal-coarse_d7 : simulated annealing : coarse-decimate
+	#sim-anneal-coarse_d8 : simulated annealing : coarse-decimate
+
+	sim-anneal-fine : simulated annealing : fine
+
+<multiprocessing>
+	workers : 16
+
+<output_plans>
+	8 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_fine : none : all
+
+	#9 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d8 : none : all
+	#8 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d7 : none : all
+	#7 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d6 : none : all
+	#15 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d5 : none : all
+	7 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d4 : none : all
+	6 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
+	5 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d2 : none : all
+	4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d1 : none : all
+
+	#10 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m10 : none : all
+	#9 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m9 : none : all
+	#8 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m8 : none : all
+	#7 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m7 : none : all
+	#6 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m6 : none : all
+	#5 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m5 : none : all
+	#4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m4 : none : all
+	3 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m3 : none : all
+	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m2 : none : all
+	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_m1 : none : all
+
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
+
+
+
