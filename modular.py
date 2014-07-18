@@ -3,33 +3,6 @@ import os
 import sys
 import time
 
-class sys_pipe_mirror(object):
-
-	def __init__(self, std_out, terminal = None):
-		self.terminal = terminal
-		self._stdout = std_out
-		std_out = self
-		self.so_far = []
-		self._qt = None
-
-	def set_terminal(self, term, qt_ref):
-		self._qt = qt_ref
-		self.terminal = term
-		self.handle_output('\n'.join(self.so_far))
-
-	def write(self, text):
-		if self.terminal:
-			self.handle_output(text)
-
-		self.so_far.append(text)
-		self._stdout.write(self, text)
-		if len(self.so_far) > 100:
-			self.so_far = self.so_far[-100:]
-
-	def handle_output(self, text):
-		self.terminal.moveCursor(self._qt.QTextCursor.End)
-		self.terminal.insertPlainText(text)
-
 #pipe_mirror = sys_pipe_mirror(sys.stdout)
 import libs.modular_core.libfundamental as lfu
 #lfu.pipe_mirror = pipe_mirror
