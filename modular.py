@@ -3,6 +3,8 @@ import os
 import sys
 import time
 
+# Blah
+
 class sys_pipe_mirror(object):
 
 	def __init__(self, std_out, terminal = None):
