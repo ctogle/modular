@@ -4,11 +4,7 @@
 
 
 developer : dev : run modular developer
-dispatcher : mdp : run modular dispatcher
 daw_receiver : dr : run daw receiver program
 daw_transceiver : dt : run daw transceiver program
-imager : img : run program to generate input data for fitting
-world3d_simulator : w3d : interactive rigid body simulations using ODE and OpenGL
-gui_template_sandbox : gts : simple test space for gui templates
 plate_reader_analyzer : pda : parse and analyze plate reader data
 test_proctor : tpr : run test scripts on code
