@@ -669,8 +669,12 @@ class plot_page(QtGui.QWidget):
 
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 	message = QtCore.Signal(str)
-	toolitems = [t for t in NavigationToolbar2.toolitems 
-					if t[0] in ('Pan', 'Zoom', 'Save')]
+	if hasattr(NavigationToolbar2, 'toolitems'):
+		toolitems = [t for t in NavigationToolbar2.toolitems 
+						if t[0] in ('Pan', 'Zoom', 'Save')]
+	else: toolitems = []
+	#toolitems = [t for t in NavigationToolbar2.toolitems 
+	#				if t[0] in ('Pan', 'Zoom', 'Save')]
 	toolitems.append(('Labels', 
 		'Change the title and axes labels', 'gear', 'labels'))
 	toolitems.append(('Roll', 
