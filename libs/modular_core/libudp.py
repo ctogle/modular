@@ -9,9 +9,6 @@ import pdb
 default_udp_port = 9999
 default_buffer_size = 1024
 default_socket_ip = '127.0.0.1'
-#default_socket_ip = '128.173.154.64'
-#default_socket_ip = '172.31.8.219'
-#default_socket_ip = '198.82.196.43'
 
 class receiver(lfu.modular_object_qt):
 	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -56,7 +53,6 @@ class receiver(lfu.modular_object_qt):
 			self._received_.append(data)
 			if hasattr(self.parent, 'interpret_udp'):
 				self.parent.interpret_udp(data)
-
 			else: print 'receiver parent has no interpret_UDP method!'
 			#print 'received message:', data
 			time.sleep(0.5)
@@ -100,7 +96,6 @@ class transceiver(lfu.modular_object_qt):
 
 	def open_socket(self, *args, **kwargs):
 		message = args[0]
-		print 'dt msg', message
 		sock_message = (message, (self.socket_ip, self.socket_port))
 		self.sock.sendto(*sock_message)
 

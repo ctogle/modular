@@ -17,17 +17,30 @@ class sorter_script(lfu.modular_object_qt):
 	instruction_manager = lir.instruction_manager(delay = 0.5)
 	image_directory = os.path.join(
 		os.getcwd(), 'resources')
-	script = os.path.join(os.getcwd(), 
-		'get_total_project_lines.py')
+	script_directory = os.path.join(
+		os.getcwd(), 'libs', 'daw_transceiver', 'scripts')
+	#script = os.path.join(os.getcwd(), 
+	#	'get_total_project_lines.py')
+
+	def __init__(self, *args, **kwargs):
+		self.impose_default('scripts', [], **kwargs)
+		self.impose_default('active_scripts', {}, **kwargs)
+		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
 	def __call__(self, *args, **kwargs):
-		subp = subprocess.Popen([sys.executable, self.script], 
+		values = []
+		for scr in self.scripts:
+			if self.active_scripts[scr]:
+				sc = os.path.join(self.script_directory, scr)
+				subp = subprocess.Popen([sys.executable, sc], 
 									stdout=subprocess.PIPE)
-		value, err  = subp.communicate()
-		print 'script', self.script
-		print 'returned', value
-		#example: 'DECISION: ||', total, '||'
-		return value.split('||')[1]
+				value, err  = subp.communicate()
+				print 'script', scr
+				print 'returned', value
+				#example: 'DECISION: ||', total, '||'
+				values.append(value.split('||')[1])
+			else: print 'script', scr, 'is not active'
+		return values
 
 	def check_new_files(self):
 		return [fi for fi in os.listdir(self.image_directory) 
@@ -38,8 +51,8 @@ class sorter_script(lfu.modular_object_qt):
 			time.sleep(self.check_file_time_delay)
 			new_files = self.check_new_files()
 			if new_files:
-				new_result = self(new_files)
-				self.sort_results.append(new_result)
+				new_results = self(new_files)
+				self.sort_results.append(new_results)
 				self.processed_files.extend(new_files)
 
 	def on_begin_sorting(self, *args, **kwargs):
@@ -61,7 +74,7 @@ class sorter_script(lfu.modular_object_qt):
 		while not self.aborted:
 			if len(self.sort_results) > len(handled):
 				result = self.sort_results[-1]
-				self.handle_result(result, speak_func)
+				[self.handle_result(res, speak_func) for res in result]
 				handled.append(result)
 
 	def handle_result(self, result, speak):
@@ -119,15 +132,40 @@ class sorter_script(lfu.modular_object_qt):
 		try: print self.sort_results
 		except AttributeError: print 'gotta sort to get results!'
 
+	def get_scripts(self):
+		for f in os.listdir(self.script_directory):
+			self.scripts.append(f)
+			self.active_scripts[f] = True
+		self.rewidget(True)
+
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
+				widgets = ['check_set'], 
+				append_instead = [False], 
+				instances = [[self.active_scripts]], 
+				#rewidget = [[True]], 
+				keys = [self.active_scripts.keys()], 
+				labels = [self.active_scripts.keys()], 
+				box_labels = ['Active Scripts']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['directory_name_box'], 
+				keys = [['script_directory']], 
+				instances = [[self]], 
+				initials = [[self.script_directory, None, os.getcwd()]], 
+				labels = [['Choose Directory']], 
+				box_labels = ['Scripts Directory']))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
 				widgets = ['button_set'], 
-				labels = [['Begin Script Sorting', 'Abort Sorting', 
-						'Print Sort Results']], 
-				bindings = [[self.on_begin_sorting, self.on_abort, 
+				labels = [['Fetch Scripts', 'Begin Script Sorting', 
+							'Abort Sorting', 'Print Sort Results']], 
+				bindings = [[lgb.create_reset_widgets_wrapper(
+									window, self.get_scripts), 
+					self.on_begin_sorting, self.on_abort, 
 						self.on_output_sort_results]]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)

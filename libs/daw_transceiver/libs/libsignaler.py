@@ -165,7 +165,8 @@ class signaler(lfu.modular_object_qt):
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['button_set', 'text'], 
-				initials = [None, self.instr_path], 
+				layout = 'vertical', 
+				initials = [None, [self.instr_path]], 
 				instances = [None, [self]], 
 				keys = [None, ['instr_path']], 
 				labels = [['Begin Signaling', 'Abort Signaling', 

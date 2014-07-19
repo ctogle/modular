@@ -168,6 +168,36 @@ class motor_manager(lfu.modular_object_qt):
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
+		wrench_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'wrench_icon.png')
+		refresh_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'refresh.png')
+		center_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'center.png')
+		wrench_icon = lgb.create_icon(wrench_icon_path)
+		refresh_icon = lgb.create_icon(refresh_icon_path)
+		center_icon = lgb.create_icon(center_icon_path)
+		settings_ = lgb.create_action(parent = window, label = 'Settings', 
+					bindings = lgb.create_reset_widgets_wrapper(
+					window, self.change_settings), icon = wrench_icon, 
+					shortcut = 'Ctrl+Shift+S', statustip = 'Settings')
+		self.refresh_ = lgb.create_reset_widgets_function(window)
+		update_gui_ = lgb.create_action(parent = window, 
+			label = 'Refresh GUI', icon = refresh_icon, 
+			shortcut = 'Ctrl+G', bindings = self.refresh_, 
+			statustip = 'Refresh the GUI (Ctrl+G)')
+		center_ = lgb.create_action(parent = window, label = 'Center', 
+					bindings = [window.on_resize, window.on_center], 
+							icon = center_icon, shortcut = 'Ctrl+C', 
+										statustip = 'Center Window')
+		self.menu_templates.append(
+			lgm.interface_template_gui(
+				menu_labels = ['&File', '&File', '&File'], 
+				menu_actions = [settings_, center_, update_gui_]))
+		self.tool_templates.append(
+			lgm.interface_template_gui(
+				tool_labels = ['&Tools', '&Tools', '&Tools'], 
+				tool_actions = [settings_, center_, update_gui_]))
 		jog_widg_template = lgm.interface_template_gui(
 				layout = 'grid', 
 				widg_positions = [(0, 0), (1, 0), (0, 1), (2, 0)], 
@@ -253,19 +283,9 @@ class motor_manager(lfu.modular_object_qt):
 					motor_movement_widg_template]])
 		split_widg_template_right_top = lgm.interface_template_gui(
 				widgets = ['button_set'], 
-				labels = [['Attach Motor', 
-					'Change Settings', 'examine']], 
-					#'Start Receiver', 
-					#'Talk to Yourself', 'Talk To The Aether']], 
-				bindings = [[self.on_attach_motor, 
-					self.change_settings, self._examine_]], 
-				verbosities = [[0, 0, 0]])
-							#self.on_start_listening, 
-							#[self.on_start_listening, 
-							#self.on_start_speaking], 
-							#self.on_start_speaking]], 
-				#bind_events = [['clicked']], 'clicked', ['clicked', 
-				#							'clicked'], 'clicked']])
+				labels = [['Attach Motor']], 
+				bindings = [[self.on_attach_motor]], 
+				verbosities = [[0]])
 		split_widg_template_right_mid = self.udp_receiver.widg_templates
 		split_widg_template_right_bottom = lgm.interface_template_gui(
 				widgets = ['button_set'], 
