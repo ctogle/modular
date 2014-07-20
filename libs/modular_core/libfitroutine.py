@@ -402,6 +402,11 @@ class fit_routine(lfu.modular_object_qt):
 		self.finalize(*args, **kwargs)
 
 	def get_input_data(self, read = True):
+		if not os.path.exists(self.input_data_file):
+			dat_file = self.input_data_file.split(os.path.sep)[-1]
+			self.input_data_file = lfu.resolve_filepath(dat_file)
+		if not os.path.exists(self.input_data_file):
+			print 'input data file not found!'
 		data = lf.load_pkl_object(self.input_data_file)
 		self.input_data_targets = [dater.label for dater in data.data]
 		self.rewidget(True)
@@ -873,6 +878,8 @@ class fit_routine(lfu.modular_object_qt):
 			lines.append('\n')
 			location_to_lines(0, dex)
 
+		if not os.path.exists(self.output.save_directory):
+			self.output.save_directory = os.getcwd()
 		lf.output_lines(lines, self.output.save_directory, 
 			'fitting_key.txt', dont_ask = self.auto_overwrite_key)
 

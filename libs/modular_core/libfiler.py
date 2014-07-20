@@ -11,8 +11,14 @@ def save_pkl_object(obj, filename):
 	output.close()
 
 def load_pkl_object(filename):
-	pkl_file = open(filename, 'rb')
-	data = pickle.load(pkl_file)
+	try:
+		pkl_file = open(filename, 'rb')
+		data = pickle.load(pkl_file)
+	except:
+		try:
+			pkl_file = open(filename, 'r')
+			data = pickle.load(pkl_file)
+		except: pdb.set_trace()
 	pkl_file.close()
 	return data
 

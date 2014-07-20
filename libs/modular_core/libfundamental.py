@@ -948,6 +948,13 @@ def coerce_string_bool(string):
 	if string in true_strings: return True
 	elif string in false_strings: return False
 
+def resolve_filepath(filename):
+	for root, dirs, files in os.walk(os.getcwd()):
+		for name in files:
+			if name == filename:
+				found = os.path.abspath(os.path.join(root, name))
+	return found
+
 if __name__ == '__main__':
 	print 'this is a library!'
 

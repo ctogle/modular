@@ -1,0 +1,89 @@
+Fit Routine Fitting Key: 
+
+
+Best fit from metric : pointwise difference metric : 1347.06091597
+	Trajectory : 599
+		Enzyme Substrate complex formation : rate : 0.539480915942
+		Enzyme Substrate complex dissociation : rate : 0.426030689495
+		Product formation : rate : 534.512191063
+		Enzyme : initial_count : 3844.0
+		ES_Complex : initial_count : 68.0
+		Substrate : initial_count : 9173.0
+		Product : initial_count : 39.0
+
+
+Best fit from metric : pointwise difference metric : 10120.4943183
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 0.05
+		Enzyme Substrate complex dissociation : rate : 0.5
+		Product formation : rate : 2000.0
+		Enzyme : initial_count : 1000.0
+		ES_Complex : initial_count : 100.0
+		Substrate : initial_count : 1000.0
+		Product : initial_count : 1000.0
+
+
+Best fit from metric : slope metric : 1085933.41117
+	Trajectory : 596
+		Enzyme Substrate complex formation : rate : 0.545631013958
+		Enzyme Substrate complex dissociation : rate : 0.426030689495
+		Product formation : rate : 534.512191063
+		Enzyme : initial_count : 3844.0
+		ES_Complex : initial_count : 68.0
+		Substrate : initial_count : 9173.0
+		Product : initial_count : 39.0
+
+
+Best fit from metric : slope metric : 8158761.5105
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 0.05
+		Enzyme Substrate complex dissociation : rate : 0.5
+		Product formation : rate : 2000.0
+		Enzyme : initial_count : 1000.0
+		ES_Complex : initial_count : 100.0
+		Substrate : initial_count : 1000.0
+		Product : initial_count : 1000.0
+
+
+Best fit from metric : 2nd derivative metric : 2065608320.65
+	Trajectory : 185
+		Enzyme Substrate complex formation : rate : 0.889711041679
+		Enzyme Substrate complex dissociation : rate : 0.594421298263
+		Product formation : rate : 364.196610198
+		Enzyme : initial_count : 8743.0
+		ES_Complex : initial_count : 69.0
+		Substrate : initial_count : 6223.0
+		Product : initial_count : 175.0
+
+
+Best fit from metric : 2nd derivative metric : 9083275059.63
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 0.05
+		Enzyme Substrate complex dissociation : rate : 0.5
+		Product formation : rate : 2000.0
+		Enzyme : initial_count : 1000.0
+		ES_Complex : initial_count : 100.0
+		Substrate : initial_count : 1000.0
+		Product : initial_count : 1000.0
+
+
+Best fit from metric : 3rd derivative metric : 6.08107930808e+12
+	Trajectory : 595
+		Enzyme Substrate complex formation : rate : 0.580205898452
+		Enzyme Substrate complex dissociation : rate : 0.426030689495
+		Product formation : rate : 534.512191063
+		Enzyme : initial_count : 3844.0
+		ES_Complex : initial_count : 68.0
+		Substrate : initial_count : 9173.0
+		Product : initial_count : 39.0
+
+
+Best fit from metric : 3rd derivative metric : 4.36066986883e+13
+	Trajectory : 1
+		Enzyme Substrate complex formation : rate : 0.05
+		Enzyme Substrate complex dissociation : rate : 0.5
+		Product formation : rate : 2000.0
+		Enzyme : initial_count : 1000.0
+		ES_Complex : initial_count : 100.0
+		Substrate : initial_count : 1000.0
+		Product : initial_count : 1000.0
