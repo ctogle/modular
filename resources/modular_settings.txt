@@ -7,24 +7,24 @@ profile = False
 use_smart_pool = True
 auto_clear_data_pools = True
 
+<ensemble defaults>
+mapparameterspace = True
+trajectory_count = 100
+fitting = True
+postprocessing = True
+fitting_aware = True
+
+<interface>
+multithread_gui = True
+debug_verbosity = 2
+interface_verbosity = 2
+
 <multiprocessing defaults>
 worker_processes = 8
 multiprocessing = True
 
-<interface>
-multithread_gui = True
-interface_verbosity = 2
-debug_verbosity = 2
-
-<ensemble defaults>
-mapparameterspace = True
-trajectory_count = 100
-fitting = False
-fitting_aware = True
-postprocessing = True
-
 <output defaults>
-output_txt = False
 output_plt = True
+output_txt = False
 output_vtk = False
 output_pkl = False

@@ -197,7 +197,7 @@ def parse_fitting_line(*args):
 	parser = args[2]
 	procs = args[3]
 	routs = args[4]
-	split = [item.strip() for item in data.split(':')]
+	split = [item.strip() for item in data.split(' : ')]
 	for fit_type in valid_fit_routine_base_classes:
 		if split: name = split[0]
 		if len(split) > 1:
@@ -205,8 +205,23 @@ def parse_fitting_line(*args):
 				rout = fit_type._class(label = name, 
 					parent = ensem.fitting_plan)
 				routs.append(rout)
-
 			if len(split) > 2: rout.regime = split[2].strip()
+			if len(split) > 3:
+				input_data_path = split[3].strip()
+				rout.input_data_file = input_data_path
+				try: rout.get_input_data()
+				except: traceback.print_exc(file=sys.stdout)
+			if len(split) > 4:
+				alias = split[4]
+				l = alias.find('{') + 1
+				r = alias.rfind('}')
+				sub_alias = alias[l:r].split(',')
+				aliases = {}
+				for alias in sub_alias:
+					spl = alias.split(':')
+					al, ias = spl[0], spl[1]
+					aliases[al] = ias
+				rout.input_data_aliases = aliases
 
 	ensem.fitting_plan.add_routine(new = rout)
 	rout.set_settables(0, ensem)

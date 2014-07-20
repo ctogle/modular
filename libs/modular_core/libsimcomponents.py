@@ -1022,6 +1022,8 @@ class ensemble_manager(lfu.modular_object_qt):
 
 class simulation_plan(lfu.plan):
 
+	_always_targetable_ = ['iteration', 'time']
+
 	def __init__(self, label = 'simulation plan', parent = None):
 		self.end_criteria = []
 		self.selected_end_crit = None
@@ -1134,11 +1136,10 @@ class simulation_plan(lfu.plan):
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
 		self.handle_widget_inheritance(*args, **kwargs)
-		if self.plot_targets: plot_target_labels = self.plot_targets
-		else:
-			plot_target_labels = ['iteration', 'time', 
-				'total population', 'vertex counts']
-
+		#if self.plot_targets: plot_target_labels = self.plot_targets
+		#else:
+		#	plot_target_labels = ['iteration', 'time', 
+		#		'total population', 'vertex counts']
 		try: self.selected_end_crit_label = self.selected_end_crit.label
 		except AttributeError: self.selected_end_crit_label = None
 		try: self.selected_capt_crit_label = self.selected_capt_crit.label
@@ -1179,7 +1180,10 @@ class simulation_plan(lfu.plan):
 								window, self.add_capture_criteria), 
 					lgb.create_reset_widgets_wrapper(window, 
 						self.remove_capture_criteria)]]))
-		self.verify_plot_targets(plot_target_labels)
+		#pdb.set_trace()
+		#self.verify_plot_targets(plot_target_labels)
+		#pdb.set_trace()
+		#self.plot_targets = parent.run_params['plot_targets']
 		targets_template =\
 			[lgm.interface_template_gui(
 				widgets = ['check_set'], 
@@ -1188,7 +1192,9 @@ class simulation_plan(lfu.plan):
 				provide_master = [True], 
 				instances = [[self.parent.run_params]], 
 				keys = [['plot_targets']], 
-				labels = [plot_target_labels])]
+				#labels = [plot_target_labels])]
+				#labels = [self.parent.run_params['plot_targets']])]
+				labels = [self.plot_targets])]
 		self.widg_templates_plot_targets.append(
 			lgm.interface_template_gui(
 				widgets = ['panel'], 

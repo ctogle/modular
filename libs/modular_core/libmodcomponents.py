@@ -237,7 +237,9 @@ def parse_mcfg(lines, *args):
 
 	if plot_flag:
 		params['plot_targets'] = targs[:]
-		#ensem.simulation_plan.plot_targets = targs[:]
+		const_targs = ensem.simulation_plan._always_targetable_
+		all_targets = list(set(targs) | set(const_targs))
+		ensem.simulation_plan.plot_targets = all_targets
 		targetables = []
 		for param in module_support[0]:
 			group = params[param]
