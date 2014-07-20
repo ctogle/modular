@@ -23,9 +23,9 @@
 	Substrate
 	Enzyme
 
-#<post_processes>
-	#means : meanfields : 0 : ES_Complex of time : 5 : ordered
-#	mm probability : probability : 0
+<post_processes>
+	means : meanfields : 0 : ES_Complex of time : 5 : ordered
+	#mm probability : probability : 0
 	#reorg : reorganize data : 1 : all
 
 <parameter_space>
@@ -36,7 +36,7 @@
 	workers : 16
 
 <output_plans>
-#	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : mm_prob_output : plt : all
+	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : mm_prob_output : plt : all
 	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
 
 

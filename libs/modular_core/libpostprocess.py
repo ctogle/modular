@@ -1836,9 +1836,9 @@ valid_postproc_base_classes = [
 							lfu.interface_template_class(
 						post_process_standard_statistics, 
 									'standard statistics'), 
-							lfu.interface_template_class(
-						post_process_counts_to_concentrations, 
-								'counts to concentrations'), 
+						#	lfu.interface_template_class(
+						#post_process_counts_to_concentrations, 
+						#		'counts to concentrations'), 
 							lfu.interface_template_class(
 						post_process_correlation_values, 
 								'correlation'), 
@@ -1851,9 +1851,9 @@ valid_postproc_base_classes = [
 							lfu.interface_template_class(
 						post_process_1_to_1_binary_operation, 
 								'one to one binary operation'), 
-							lfu.interface_template_class(
-						post_process_measure_probability, 
-										'probability'), 
+						#	lfu.interface_template_class(
+						#post_process_measure_probability, 
+						#				'probability'), 
 							lfu.interface_template_class(
 						post_process_period_finding, 
 									'period finding')]
