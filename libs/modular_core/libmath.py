@@ -250,17 +250,12 @@ def deriv_first_differences(*args, **kwargs):
 								for weight, k in zip(dom_weights, 
 								range(bounds[0], bounds[1] -1))]
 
+########################################################################
+#	returns a pointwise calculation of a weighted difference in second derivatives between two codomains
+#	args : (domain weights, y_data to fit to, the run data post interpolation, domain bounds for the calculation, domain used)
+#	intended use is by fitting routines
+########################################################################
 def deriv_second_differences(*args, **kwargs):
-
-	def calc_2nd_deriv(x, y, dex):
-		del_x_avg = (x[dex + 1] - x[dex - 1])/2.0
-		#try:
-		val = (y[dex + 1] - (2*y[dex]) + y[dex - 1])\
-							/((x[dex] - del_x_avg)**2)
-
-		#except FloatingPointError: val = None
-		return val
-
 	dom_weights = args[0]
 	to_fit_to_y = args[1]
 	runinterped = args[2]
@@ -269,13 +264,21 @@ def deriv_second_differences(*args, **kwargs):
 	runinterped_slope = [
 		calc_2nd_deriv(to_fit_to_x, runinterped, k) 
 			for k in range(1, len(to_fit_to_x) -1)]
-	for val in [(x, y) for x, y in zip(to_fit_to_x, to_fit_to_y)]: print val
 	to_fit_to_y_slope = [
 		calc_2nd_deriv(to_fit_to_x, to_fit_to_y, k) 
 			for k in range(1, len(to_fit_to_x) -1)]
 	return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
 						for weight, k in zip(dom_weights, range(
 								bounds[0] + 1, bounds[1] - 2))]
+
+########################################################################
+#	return the second derivative at a point located at x[dex]
+#	assumes the index 'dex' will not be too high or low for calculation
+########################################################################
+def calc_2nd_deriv(x, y, dex):
+	del_x_avg = (x[dex + 1] - x[dex - 1])/2.0
+	val = (y[dex + 1] - (2*y[dex]) + y[dex - 1])/((del_x_avg)**2)
+	return val
 
 def deriv_third_differences(*args, **kwargs):
 

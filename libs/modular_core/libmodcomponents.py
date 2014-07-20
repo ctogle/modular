@@ -124,13 +124,14 @@ universal_support = [['end_criteria',
 					'output_plans', 
 					'parameter_space', 
 					'plot_targets', 
-					'multiprocessing'], 
+					'multiprocessing', 
+					'ensemble'], 
 					[lc.parse_criterion_line, 
 					lc.parse_criterion_line, 
 					lpp.parse_postproc_line, 
 					lfr.parse_fitting_line, 
 					lo.parse_output_plan_line, 
-					None, None, None]]
+					None, None, None, None]]
 
 def parse_mcfg(lines, *args):
 	params = args[0]
@@ -190,6 +191,8 @@ def parse_mcfg(lines, *args):
 						lgeo.parse_p_space(p_sub_sps[0], ensem)
 						p_space_parsed_flag = True
 
+			elif parser == 'ensemble': pass
+
 		else:
 			if parser == 'plot_targets': targs.append(li)
 
@@ -216,6 +219,24 @@ def parse_mcfg(lines, *args):
 						w_count = int(spl[1])
 						ensem.multiprocess_plan.worker_count = w_count
 
+			elif parser == 'ensemble':
+				spl = [l.strip() for l in li.split(':')]
+				if spl[0].startswith('multiprocessing'):
+					ensem.multiprocess_plan.use_plan =\
+						lfu.coerce_string_bool(spl[1])
+				elif spl[0].startswith('mapparameterspace'):
+					ensem.cartographer_plan.use_plan =\
+						lfu.coerce_string_bool(spl[1])
+				elif spl[0].startswith('fitting'):
+					ensem.fitting_plan.use_plan =\
+						lfu.coerce_string_bool(spl[1])
+				elif spl[0].startswith('postprocessing'):
+					ensem.postprocess_plan.use_plan =\
+						lfu.coerce_string_bool(spl[1])
+				elif spl[0].startswith('trajectory_count'):
+					ensem.num_trajectories = int(spl[1])
+				ensem.rewidget(True)
+
 			elif parser in parsers.keys():
 				new = parsers[parser](li, ensem, parser, procs, routs)
 				if not new is None:
@@ -237,9 +258,9 @@ def parse_mcfg(lines, *args):
 
 	if plot_flag:
 		params['plot_targets'] = targs[:]
-		const_targs = ensem.simulation_plan._always_targetable_
-		all_targets = list(set(targs) | set(const_targs))
-		ensem.simulation_plan.plot_targets = all_targets
+		#const_targs = ensem.simulation_plan._always_targetable_
+		#all_targets = list(set(targs) | set(const_targs))
+		#ensem.simulation_plan.plot_targets = all_targets
 		targetables = []
 		for param in module_support[0]:
 			group = params[param]

@@ -942,6 +942,12 @@ class unique_pool_item(modular_object_qt):
 				print base
 				pdb.set_trace()
 
+def coerce_string_bool(string):
+	true_strings = ['true', 'True', 'On', 'on']
+	false_strings = ['false', 'False', 'Off', 'off']
+	if string in true_strings: return True
+	elif string in false_strings: return False
+
 if __name__ == '__main__':
 	print 'this is a library!'
 

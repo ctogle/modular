@@ -52,12 +52,6 @@
 		#	4 > 3
 
 <fit_routines>
-	#sim-anneal-coarse_d1 : simulated annealing : coarse-decimate
-	#sim-anneal-coarse_d2 : simulated annealing : coarse-decimate
-	#sim-anneal-coarse_d3 : simulated annealing : coarse-decimate
-	#sim-anneal-coarse_d4 : simulated annealing : coarse-decimate
-	#sim-anneal-coarse_d5 : simulated annealing : coarse-decimate
-
 	sim-anneal-fine : simulated annealing : fine : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output\mm_fit_input.0.pkl : aliases{time:time,ES_Complex mean:ES_Complex,Product mean:Product,Substrate mean:Substrate,Enzyme mean:Enzyme}
 
 <multiprocessing>
@@ -65,14 +59,14 @@
 
 <output_plans>
 	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_fine : none : all
-
-	#6 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d5 : none : all
-	#5 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d4 : none : all
-	#4 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d3 : none : all
-	#2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d2 : none : all
-	#1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_coarse_d1 : none : all
-
 	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
+
+<ensemble>
+	multiprocessing : off
+	mapparameterspace : off
+	fitting : on
+	postprocessing : off
+	trajectory_count : 100
 
 #	Correct Values :
 #		Enzyme Substrate complex formation : rate : 1.0

@@ -421,14 +421,13 @@ class fit_routine(lfu.modular_object_qt):
 
 		#print 'alias!', self.input_data_aliases
 		else:
-			if not self.input_data_aliases.keys():
-				#THIS IS A HACK!!!
-				self.input_data_aliases = {'time':'time', 
-					'ES_Complex mean':'ES_Complex', 
-					'Product mean':'Product', 
-					'Enzyme mean':'Enzyme', 
-					'Substrate mean':'Substrate'}
-
+			#if not self.input_data_aliases.keys():
+			#	#THIS IS A HACK!!!
+			#	self.input_data_aliases = {'time':'time', 
+			#		'ES_Complex mean':'ES_Complex', 
+			#		'Product mean':'Product', 
+			#		'Enzyme mean':'Enzyme', 
+			#		'Substrate mean':'Substrate'}
 			for dater in data.data:
 				dater.label = self.input_data_aliases[dater.label]
 
@@ -764,6 +763,7 @@ class fit_routine(lfu.modular_object_qt):
 		self.ensemble.data_pool.pool_names =\
 			[dat.label for dat in best_data]
 		self.ensemble.data_pool.batch_pool.append(best_data)
+		self.ensemble.data_pool.override_targets = True
 		if self.regime.startswith('coarse'):
 			self.impose_coarse_result_to_p_space()
 			self.ensemble.cartographer_plan.parameter_space.\
@@ -877,6 +877,7 @@ class fit_routine(lfu.modular_object_qt):
 			'fitting_key.txt', dont_ask = self.auto_overwrite_key)
 
 	def set_settables(self, *args, **kwargs):
+		window = args[0]
 		ensem = args[1]
 		if self.brand_new:
 			self.brand_new = not self.brand_new
@@ -901,11 +902,14 @@ class fit_routine(lfu.modular_object_qt):
 				lgm.interface_template_gui(
 					widgets = ['text'], 
 					instances = [[self.input_data_aliases]], 
-					keys = [[self.input_data_codomains[k]]], 
+					#keys = [[self.input_data_codomains[k]]], 
+					keys = [[self.input_data_targets[k]]], 
 					initials = [[self.input_data_aliases[
-							self.input_data_codomains[k]]]], 
+							#self.input_data_codomains[k]]]], 
+							self.input_data_targets[k]]]], 
 					inst_is_dict = [(True, self)])) for k in 
-						range(len(self.input_data_codomains))]
+						#range(len(self.input_data_codomains))]
+						range(len(self.input_data_targets))]
 
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -938,7 +942,8 @@ class fit_routine(lfu.modular_object_qt):
 				instances = [None, [self]], 
 				keys = [None, ['input_data_file']], 
 				labels = [['Read Data'], ['Choose Input File']], 
-				bindings = [[self.get_input_data], None], 
+				bindings = [[lgb.create_reset_widgets_wrapper(
+						window, self.get_input_data)], None], 
 				panel_label = 'Input Data'))
 		self.widg_templates.append(
 			lgm.interface_template_gui(

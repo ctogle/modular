@@ -51,6 +51,7 @@ class batch_scalars(object):
 	def __init__(self, targets, label = 'batch of scalars'):
 		self.batch_pool = []
 		self.pool_names = targets
+		self.override_targets = False
 		self.current = 0
 
 	def __iter__(self):
@@ -99,6 +100,7 @@ class batch_data_pool(object):
 	def __init__(self, *args, **kwargs):
 		self.targets = args[0]
 		self.trajectory = args[1].trajectory
+		self.override_targets = None
 
 		self._id = time.time()
 		self.data_pool_ids = ['.'.join(['batch_child', 

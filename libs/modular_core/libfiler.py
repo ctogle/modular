@@ -27,8 +27,8 @@ def output_lines(lines, direc, finame = None,
 			return False
 
 		else:
-			#if dont_ask: check = lambda: True
-			if dont_ask: True
+			if dont_ask: check = lambda: True
+			#if dont_ask: True
 			else:
 				msg = '\n'.join(['Are you sure you want', 
 					'to overwrite the module?:', path])

@@ -317,7 +317,11 @@ class ensemble(lfu.modular_object_qt):
 		check_0 = time.time()
 		#self.output_plan.flat_data = False
 		pool = self.load_data_pool()
-		data_ = lfu.data_container(data = pool.data)
+		if pool.data.override_targets:
+			override_targets = pool.data.pool_names
+		else: override_targets = None
+		data_ = lfu.data_container(data = pool.data, 
+				override_targets = override_targets)
 		if self.output_plan.must_output(): self.output_plan(data_)
 		if not pool.postproc_data is None:
 			processes = self.postprocess_plan.post_processes
@@ -1126,20 +1130,23 @@ class simulation_plan(lfu.plan):
 	def verify_plot_targets(self, targs):
 		targets = self.parent.run_params['plot_targets']
 		targets = [targ for targ in targets if targ in targs]
-		if not self.parent.run_params['plot_targets'] == targets:
-			self.parent.run_params['plot_targets'] = targets
-			self.parent.run_params.partition['system'][
-							'plot_targets'] = targets
-			self.parent.run_params['output_plans'][
-						'Simulation'].rewidget(True)
+		self.parent.run_params['plot_targets'] = targets
+		self.parent.run_params.partition['system'][
+						'plot_targets'] = targets
+		self.parent.run_params['output_plans'][
+					'Simulation'].rewidget(True)
 
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
+		ensem = args[1]
 		self.handle_widget_inheritance(*args, **kwargs)
-		#if self.plot_targets: plot_target_labels = self.plot_targets
-		#else:
-		#	plot_target_labels = ['iteration', 'time', 
-		#		'total population', 'vertex counts']
+		const_targs = self._always_targetable_
+		targs = ensem.run_params['plot_targets']
+		self.plot_targets = ensem.run_params['plot_targets']
+		#all_targets = list(set(targs) | set(const_targs))
+		all_targets = lfu.uniqfy(const_targs + targs)
+		plot_target_labels = all_targets
+		self.verify_plot_targets(plot_target_labels)
 		try: self.selected_end_crit_label = self.selected_end_crit.label
 		except AttributeError: self.selected_end_crit_label = None
 		try: self.selected_capt_crit_label = self.selected_capt_crit.label
@@ -1180,10 +1187,6 @@ class simulation_plan(lfu.plan):
 								window, self.add_capture_criteria), 
 					lgb.create_reset_widgets_wrapper(window, 
 						self.remove_capture_criteria)]]))
-		#pdb.set_trace()
-		#self.verify_plot_targets(plot_target_labels)
-		#pdb.set_trace()
-		#self.plot_targets = parent.run_params['plot_targets']
 		targets_template =\
 			[lgm.interface_template_gui(
 				widgets = ['check_set'], 
@@ -1192,9 +1195,8 @@ class simulation_plan(lfu.plan):
 				provide_master = [True], 
 				instances = [[self.parent.run_params]], 
 				keys = [['plot_targets']], 
-				#labels = [plot_target_labels])]
-				#labels = [self.parent.run_params['plot_targets']])]
-				labels = [self.plot_targets])]
+				labels = [plot_target_labels])]
+				#labels = [self.plot_targets])]
 		self.widg_templates_plot_targets.append(
 			lgm.interface_template_gui(
 				widgets = ['panel'], 

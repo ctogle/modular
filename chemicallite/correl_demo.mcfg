@@ -52,3 +52,12 @@
 	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : slices_output : none : all
 	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
 
+<ensemble>
+	multiprocessing : on
+	mapparameterspace : on
+	fitting : off
+	postprocessing : on
+	trajectory_count : 100
+
+
+

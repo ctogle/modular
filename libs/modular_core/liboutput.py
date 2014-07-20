@@ -355,17 +355,15 @@ class output_plan(lfu.plan):
 							self.default_targets_txt, 
 							self.default_targets_plt]
 		for dex, _bool in enumerate(output_type_bool):
-			if _bool:
-				propers.append(self.targeted)
-
-			else:
-				propers.append(self.outputs[dex])
-
+			if _bool: propers.append(self.targeted)
+			else: propers.append(self.outputs[dex])
 		return propers
 
 	def enact_plan(self, *args):
 		system = args[0]
-		proper_targets = self.find_proper_targets()
+		if hasattr(system, 'override_targets'):
+			proper_targets = [system.override_targets]*4
+		else: proper_targets = self.find_proper_targets()
 		to_be_outted = []
 		if not self.flat_data:	#if the list of data objects is not flat (system.data is the list)
 			#self.to_be_outted has a 3rd element pointing to system within non-flat pool
