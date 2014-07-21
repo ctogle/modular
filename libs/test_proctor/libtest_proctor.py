@@ -24,6 +24,7 @@ class test_proctor(lfu.modular_object_qt):
 		#def_test_dir = os.path.join(os.getcwd(), 
 		#		'libs', 'modules', 'chemicallite_support', 'tests')
 		def_test_dir = lset.get_setting('test_directory')
+		def_test_dir = os.path.join(os.getcwd(), def_test_dir)
 		self.impose_default('test_dir', def_test_dir, **kwargs)
 		self.impose_default('_tests_results_', {}, **kwargs)
 		self.impose_default('_active_tests_', {}, **kwargs)
@@ -58,18 +59,52 @@ class test_proctor(lfu.modular_object_qt):
 
 	def run_tests(self):
 		libtests = self._tests_
+		print '-'*50
 		for t in libtests.keys():
 			if self._active_tests_[t]:
-				test = libtests[t]
-				test_result = test()
+				test, args = libtests[t]
+				test_result = test(*args)
 				self._tests_results_[t] = test_result
-				print 'test', t, ':', test_result
-			else: print 'test', t, 'is not active'
+				print 'test', ':', t, ':', test_result
+			else:
+				self._tests_results_[t] = None
+				print 'test', ':', t, 'is not active'
+		print '-'*50
 		self.rewidget(True)
 
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
 		self.handle_widget_inheritance(*args, from_sub = False)
+		wrench_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'wrench_icon.png')
+		refresh_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'refresh.png')
+		center_icon_path = os.path.join(
+			os.getcwd(), 'resources', 'center.png')
+		wrench_icon = lgb.create_icon(wrench_icon_path)
+		refresh_icon = lgb.create_icon(refresh_icon_path)
+		center_icon = lgb.create_icon(center_icon_path)
+		settings_ = lgb.create_action(parent = window, label = 'Settings', 
+					bindings = lgb.create_reset_widgets_wrapper(
+					window, self.change_settings), icon = wrench_icon, 
+					shortcut = 'Ctrl+Shift+S', statustip = 'Settings')
+		self.refresh_ = lgb.create_reset_widgets_function(window)
+		update_gui_ = lgb.create_action(parent = window, 
+			label = 'Refresh GUI', icon = refresh_icon, 
+			shortcut = 'Ctrl+G', bindings = self.refresh_, 
+			statustip = 'Refresh the GUI (Ctrl+G)')
+		center_ = lgb.create_action(parent = window, label = 'Center', 
+					bindings = [window.on_resize, window.on_center], 
+							icon = center_icon, shortcut = 'Ctrl+C', 
+										statustip = 'Center Window')
+		self.menu_templates.append(
+			lgm.interface_template_gui(
+				menu_labels = ['&File', '&File', '&File'], 
+				menu_actions = [settings_, center_, update_gui_]))
+		self.tool_templates.append(
+			lgm.interface_template_gui(
+				tool_labels = ['&Tools', '&Tools', '&Tools'], 
+				tool_actions = [settings_, center_, update_gui_]))
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['directory_name_box'], 
@@ -88,26 +123,27 @@ class test_proctor(lfu.modular_object_qt):
 							self.change_settings]], 
 				labels = [['Fetch Tests', 'Run Tests', 
 								'Change Settings']]))
+		t_count = len(self._tests_results_.keys())
 		panel_widg_templates = []
 		panel_widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (0, 0), 
 				widgets = ['check_set'], 
 				append_instead = [False], 
-				instances = [[self._active_tests_]], 
+				instances = [[self._active_tests_]*t_count], 
 				#rewidget = [[True]], 
+				inst_is_dict = [[True, self]*t_count], 
 				keys = [self._active_tests_.keys()], 
 				labels = [self._active_tests_.keys()], 
 				box_labels = ['Active Tests']))
-		t_count = len(self._tests_results_.keys())
 		panel_widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (0, 1), 
 				widgets = ['text']*t_count, 
-				instances = [[self._tests_results_]*t_count], 
-				inst_is_dict = [[True, self]], 
-				keys = [self._tests_results_.keys()], 
-				box_labels = ['Test Results']))
+				instances = [[self._tests_results_]]*t_count, 
+				inst_is_dict = [[True, self]]*t_count, 
+				keys = [[x] for x in self._tests_results_.keys()], 
+				panel_label = 'Test Results'))
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['panel'], 

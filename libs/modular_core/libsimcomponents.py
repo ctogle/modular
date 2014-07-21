@@ -686,6 +686,7 @@ class ensemble_manager(lfu.modular_object_qt):
 				os.remove(os.path.join(os.getcwd(), pool))
 			except OSError, e:
 				print ("Error: %s - %s." % (e.filename, e.strerror))
+				pdb.set_trace()
 
 	def change_settings(self):
 		self.settings_manager.display()

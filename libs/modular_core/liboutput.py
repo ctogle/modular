@@ -346,6 +346,21 @@ class output_plan(lfu.plan):
 							self.directories[_id + ' directory'],
 							self.filenames[_id + ' filename'], '.' + _id)
 
+		for _id, prop in propers.items():
+			if not os.path.exists(prop):
+				prope = None
+				pa_dex = -2
+				out = False
+				fil = prop.split(os.path.sep)[-1]
+				while prope is None and not out:
+					try:
+						dat_file = prop.split(os.path.sep)[pa_dex]
+						prope = lfu.resolve_filepath(
+								dat_file, isdir = True)
+					except IndexError: out = True
+					pa_dex -= 1
+				propers[_id] = os.path.join(prope, fil)
+
 		return propers
 
 	def find_proper_targets(self):
@@ -362,7 +377,9 @@ class output_plan(lfu.plan):
 	def enact_plan(self, *args):
 		system = args[0]
 		if hasattr(system, 'override_targets'):
-			proper_targets = [system.override_targets]*4
+			if system.override_targets:
+				proper_targets = [system.override_targets]*4
+			else: proper_targets = self.find_proper_targets()
 		else: proper_targets = self.find_proper_targets()
 		to_be_outted = []
 		if not self.flat_data:	#if the list of data objects is not flat (system.data is the list)

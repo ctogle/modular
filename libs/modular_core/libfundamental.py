@@ -1,3 +1,6 @@
+
+__doc__ = """fundamental functions/classes for modular"""
+
 import re
 import sys
 pipe_mirror = None
@@ -118,6 +121,7 @@ class interface_template_new_style(object):
 		del self
 
 class interface_template_class(interface_template_new_style):
+	__doc__ = """carries information about the class of an object"""
 
 	def __init__(self, base_class, base_tag = None, 
 				visible_attributes = ['base_tag']):
@@ -126,10 +130,12 @@ class interface_template_class(interface_template_new_style):
 						visible_attributes = visible_attributes)
 
 	def set_base_class(self, new_class, even_if = False):
+		__doc__ = """resets the _class attribute"""
 		if self._class is object or even_if:
 			self._class = new_class
 
 class modular_object_qt(object):
+	__doc__ = """fundamental class used in modular"""
 	rewidget_ = True
 	#_p_sp_bounds_ = []
 	_children_ = []
@@ -948,12 +954,22 @@ def coerce_string_bool(string):
 	if string in true_strings: return True
 	elif string in false_strings: return False
 
-def resolve_filepath(filename):
-	for root, dirs, files in os.walk(os.getcwd()):
+def resolve_filepath(filename, isdir = False):
+	def dir_check(root, dirs, files):
+		for dir_ in dirs:
+			if dir_ == filename:
+				found = os.path.abspath(os.path.join(root, dir_))
+				return found
+	def fil_check(root, dirs, files):
 		for name in files:
 			if name == filename:
 				found = os.path.abspath(os.path.join(root, name))
-	return found
+				return found
+	if isdir: check = dir_check
+	else: check = fil_check
+	for root, dirs, files in os.walk(os.getcwd()):
+		found = check(root, dirs, files)
+		if found: return found
 
 if __name__ == '__main__':
 	print 'this is a library!'

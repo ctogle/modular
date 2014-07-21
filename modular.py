@@ -1,17 +1,8 @@
 #!/usr/bin/env python
-import os
-import sys
-import time
+import os, sys, time, pstats, cProfile, argparse
 
-#pipe_mirror = sys_pipe_mirror(sys.stdout)
 import libs.modular_core.libfundamental as lfu
-#lfu.pipe_mirror = pipe_mirror
-
 import libs.gui.libqtgui as lqg
-
-import pstats, cProfile
-
-import argparse
 
 import pdb
 

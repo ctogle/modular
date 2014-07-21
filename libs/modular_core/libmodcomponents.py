@@ -267,7 +267,6 @@ def parse_mcfg(lines, *args):
 			if type(group) is types.ListType: targetables.extend(group)
 			elif type(group) is types.DictionaryType:
 				targetables.extend(group.values())
-
 			else: targetables.append(group)
 
 		for targable in targetables:
