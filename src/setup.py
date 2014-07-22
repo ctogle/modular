@@ -23,6 +23,7 @@ core_modules = [
 	'modular_core.libpostprocess', 
 	'modular_core.liboutput', 
 	'modular_core.libmath', 
+
 	'modular_core.gui.libqtgui', 
 	'modular_core.gui.libqtgui_bricks', 
 	'modular_core.gui.libqtgui_masons', 

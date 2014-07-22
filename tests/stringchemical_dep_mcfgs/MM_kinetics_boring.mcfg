@@ -1,0 +1,38 @@
+
+<end_criteria>
+	time limit : 0.005
+
+<capture_criteria>
+	scalar increment : 0.00005 : time
+
+<reactions>
+	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
+	1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
+	1 ES_Complex 800.0 -> 1 Enzyme + 1 Product : Product formation
+
+<species>
+	Enzyme : 5000
+	Substrate : 10000
+	ES_Complex : 0
+	Product : 100
+
+<plot_targets>
+	time
+	ES_Complex
+	Product
+	Substrate
+	Enzyme
+
+<output_plans>
+	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
+
+<ensemble>
+	multiprocessing : off
+	mapparameterspace : off
+	fitting : off
+	postprocessing : off
+	trajectory_count : 1
+
+
+
+
