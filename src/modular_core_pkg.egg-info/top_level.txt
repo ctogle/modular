@@ -1,3 +1,0 @@
-modular_core
-stringchemical
-stringchemical_timeout

@@ -5,7 +5,7 @@ modular
 This is a walkthrough for acquiring, installing, and running modular for the first time.
 
 Download the latest version of modular from this link:
-https://dl.dropboxusercontent.com/u/41439079/modular.07.17.2014.0.0.zip
+https://github.com/ctogle/modular
 
 You will need a build of python with the proper packages to run modular.
 You can download python 2.7.8 (32-bit is recommended for now) from this link:
