@@ -4,7 +4,7 @@ import glob
 import os
 import re
 
-from setuptools import setup, Extension
+from setuptools import setup#, Extension
 
 if isfile("MANIFEST"):
     os.unlink("MANIFEST")
@@ -30,7 +30,7 @@ core_modules = [
 
 	'modular_core.gpu.lib_gpu', 
 
-	'modular_core.modules.libchemicallite', 
+	#'modular_core.modules.libchemicallite', 
 				]
 
 def ignore_res(f):
@@ -49,7 +49,7 @@ requirements = [
 	'numpy >= 1.8.1', 
 	'scipy >= 0.14.0', 
 	'PySide >= 1.2.2', 
-	'matplotlib >= 1.3.1', 
+	'matplotlib >= 1.1.1', 
 	'six >= 1.7.3', 
 	'PyOpenGL >= 3.0.0', 
 	'python-dateutil >= 2.2', 
@@ -80,9 +80,9 @@ This is the core package of modular
 	data_files=[('modular_core/resources', res_files), 
 					('modular_core/data_pools', data_pools_files)], 
 	#ext_package = 'modular_core.modules.chemicallite_support',
-	ext_modules = [Extension('stringchemical', 
-			['modular_core/modules/chemicallite_support/libchemicalstring_6.c']),
-						Extension('stringchemical_timeout', 
-			['modular_core/modules/chemicallite_support/libchemicalstring_6_timeout.c'])],
+	#ext_modules = [Extension('stringchemical', 
+	#		['modular_core/modules/chemicallite_support/libchemicalstring_6.c']),
+	#					Extension('stringchemical_timeout', 
+	#		['modular_core/modules/chemicallite_support/libchemicalstring_6_timeout.c'])],
 	)
 
