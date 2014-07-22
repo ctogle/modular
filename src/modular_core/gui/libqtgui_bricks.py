@@ -14,14 +14,17 @@ import math
 
 from PySide import QtGui, QtCore, QtOpenGL
 
-import matplotlib
-matplotlib.use('Qt4Agg')
-matplotlib.rcParams['backend.qt4'] = 'PySide'
+try:
+	import matplotlib
+	matplotlib.use('Qt4Agg')
+	matplotlib.rcParams['backend.qt4'] = 'PySide'
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backend_bases import NavigationToolbar2
+	from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+	from matplotlib.backend_bases import NavigationToolbar2
 
-import matplotlib.pyplot as plt
+	import matplotlib.pyplot as plt
+except ImportError:
+	print 'matplotlib could not be imported! - bricks'
 
 QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 20))
 #QWebView: a WebKit based control to render HTML/CSS/XML/XSLT pages

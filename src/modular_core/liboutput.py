@@ -5,19 +5,11 @@ import modular_core.libtxtoutput as ltxt
 import modular_core.libgeometry as lgeo
 import modular_core.libsettings as lset
 
-'''
-import libs.modular_core.libfundamental as lfu
-import libs.modular_core.libfiler as lf
-import libs.modular_core.libvtkoutput as lvtk
-import libs.modular_core.libtxtoutput as ltxt
-import libs.modular_core.libgeometry as lgeo
-import libs.modular_core.libsettings as lset
-'''
-
 #from cStringIO import StringIO
 import os
 import time
-import matplotlib.pyplot as plt
+try: import matplotlib.pyplot as plt
+except ImportError: print 'matplotlib could not be imported! - output'
 import numpy as np
 
 import pdb

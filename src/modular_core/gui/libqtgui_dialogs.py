@@ -8,16 +8,19 @@ import modular_core.gui.libqtgui_masons as lgm
 #import libs.gui.libqtgui_masons as lgm
 from PySide import QtGui, QtCore
 
-import matplotlib
-matplotlib.use('Qt4Agg')
-matplotlib.rcParams['backend.qt4'] = 'PySide'
+try:
+	import matplotlib
+	matplotlib.use('Qt4Agg')
+	matplotlib.rcParams['backend.qt4'] = 'PySide'
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backend_bases import NavigationToolbar2
+	from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+	from matplotlib.backend_bases import NavigationToolbar2
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.path as path
+	import matplotlib.pyplot as plt
+	import matplotlib.patches as patches
+	import matplotlib.path as path
+except ImportError:
+	print 'matplotlib could not be imported! - dialogs'
 
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 
