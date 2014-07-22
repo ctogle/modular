@@ -1,0 +1,12 @@
+setup.py
+modular_developer/__init__.py
+modular_developer/libcodegenerator.py
+modular_developer/libdeveloper.py
+modular_developer/libmobjectdeveloper.py
+modular_developer/libmoduledeveloper.py
+modular_developer/libprogramdeveloper.py
+modular_developer_pkg.egg-info/PKG-INFO
+modular_developer_pkg.egg-info/SOURCES.txt
+modular_developer_pkg.egg-info/dependency_links.txt
+modular_developer_pkg.egg-info/not-zip-safe
+modular_developer_pkg.egg-info/top_level.txt

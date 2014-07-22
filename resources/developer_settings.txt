@@ -1,5 +1,0 @@
-
-
-<interface>
-debug_verbosity = 4
-interface_verbosity = 2

@@ -1,0 +1,8 @@
+setup.py
+modular_test_proctor/__init__.py
+modular_test_proctor/libtest_proctor.py
+modular_test_proctor_pkg.egg-info/PKG-INFO
+modular_test_proctor_pkg.egg-info/SOURCES.txt
+modular_test_proctor_pkg.egg-info/dependency_links.txt
+modular_test_proctor_pkg.egg-info/not-zip-safe
+modular_test_proctor_pkg.egg-info/top_level.txt

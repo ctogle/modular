@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: modular-test-proctor-pkg
+Version: 1.0
+Summary: modular test proctor pkg
+Home-page: http://github.com/ctogle/modular
+Author: ctogle
+Author-email: cogle@vt.edu
+License: MIT License
+Description: 	This is the test proctor package of modular
+        	
+Platform: UNKNOWN

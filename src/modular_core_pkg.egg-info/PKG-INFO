@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: modular-core-pkg
+Version: 1.0
+Summary: modular core pkg
+Home-page: http://github.com/ctogle/modular
+Author: ctogle
+Author-email: cogle@vt.edu
+License: MIT License
+Description: This is the core package of modular
+        
+Platform: UNKNOWN

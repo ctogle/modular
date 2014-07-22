@@ -1,4 +1,4 @@
-#!python
+#!C:\Python27\python.exe
 
 import os, sys, time, pstats, cProfile, argparse
 
