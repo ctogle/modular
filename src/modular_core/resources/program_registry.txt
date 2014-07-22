@@ -3,8 +3,8 @@
 #it does not include the simulator as it is the default program always
 
 
-developer : dev : run modular developer
-daw_receiver : dr : run daw receiver program
-daw_transceiver : dt : run daw transceiver program
-plate_reader_analyzer : pda : parse and analyze plate reader data
-test_proctor : tpr : run test scripts on code
+#developer : dev : run modular developer
+#daw_receiver : dr : run daw receiver program
+#daw_transceiver : dt : run daw transceiver program
+#plate_reader_analyzer : pda : parse and analyze plate reader data
+#test_proctor : tpr : run test scripts on code

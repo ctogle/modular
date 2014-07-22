@@ -33,18 +33,6 @@ core_modules = [
 	'modular_core.modules.libchemicallite', 
 				]
 
-developer_modules = [
-	'modular_developer.libcodegenerator', 
-	'modular_developer.libdeveloper', 
-	'modular_developer.libmobjectdeveloper', 
-	'modular_developer.libmoduledeveloper', 
-	'modular_developer.libprogramdeveloper', 
-				]
-
-test_proctor_modules = [
-	'modular_test_proctor.libtest_proctor', 
-					]
-
 def ignore_res(f):
 	#if f.startswith('__') or f.startswith('_.'): return True
 	#else: return False
@@ -80,7 +68,7 @@ setup(
 This is the core package of modular
 """,
 	install_requires = requirements, 
-	scripts = ['modular.py'], 
+	scripts = ['modular.py', 'modular.bat'], 
 	packages = ['modular_core', 'modular_core.gui', 
 			'modular_core.gpu', 'modular_core.modules'], 
 			#'modular_core.modules.chemicallite_support'],
@@ -97,40 +85,4 @@ This is the core package of modular
 						Extension('stringchemical_timeout', 
 			['modular_core/modules/chemicallite_support/libchemicalstring_6_timeout.c'])],
 	)
-
-setup(
-	name="modular_developer-pkg",
-	version = VERSION,
-	description = "modular developer pkg",
-	author = "ctogle",
-	author_email = "cogle@vt.edu",
-	url = "http://github.com/ctogle/modular",
-	license = "MIT License",
-	long_description =
-	"""\
-	This is the developer package of modular
-	""",
-	packages = ['modular_developer'], 
-	py_modules = developer_modules, 
-	zip_safe = False,
-	)
-
-setup(
-	name="modular_test_proctor-pkg",
-	version = VERSION,
-	description = "modular test proctor pkg",
-	author = "ctogle",
-	author_email = "cogle@vt.edu",
-	url = "http://github.com/ctogle/modular",
-	license = "MIT License",
-	long_description =
-	"""\
-	This is the test proctor package of modular
-	""",
-	packages = ['modular_test_proctor'], 
-	py_modules = test_proctor_modules, 
-	zip_safe = False,
-	)
-
-
 
