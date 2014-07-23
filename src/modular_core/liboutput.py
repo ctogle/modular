@@ -264,7 +264,7 @@ class output_plan(lfu.plan):
 							'output_pkl', 'output_txt', 'output_plt', 
 							'save_directory', 'save_filename', 
 							'filenames', 'directories', 'targeted'], 
-					save_directory = '', save_filename = '', 
+					#save_directory = '', save_filename = '', 
 											parent = None):
 		self.__dict__ = lfu.dictionary()
 		self.writers = [	writer_vtk(parent = self), 
@@ -275,8 +275,9 @@ class output_plan(lfu.plan):
 		#if label is not 'another output plan': one_of_a_kind = True
 		self.targeted = []	#lists of strings to list of scalars
 		self.outputs = [[], [], [], []]	#strings pointing to targeted scalars
-		self.save_directory = save_directory
-		self.save_filename = save_filename
+		#self.save_directory = save_directory
+		self.save_directory = lfu.get_output_path()
+		self.save_filename = ''
 		self.filenames = {'vtk filename': '', 'pkl filename': '', 
 						'txt filename': '', 'plt filename': ''}
 		self.directories = {'vtk directory': '', 'pkl directory': '', 
@@ -355,7 +356,8 @@ class output_plan(lfu.plan):
 		for _id, prop in propers.items():
 			if not os.path.exists(prop):
 				fil = prop.split(os.path.sep)[-1]
-				prope = os.getcwd()
+				#prope = os.getcwd()
+				prope = lfu.get_output_path()
 				self.save_directory = prope
 				propers[_id] = os.path.join(prope, fil)
 				for key in self.directories.keys():

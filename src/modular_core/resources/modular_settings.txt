@@ -13,6 +13,7 @@ trajectory_count = 100
 fitting = True
 postprocessing = True
 fitting_aware = True
+mcfg_path = C:\Users\cogle\Desktop\Work\stable\tests\stringchemical_dep_mcfgs
 
 <interface>
 multithread_gui = True
@@ -28,3 +29,6 @@ output_plt = True
 output_txt = False
 output_vtk = False
 output_pkl = False
+default_output_path = C:\Users\cogle\Desktop\Work\output
+
+

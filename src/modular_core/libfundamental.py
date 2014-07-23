@@ -577,6 +577,14 @@ def get_data_pool_path():
 def get_resource_path(res):
 	return os.path.join(mcrsrc.__path__[0], res)
 
+def get_mcfg_path():
+	lset = sys.modules['modular_core.libsettings']
+	return lset.get_setting('mcfg_path')
+
+def get_output_path():
+	lset = sys.modules['modular_core.libsettings']
+	return lset.get_setting('default_output_path')
+
 def parse_registry():
 	reg_string = resource_string(__name__, 
 		os.path.join('resources', 'program_registry.txt'))

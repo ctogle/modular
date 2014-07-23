@@ -44,7 +44,7 @@ class ensemble(lfu.modular_object_qt):
 		if 'parent' in kwargs.keys(): self.parent = kwargs['parent']
 		self.cancel_make = False
 		self.skip_simulation = False
-		self.mcfg_path = ''
+		self.mcfg_path = ''#lfu.get_mcfg_path()
 		#self.num_trajectories = 1
 		num_traj = lset.get_setting('trajectory_count')
 		if num_traj: self.num_trajectories = num_traj
@@ -128,7 +128,7 @@ class ensemble(lfu.modular_object_qt):
 						self.fitting_plan, self.cartographer_plan, 
 					self.postprocess_plan, self.multiprocess_plan]
 		self.load_module(reset_params = True)
-		self.mcfg_dir = os.path.join(os.getcwd(), self.module)
+		self.mcfg_dir = lfu.get_mcfg_path()#os.path.join(os.getcwd(), self.module)
 		if not os.path.isdir(self.mcfg_dir): self.mcfg_dir = os.getcwd()
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self.provide_axes_manager_input()
