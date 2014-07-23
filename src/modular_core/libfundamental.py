@@ -26,8 +26,14 @@ import pdb
 
 debug_filter_thresh = 10
 
+def get_resource_path(res): return os.path.join(mcrsrc.__path__[0], res)
+
+mod_registry_path = os.path.join(
+	get_resource_path('module_registry.txt'))
 registry_path = os.path.join(os.getcwd(), 
-	'resources', 'program_registry.txt')
+	get_resource_path('program_registry.txt'))
+#registry_path = os.path.join(os.getcwd(), 
+#	'resources', 'program_registry.txt')
 
 def using_gui(): return USING_GUI
 def find_gui_pack():
@@ -574,9 +580,6 @@ def list_program_modules(program):
 def get_data_pool_path():
 	return mcdps.__path__[0]
 
-def get_resource_path(res):
-	return os.path.join(mcrsrc.__path__[0], res)
-
 def get_mcfg_path():
 	lset = sys.modules['modular_core.libsettings']
 	return lset.get_setting('mcfg_path')
@@ -604,6 +607,47 @@ def parse_module_registry():
 								and not line.strip() == '']
 	reg = [[pa.strip() for pa in line.split(':')] for line in reg]
 	return reg
+
+def is_module_valid(mod):
+	try: mo = __import__(mod)
+	except ImportError:
+		print 'module', mod, 'is not installed!'
+		return False
+	if not hasattr(mo, 'main'):
+		print 'module', mod, 'is missing "main" namespace'
+		return False
+	return True
+
+def add_module_to_registry(module_name):
+	if is_module_valid(module_name):
+		with open(mod_registry_path, 'r') as handle:
+			reg = handle.readlines()
+			comments = [line for line in reg if line.startswith('#')]
+			registered = [line for line in reg if 
+				not line.startswith('#') and not line.strip() == '']
+			registered.append('\n' + module_name)
+		with open(mod_registry_path, 'w') as handle:
+			lines = comments + ['\n\n'] + registered
+			[handle.write(line) for line in lines]
+		return True		
+	else: return False
+
+def remove_module_from_registry(module_name):
+	with open(mod_registry_path, 'r') as handle:
+		reg = handle.readlines()
+		if not module_name in reg:
+			print 'module', module_name, 'not found in registry!'
+			return False
+		comments = [line for line in reg if line.startswith('#')]
+		registered = [line for line in reg if 
+			not line.startswith('#') and not line.strip() == '' 
+			and not line.startswith(module_name)]
+
+	with open(mod_registry_path, 'w') as handle:
+		lines = comments + ['\n\n'] + registered
+		[handle.write(line) for line in lines]
+
+	return True
 
 def add_program_to_registry(program_name, 
 		program_run_option, program_description):
@@ -731,7 +775,7 @@ def pagify(lines, max_leng = 30):
 
 def intersect_lists(list1, list2):
 	list1 = [item for item in list1 if item in list2]
-	return list1
+	return uniqfy(list1)
 
 def insert_substring(string, substring, index):
     return string[:index] + substring + string[index:]

@@ -479,7 +479,10 @@ class output_plan(lfu.plan):
 			target_labels = ensem.run_params['plot_targets']
 
 		else:
-			try: target_labels = self.parent.run_params['plot_targets']
+			try:
+				self.parent.run_params['plot_targets'] = lfu.uniqfy(
+						self.parent.run_params['plot_targets'])#hack
+				target_labels = self.parent.run_params['plot_targets']
 			except AttributeError:
 				target_labels = self.parent.capture_targets
 

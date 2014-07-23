@@ -44,8 +44,7 @@ class ensemble(lfu.modular_object_qt):
 		if 'parent' in kwargs.keys(): self.parent = kwargs['parent']
 		self.cancel_make = False
 		self.skip_simulation = False
-		self.mcfg_path = ''#lfu.get_mcfg_path()
-		#self.num_trajectories = 1
+		self.mcfg_path = ''
 		num_traj = lset.get_setting('trajectory_count')
 		if num_traj: self.num_trajectories = num_traj
 		else: self.num_trajectories = 1

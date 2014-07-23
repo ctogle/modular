@@ -5,15 +5,6 @@ import modular_core.libgeometry as lgeo
 import modular_core.libcriterion as lc
 import modular_core.liboutput as lo
 
-'''
-import libs.modular_core.libfundamental as lfu
-import libs.modular_core.libfitroutine as lfr
-import libs.modular_core.libpostprocess as lpp
-import libs.modular_core.libgeometry as lgeo
-import libs.modular_core.libcriterion as lc
-import libs.modular_core.liboutput as lo
-'''
-
 import types
 
 import pdb
@@ -283,7 +274,6 @@ def parse_mcfg(lines, *args):
 						hasattr(targable, 'label'):
 				if not targable.label in targs:
 					targable.brand_new = False
-
 	#if p_space_flag and not p_space_parsed_flag:
 	#	lgeo.parse_p_space(p_sub_sps[0], ensem)
 
