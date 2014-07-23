@@ -4,10 +4,11 @@ import modular_core.libfundamental as lfu
 lfu.USING_GUI = False
 from modular_core.libsimcomponents import ensemble_manager
 
-import os, sys
-#sys.stdout = os.devnull
-sys.stdout = open(os.path.join(os.getcwd(), 'test_ensemble.log'), 'w')
-#sys.__stdout__
+import os, sys, pdb
+
+log = open(os.path.join(os.getcwd(), 'test_ensemble.log'), 'w')
+
+sys.stdout = log
 
 class mngerTestCase(unittest.TestCase):
 	"""Tests for `libsimcomponents.py`."""
@@ -16,6 +17,11 @@ class mngerTestCase(unittest.TestCase):
 				'MM_kinetics_boring.mcfg')
 	mnger = ensemble_manager()
 	ensem = mnger.add_ensemble()
+
+	def pause(self, *args, **kwargs):
+		sys.stdout = sys.__stdout__
+		pdb.set_trace()
+		sys.stdout = log
 
 	def test_can_make_ensemble(self):
 		"""ensemble successfully made?"""
@@ -30,8 +36,12 @@ class mngerTestCase(unittest.TestCase):
 		ensem = self.ensem
 		ensem.run_mcfg(self.simple_mcfg)
 		self.assertTrue(ensem.produce_output())
+		oplan = ensem.output_plan
+		fi = os.path.join(oplan.save_directory, 
+					oplan.save_filename+'.pkl')
+		self.assertTrue(os.path.exists(fi))
 
-	def test_can_run_two_ensembles(self):
+	def atest_can_run_two_ensembles(self):
 		"""2 ensembles can successfully run?"""
 		ensem1 = self.mnger.add_ensemble()
 		ensem2 = self.mnger.add_ensemble()

@@ -24,7 +24,7 @@
 	Enzyme
 
 <output_plans>
-	0 : C:\Users\bartl_000\Desktop\Work\output : ensemble_output : plt : all
+	0 : C:\Users\bartl_000\Desktop\Work\output : ensemble_output : pkl : all
 
 <ensemble>
 	multiprocessing : off

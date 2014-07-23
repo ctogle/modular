@@ -757,7 +757,8 @@ class ensemble_manager(lfu.modular_object_qt):
 		def grab_modules():
 			mods = []
 			for mod in lfu.get_modular_modules_list():
-				plug = imp.import_module(mod[1])
+				#plug = imp.import_module(mod[1])
+				plug = imp.import_module(mod[0]).main
 				if plug.module_name == mod[0]:
 					mc.modules.__dict__[mod[0]] = plug
 					mods.append(plug.module_name)

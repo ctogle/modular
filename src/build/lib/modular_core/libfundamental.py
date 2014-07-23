@@ -625,7 +625,6 @@ def remove_program_from_registry(program_name):
 
 def increment_filename(fi):
 	if fi == '': return fi
-
 	else:
 		fi = fi.split('.')
 		if len(fi) == 1:	#non-indexed filename without extension
@@ -641,10 +640,11 @@ def increment_filename(fi):
 				try:
 					dex = int(fi[-2])
 					dex = str(dex + 1)
-					return '.'.join(fi[:-1] + [dex] + fi[-1])
+					return '.'.join(fi[:-1] + [dex] + fi[-1:])
 
 				except ValueError:	#had file extension but no index
 					return '.'.join(fi[:-1] + ['0'] + fi[-1])
+				except TypeError: pdb.set_trace()
 
 def flatten(unflat_list):
 	return [item for sublist in unflat_list for item in sublist]

@@ -366,7 +366,12 @@ class output_plan(lfu.plan):
 				#	except IndexError: out = True
 				#	pa_dex -= 1
 				prope = os.getcwd()
+				self.save_directory = prope
 				propers[_id] = os.path.join(prope, fil)
+				for key in self.directories.keys():
+					if key.startswith(_id):self.directories[key] = prope
+				for key in self.filenames.keys():
+					if key.startswith(_id):self.filenames[key] = fil
 
 		return propers
 
@@ -443,14 +448,16 @@ class output_plan(lfu.plan):
 			if self.output_plt:
 				to_be_outted.append((proper_paths['plt'], 3))
 
-			if 3 in [out[1] for out in to_be_outted]:
-					self.writers[3].get_plt_window()
+			using_plt = 3 in [out[1] for out in to_be_outted]
+			if using_plt and lfu.using_gui():
+				self.writers[3].get_plt_window()
+				plt_flag = True
+			else: plt_flag = False
 
 			[self.writers[out[1]](system, out[0], 
 				proper_targets[out[1]]) for out in to_be_outted]
 
-			if 3 in [out[1] for out in to_be_outted]:
-					self.writers[3].plt_window()
+			if plt_flag: self.writers[3].plt_window()
 
 	def verify_nonempty_save_directory(self):
 		
@@ -467,7 +474,8 @@ class output_plan(lfu.plan):
 					except AttributeError:
 						self.save_directory = os.getcwd()
 				'''
-				pdb.set_trace()
+				self.save_directory = os.getcwd()
+				#pdb.set_trace()
 
 	def verify_nonempty_save_filename(self):
 		if self.save_filename == None or self.save_filename == '':

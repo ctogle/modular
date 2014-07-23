@@ -48,8 +48,8 @@ data_pools_files = ['modular_core/data_pools/__init__.py']
 
 requirements = [
 	'numpy >= 1.8.1', 
-	'scipy >= 0.14.0', 
-	'PySide >= 1.2.2', 
+	'scipy >= 0.13.0', 
+	'PySide >= 1.2.1', 
 	'matplotlib >= 1.1.1', 
 	'six >= 1.7.3', 
 	'PyOpenGL >= 3.0.0', 

@@ -2,7 +2,7 @@
 import modular_core.modules
 import modular_core.libmath as lm
 
-import sys
+import sys, traceback
 import random
 import math
 import numpy as np
@@ -13,13 +13,13 @@ import pdb
 #handles one run of a simulation; returns data
 def run_system(*args, **kwargs):
 	ensemble = args[0]
-	try:libmodule = modular_core.modules.__dict__[ensemble.module]
-	except:pdb.set_trace()
+	try:libmodule = __import__(ensemble.module)
+	#try:libmodule = modular_core.modules.__dict__[ensemble.module]
+	except:traceback.print_exc(file=sys.stdout)
 	#libmodule = sys.modules['modular_core.modules.' + ensemble.module]
-	system = libmodule.sim_system(ensemble, params =\
+	system = libmodule.main.sim_system(ensemble, params =\
 			ensemble.run_params.partition['system'])
-	if 'timeout' in kwargs.keys():
-		system.timeout = kwargs['timeout']
+	if 'timeout' in kwargs.keys(): system.timeout = kwargs['timeout']
 	if 'identifier' in kwargs.keys():
 		system.identifier = kwargs['identifier']
 

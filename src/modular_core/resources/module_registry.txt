@@ -1,2 +1,2 @@
 
-chemical : chemical.scripts.chemicallite
+chemical
