@@ -206,6 +206,7 @@ class writer_plt(writer):
 		label = 'another plt output writer', 
 		base_class = lfu.interface_template_class(
 					object, 'plt writer object')):
+		self.plt_window = None
 		self.filenames = filenames
 		self.iteration_resolution = iteration_resolution
 		writer.__init__(self, label = label, 
@@ -243,10 +244,14 @@ class writer_plt(writer):
 		self.plotter(data_container, plt_filename, specifics)
 
 	def plotter(self, data_container, plt_filename, specifics):
-		self.plt_window.set_plot_info(data_container, 
-			plt_filename, specifics, title = self.axes_manager.title, 
-			x_ax_title = self.axes_manager.x_title, 
-			y_ax_title = self.axes_manager.y_title)
+		if self.plt_window is None:
+			print 'no plot window to post data to'
+			print '\ttargets:', specifics
+		else:
+			self.plt_window.set_plot_info(data_container, plt_filename, 
+							specifics, title = self.axes_manager.title, 
+								x_ax_title = self.axes_manager.x_title, 
+								y_ax_title = self.axes_manager.y_title)
 
 	def set_uninheritable_settables(self, *args, **kwargs):
 		self.visible_attributes = ['label', 'base_class', 'filenames']
@@ -302,7 +307,7 @@ class output_plan(lfu.plan):
 		self.__dict__.create_partition('template owners', ['writers'])
 
 	def to_string(self):
-		#0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+		#0 : C:\Users\bartl_000\Desktop\Work\output : ensemble_output : none : all
 		if self.label.startswith('Simulation'): numb = '0'
 		else:
 			procs = lfu.grab_mobj_names(
@@ -349,17 +354,18 @@ class output_plan(lfu.plan):
 
 		for _id, prop in propers.items():
 			if not os.path.exists(prop):
-				prope = None
-				pa_dex = -2
-				out = False
+				#prope = None
+				#pa_dex = -2
+				#out = False
 				fil = prop.split(os.path.sep)[-1]
-				while prope is None and not out:
-					try:
-						dat_file = prop.split(os.path.sep)[pa_dex]
-						prope = lfu.resolve_filepath(
-								dat_file, isdir = True)
-					except IndexError: out = True
-					pa_dex -= 1
+				#while prope is None and not out:
+				#	try:
+				#		dat_file = prop.split(os.path.sep)[pa_dex]
+				#		prope = lfu.resolve_filepath(
+				#				dat_file, isdir = True)
+				#	except IndexError: out = True
+				#	pa_dex -= 1
+				prope = os.getcwd()
 				propers[_id] = os.path.join(prope, fil)
 
 		return propers
@@ -409,14 +415,16 @@ class output_plan(lfu.plan):
 					to_be_outted.append((proper_paths['plt'], 
 										3, data_container))
 
-			if 3 in [out[1] for out in to_be_outted]:
-					self.writers[3].get_plt_window()
+			using_plt = 3 in [out[1] for out in to_be_outted]
+			if using_plt and lfu.using_gui():
+				self.writers[3].get_plt_window()
+				plt_flag = True
+			else: plt_flag = False
 
 			[self.writers[out[1]](out[2], out[0], 
 				proper_targets[out[1]]) for out in to_be_outted]
 
-			if 3 in [out[1] for out in to_be_outted]:
-					self.writers[3].plt_window()
+			if plt_flag: self.writers[3].plt_window()
 
 		else:
 			self.update_filenames()
@@ -445,8 +453,10 @@ class output_plan(lfu.plan):
 					self.writers[3].plt_window()
 
 	def verify_nonempty_save_directory(self):
+		
 		if not self.parent is None:
-			if self.save_directory == None or self.save_directory == '':
+			if not self.save_directory:
+				'''
 				try:
 					self.save_directory = os.path.join(os.getcwd(), 
 									self.parent.module, 'output')
@@ -456,6 +466,8 @@ class output_plan(lfu.plan):
 								self.parent._modu_program_, 'output')
 					except AttributeError:
 						self.save_directory = os.getcwd()
+				'''
+				pdb.set_trace()
 
 	def verify_nonempty_save_filename(self):
 		if self.save_filename == None or self.save_filename == '':

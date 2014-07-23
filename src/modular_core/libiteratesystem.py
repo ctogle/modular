@@ -13,7 +13,8 @@ import pdb
 #handles one run of a simulation; returns data
 def run_system(*args, **kwargs):
 	ensemble = args[0]
-	libmodule = modular_core.modules.__dict__[ensemble.module]
+	try:libmodule = modular_core.modules.__dict__[ensemble.module]
+	except:pdb.set_trace()
 	#libmodule = sys.modules['modular_core.modules.' + ensemble.module]
 	system = libmodule.sim_system(ensemble, params =\
 			ensemble.run_params.partition['system'])

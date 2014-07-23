@@ -1,0 +1,27 @@
+start time:  2014-07-22 19:55:37
+duration of simulations:  0.0220000743866
+saving data pool...
+saved data pool:  0.00300002098083
+finished last simulation run: exiting
+duration:  0.0250000953674  seconds
+producing output...
+loading data pool...
+loaded data pool:  0.000999927520752
+no plot window to post data to
+	targets: ['iteration', 'time']
+produced output:  0.000999927520752
+start time:  2014-07-22 19:55:37
+duration of simulations:  0.0209999084473
+saving data pool...
+saved data pool:  0.00300002098083
+finished last simulation run: exiting
+duration:  0.0239999294281  seconds
+start time:  2014-07-22 19:55:37
+Traceback (most recent call last):
+  File "C:\Python27\lib\site-packages\stringchemical_pkg-1.0-py2.7-win32.egg\chemical\scripts\chemicallite.py", line 321, in iterate
+    *chemfast.simulate(self.system_string))
+  File "libchemicalstring_6.pyx", line 1112, in stringchemical.simulate (support/libchemicalstring_6.c:14429)
+  File "libchemicalstring_6.pyx", line 681, in stringchemical.generate_reaction (support/libchemicalstring_6.c:10305)
+  File "libchemicalstring_6.pyx", line 529, in stringchemical.measure_agent (support/libchemicalstring_6.c:8387)
+ValueError: 'ES_Complex' is not in list
+simulation failed; aborting

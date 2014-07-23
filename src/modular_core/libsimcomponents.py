@@ -131,6 +131,7 @@ class ensemble(lfu.modular_object_qt):
 		self.mcfg_dir = os.path.join(os.getcwd(), self.module)
 		if not os.path.isdir(self.mcfg_dir): self.mcfg_dir = os.getcwd()
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
+		self.provide_axes_manager_input()
 		self.data_pool_id = lfu.get_new_pool_id()
 		self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
 				'.'.join(['data_pool', self.data_pool_id, 'pkl']))
@@ -153,6 +154,7 @@ class ensemble(lfu.modular_object_qt):
 		if parse_params:
 			lf.parse_lines(self.mcfg_path, module.parse_mcfg, 
 						parser_args = (self.run_params, self))
+		self.update_targets()
 
 	def run(self, *args, **kwargs):
 		profiling = lset.get_setting('profile', 
@@ -263,6 +265,10 @@ class ensemble(lfu.modular_object_qt):
 			time.sleep(2)
 			self.parent = manager
 
+	def update_targets(self):
+		self.run_params.partition['system']['plot_targets'] =\
+								self.run_params['plot_targets']
+
 	def describe_data_pool(self, pool):
 		proc_pool = pool.postproc_data
 		try: sim_pool = pool.data.batch_pool
@@ -325,7 +331,7 @@ class ensemble(lfu.modular_object_qt):
 	def produce_output(self):
 		if not self.output_plan.use_plan:
 			print 'skipping output...'
-			return
+			return False
 
 		print 'producing output...'
 		check_0 = time.time()
@@ -357,6 +363,7 @@ class ensemble(lfu.modular_object_qt):
 					rout.output(data_)
 
 		print 'produced output: ', time.time() - check_0
+		return True
 
 	def set_data_scheme(self):
 		smart = lset.get_setting('use_smart_pool')
@@ -1361,7 +1368,10 @@ class sim_system_external(sim_system_python):
 		data = [dater for dater in data if len(dater) > 1]
 		reorder = []
 		for name in self.params['plot_targets']:
-			dex = targets.index(name)
+			try: dex = targets.index(name)
+			except ValueError:
+				print 'plot target not in targets...'
+				raise ValueError
 			reorder.append(np.array(data[dex][:toss], dtype = np.float))
 
 		return np.array(reorder, dtype = np.float)
