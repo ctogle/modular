@@ -30,8 +30,6 @@ core_modules = [
 	'modular_core.gui.libqtgui_dialogs', 
 
 	'modular_core.gpu.lib_gpu', 
-
-	#'modular_core.modules.libchemicallite', 
 				]
 
 def ignore_res(f):
@@ -41,7 +39,8 @@ def ignore_res(f):
 
 res_dir = 'modular_core/resources/'
 res_fis = [f for f in os.listdir(os.path.join(
-	os.getcwd(), 'modular_core', 'resources')) if not ignore_res(f)]
+	os.getcwd(), 'modular_core', 'resources')) 
+								if not ignore_res(f)]
 res_files = [res_dir + f for f in res_fis]
 
 data_pools_files = ['modular_core/data_pools/__init__.py']
@@ -69,7 +68,7 @@ setup(
 This is the core package of modular
 """,
 	install_requires = requirements, 
-	scripts = ['modular.py', 'modular.bat'], 
+	scripts = ['../modular.py'], 
 	packages = ['modular_core', 'modular_core.gui', 
 			'modular_core.gpu', 'modular_core.modules'], 
 			#'modular_core.modules.chemicallite_support'],

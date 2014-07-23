@@ -32,7 +32,7 @@ def handle_modules():
 			if removed: print '\nmodule', mod, 'was successfully removed\n'
 			else: print '\nmodule', mod, 'could not be removed...\n'
 			print '-'*50
-		else:
+		elif not input_ == 'q':
 			print '-'*50,'\ninput not recognized... :',input_,'\n'+'-'*50
 		mods = [m[0] for m in lfu.parse_module_registry()]
 	print '\n\tfinished editing module registry!\n\n'

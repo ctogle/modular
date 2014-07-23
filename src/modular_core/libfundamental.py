@@ -26,12 +26,12 @@ import pdb
 
 debug_filter_thresh = 10
 
-def get_resource_path(res): return os.path.join(mcrsrc.__path__[0], res)
+def get_resource_path(res):
+	subpa = mcrsrc.__path__[0]
+	return os.path.join(subpa, res)
 
-mod_registry_path = os.path.join(
-	get_resource_path('module_registry.txt'))
-registry_path = os.path.join(os.getcwd(), 
-	get_resource_path('program_registry.txt'))
+mod_registry_path = get_resource_path('module_registry.txt')
+registry_path = get_resource_path('program_registry.txt')
 #registry_path = os.path.join(os.getcwd(), 
 #	'resources', 'program_registry.txt')
 
@@ -619,6 +619,7 @@ def is_module_valid(mod):
 	return True
 
 def add_module_to_registry(module_name):
+	print 'mrp', mod_registry_path
 	if is_module_valid(module_name):
 		with open(mod_registry_path, 'r') as handle:
 			reg = handle.readlines()
