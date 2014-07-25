@@ -22,6 +22,8 @@ def load_pkl_object(filename):
 		try:
 			pkl_file = open(filename, 'r')
 			data = pickle.load(pkl_file)
+		except pickle.UnpicklingError:
+			print 'something is wrong with your pkl file!'
 		except: pdb.set_trace()
 	pkl_file.close()
 	return data

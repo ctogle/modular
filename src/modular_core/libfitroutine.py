@@ -9,19 +9,6 @@ import modular_core.libsettings as lset
 import modular_core.libmath as lm
 import modular_core.libmultiprocess as lmp
 
-'''
-import libs.modular_core.libfundamental as lfu
-import libs.modular_core.libfiler as lf
-import libs.modular_core.liboutput as lo
-import libs.modular_core.libgeometry as lgeo
-import libs.modular_core.libcriterion as lc
-import libs.modular_core.libvtkoutput as lvtk
-import libs.modular_core.libiteratesystem as lis
-import libs.modular_core.libsettings as lset
-import libs.modular_core.libmath as lm
-import libs.modular_core.libmultiprocess as lmp
-'''
-
 from copy import deepcopy as copy
 import multiprocessing as mp
 import traceback
@@ -176,32 +163,6 @@ class fit_routine_plan(lfu.plan):
 								self.move_routine_up), 
 						lgb.create_reset_widgets_wrapper(window, 
 								self.move_routine_down)]]))
-		'''
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				layout = 'grid', 
-				widg_positions = [(0, 0), (0, 2), (1, 2), (2, 2)], 
-				widg_spans = [(3, 2), None, None, None], 
-				grid_spacing = 10, 
-				widgets = ['mobj_inspector', 'button_set', 'selector'], 
-				instances = [[self.selected_routine], None, None], 
-				handles = [None, None, (self, 'routine_selector')], 
-				labels = [None, ['Add Fit Routine', 
-								'Remove Fit Routine'], 
-						lfu.grab_mobj_names(self.routines)], 
-				initials = [None, None, [select_label]], 
-				bindings = [None, [lgb.create_reset_widgets_wrapper(
-										window, self.add_routine), 
-						lgb.create_reset_widgets_wrapper(window, 
-								self.remove_routine)], None]))
-
-		img_path = os.path.join(os.getcwd(), 
-			'resources', 'coming-soon.png')
-		self.widg_templates.append(
-			lgm.interface_template_gui(
-				widgets = ['image'], 
-				paths = [img_path]))
-		'''
 		lfu.plan.set_settables(self, *args, from_sub = True)
 
 def parse_fitting_line(*args):
@@ -319,10 +280,10 @@ class fit_routine(lfu.modular_object_qt):
 				parent = self, acceptance_weight = 1.0))
 		self.metrics.append(
 			lgeo.metric_slope_1st_derivative(
-				parent = self, acceptance_weight = 0.9))
+				parent = self, acceptance_weight = 0.8))
 		self.metrics.append(
 			lgeo.metric_slope_2nd_derivative(
-				parent = self, acceptance_weight = 0.75))
+				parent = self, acceptance_weight = 0.7))
 		self.metrics.append(
 			lgeo.metric_slope_3rd_derivative(
 				parent = self, acceptance_weight = 0.5))
@@ -343,7 +304,7 @@ class fit_routine(lfu.modular_object_qt):
 					parent = self, max_iterations = 5000))
 		self.fitted_criteria.append(criterion_impatient(
 					parent = self, max_timeouts = 50, 
-							max_last_best = 2000))
+							max_last_best = 1000))
 
 		self.impose_default('fitter_criteria', [], **kwargs)
 		self.fitter_criteria.append(
@@ -355,21 +316,7 @@ class fit_routine(lfu.modular_object_qt):
 		self.impose_default('input_data_codomains', [], **kwargs)
 		self.impose_default('input_data_targets', [], **kwargs)
 		self.impose_default('input_data_aliases', {}, **kwargs)
-		self.input_data_file = os.path.join(os.getcwd(), 
-			'chemicallite', 'output', 'mm_fit_input.0.pkl')
-			#				'imager', 'fit_data.pkl')
-		#self.input_data_domain = 'time'
-		#self.input_data_codomains = ['ES_Complex', 'Product', 
-		#							'Substrate', 'Enzyme']
-		#self.input_data_aliases = {'time':'time', 
-		#		'ES_Complex mean':'ES_Complex', 
-		#		'Product mean':'Product', 
-		#		'Enzyme mean':'Enzyme', 
-		#		'Substrate mean':'Substrate'}
-		#self.input_data_codomains = ['ES_Complex', 'Product']
-		#self.input_data_codomains = ['ES_Complex']
-		#self.input_data_codomains = ['lacI', 'tetR', 'cl']
-
+		self.input_data_file = ''
 		if not 'visible_attributes' in kwargs.keys():
 			kwargs['visible_attributes'] = None
 
@@ -417,35 +364,26 @@ class fit_routine(lfu.modular_object_qt):
 	def get_input_data(self, read = True):
 		if not os.path.exists(self.input_data_file):
 			dat_file = self.input_data_file.split(os.path.sep)[-1]
-			self.input_data_file = lfu.resolve_filepath(dat_file)
+			#self.input_data_file = lfu.resolve_filepath(dat_file)
+			def_input_dir = lset.get_setting(
+				'default_fitting_input_path')
+			self.input_data_file = os.path.join(def_input_dir, dat_file)
 		if not os.path.exists(self.input_data_file):
 			print 'input data file not found!'
+			pdb.set_trace()
 		data = lf.load_pkl_object(self.input_data_file)
 		self.input_data_targets = [dater.label for dater in data.data]
 		self.rewidget(True)
 		if read:
 			self.input_data_domain = self.input_data_targets[0]
 			self.input_data_codomains = self.input_data_targets[1:]
-			#pdb.set_trace()
-			#self.parent.parent.run_params['plot_targets']
-			#self.input_data_codomains = ['ES_Complex', 'Product', 
-			#							'Substrate', 'Enzyme']
 			self.input_data_aliases = {}
-			#print 'prealias', self.input_data_targets, self.input_data_codomains
 			for targ, codom in zip(self.input_data_targets, 
 								[self.input_data_domain] +\
 								self.input_data_codomains):
 				self.input_data_aliases[targ] = codom
 
-		#print 'alias!', self.input_data_aliases
 		else:
-			#if not self.input_data_aliases.keys():
-			#	#THIS IS A HACK!!!
-			#	self.input_data_aliases = {'time':'time', 
-			#		'ES_Complex mean':'ES_Complex', 
-			#		'Product mean':'Product', 
-			#		'Enzyme mean':'Enzyme', 
-			#		'Substrate mean':'Substrate'}
 			for dater in data.data:
 				dater.label = self.input_data_aliases[dater.label]
 
@@ -709,7 +647,6 @@ class fit_routine(lfu.modular_object_qt):
 				self.fitter_criteria, self.metrics):
 			self.parameter_space.undo_step()
 			print 'undoing...'
-
 		else: print 'keeping...'
 		self.parameter_space.validate_position()
 
@@ -777,7 +714,7 @@ class fit_routine(lfu.modular_object_qt):
 		print 'fit routine:', self.label, 'best fit:', self.best_fits
 		print '\tran using regime:', self.regime
 		best_data = self.data_to_fit_to + best_run_data_ys
-		lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
+		#lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
 		self.ensemble.data_pool.pool_names =\
 			[dat.label for dat in best_data]
 		self.ensemble.data_pool.batch_pool.append(best_data)

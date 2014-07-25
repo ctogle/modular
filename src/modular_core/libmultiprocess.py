@@ -71,19 +71,14 @@ class multiprocess_plan(lfu.plan):
 						runs_this_round = processor_count
 					else: runs_this_round = runs_left % processor_count
 					check_time = time.time()
+					IDs = [int(str(dex1) + str(x)) 
+						for x in range(runs_this_round)]
+					argus = [args[2] + (id_,) for id_ in IDs]
 					try:
-						IDs = [int(str(dex1) + str(x)) 
-							for x in range(runs_this_round)]
-						argus = [args[2] + (id_,) for id_ in IDs]
-						#result = pool.map_async(run_system, 
 						result = [pool.apply_async(run_system, 
-							#zip(args[2]*runs_this_round, IDs), 
-							args = argus[d], 
-							#args[2]*runs_this_round, 
-								callback = data_pool.append) for d in range(runs_this_round)]
-								#callback = data_pool.extend) for d in range(runs_this_round)]
+							args = argus[d], callback = data_pool.append) 
+										for d in range(runs_this_round)]
 					except MemoryError: print 'AMNESIA!'; pdb.set_trace()
-					#result.wait()
 					[res.wait() for res in result]
 					dex1 += runs_this_round
 					report = ' '.join(['location dex:', str(dex0), 
@@ -130,10 +125,11 @@ class multiprocess_plan(lfu.plan):
 				for x in range(runs_this_round)]
 			dex0 += runs_this_round
 			update_func()
-			result = pool.map_async(run_func, 
-				zip([ensem_reference]*runs_this_round, IDs), 
-							callback = result_pool.extend)
-			result.wait()
+			argus = zip([ensem_reference]*runs_this_round, IDs)
+			result = [pool.apply_async(run_func, args = argus[d], 
+							callback = result_pool.append) 
+							for d in range(runs_this_round)]
+			[res.wait() for res in result]
 			report = ' '.join(['location dex:', str(dex0), 
 				'runs this round:', str(runs_this_round), 'in:', 
 						str(time.time() - check_time), 'seconds'])

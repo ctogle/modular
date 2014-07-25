@@ -13,7 +13,10 @@ trajectory_count = 100
 fitting = True
 postprocessing = True
 fitting_aware = True
-mcfg_path = C:\Users\cogle\Desktop\Work\stable\tests\stringchemical_dep_mcfgs
+mcfg_path = C:\Users\cogle\Desktop\Work\modular_core\tests\stringchemical_dep_mcfgs
+
+<fitting>
+default_fitting_input_path = C:\Users\cogle\Desktop\Work\modular_core\tests\
 
 <interface>
 multithread_gui = True

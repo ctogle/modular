@@ -693,7 +693,7 @@ class parameter_space(lfu.modular_object_qt):
 			self.set_simple_space_lookup()
 
 		self.impose_default('steps', [], **kwargs)
-		self.impose_default('step_normalization', 5.0, **kwargs)
+		self.impose_default('step_normalization', 4.0, **kwargs)
 		self.dimensions = len(self.subspaces)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
