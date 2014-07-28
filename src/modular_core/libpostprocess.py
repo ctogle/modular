@@ -7,16 +7,6 @@ import modular_core.libcriterion as lc
 try: import gpu.lib_gpu as lgpu
 except: lgpu = None
 
-'''
-import libs.modular_core.libfundamental as lfu
-import libs.modular_core.libgeometry as lgeo
-import libs.modular_core.libvtkoutput as lvtk
-import libs.modular_core.liboutput as lo
-import libs.modular_core.libsettings as lset
-import libs.modular_core.libcriterion as lc
-import libs.gpu.lib_gpu as lgpu
-'''
-
 from copy import deepcopy as copy
 from numpy import median as median
 from numpy import mean as mean
@@ -166,7 +156,7 @@ class post_process_plan(lfu.plan):
 				widg_spans = [(3, 2), None, None, None, None, None], 
 				grid_spacing = 10, 
 				widgets = ['mobj_catalog', 'button_set'], 
-				verbosities = [1, 1], 
+				verbosities = [3, 1], 
 				instances = [[self.post_processes, self], None], 
 				keys = [[None, 'selected_process_label'], None], 
 				handles = [(self, 'process_selector'), None], 

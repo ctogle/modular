@@ -146,7 +146,7 @@ class fit_routine_plan(lfu.plan):
 				widg_spans = [(3, 2), None, None, None, None, None], 
 				grid_spacing = 10, 
 				widgets = ['mobj_catalog', 'button_set'], 
-				verbosities = [1, 1], 
+				verbosities = [3, 1], 
 				instances = [[self.routines, self], None], 
 				keys = [[None, 'selected_routine_label'], None], 
 				handles = [(self, 'routine_selector'), None], 

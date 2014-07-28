@@ -92,6 +92,7 @@ def generate_panel_template_lookup_standard(
 	panel_template_lookup.append(('output_plans', 
 		lgm.interface_template_gui(
 			widgets = ['mobj_catalog'], 
+			verbosities = [3], 
 			instances = [[ensemble.run_params['output_plans'], 
 								ensemble._module_memory_[0]]], 
 			keys = [[None, 'output_plan_selected_memory']], 
