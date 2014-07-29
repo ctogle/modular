@@ -36,9 +36,6 @@ class mngerTestCase(unittest.TestCase):
 		ensem.run_mcfg(self.simple_mcfg)
 		self.assertTrue(ensem.produce_output())
 		oplan = ensem.output_plan
-		fi = os.path.join(oplan.save_directory, 
-					oplan.save_filename+'.pkl')
-		print 'fi', fi
 		self.assertTrue(os.path.exists(fi))
 
 	def atest_can_run_two_ensembles(self):
