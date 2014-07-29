@@ -586,7 +586,11 @@ def get_mcfg_path():
 
 def get_output_path():
 	lset = sys.modules['modular_core.libsettings']
-	return lset.get_setting('default_output_path')
+	opath = lset.get_setting('default_output_path')
+	if not os.path.exists(opath):
+		print 'default output path is not a path - using working directory'
+		opath = os.getcwd()
+	return opath
 
 def parse_registry():
 	reg_string = resource_string(__name__, 
