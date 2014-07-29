@@ -7,8 +7,7 @@ from modular_core.libsimcomponents import ensemble_manager
 import os, sys, pdb
 
 log = open(os.path.join(os.getcwd(), 'test_ensemble.log'), 'w')
-
-sys.stdout = log
+#sys.stdout = log
 
 class mngerTestCase(unittest.TestCase):
 	"""Tests for `libsimcomponents.py`."""
@@ -39,6 +38,7 @@ class mngerTestCase(unittest.TestCase):
 		oplan = ensem.output_plan
 		fi = os.path.join(oplan.save_directory, 
 					oplan.save_filename+'.pkl')
+		print 'fi', fi
 		self.assertTrue(os.path.exists(fi))
 
 	def atest_can_run_two_ensembles(self):
