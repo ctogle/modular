@@ -47,10 +47,10 @@
 	workers : 16
 
 <output_plans>
-	3 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : reorg_output.0 : plt : all
-	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : correlation_output.24 : plt : all
-	2 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : slices_output : none : all
-	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : none : all
+	3 : - : reorg_output.0 : plt : all
+	1 : - : correlation_output.24 : plt : all
+	2 : - : slices_output : none : all
+	0 : - : ensemble_output : none : all
 
 <ensemble>
 	multiprocessing : on

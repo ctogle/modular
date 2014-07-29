@@ -52,14 +52,14 @@
 		#	4 > 3
 
 <fit_routines>
-	sim-anneal-fine : simulated annealing : fine : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output\mm_fit_input.0.pkl : aliases{time:time,ES_Complex mean:ES_Complex,Product mean:Product,Substrate mean:Substrate,Enzyme mean:Enzyme}
+	sim-anneal-fine : simulated annealing : fine : mm_fit_input.0.pkl : aliases{time:time,ES_Complex mean:ES_Complex,Product mean:Product,Substrate mean:Substrate,Enzyme mean:Enzyme}
 
 <multiprocessing>
 	workers : 16
 
 <output_plans>
-	1 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : sim_anneal_output_fine : none : all
-	0 : C:\Users\bartl_000\Desktop\Work\Modular\chemicallite\output : ensemble_output : plt : all
+	1 : - : sim_anneal_output_fine : none : all
+	0 : - : ensemble_output : plt : all
 
 <ensemble>
 	multiprocessing : off
