@@ -1,7 +1,4 @@
 .idea
 *.swp
-*.pkl
-*.vtu
-*.ensempkl
 *.pyc
 
