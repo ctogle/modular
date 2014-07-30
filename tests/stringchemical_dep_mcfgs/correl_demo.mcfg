@@ -36,7 +36,7 @@
 	<product_space> 200
 		lambda1 : value : 2.0-8.0;4.0
 		lambda2 : value : 2.0-8.0;4.0
-		mu : value : 4.0-16.0;4.0
+		mu : value : 8.0-12.0;2.0
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered
@@ -47,8 +47,8 @@
 	workers : 16
 
 <output_plans>
-	3 : - : reorg_output.0 : plt : all
-	1 : - : correlation_output.24 : plt : all
+	3 : - : reorg_output : pkl : all
+	1 : - : correlation_output : pkl : all
 	2 : - : slices_output : none : all
 	0 : - : ensemble_output : none : all
 

@@ -198,7 +198,7 @@ def parse_fitting_line(*args):
 				rout.input_data_aliases = aliases
 
 	ensem.fitting_plan.add_routine(new = rout)
-	rout.set_settables(0, ensem)
+	if lfu.using_gui(): rout.set_settables(0, ensem)
 
 class fit_routine(lfu.modular_object_qt):
 

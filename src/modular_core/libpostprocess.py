@@ -318,7 +318,9 @@ def parse_postproc_line(*args):
 						#print 'one to one binary operation parsing not done'
 
 					elif proc_type._tag == 'probability':
-						proc.probability_criterion.set_settables(0, ensem)
+						pcrit = proc.probability_criterion
+						if lfu.using_gui():pcrit.set_settables(0, ensem)
+						else: pcrit.set_target_settables(0, ensem)
 						print 'probability parsing not done'
 
 					elif proc_type._tag == 'period finding':
@@ -327,7 +329,8 @@ def parse_postproc_line(*args):
 					else: pdb.set_trace()
 
 	ensem.postprocess_plan.add_process(new = proc)
-	proc.set_settables(0, ensem)
+	if lfu.using_gui(): proc.set_settables(0, ensem)
+	else: proc.set_target_settables(0, ensem)
 
 class post_process(lfu.modular_object_qt):
 
@@ -609,10 +612,16 @@ class post_process(lfu.modular_object_qt):
 	def sanitize(self, *args, **kwargs):
 		lfu.modular_object_qt.sanitize(self, *args, **kwargs)
 
-	def set_settables(self, *args, **kwargs):
-		#self.provide_axes_manager_input()
-		window = args[0]
+	def handle_widget_inheritance(self, *args, **kwargs):
+		if kwargs.haskey('from_sub'):
+			if not kwargs['from_sub']:
+				self.set_target_settables(*args, **kwargs)
+		lfu.modular_object_qt.handle_widget_inheritance(
+								self, *args, **kwargs)
+
+	def set_target_settables(self, *args, **kwargs):
 		ensem = args[1]
+		self.output.label = self.label + ' output'
 		if self.brand_new:
 			self.brand_new = not self.brand_new
 			try: self.mp_plan_ref = ensem.multiprocess_plan
@@ -621,8 +630,11 @@ class post_process(lfu.modular_object_qt):
 				ensem.run_params['output_plans'][
 					self.label + ' output'] = self.output
 
+	def set_settables(self, *args, **kwargs):
+		#self.provide_axes_manager_input()
+		window = args[0]
+		ensem = args[1]
 		#where_reference = ensem.run_params['output_plans']
-		self.output.label = self.label + ' output'
 		self.handle_widget_inheritance(*args, **kwargs)
 		if self.valid_inputs:
 			self.widg_templates.append(
@@ -723,7 +735,7 @@ class post_process_meanfields(post_process):
 		self.use_bar_plot = False
 		self.x_title = self.function_of
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
 			#'by parameter space map', 'manual grouping']
 			'by parameter space map']
@@ -738,6 +750,9 @@ class post_process_meanfields(post_process):
 		self.target_list = [self.function_of] +\
 			[item + ' mean' for item in self.means_of]
 		self.capture_targets = self.target_list
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -858,7 +873,7 @@ class post_process_standard_statistics(post_process):
 		self.use_bar_plot = False
 		self.x_title = self.function_of
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
 			#'by parameter space map', 'manual grouping']
 			'by parameter space map']
@@ -876,6 +891,9 @@ class post_process_standard_statistics(post_process):
 			self.mean_of + ' +1 stddev', self.mean_of + ' -1 stddev', 
 			self.mean_of + ' coefficient of variation']
 		self.capture_targets = self.target_list
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1000,7 +1018,7 @@ class post_process_correlation_values(post_process):
 		data[2].scalars = [verify(val) for val in p_values]
 		return data
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
 			#'by parameter space map', 'manual grouping']
 			'by parameter space map']
@@ -1020,6 +1038,9 @@ class post_process_correlation_values(post_process):
 
 		self.capture_targets = [self.function_of, 
 			'correlation coefficients', 'correlation p-value']
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1113,21 +1134,20 @@ class post_process_counts_to_concentrations(post_process):
 		if data.label in self.dater_ids:
 			data.scalars = [float(count)*conv_factor 
 					for count in trajectory.scalars]
-
-		else:
-			data.scalars = trajectory.scalars
-
+		else: data.scalars = trajectory.scalars
 		return data
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['per trajectory']
+
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
 		if self.dater_ids is None:
-			if capture_targetable:
-				self.dater_ids = capture_targetable
-
+			if capture_targetable: self.dater_ids = capture_targetable
 		self.capture_targets = capture_targetable
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1220,17 +1240,23 @@ class post_process_slice_from_trajectory(post_process):
 
 		return data
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['per trajectory']
+
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
 		if self.dater_ids is None:
 			self.dater_ids = []
 
 		#is this why output plans require one more update all the time it seems?
-		self.capture_targets = self.dater_ids
-		self.output.targeted = [targ for targ in self.output.targeted 
+		self.capture_targets = self.dater_ids		
+
+		self.output.targeted = [targ for targ in self.output.targeted #is this necessary?
 									if targ in self.capture_targets]
+
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		#use a spin widget to select a location in the domain
 		#	or a text box to support true slicing
@@ -1354,7 +1380,7 @@ class post_process_reorganize_data(post_process):
 						surf_targets, 'reorg surface vector'))
 		return data
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
 		if self.dater_ids is None: self.dater_ids = []
@@ -1367,6 +1393,9 @@ class post_process_reorganize_data(post_process):
 				self.axis_labels + [label for label in self.dater_ids]
 		self.output.targeted = [targ for targ in self.output.targeted 
 									if targ in self.capture_targets]
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1503,7 +1532,7 @@ class post_process_1_to_1_binary_operation(post_process):
 	#	post_process.provide_axes_manager_input(self)
 	#	self.x_title = 'time'
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['per trajectory']
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
@@ -1518,6 +1547,9 @@ class post_process_1_to_1_binary_operation(post_process):
 
 		self.capture_targets = ['_'.join(
 			[self.input_1, self.input_2]), self.domain]
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1670,13 +1702,7 @@ class post_process_period_finding(post_process):
 
 		return period, amp
 
-	#this function specifies the gui for this object
-	# it's a bit difficult to describe when it's called, but anything
-	# which is kept up-to-date prior to running is likely kept that way
-	# by this function
-	#this function is only called to recalculate the widget templates
-	# it is NOT called simply to make them, unless necessary
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['per trajectory']
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
@@ -1687,6 +1713,15 @@ class post_process_period_finding(post_process):
 				self.period_of + ' period', 
 				self.period_of + ' amplitude']
 		self.capture_targets = self.target_list
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	#this function specifies the gui for this object
+	# it's a bit difficult to describe when it's called, but anything
+	# which is kept up-to-date prior to running is likely kept that way
+	# by this function
+	#this function is only called to recalculate the widget templates
+	# it is NOT called simply to make them, unless necessary
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
@@ -1751,13 +1786,15 @@ class post_process_measure_probability(post_process):
 		data[0].scalars = [passes/len(args[0])]
 		return data
 
-	def set_settables(self, *args, **kwargs):
+	def set_target_settables(self, *args, **kwargs):
 		self.valid_regimes = ['all trajectories', 
 						'by parameter space map']
 		self.valid_inputs = self.get_valid_inputs(*args, **kwargs)
 		capture_targetable = self.get_targetables(*args, **kwargs)
-
 		self.capture_targets = ['probability']
+		post_process.set_target_settables(self, *args, **kwargs)
+
+	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
 		self.probability_criterion.set_settables(*args, **kwargs)
 		self.widg_templates.append(

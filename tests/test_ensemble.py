@@ -14,6 +14,12 @@ class mngerTestCase(unittest.TestCase):
 	simple_mcfg = os.path.join(os.getcwd(), 
 				'stringchemical_dep_mcfgs', 
 				'MM_kinetics_boring.mcfg')
+	fitting_mcfg = os.path.join(os.getcwd(), 
+				'stringchemical_dep_mcfgs', 
+				'MM_kinetics_fitting.mcfg')
+	correl_mcfg = os.path.join(os.getcwd(), 
+				'stringchemical_dep_mcfgs', 
+				'correl_demo.mcfg')
 	mnger = ensemble_manager()
 	ensem = mnger.add_ensemble()
 
@@ -26,9 +32,20 @@ class mngerTestCase(unittest.TestCase):
 		"""ensemble successfully made?"""
 		self.assertFalse(self.ensem == None)
 
-	def test_can_run_ensemble(self):
-		"""ensemble successfully run?"""
+	def test_can_run_simple_ensemble(self):
+		"""ensemble successfully run the simple mcfg?"""
 		self.assertTrue(self.ensem.run_mcfg(self.simple_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+
+	def test_can_run_fitting(self):
+		"""ensemble successfully run the fitting mcfg?"""
+		self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+
+	def test_can_run_correl(self):
+		"""ensemble successfully run the fitting mcfg?"""
+		self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg))
+		self.assertTrue(self.ensem.produce_output())
 
 	def test_can_produce_output(self):
 		"""ensemble successfully made output?"""

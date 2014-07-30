@@ -555,7 +555,8 @@ def parse_p_space(p_sub, ensem):
 	def turn_on_mobjs_first_p_space_axis(mobj):
 		dex = axes.index(mobj.label)
 		mobj_attr = variants[dex]
-		mobj.set_settables(0, ensem)
+		#mobj.set_settables(0, ensem)
+		mobj.set_pspace_settables(0, ensem)
 		for p_temp in mobj.parameter_space_templates:
 			if mobj_attr == p_temp.key:
 				p_temp.contribute_to_p_sp = True
@@ -636,6 +637,25 @@ def parse_p_space(p_sub, ensem):
 		parameter_space.get_start_position()]
 
 	if comp_meth == 'Product Space' or comp_meth == '1 - 1 Zip':
+		traj_dlg = p_space_proxy(parent = None, 
+			base_object = selected, composition_method = comp_meth, 
+			p_space = ensem.cartographer_plan.parameter_space)
+
+		for ax, vari, rng in zip(axes, variants, ranges):
+			trj_dlg_dex = traj_dlg.axis_labels.index(
+							' : '.join([ax, vari]))
+			traj_dlg.variations[trj_dlg_dex] = validate(rng)
+
+		traj_dlg.on_make()
+		ensem.cartographer_plan.trajectory_string =\
+							traj_dlg.result_string
+		ensem.cartographer_plan.on_delete_selected_pts(
+									preselected = None)
+		ensem.cartographer_plan.on_reset_trajectory_parameterization()
+		ensem.cartographer_plan.on_append_trajectory(traj_dlg.result)
+		ensem.cartographer_plan.traj_count = p_sub[0][1]
+		ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
+		'''
 		traj_dlg = lgd.trajectory_dialog(parent = None, 
 			base_object = selected, composition_method = comp_meth, 
 			p_space = ensem.cartographer_plan.parameter_space)
@@ -656,11 +676,97 @@ def parse_p_space(p_sub, ensem):
 
 		ensem.cartographer_plan.traj_count = p_sub[0][1]
 		ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
+		'''
 
 	elif comp_meth == 'Fitting':
 		subspaces = ensem.cartographer_plan.parameter_space.subspaces
 		for li in lfu.flatten(con_lines):
 			parse_constraint(li, subspaces)
+
+class p_space_proxy(object):
+	def __init__(self, *args, **kwargs):
+		self.base_object = kwargs['base_object']
+		self.p_space = kwargs['p_space']
+		self.parent = kwargs['parent']
+
+		self.result_string = None
+		self.result = None
+		self.constructed = []
+		self.max_locations = 10000
+		#variations is a list (in 1-1 with subspaces)
+		#	of lists of values
+		self.variations = [None]*len(self.p_space.subspaces)
+		if not self.variations: self.NO_AXES_FLAG = True
+		else: self.NO_AXES_FLAG = False
+		self.comp_methods = ['Product Space', '1 - 1 Zip']
+		self.axis_labels = [subsp.label for subsp in 
+							self.p_space.subspaces]
+		if 'composition_method' in kwargs.keys():
+			self.composition_method = kwargs['composition_method']
+		else: self.composition_method = 'Product Space'
+
+	def wrap_nones(self):
+		for dex in range(len(self.variations)):
+			if not self.variations[dex]:
+				self.variations[dex] = [None]
+
+	def create_product_space_locations(self):
+		self.wrap_nones()
+		tuple_table = it.product(*self.variations)
+		for tup in tuple_table:
+			fixed_tup = []
+			for elem, dex in zip(tup, range(len(tup))):
+				if elem is None:
+					fixed_tup.append(self.base_object[0][dex])
+
+				else: fixed_tup.append(tup[dex])
+
+			if len(self.constructed) > self.max_locations:
+				print ''.join(['WILL NOT MAKE', str(len(
+					self.constructed)-1), '+LOCATIONS!'])
+				break
+
+			self.constructed.append(parameter_space_location(
+								location = list(fixed_tup)))
+
+		vari_string = '\n\t\t'.join([' : '.join([ax, ', '.join(
+				[str(var) for var in vari])]) for ax, vari in 
+			zip(self.axis_labels, self.variations) if vari])
+		self.result_string = '\t<product_space> #\n\t\t' + vari_string
+
+	def create_one_to_one_locations(self):
+		self.wrap_nones()
+		max_leng = max([len(variant) for variant in self.variations])
+		if max_leng > self.max_locations:
+			print ''.join(['WILL NOT MAKE', str(len(
+					self.constructed)-1), '+LOCATIONS!'])
+			return
+
+		for dex in range(len(self.variations)):
+			if self.variations[dex][0] is None:
+				self.variations[dex] =\
+					[self.base_object[0][dex]]*max_leng
+
+			elif len(self.variations[dex]) < max_leng:
+				leng_diff = max_leng - len(self.variations[dex])
+				last_value = self.variations[dex][-1]
+				[self.variations[dex].append(last_value) for k in
+												range(leng_diff)]
+
+		for dex in range(max_leng):
+			locale = [var[dex] for var in self.variations] 
+			self.constructed.append(parameter_space_location(
+										location = locale))
+
+		self.result_string = '<zip>\n\t'
+		pdb.set_trace()
+
+	def on_make(self):
+		if self.composition_method == 'Product Space':
+			self.create_product_space_locations()
+		elif self.composition_method == '1 - 1 Zip':
+			self.create_one_to_one_locations()
+		self.result = self.constructed
 
 class parameter_space(lfu.modular_object_qt):
 

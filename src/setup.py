@@ -50,9 +50,9 @@ requirements = [
 	'scipy >= 0.13.0', 
 	'PySide >= 1.2.1', 
 	'matplotlib >= 1.1.0', 
-	'six >= 1.7.3', 
+	#'six >= 1.7.3', 
 	'PyOpenGL >= 3.0.0', 
-	'python-dateutil >= 2.2', 
+	#'python-dateutil >= 2.2', 
 			]
 
 setup(

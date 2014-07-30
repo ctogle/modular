@@ -1069,7 +1069,7 @@ class dictionary_support_mason(standard_mason):
 
 def generate_add_remove_select_inspect_box_template(window, key, 
 		labels, wheres, parent, selector_handle, memory_handle, 
-		base_class, function_handles = None, verbosities = None):
+		base_class, function_handles = None, verbosities = [3, 1]):
 	if wheres[0] is wheres[1]: whars = wheres[:-1]
 	else: whars = wheres
 	_add_func_ = lgb.generate_add_function(base_class, 

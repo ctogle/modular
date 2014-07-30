@@ -129,6 +129,7 @@ class ensemble(lfu.modular_object_qt):
 		self.load_module(reset_params = True)
 		self.mcfg_dir = lfu.get_mcfg_path()
 		if not os.path.isdir(self.mcfg_dir): self.mcfg_dir = os.getcwd()
+		self.impose_default('multithread_gui', False, **kwargs)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self.provide_axes_manager_input()
 		self.data_pool_id = lfu.get_new_pool_id()
@@ -394,7 +395,7 @@ class ensemble(lfu.modular_object_qt):
 		#	self.run_params['plot_targets'])
 		current_trajectory = 1
 		while current_trajectory <= self.num_trajectories:
-			self.output_plan.update_filenames()
+			#self.output_plan.update_filenames()
 			self.data_pool.batch_pool.append(lis.run_system(
 					self, identifier = current_trajectory))
 			#lis.run_system(self)
@@ -422,7 +423,7 @@ class ensemble(lfu.modular_object_qt):
 			self.data_pool._prep_pool_(iteration)
 			for dex in range(self.cartographer_plan.trajectory[
 								iteration][1].trajectory_count):
-				self.output_plan.update_filenames()
+				#self.output_plan.update_filenames()
 				ID = int(str(iteration) + str(dex))
 				self.data_pool.live_pool.append(
 					run_func(self, identifier = ID))

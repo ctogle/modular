@@ -151,7 +151,7 @@ class interface_template_class(interface_template_new_style):
 class modular_object_qt(object):
 	__doc__ = """fundamental class used in modular"""
 	rewidget_ = True
-	#_p_sp_bounds_ = []
+	_p_sp_bounds_ = []
 	_children_ = []
 	_handles_ = []
 	data = []
@@ -241,6 +241,7 @@ class modular_object_qt(object):
 
 		else: self.valid_base_classes = valid_base_classes
 		self.impose_default('parameter_space_templates', [], **kwargs)
+		self._store_p_sp_temp_data_()	
 		self.rewidget_ = True
 
 	def impose_default(self, *args, **kwargs):
@@ -345,15 +346,17 @@ class modular_object_qt(object):
 		self.__dict__ = dictionary()
 		self.__dict__.update(d)
 
-	def initialize(self, *args, **kwargs): pass
-	def sanitize(self, *args, **kwargs):
-		self.widg_dialog_templates = []
+	def _store_p_sp_temp_data_(self):
 		if self.parameter_space_templates:
 			self._p_sp_bounds_ = [temp.p_sp_bounds for temp in 
 								self.parameter_space_templates]
 			self._p_sp_increments_ = [temp.p_sp_increment for temp 
 								in self.parameter_space_templates]
 
+	def initialize(self, *args, **kwargs): pass
+	def sanitize(self, *args, **kwargs):
+		self.widg_dialog_templates = []
+		self._store_p_sp_temp_data_()
 		self.parameter_space_templates = []
 		self.widg_templates = []
 		self.menu_templates = []
@@ -422,6 +425,12 @@ class modular_object_qt(object):
 		self.x_title = x_title
 		self.y_title = y_title
 		self.title = title
+
+	def set_pspace_settables(self, *args, **kwargs):
+		if using_gui():
+			#this should probably turn on more than one axis...
+			self.parameter_space_templates[0].set_settables(
+											*args, **kwargs)
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, **kwargs)

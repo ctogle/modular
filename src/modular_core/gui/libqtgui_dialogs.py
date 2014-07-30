@@ -10,7 +10,7 @@ from PySide import QtGui, QtCore
 
 try:
 	import matplotlib
-	#matplotlib.rcParams['backend.qt4'] = 'PySide'
+	matplotlib.rcParams['backend.qt4'] = 'PySide'
 	#matplotlib.use('Qt4Agg')
 
 	from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -1240,7 +1240,13 @@ class trajectory_dialog(create_obj_dialog):
 		mason = lgm.standard_mason(parent = self.parent)
 		if 'title' in kwargs.keys(): title = kwargs['title']
 		else: title = 'Create Trajectory Window'
-
+		import modular_core.libgeometry as lgeo
+		self.p_sp_proxy = lgeo.p_space_proxy(*args, **kwargs)
+		if self.p_sp_proxy.NO_AXES_FLAG and lfu.using_gui():
+			lgd.message_dialog(self.parent, 
+				'Parameter Space has no axes!', 'Problem')
+			self.reject()
+		''''
 		self.base_object = kwargs['base_object']
 		self.p_space = kwargs['p_space']
 		self.parent = kwargs['parent']
@@ -1265,6 +1271,7 @@ class trajectory_dialog(create_obj_dialog):
 			self.composition_method = kwargs['composition_method']
 
 		else: self.composition_method = 'Product Space'
+		'''
 		create_obj_dialog.__init__(self, None, mason = mason, 
 							title = title, from_sub = True)
 		self.set_settables()
@@ -1274,16 +1281,16 @@ class trajectory_dialog(create_obj_dialog):
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['radio'], 
-				labels = [self.comp_methods], 
-				instances = [[self]], 
+				labels = [self.p_sp_proxy.comp_methods], 
+				instances = [[self.p_sp_proxy]], 
 				keys = [['composition_method']], 
-				initials = [[self.composition_method]],  
+				initials = [[self.p_sp_proxy.composition_method]],  
 				box_labels = ['Composition Method']))
 		self.set_up_widgets()
 
 	def set_up_widgets(self):
 		range_makers, variations = create_ranger_makers(
-									self, 'variations')
+							self.p_sp_proxy, 'variations')
 		axis_widgets = lgb.central_widget_wrapper(content =\
 			lgb.create_vert_box([lgb.central_widget_wrapper(content =\
 				lgb.create_vert_box([lgb.create_label(
@@ -1296,75 +1303,11 @@ class trajectory_dialog(create_obj_dialog):
 		layout = lgb.create_vert_box([panel])
 		create_obj_dialog.set_up_widgets(self, layout)
 
-	def wrap_nones(self):
-		for dex in range(len(self.variations)):
-			if not self.variations[dex]:
-				self.variations[dex] = [None]
-
-	def create_product_space_locations(self):
-		from modular_core.libgeometry import parameter_space_location
-		self.wrap_nones()
-		tuple_table = it.product(*self.variations)
-		for tup in tuple_table:
-			fixed_tup = []
-			for elem, dex in zip(tup, range(len(tup))):
-				if elem is None:
-					fixed_tup.append(self.base_object[0][dex])
-
-				else: fixed_tup.append(tup[dex])
-
-			if len(self.constructed) > self.max_locations:
-				print ''.join(['WILL NOT MAKE', str(len(
-					self.constructed)-1), '+LOCATIONS!'])
-				break
-
-			self.constructed.append(parameter_space_location(
-								location = list(fixed_tup)))
-
-		vari_string = '\n\t\t'.join([' : '.join([ax, ', '.join(
-				[str(var) for var in vari])]) for ax, vari in 
-			zip(self.axis_labels, self.variations) if vari])
-		self.result_string = '\t<product_space> #\n\t\t' + vari_string
-
-	def create_one_to_one_locations(self):
-		from libs.modular_core.libgeometry import parameter_space_location
-		self.wrap_nones()
-		max_leng = max([len(variant) for variant in self.variations])
-		if max_leng > self.max_locations:
-			print ''.join(['WILL NOT MAKE', str(len(
-					self.constructed)-1), '+LOCATIONS!'])
-			return
-
-		for dex in range(len(self.variations)):
-			if self.variations[dex][0] is None:
-				self.variations[dex] =\
-					[self.base_object[0][dex]]*max_leng
-
-			elif len(self.variations[dex]) < max_leng:
-				leng_diff = max_leng - len(self.variations[dex])
-				last_value = self.variations[dex][-1]
-				[self.variations[dex].append(last_value) for k in
-												range(leng_diff)]
-
-		for dex in range(max_leng):
-			locale = [var[dex] for var in self.variations] 
-			self.constructed.append(parameter_space_location(
-										location = locale))
-
-		self.result_string = '<zip>\n\t'
-		pdb.set_trace()
-
 	def on_make(self):
-		if self.composition_method == 'Product Space':
-			self.create_product_space_locations()
-
-		elif self.composition_method == '1 - 1 Zip':
-			self.create_one_to_one_locations()
-
-		self.result = self.constructed
-		if self.dialoging:
-			create_obj_dialog.on_make(self)
-
+		self.p_space_proxy.on_make()
+		self.result = self.p_sp_proxy.constructed
+		self.result_string = self.p_sp_proxy.result_string
+		if self.dialoging: create_obj_dialog.on_make(self)
 		else: self.made = True
 
 def create_ranger_makers(inst, key):
