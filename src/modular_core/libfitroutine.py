@@ -46,7 +46,8 @@ class fit_routine_plan(lfu.plan):
 		data_pool = self.parent.set_data_scheme()
 		if self.show_progress_plots:
 			if self.parent.multithread_gui:
-				app = lgb.QtGui.QApplication(sys.argv)
+				try: app = lgb.QtGui.QApplication(sys.argv)
+				except RuntimeError: pass#	this should not be so silent!
 
 			else: self.show_progress_plots = False
 

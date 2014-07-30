@@ -512,9 +512,7 @@ class ensemble(lfu.modular_object_qt):
 
 	def sanitize(self, *args, **kwargs):
 		self._module_memory_ = []
-		self._make_rxn_ = None
-		self._make_spec_ = None
-		self.data_pool = []
+		self.data_pool = None
 		lfu.modular_object_qt.sanitize(self)
 
 	def rewidget__children_(self, *args, **kwargs):
