@@ -67,7 +67,7 @@ setup(
 """\
 This is the core package of modular
 """,
-	install_requires = requirements, 
+	#install_requires = requirements, 
 	scripts = ['../modular.py'], 
 	packages = ['modular_core', 'modular_core.gui', 
 			'modular_core.gpu', 'modular_core.modules'], 

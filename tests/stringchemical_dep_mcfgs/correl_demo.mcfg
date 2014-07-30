@@ -44,7 +44,7 @@
 	reorg : reorganize data : 2 : all
 
 <multiprocessing>
-	workers : 16
+	workers : 8
 
 <output_plans>
 	3 : - : reorg_output : pkl : all

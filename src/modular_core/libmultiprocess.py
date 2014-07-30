@@ -41,69 +41,59 @@ class multiprocess_plan(lfu.plan):
 	def gpu_1to1_operation(self, *args, **kwargs):
 		return self.gpu_worker.execute(*args, **kwargs)
 
-	def distribute_work(self, ensem_reference, target_processes = [], 
-									target_counts = [], args = []):
-		#each int in target counts specifies a loop to make the nest
-		#the last loop always wraps the last process in a separate process
-		#the number of layers in the nest is variable!
-		def mapping_multi():
-			try: processor_count = int(self.worker_count)
-			except: 
-				print 'defaulting to 4 workers...'
-				processor_count = 4
+	def distribute_work(self, data_pool, ensem_reference, 
+			target_processes = [], target_counts = [], args = []):
+		try: processor_count = int(self.worker_count)
+		except: 
+			print 'defaulting to 4 workers...'
+			processor_count = 4
 
-			pool = mp.Pool(processes = processor_count)
-			move_to = target_processes[0]
-			update_filenames = target_processes[1]
-			run_system = target_processes[2]
-			worker_report = []
-			#data_pool = []
-			#data_pool = ensem_reference.data_pool.batch_pool
-			dex0 = 0
-			while dex0 < target_counts[0]:
-				move_to(dex0)
-				dex1 = 0
-				data_pool = []
-				while dex1 < target_counts[1][dex0]:
-					#update_filenames()
-					runs_left = target_counts[1][dex0] - dex1
-					if runs_left >= processor_count: 
-						runs_this_round = processor_count
-					else: runs_this_round = runs_left % processor_count
-					check_time = time.time()
-					IDs = [int(str(dex1) + str(x)) 
-						for x in range(runs_this_round)]
-					argus = [args[2] + (id_,) for id_ in IDs]
-					try:
-						result = [pool.apply_async(run_system, 
-							args = argus[d], callback = data_pool.append) 
-										for d in range(runs_this_round)]
-					except MemoryError: print 'AMNESIA!'; pdb.set_trace()
-					[res.wait() for res in result]
-					dex1 += runs_this_round
-					report = ' '.join(['location dex:', str(dex0), 
-						'runs this round:', str(runs_this_round), 'in:', 
-							str(time.time() - check_time), 'seconds'])
-					worker_report.append(report)
-					print 'multicore reported...', ' location: ', dex0
+		pool = mp.Pool(processes = processor_count)
+		move_to = target_processes[0]
+		run_system = target_processes[1]
+		worker_report = []
+		#data_pool = []
+		#data_pool = ensem_reference.data_pool.batch_pool
+		dex0 = 0
+		while dex0 < target_counts[0]:
+			move_to(dex0)
+			dex1 = 0
+			sub_data_pool = []
+			while dex1 < target_counts[1][dex0]:
+				runs_left = target_counts[1][dex0] - dex1
+				if runs_left >= processor_count: 
+					runs_this_round = processor_count
+				else: runs_this_round = runs_left % processor_count
+				check_time = time.time()
+				IDs = [int(str(dex1) + str(x)) 
+					for x in range(runs_this_round)]
+				argus = [args[2] + (id_,) for id_ in IDs]
+				result = [pool.apply_async(run_system, 
+					args = argus[d], callback = sub_data_pool.append) 
+								for d in range(runs_this_round)]
+				[res.wait() for res in result]
+				dex1 += runs_this_round
+				report = ' '.join(['location dex:', str(dex0), 
+					'runs this round:', str(runs_this_round), 'in:', 
+						str(time.time() - check_time), 'seconds'])
+				worker_report.append(report)
+				print 'multicore reported...', ' location: ', dex0
 
-				#ensem_reference.data_pool.live_pool =\
-				#	np.array(data_pool, dtype = np.float)
-				ensem_reference.data_pool.live_pool = data_pool
-				ensem_reference.data_pool._rid_pool_(dex0)
-				dex0 += 1
+			#ensem_reference.data_pool.live_pool =\
+			#	np.array(data_pool, dtype = np.float)
+			data_pool.live_pool = sub_data_pool
+			data_pool._rid_pool_(dex0)
+			dex0 += 1
 
-			pool.close()
-			pool.join()
-			try:
-				ensem_reference.data_pool.batch_pool =\
-					np.array(data_pool, dtype = np.float)
-			except ValueError: pdb.set_trace()
-			self.worker_report = worker_report
+		pool.close()
+		pool.join()
+		sub_data_pool = None
+		data_pool.batch_pool =\
+			np.array(data_pool, dtype = np.float)
+		self.worker_report = worker_report
+		return data_pool
 
-		mapping_multi()
-
-	def distribute_work_simple_runs(self, update_func = None, 
+	def distribute_work_simple_runs(self, data_pool, 
 			run_func = None, ensem_reference = None, run_count = 1):
 		try: processor_count = int(self.worker_count)
 		except: 
@@ -124,7 +114,7 @@ class multiprocess_plan(lfu.plan):
 			IDs = [int(str(dex0) + str(x)) 
 				for x in range(runs_this_round)]
 			dex0 += runs_this_round
-			update_func()
+			#update_func()
 			argus = zip([ensem_reference]*runs_this_round, IDs)
 			result = [pool.apply_async(run_func, args = argus[d], 
 							callback = result_pool.append) 
@@ -139,8 +129,10 @@ class multiprocess_plan(lfu.plan):
 		pool.close()
 		pool.join()
 		self.worker_report = worker_report
-		ensem_reference.data_pool.batch_pool =\
-			np.array(result_pool, dtype = np.float)
+		#ensem_reference.data_pool.batch_pool =\
+		#	np.array(result_pool, dtype = np.float)
+		data_pool.batch_pool = np.array(result_pool, dtype = np.float)
+		return data_pool
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)

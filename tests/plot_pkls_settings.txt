@@ -1,0 +1,20 @@
+
+<interface>
+multithread_gui = True
+debug_verbosity = 2
+interface_verbosity = 2
+
+<multiprocessing defaults>
+worker_processes = 8
+multiprocessing = True
+
+<output defaults>
+output_plt = True
+output_txt = False
+output_vtk = False
+output_pkl = False
+default_output_path = none
+
+
+
+

@@ -43,14 +43,14 @@ class fit_routine_plan(lfu.plan):
 		lfu.plan.__init__(self, *args, **kwargs)
 
 	def __call__(self, *args, **kwargs):
-		self.parent.data_pool = self.parent.set_data_scheme()
+		data_pool = self.parent.set_data_scheme()
 		if self.show_progress_plots:
 			if self.parent.multithread_gui:
 				app = lgb.QtGui.QApplication(sys.argv)
 
 			else: self.show_progress_plots = False
 
-		self.enact_plan(*args, **kwargs)
+		return self.enact_plan(*args, dpool = data_pool, **kwargs)
 
 	def enact_plan(self, *args, **kwargs):
 		for routine in self.routines:
@@ -58,6 +58,7 @@ class fit_routine_plan(lfu.plan):
 			routine(*args, **kwargs)
 			print ' '.join(['completed fit routine:', routine.label, 
 						'in:', str(time.time() - check1), 'seconds'])
+		return kwargs['dpool']
 
 	def add_routine(self, new = None):
 		if not new: new = fit_routine_simulated_annealing(parent = self)
@@ -339,7 +340,9 @@ class fit_routine(lfu.modular_object_qt):
 	def __call__(self, *args, **kwargs):
 		self.initialize(*args, **kwargs)
 		run_func = lis.run_system_measurement
-		data_pool = self.ensemble.data_pool.batch_pool
+		#data_pool = self.ensemble.data_pool.batch_pool
+		#data_pool = self.ensemble.set_data_scheme().batch_pool#data_pool.batch_pool
+		data_pool = kwargs['dpool'].batch_pool
 		worker_pool = None
 		if self.use_mean_fitting or self.use_genetics:
 			worker_pool = mp.Pool(processes = self.worker_count)
@@ -715,10 +718,15 @@ class fit_routine(lfu.modular_object_qt):
 		print '\tran using regime:', self.regime
 		best_data = self.data_to_fit_to + best_run_data_ys
 		#lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
-		self.ensemble.data_pool.pool_names =\
-			[dat.label for dat in best_data]
-		self.ensemble.data_pool.batch_pool.append(best_data)
-		self.ensemble.data_pool.override_targets = True
+		self.data.extend(best_data)
+		#kwargs['dpool'].pool_names =\
+		#	[dat.label for dat in best_data]
+		#kwargs['dpool'].batch_pool.append(best_data)
+		#kwargs['dpool'].override_targets = True
+		#self.ensemble.data_pool.pool_names =\
+		#	[dat.label for dat in best_data]
+		#self.ensemble.data_pool.batch_pool.append(best_data)
+		#self.ensemble.data_pool.override_targets = True
 		if self.regime.startswith('coarse'):
 			self.impose_coarse_result_to_p_space()
 			self.ensemble.cartographer_plan.parameter_space.\

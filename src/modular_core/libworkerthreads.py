@@ -17,10 +17,11 @@ class worker_finished(QtCore.QObject):
 # all simulations as well as post processes
 class worker_thread(Thread):
 
-	def __init__(self, ensem, target, index):
+	def __init__(self, ensem, target, index, args = ()):
 		Thread.__init__(self)
 		self.ensem = ensem
 		self.target_func = target
+		self.args = args
 		self.index = index
 		self.aborted = False
 		self.daemon = True
@@ -32,7 +33,7 @@ class worker_thread(Thread):
 
 	def run(self):
 		self.process = multiprocessing.Process(
-			target = self.target_func, args = ())
+			target = self.target_func, args = self.args)
 		try:
 			self.process.start()
 			self.process.join()

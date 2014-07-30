@@ -20,6 +20,9 @@ class mngerTestCase(unittest.TestCase):
 	correl_mcfg = os.path.join(os.getcwd(), 
 				'stringchemical_dep_mcfgs', 
 				'correl_demo.mcfg')
+	means_mcfg = os.path.join(os.getcwd(), 
+				'stringchemical_dep_mcfgs', 
+				'MM_kinetics_means.mcfg')
 	mnger = ensemble_manager()
 	ensem = mnger.add_ensemble()
 
@@ -43,8 +46,19 @@ class mngerTestCase(unittest.TestCase):
 		self.assertTrue(self.ensem.produce_output())
 
 	def test_can_run_correl(self):
-		"""ensemble successfully run the fitting mcfg?"""
+		"""ensemble successfully run the correl demo mcfg?"""
+		#thread = self.mnger.run_threaded(self.ensem, 
+		#	self.ensem.run_mcfg, args = (self.correl_mcfg,))
+		#self.assertTrue(thread)
 		self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+
+	def test_can_run_means(self):
+		"""ensemble successfully run the mm means mcfg?"""
+		#thread = self.mnger.run_threaded(self.ensem, 
+		#	self.ensem.run_mcfg, args = (self.means_mcfg,))		
+		#self.assertTrue(thread)
+		self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
 		self.assertTrue(self.ensem.produce_output())
 
 	def test_can_produce_output(self):

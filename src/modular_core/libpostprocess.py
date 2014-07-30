@@ -545,7 +545,8 @@ class post_process(lfu.modular_object_qt):
 		#for src in sources: lfu.zip_list(pool, src.data)
 		if 'simulation' in self.input_regime:
 			#lfu.zip_list(pool, args[0].data_pool.get_batch())
-			pool = args[0].data_pool
+			#pool = args[0].data_pool
+			pool = args[1]
 
 		for src in sources: lfu.zip_list(pool, src.data)
 		if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']

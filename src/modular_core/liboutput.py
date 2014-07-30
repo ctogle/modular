@@ -6,7 +6,7 @@ import modular_core.libgeometry as lgeo
 import modular_core.libsettings as lset
 
 #from cStringIO import StringIO
-import os
+import os, sys
 import time
 try: import matplotlib.pyplot as plt
 except ImportError: print 'matplotlib could not be imported! - output'
@@ -46,8 +46,8 @@ def parse_output_plan_line(*args):
 	relevant = [item.strip() for item in spl[4].split(',')]
 	if 'all' in relevant:
 		if lfu.using_gui(): output.set_settables(0, ensem)
-		output.targeted = output.get_target_labels()
-
+		else: output.set_target_settables(0, ensem)
+		#output.targeted = output.get_target_labels()
 	else: output.targeted = relevant
 
 class writer(lfu.modular_object_qt):
@@ -219,20 +219,21 @@ class writer_plt(writer):
 		plot_types = []
 		if self.axes_manager.use_color_plot():
 			plot_types.append('color')
-
 		if self.axes_manager.use_color_plot():
 			plot_types.append('surface')
-
 		if self.axes_manager.use_line_plot():
 			plot_types.append('lines')
-
 		if self.axes_manager.use_bar_plot():
 			plot_types.append('bars')
-
 		self.axes_manager.grab_info_from_output_plan_parent()
-		self.plt_window = lgd.plot_window(
-			title = self.parent.parent.label, 
-			plot_types = plot_types)
+		if lfu.using_gui():
+			#import modular_core.gui.libqtgui_dialogs as lgd
+			#import modular_core.gui.libqtgui_bricks as lgb
+			#app = lgb.QtGui.QApplication(sys.argv)
+			titl = self.parent.parent.label
+			if titl == 'mobj__': titl = self.parent.label
+			self.plt_window = lgd.plot_window(
+				title = titl, plot_types = plot_types)
 
 	def sanitize(self, *args, **kwargs):
 		self.plt_window = None
@@ -394,7 +395,8 @@ class output_plan(lfu.plan):
 			#targs = self.get_target_labels()
 			for traj in system.data:
 				data_container = lfu.data_container(data = traj)
-				self.update_filenames()
+				try: self.update_filenames()
+				except TypeError: print 'terror'
 				proper_paths = self.find_proper_paths()
 				if self.output_vtk:
 					to_be_outted.append((proper_paths['vtk'], 
@@ -414,6 +416,10 @@ class output_plan(lfu.plan):
 
 			using_plt = 3 in [out[1] for out in to_be_outted]
 			if using_plt and lfu.using_gui():
+			#if using_plt:
+				#if not lfu.using_gui():
+				#	import modular_core.gui.libqtgui_bricks as lgb
+				#	app = lgb.QtGui.QApplication(sys.argv)
 				self.writers[3].get_plt_window()
 				plt_flag = True
 			else: plt_flag = False
@@ -424,7 +430,8 @@ class output_plan(lfu.plan):
 			if plt_flag: self.writers[3].plt_window()
 
 		else:
-			self.update_filenames()
+			try: self.update_filenames()
+			except TypeError: print 'terror'
 			proper_paths = self.find_proper_paths()
 			#if the list of data objects is flat (system.data is the list)
 			#self.to_be_outted has only 2 elements since data is already flat
@@ -442,6 +449,9 @@ class output_plan(lfu.plan):
 
 			using_plt = 3 in [out[1] for out in to_be_outted]
 			if using_plt and lfu.using_gui():
+				#if not lfu.using_gui():
+				#	import modular_core.gui.libqtgui_bricks as lgb
+				#	app = lgb.QtGui.QApplication(sys.argv)
 				self.writers[3].get_plt_window()
 				plt_flag = True
 			else: plt_flag = False
@@ -488,18 +498,20 @@ class output_plan(lfu.plan):
 
 		return target_labels
 
-	def set_settables(self, *args, **kwargs):
-		#ensem = args[1]
+	def set_target_settables(self, *args, **kwargs):
 		target_labels = self.get_target_labels(*args, **kwargs)
-		#set_settables gets called bottom up
-		# always have issues when childs templates depend on information
-		#  which is updated in the parents set_settables function
-
 		self.targeted = lfu.intersect_lists(self.targeted, target_labels)
 		for dex in range(len(self.outputs)):
 			self.outputs[dex] = lfu.intersect_lists(
 					self.outputs[dex], target_labels)
 
+	def set_settables(self, *args, **kwargs):
+		self.set_target_settables(*args, **kwargs)
+		target_labels = self.get_target_labels(*args, **kwargs)
+		#self.targeted = lfu.intersect_lists(self.targeted, target_labels)
+		#for dex in range(len(self.outputs)):
+		#	self.outputs[dex] = lfu.intersect_lists(
+		#			self.outputs[dex], target_labels)
 		self.handle_widget_inheritance(*args, **kwargs)
 		self.writers[0].set_settables(*args, **kwargs)
 		self.writers[1].set_settables(*args, **kwargs)

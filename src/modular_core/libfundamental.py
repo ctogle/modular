@@ -71,7 +71,10 @@ def using_os(os_):
 	else: return False
 
 def convert_pixel_space(width, height):
-	_screensize_ = gui_pack.lgb.set_screensize()
+	if using_gui(): _screensize_ = gui_pack.lgb.set_screensize()
+	else:
+		import modular_core.gui.libqtgui_bricks as lgb
+		_screensize_ = lgb.set_screensize()
 	good_width = 1920.0
 	good_height = 1080.0
 	(runtime_width, runtime_height) =\

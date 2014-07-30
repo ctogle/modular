@@ -48,8 +48,14 @@ class settings_manager(lfu.modular_object_qt):
 	def read_settings(self, filename = 'settings.txt'):
 		if self.filename: filename = self.filename
 		#settings_path = os.path.join(self.cfg_path, filename)
-		settings_path = resource_string(__name__, 
-			os.path.join('resources', filename))
+		try:
+			settings_path = resource_string(__name__, 
+				os.path.join('resources', filename))
+		except IOError:
+			settings_path = os.path.join(os.getcwd(), filename)
+			if not os.path.exists(settings_path): raise IOError
+			with open(settings_path, 'r') as handle:
+				settings_path = handle.read()
 		#settings_path = os.path.join(self.cfg_path, filename)
 		try:
 			#with open(settings_path, 'r') as handle:

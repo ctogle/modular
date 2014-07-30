@@ -37,8 +37,9 @@ class ensemble(lfu.modular_object_qt):
 		#self.impose_default('current_tab_index', 0, **kwargs)
 		#self.current_tab_index = 0
 		self.aborted = False
-		self.data_pool = lfu.data_container(
-			data = [], postproc_data = [])
+		#self.data_pool = lfu.data_container(
+		#	data = [], postproc_data = [])
+		self.data_pool = None
 		self.data_scheme = None
 		self.__dict__ = lfu.dictionary()
 		if 'parent' in kwargs.keys(): self.parent = kwargs['parent']
@@ -177,10 +178,9 @@ class ensemble(lfu.modular_object_qt):
 					print 'fitting requires a parameter space!'
 					return False
 
-				else: self.fitting_plan(self)
+				else: dpool = self.fitting_plan(self)
 
 			else:
-				
 				if not self.cartographer_plan.parameter_space and\
 								self.cartographer_plan.use_plan:
 					print 'no parameter space; ignoring map request'
@@ -188,25 +188,26 @@ class ensemble(lfu.modular_object_qt):
 
 				if self.multiprocess_plan.use_plan and\
 						self.cartographer_plan.use_plan:
-					self.run_systems_multiproc_mapping()
+					dpool = self.run_systems_multiproc_mapping()
 
 				elif not self.multiprocess_plan.use_plan and\
 							self.cartographer_plan.use_plan:
-					self.run_systems_mapping()
+					dpool = self.run_systems_mapping()
 
 				elif self.multiprocess_plan.use_plan and not\
 							self.cartographer_plan.use_plan:
-					self.run_systems_mutliproc()
+					dpool = self.run_systems_mutliproc()
 
 				elif not self.multiprocess_plan.use_plan and not\
 								self.cartographer_plan.use_plan:
-					self.run_systems_boring()
+					dpool = self.run_systems_boring()
 
 			save = True
 			print 'duration of simulations: ', time.time() - start_time
-			self.perform_post_processing(load = False)
+			self.perform_post_processing(
+				load = False, data_pool = dpool)
 
-		if save: self.save_data_pool()
+		if save: self.save_data_pool(dpool)
 		print 'finished last simulation run: exiting'
 		print 'duration: ', time.time() - start_time, ' seconds'
 		if profiling:
@@ -219,13 +220,13 @@ class ensemble(lfu.modular_object_qt):
 
 		return True
 
-	def perform_post_processing(self, load = False):
+	def perform_post_processing(self, load = False, data_pool = None):
 		if self.postprocess_plan.use_plan:
 			try:
 				print 'performing post processing...'
-				if load: self.data_pool = self.load_data_pool().data
+				if load: data_pool = self.load_data_pool().data
 				check = time.time()
-				self.postprocess_plan(self)
+				self.postprocess_plan(self, data_pool)
 				print 'duration of post procs: ', time.time() - check
 				return True
 
@@ -249,8 +250,9 @@ class ensemble(lfu.modular_object_qt):
 			self.set_data_scheme()
 			self.parent = None
 			if self.multithread_gui:
-				manager.worker_threads.append(lwt.worker_thread(self, 
-							self.run, len(manager.worker_threads)))
+				manager.run_threaded(self, self.run)
+				#manager.worker_threads.append(lwt.worker_thread(self, 
+				#			self.run, len(manager.worker_threads)))
 
 			else:
 				self.run()
@@ -284,7 +286,7 @@ class ensemble(lfu.modular_object_qt):
 								'and', str(proc_pool_count), 'Post', 
 												'Process', 'Pools'])
 
-	def save_data_pool(self):
+	def save_data_pool(self, data_pool):
 		print 'saving data pool...'
 		check = time.time()
 		proc_data = None
@@ -297,11 +299,11 @@ class ensemble(lfu.modular_object_qt):
 			rout_data = [rout.data for rout in 
 					self.fitting_plan.routines]
 
-		self.data_pool = lfu.data_container(data = self.data_pool, 
+		data_pool = lfu.data_container(data = data_pool, 
 			postproc_data = proc_data, routine_data = rout_data)
-		self.describe_data_pool(self.data_pool)
+		self.describe_data_pool(data_pool)
 		if self.data_scheme == 'smart_batch':
-			self.data_pool.data.live_pool = []
+			data_pool.data.live_pool = []
 			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
 										'.'.join(['data_pool', 'smart', 
 											self.data_pool_id, 'pkl']))
@@ -315,7 +317,7 @@ class ensemble(lfu.modular_object_qt):
 			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
 					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
-		lf.save_pkl_object(self.data_pool, self.data_pool_pkl)
+		lf.save_pkl_object(data_pool, self.data_pool_pkl)
 		print 'saved data pool: ', time.time() - check
 
 	def load_data_pool(self):
@@ -390,67 +392,55 @@ class ensemble(lfu.modular_object_qt):
 
 	#no multiprocessing, no parameter variation, and no fitting
 	def run_systems_boring(self):
-		self.data_pool = self.set_data_scheme()
-		#self.data_pool = lgeo.batch_scalars(
-		#	self.run_params['plot_targets'])
+		data_pool = self.set_data_scheme()
 		current_trajectory = 1
 		while current_trajectory <= self.num_trajectories:
-			#self.output_plan.update_filenames()
-			self.data_pool.batch_pool.append(lis.run_system(
-					self, identifier = current_trajectory))
-			#lis.run_system(self)
+			data_pool.batch_pool.append(lis.run_system(
+				self, identifier = current_trajectory))
 			current_trajectory += 1
+		return data_pool
 
 	#multiprocessing, no parameter variation, no fitting
 	def run_systems_mutliproc(self):
-		self.data_pool = self.set_data_scheme()
-		#self.data_pool = lgeo.batch_scalars(
-		#	self.run_params['plot_targets'])
-		self.multiprocess_plan.distribute_work_simple_runs(
-			update_func = self.output_plan.update_filenames, 
-			run_func = lis.run_system, ensem_reference = self, 
-							run_count = self.num_trajectories)
+		data_pool = self.set_data_scheme()
+		data_pool = self.multiprocess_plan.distribute_work_simple_runs(
+			data_pool, run_func = lis.run_system, ensem_reference = self, 
+									run_count = self.num_trajectories)
+		return data_pool
 
 	#no multiprocessing, parameter variation, no fitting
 	def run_systems_mapping(self):
-		self.data_pool = self.set_data_scheme()
+		data_pool = self.set_data_scheme()
 		run_func = lis.run_system
 		move_func = self.cartographer_plan.move_to
 		arc_length = len(self.cartographer_plan.trajectory)
 		iteration = self.cartographer_plan.iteration
 		while iteration < arc_length:
 			move_func(iteration)
-			self.data_pool._prep_pool_(iteration)
+			data_pool._prep_pool_(iteration)
 			for dex in range(self.cartographer_plan.trajectory[
 								iteration][1].trajectory_count):
-				#self.output_plan.update_filenames()
 				ID = int(str(iteration) + str(dex))
-				self.data_pool.live_pool.append(
+				data_pool.live_pool.append(
 					run_func(self, identifier = ID))
-				#run_func(self)
 				print 'location dex:', iteration, 'run dex:', dex
-
 			iteration += 1
 
-		self.data_pool._rid_pool_(iteration - 1)
+		data_pool._rid_pool_(iteration - 1)
 		self.cartographer_plan.iteration = 0
+		return data_pool
 
 	#multiprocessing with parameter variation, no fitting
 	def run_systems_multiproc_mapping(self):
-		self.data_pool = self.set_data_scheme()
-		#self.data_pool = lgeo.batch_data_pool(
-		#	self.run_params['plot_targets'], 
-		#			self.cartographer_plan)
-		#self.data_pool = lgeo.batch_scalars(
-		#	self.run_params['plot_targets'])
-		self.multiprocess_plan.distribute_work(self, 
-			target_processes =\
-				[self.cartographer_plan.move_to, 
-				self.output_plan.update_filenames, lis.run_system], 
+		data_pool = self.set_data_scheme()
+		data_pool = self.multiprocess_plan.distribute_work(
+			data_pool, self, target_processes =\
+				[self.cartographer_plan.move_to, lis.run_system], 
 				target_counts = [len(self.cartographer_plan.trajectory), 
 					[traj[1].trajectory_count for traj in 
 					self.cartographer_plan.trajectory], 1], 
 							args = [('dex'), (), (self,)])
+		return data_pool
 
 	def on_save(self):
 		dirdlg = lgd.create_dialog('Choose File', 'File?', 'directory')
@@ -722,6 +712,11 @@ class ensemble_manager(lfu.modular_object_qt):
 		if self.current_tab_index > 0:
 			current_ensem = self.ensembles[self.current_tab_index - 1]
 			current_ensem.on_run()
+
+	def run_threaded(self, ensem, run_, args = ()):
+		self.worker_threads.append(lwt.worker_thread(
+			ensem, run_, len(self.worker_threads), args = args))
+		return True
 
 	def abort_runs(self):
 		[thread.abort() for thread in self.worker_threads]

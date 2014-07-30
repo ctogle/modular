@@ -59,7 +59,7 @@
 
 <output_plans>
 	1 : - : sim_anneal_output_fine : none : all
-	0 : - : ensemble_output : plt : all
+	0 : - : ensemble_output : pkl : all
 
 <ensemble>
 	multiprocessing : off

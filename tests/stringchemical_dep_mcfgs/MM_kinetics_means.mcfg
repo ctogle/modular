@@ -24,13 +24,13 @@
 	Enzyme
 
 <post_processes>
-	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 100 : ordered
+	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 20 : ordered
 
 <multiprocessing>
 	workers : 8
 
 <output_plans>
-	1 : - : mm_fit_input : plt : all
+	1 : - : mm_means : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>
@@ -38,6 +38,6 @@
 	mapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 1000
+	trajectory_count : 100
 
 
