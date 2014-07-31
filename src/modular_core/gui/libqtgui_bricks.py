@@ -17,7 +17,7 @@ from PySide import QtGui, QtCore, QtOpenGL
 try:
 	import matplotlib
 	matplotlib.rcParams['backend.qt4'] = 'PySide'
-	#matplotlib.use('Qt4Agg')
+	matplotlib.use('Qt4Agg')
 
 	from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 	from matplotlib.backend_bases import NavigationToolbar2
