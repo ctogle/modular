@@ -4,7 +4,11 @@ import glob
 import os
 import re
 
+import appdirs
+
 from setuptools import setup#, Extension
+
+import pdb
 
 if isfile("MANIFEST"):
     os.unlink("MANIFEST")
@@ -55,6 +59,9 @@ requirements = [
 	#'python-dateutil >= 2.2', 
 			]
 
+#mo_sc_path = os.getcwd().split(os.path.sep)[:-1]
+#mo_sc_path = os.path.join(*mo_sc_path)
+
 setup(
 	name="modular_core-pkg",
 	version = VERSION,
@@ -77,12 +84,13 @@ This is the core package of modular
 	#package_data={"": ["*.tar.gz"]},
 	#include_package_data=True,
 	zip_safe = False,
-	data_files=[('modular_core/resources', res_files), 
-					('modular_core/data_pools', data_pools_files)], 
-	#ext_package = 'modular_core.modules.chemicallite_support',
-	#ext_modules = [Extension('stringchemical', 
-	#		['modular_core/modules/chemicallite_support/libchemicalstring_6.c']),
-	#					Extension('stringchemical_timeout', 
-	#		['modular_core/modules/chemicallite_support/libchemicalstring_6_timeout.c'])],
+	#data_files=[('modular_core/resources', res_files), 
+	#			('modular_core/data_pools', data_pools_files)], 
+	#data_files=[(os.path.join(mo_sc_path, 'resources'), res_files), 
+	#			(os.path.join(mo_sc_path, 'data_pools'), data_pools_files)], 
+	data_files=[(os.path.join(appdirs.user_config_dir(), 
+						'modular_resources'), res_files), 
+				(os.path.join(appdirs.user_data_dir(), 
+					'modular_data_pools'), data_pools_files)], 
 	)
 

@@ -58,8 +58,8 @@
 	workers : 16
 
 <output_plans>
-	1 : - : sim_anneal_output_fine : none : all
-	0 : - : ensemble_output : pkl : all
+	1 : - : sim_anneal_output_fine : pkl : all
+	0 : - : fitting_ensemble_output : pkl : all
 
 <ensemble>
 	multiprocessing : off

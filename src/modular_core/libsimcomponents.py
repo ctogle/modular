@@ -1,5 +1,5 @@
 import modular_core as mc
-import modular_core.resources as mcrsrc
+#import modular_core.resources as mcrsrc
 import modular_core.libfundamental as lfu
 import modular_core.libworkerthreads as lwt
 import modular_core.liboutput as lo

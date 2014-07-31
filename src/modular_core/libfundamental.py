@@ -1,8 +1,8 @@
 
 __doc__ = """fundamental functions/classes for modular"""
 
-import modular_core.resources as mcrsrc
-import modular_core.data_pools as mcdps
+#import modular_core.resources as mcrsrc
+#import modular_core.data_pools as mcdps
 
 import re
 import sys
@@ -14,6 +14,7 @@ import ctypes
 import importlib
 import os
 from pkg_resources import resource_string
+import appdirs
 
 lset = None
 gui_pack = None
@@ -26,9 +27,14 @@ import pdb
 
 debug_filter_thresh = 10
 
-def get_resource_path(res):
-	subpa = mcrsrc.__path__[0]
-	return os.path.join(subpa, res)
+def get_resource_path(res = None):
+	res_path = os.path.join(
+		appdirs.user_config_dir(), 
+			'modular_resources')
+	#subpa = mcrsrc.__path__[0]
+	#return os.path.join(subpa, res)
+	if res is None: return res_path
+	else: return os.path.join(res_path, res)
 
 mod_registry_path = get_resource_path('module_registry.txt')
 registry_path = get_resource_path('program_registry.txt')
@@ -590,7 +596,8 @@ def list_program_modules(program):
 	return path_files
 
 def get_data_pool_path():
-	return mcdps.__path__[0]
+	#return mcdps.__path__[0]
+	return os.path.join(appdirs.user_data_dir(), 'modular_data_pools')
 
 def get_mcfg_path():
 	lset = sys.modules['modular_core.libsettings']
@@ -605,20 +612,25 @@ def get_output_path():
 	return opath
 
 def parse_registry():
-	reg_string = resource_string(__name__, 
-		os.path.join('resources', 'program_registry.txt'))
-	#with open(registry_path, 'r') as handle:
-	reg = reg_string.split('\n')
-	#reg = handle.readlines()
+	#reg_string = resource_string(__name__, 
+	#	os.path.join('resources', 'program_registry.txt'))
+	registry_path = os.path.join(appdirs.user_config_dir(), 
+			'modular_resources', 'program_registry.txt')
+	with open(registry_path, 'r') as handle:
+	#reg = reg_string.split('\n')
+		reg = handle.readlines()
 	reg = [line for line in reg if not line.startswith('#') 
 								and not line.strip() == '']
 	reg = [[pa.strip() for pa in line.split(':')] for line in reg]
 	return reg
 
 def parse_module_registry():
-	reg_string = resource_string(__name__, 
-		os.path.join('resources', 'module_registry.txt'))
-	reg = reg_string.split('\n')
+	reg_path = get_resource_path('module_registry.txt')
+	with open(reg_path, 'r') as handle:
+		reg = handle.readlines()
+	#reg_string = resource_string(__name__, 
+	#	os.path.join('resources', 'module_registry.txt'))
+	#reg = reg_string.split('\n')
 	reg = [line for line in reg if not line.startswith('#') 
 								and not line.strip() == '']
 	reg = [[pa.strip() for pa in line.split(':')] for line in reg]

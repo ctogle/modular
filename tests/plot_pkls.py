@@ -25,9 +25,8 @@ class pkl_handler(lfu.modular_object_qt):
 
 	def load_data(self):
 		self.provide_axes_manager_input()
-		pkl_files = [p for p in 
-			os.listdir(self.pkl_files_directory) 
-						if p.endswith('.pkl')]
+		pkl_files = [p for p in os.listdir(
+			self.pkl_files_directory) if p.endswith('.pkl')]
 		fronts = lfu.uniqfy([p[:p.find('.')] for p in pkl_files])
 		outputs = []
 		data_ = []

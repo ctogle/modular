@@ -48,9 +48,7 @@ class fit_routine_plan(lfu.plan):
 			if self.parent.multithread_gui:
 				try: app = lgb.QtGui.QApplication(sys.argv)
 				except RuntimeError: pass#	this should not be so silent!
-
 			else: self.show_progress_plots = False
-
 		return self.enact_plan(*args, dpool = data_pool, **kwargs)
 
 	def enact_plan(self, *args, **kwargs):
@@ -374,7 +372,14 @@ class fit_routine(lfu.modular_object_qt):
 			self.input_data_file = os.path.join(def_input_dir, dat_file)
 		if not os.path.exists(self.input_data_file):
 			print 'input data file not found!'
-			pdb.set_trace()
+			if lfu.using_gui():
+				fidlg = lgd.create_dialog('Choose Input File', 
+					'File?', 'file', 'pkl files (*.pkl)', os.getcwd())
+				file_ = fidlg()
+			else:
+				file_ = raw_input('enter full path to a new default input directory')
+				pdb.set_trace()
+			self.input_data_file = file_
 		data = lf.load_pkl_object(self.input_data_file)
 		self.input_data_targets = [dater.label for dater in data.data]
 		self.rewidget(True)
@@ -478,7 +483,6 @@ class fit_routine(lfu.modular_object_qt):
 		self.parameter_space.set_start_position()
 		for metric in self.metrics:
 			metric.initialize(self, *args, **kwargs)
-
 		self.data = lgeo.scalars_from_labels(['fitting iteration'] +\
 				[met.label + ' measurement' for met in self.metrics])
 
@@ -719,11 +723,15 @@ class fit_routine(lfu.modular_object_qt):
 		print '\tran using regime:', self.regime
 		best_data = self.data_to_fit_to + best_run_data_ys
 		#lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
-		self.data.extend(best_data)
-		#kwargs['dpool'].pool_names =\
-		#	[dat.label for dat in best_data]
-		#kwargs['dpool'].batch_pool.append(best_data)
-		#kwargs['dpool'].override_targets = True
+		#self.data.extend(best_data)
+		#self.capture_targets = [d.label for d in self.data]
+		#self.output.targeted = self.capture_targets[:]
+		#self.output.set_target_settables()
+		#pdb.set_trace()
+		kwargs['dpool'].pool_names =\
+			[dat.label for dat in best_data]
+		kwargs['dpool'].batch_pool.append(best_data)
+		kwargs['dpool'].override_targets = True
 		#self.ensemble.data_pool.pool_names =\
 		#	[dat.label for dat in best_data]
 		#self.ensemble.data_pool.batch_pool.append(best_data)

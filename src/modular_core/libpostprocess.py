@@ -614,7 +614,7 @@ class post_process(lfu.modular_object_qt):
 		lfu.modular_object_qt.sanitize(self, *args, **kwargs)
 
 	def handle_widget_inheritance(self, *args, **kwargs):
-		if kwargs.haskey('from_sub'):
+		if 'from_sub' in kwargs.keys():
 			if not kwargs['from_sub']:
 				self.set_target_settables(*args, **kwargs)
 		lfu.modular_object_qt.handle_widget_inheritance(
@@ -755,6 +755,7 @@ class post_process_meanfields(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (1, 3), 
@@ -896,6 +897,7 @@ class post_process_standard_statistics(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (1, 3), 
@@ -1043,6 +1045,7 @@ class post_process_correlation_values(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (1, 3), 
@@ -1150,6 +1153,7 @@ class post_process_counts_to_concentrations(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				widgets = ['spin'], 
@@ -1259,6 +1263,7 @@ class post_process_slice_from_trajectory(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		#use a spin widget to select a location in the domain
 		#	or a text box to support true slicing
 		self.widg_templates.append(
@@ -1398,6 +1403,7 @@ class post_process_reorganize_data(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				keys = [['dater_ids']], 
@@ -1552,6 +1558,7 @@ class post_process_1_to_1_binary_operation(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				panel_position = (1, 3), 
@@ -1724,6 +1731,7 @@ class post_process_period_finding(post_process):
 	# it is NOT called simply to make them, unless necessary
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		capture_targetable = self.get_targetables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
 				keys = [['window']], 
@@ -1797,6 +1805,7 @@ class post_process_measure_probability(post_process):
 
 	def set_settables(self, *args, **kwargs):
 		self.handle_widget_inheritance(*args, from_sub = False)
+		#capture_targetable = self.get_targetables(*args, **kwargs)
 		self.probability_criterion.set_settables(*args, **kwargs)
 		self.widg_templates.append(
 			lgm.interface_template_gui(
