@@ -1367,7 +1367,8 @@ class metric(lfu.modular_object_qt):
 		self.best_flag = False
 		if self.data[0].scalars[-1] == min(self.data[0].scalars):
 			self.best_measure = len(self.data[0].scalars) - 1
-			self.best_flag = True and self.prints_for_best
+			self.best_flag = True
+			#self.best_flag = True and self.prints_for_best
 			if not self.is_heaviest:
 				self.acceptance_weight *= self.best_advantage
 
@@ -1424,7 +1425,8 @@ class metric(lfu.modular_object_qt):
 					meas < self.data[0].scalars[self.best_measure]:
 				self.best_measure = len(self.data[0].scalars) - 1
 				#self.best_flag = self.best_measure > self.display_threshold
-				self.best_flag = True and self.prints_for_best
+				#self.best_flag = True and self.prints_for_best
+				self.best_flag = True
 
 			if self.best_flag:
 				if 'weight' in kwargs.keys():
