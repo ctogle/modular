@@ -74,7 +74,6 @@ class fit_routine_plan(lfu.plan):
 			del self.parent.run_params['output_plans'][
 							select.label + ' output']
 			select._destroy_()
-
 		self.rewidget(True)
 
 	def remove_routine(self):
@@ -82,7 +81,6 @@ class fit_routine_plan(lfu.plan):
 		if select:
 			self.routines.remove(select)
 			self._children_.remove(select)
-
 		self.rewidget(True)
 
 	def move_routine_up(self, *args, **kwargs):

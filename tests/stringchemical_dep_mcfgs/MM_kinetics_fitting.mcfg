@@ -41,11 +41,11 @@
 		<axes>
 			Enzyme Substrate complex formation : rate : 0.05-5.0
 			Enzyme Substrate complex dissociation : rate : 0.0005-0.5
-			Product formation : rate : 10-2000
+			Product formation : rate : 1-2000
 			Enzyme : initial_count : 1-10000;10000
 			Substrate : initial_count : 1-50000;50000
 			ES_Complex : initial_count : 1-100;100
-			Product : initial_count : 1-1000;1000
+			Product : initial_count : 1-2000;2000
 		#<constraints>
 		#	1 < 2
 		#	0 > 1

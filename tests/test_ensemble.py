@@ -40,7 +40,7 @@ class mngerTestCase(unittest.TestCase):
 		self.assertTrue(self.ensem.run_mcfg(self.simple_mcfg))
 		self.assertTrue(self.ensem.produce_output())
 
-	def test_can_run_fitting(self):
+	def atest_can_run_fitting(self):
 		"""ensemble successfully run the fitting mcfg?"""
 		self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
 		self.assertTrue(self.ensem.produce_output())
@@ -58,6 +58,20 @@ class mngerTestCase(unittest.TestCase):
 		#thread = self.mnger.run_threaded(self.ensem, 
 		#	self.ensem.run_mcfg, args = (self.means_mcfg,))		
 		#self.assertTrue(thread)
+		self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+		self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+
+	def atest_can_run_many_times(self):
+		#self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg))
+		#self.assertTrue(self.ensem.produce_output())
+		self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+		self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+		self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
+		self.assertTrue(self.ensem.produce_output())
 		self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
 		self.assertTrue(self.ensem.produce_output())
 

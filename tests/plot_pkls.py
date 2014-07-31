@@ -1,3 +1,4 @@
+#!python
 import modular_core.libfundamental as lfu
 lfu.USING_GUI = True
 import modular_core.liboutput as lo
