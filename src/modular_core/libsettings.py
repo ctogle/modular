@@ -35,6 +35,10 @@ class settings_manager(lfu.modular_object_qt):
 	def write_settings(self, filename = 'settings.txt'):
 		if self.filename: filename = self.filename
 		settings_path = os.path.join(self.cfg_path, filename)
+		print 'spath', settings_path
+		#settings_path = lfu.get_resource_path(filename)
+		#if not os.path.exists(settings_path):
+		#	settings_path = os.path.join(os.getcwd(), filename)
 		lines = ['']
 		for key in self.settings.keys():
 			lines.append('')

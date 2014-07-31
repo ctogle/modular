@@ -44,7 +44,7 @@ def ignore_res(f):
 res_dir = 'modular_core/resources/'
 res_fis = [f for f in os.listdir(os.path.join(
 	os.getcwd(), 'modular_core', 'resources')) 
-								if not ignore_res(f)]
+						if not ignore_res(f)]
 res_files = [res_dir + f for f in res_fis]
 
 data_pools_files = ['modular_core/data_pools/__init__.py']

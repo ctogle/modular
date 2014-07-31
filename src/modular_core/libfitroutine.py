@@ -278,10 +278,10 @@ class fit_routine(lfu.modular_object_qt):
 				parent = self, acceptance_weight = 1.0))
 		self.metrics.append(
 			lgeo.metric_slope_1st_derivative(
-				parent = self, acceptance_weight = 0.8))
+				parent = self, acceptance_weight = 0.85))
 		self.metrics.append(
 			lgeo.metric_slope_2nd_derivative(
-				parent = self, acceptance_weight = 0.7))
+				parent = self, acceptance_weight = 0.75))
 		self.metrics.append(
 			lgeo.metric_slope_3rd_derivative(
 				parent = self, acceptance_weight = 0.5))
@@ -299,7 +299,7 @@ class fit_routine(lfu.modular_object_qt):
 
 		self.impose_default('fitted_criteria', [], **kwargs)
 		self.fitted_criteria.append(lc.criterion_iteration(
-					parent = self, max_iterations = 5000))
+					parent = self, max_iterations = 2500))
 		self.fitted_criteria.append(criterion_impatient(
 					parent = self, max_timeouts = 50, 
 							max_last_best = 1000))

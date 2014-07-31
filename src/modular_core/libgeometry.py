@@ -166,12 +166,13 @@ class batch_data_pool(object):
 		return batch
 
 	def _rid_pool_(self, dex):
-		if self.live_pool:
-			print 'saving sub pool', dex
-			lf.save_pkl_object(self.live_pool, os.path.join(
-				lfu.get_data_pool_path(), self.data_pool_ids[dex]))
-			print 'saved sub pool', dex
-			self.live_pool = []
+		if not self.live_pool is None:
+			if len(self.live_pool) > 0:
+				print 'saving sub pool', dex
+				lf.save_pkl_object(self.live_pool, os.path.join(
+					lfu.get_data_pool_path(), self.data_pool_ids[dex]))
+				print 'saved sub pool', dex
+				self.live_pool = []
 
 class bin_vectors(object):
 #Note: inheriting from lfu.modular_object here makes things SLOW!
@@ -799,7 +800,7 @@ class parameter_space(lfu.modular_object_qt):
 			self.set_simple_space_lookup()
 
 		self.impose_default('steps', [], **kwargs)
-		self.impose_default('step_normalization', 4.0, **kwargs)
+		self.impose_default('step_normalization', 5.0, **kwargs)
 		self.dimensions = len(self.subspaces)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
@@ -1350,6 +1351,7 @@ class metric(lfu.modular_object_qt):
 		self.impose_default('best_measure', 0, **kwargs)
 		self.impose_default('display_threshold', 0, **kwargs)
 		self.impose_default('display_time', 1.0, **kwargs)
+		self.impose_default('prints_for_best', False, **kwargs)
 		self.impose_default('acceptance_weight', 1.0, **kwargs)
 		self.impose_default('best_advantage', 2.0, **kwargs)
 		self.impose_default('best_flag', False, **kwargs)
@@ -1365,7 +1367,7 @@ class metric(lfu.modular_object_qt):
 		self.best_flag = False
 		if self.data[0].scalars[-1] == min(self.data[0].scalars):
 			self.best_measure = len(self.data[0].scalars) - 1
-			self.best_flag = True
+			self.best_flag = True and self.prints_for_best
 			if not self.is_heaviest:
 				self.acceptance_weight *= self.best_advantage
 
@@ -1422,7 +1424,7 @@ class metric(lfu.modular_object_qt):
 					meas < self.data[0].scalars[self.best_measure]:
 				self.best_measure = len(self.data[0].scalars) - 1
 				#self.best_flag = self.best_measure > self.display_threshold
-				self.best_flag = True
+				self.best_flag = True and self.prints_for_best
 
 			if self.best_flag:
 				if 'weight' in kwargs.keys():

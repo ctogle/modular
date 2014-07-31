@@ -1,9 +1,6 @@
 import modular_core.libfundamental as lfu
 import modular_core.libsettings as lset
 import modular_core.gpu.lib_gpu as lgpu
-#import libs.modular_core.libfundamental as lfu
-#import libs.modular_core.libsettings as lset
-#import libs.gpu.lib_gpu as lgpu
 
 if lfu.using_os('windows'):
 	try: from win32com.client import GetObject
@@ -46,7 +43,7 @@ class multiprocess_plan(lfu.plan):
 		try: processor_count = int(self.worker_count)
 		except: 
 			print 'defaulting to 4 workers...'
-			processor_count = 4
+			processor_count = 8
 
 		pool = mp.Pool(processes = processor_count)
 		move_to = target_processes[0]
@@ -65,13 +62,17 @@ class multiprocess_plan(lfu.plan):
 					runs_this_round = processor_count
 				else: runs_this_round = runs_left % processor_count
 				check_time = time.time()
-				IDs = [int(str(dex1) + str(x)) 
-					for x in range(runs_this_round)]
-				argus = [args[2] + (id_,) for id_ in IDs]
-				result = [pool.apply_async(run_system, 
-					args = argus[d], callback = sub_data_pool.append) 
-								for d in range(runs_this_round)]
-				[res.wait() for res in result]
+				#IDs = [int(str(dex1) + str(x)) 
+				#	for x in range(runs_this_round)]
+				#argus = [args[2] + (id_,) for id_ in IDs]
+				#result = [pool.apply_async(run_system, argus[d], 
+				#				callback = sub_data_pool.append) 
+				#				for d in range(runs_this_round)]
+				#result = pool.map_async(run_system, argus[0], 
+				result = pool.map_async(run_system, 
+							args[2]*runs_this_round, 
+					callback = sub_data_pool.extend)
+				result.wait()
 				dex1 += runs_this_round
 				report = ' '.join(['location dex:', str(dex0), 
 					'runs this round:', str(runs_this_round), 'in:', 
@@ -81,15 +82,16 @@ class multiprocess_plan(lfu.plan):
 
 			#ensem_reference.data_pool.live_pool =\
 			#	np.array(data_pool, dtype = np.float)
-			data_pool.live_pool = sub_data_pool
+			data_pool.live_pool = np.array(
+				sub_data_pool, dtype = np.float)
 			data_pool._rid_pool_(dex0)
 			dex0 += 1
 
 		pool.close()
 		pool.join()
 		sub_data_pool = None
-		data_pool.batch_pool =\
-			np.array(data_pool, dtype = np.float)
+		#data_pool.batch_pool = np.array(
+		#	data_pool.batch_pool, dtype = np.float)
 		self.worker_report = worker_report
 		return data_pool
 
@@ -99,10 +101,11 @@ class multiprocess_plan(lfu.plan):
 		except: 
 			print 'defaulting to 8 workers...'
 			processor_count = 8
-
 		pool = mp.Pool(processes = processor_count)
 		worker_report = []
+		#global result_pool
 		result_pool = []
+		#result_pool = data_pool.batch_pool
 		#result_pool = ensem_reference.data_pool.batch_pool
 		dex0 = 0
 		while dex0 < run_count:
@@ -115,11 +118,19 @@ class multiprocess_plan(lfu.plan):
 				for x in range(runs_this_round)]
 			dex0 += runs_this_round
 			#update_func()
-			argus = zip([ensem_reference]*runs_this_round, IDs)
-			result = [pool.apply_async(run_func, args = argus[d], 
-							callback = result_pool.append) 
-							for d in range(runs_this_round)]
-			[res.wait() for res in result]
+			#argus = zip([ensem_reference]*runs_this_round, IDs)
+			argus = [(ensem_reference, id_,) for x, id_ in 
+						zip(range(runs_this_round), IDs)]
+			#result = [pool.apply_async(run_func, argus[d], 
+			#				callback = result_pool.append) 
+			#				for d in range(runs_this_round)]
+			#pdb.set_trace()
+			#result = pool.map_async(run_func, argus[0], 
+			result = pool.map_async(run_func, 
+				(ensem_reference,)*runs_this_round, 
+				#(ensem_reference,), callback = ext_callback).get() 
+					callback = result_pool.extend) 
+			result.wait()
 			report = ' '.join(['location dex:', str(dex0), 
 				'runs this round:', str(runs_this_round), 'in:', 
 						str(time.time() - check_time), 'seconds'])
@@ -131,7 +142,10 @@ class multiprocess_plan(lfu.plan):
 		self.worker_report = worker_report
 		#ensem_reference.data_pool.batch_pool =\
 		#	np.array(result_pool, dtype = np.float)
-		data_pool.batch_pool = np.array(result_pool, dtype = np.float)
+		#global result_pool
+		#data_pool.batch_pool = result_pool
+		data_pool.batch_pool = np.array(
+			result_pool, dtype = np.float)
 		return data_pool
 
 	def set_settables(self, *args, **kwargs):

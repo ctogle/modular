@@ -2,10 +2,6 @@ import modular_core.libfundamental as lfu
 import modular_core.libmath as lm
 import modular_core.gui.libqtgui_bricks as lgb
 import modular_core.gui.libqtgui_masons as lgm
-#import libs.modular_core.libfundamental as lfu
-#import libs.modular_core.libmath as lm
-#import libs.gui.libqtgui_bricks as lgb
-#import libs.gui.libqtgui_masons as lgm
 from PySide import QtGui, QtCore
 
 try:
