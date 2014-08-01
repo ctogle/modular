@@ -170,7 +170,7 @@ class ensemble(lfu.modular_object_qt):
 
 		save = False
 		if self.skip_simulation:
-			save = self.perform_post_processing(load = True)
+			save, dpool = self.perform_post_processing(load = True)
 
 		else:
 			if self.fitting_plan.use_plan:
@@ -204,8 +204,8 @@ class ensemble(lfu.modular_object_qt):
 
 			save = True
 			print 'duration of simulations: ', time.time() - start_time
-			self.perform_post_processing(
-				load = False, data_pool = dpool)
+			dum, dpool = self.perform_post_processing(
+						load = False, data_pool = dpool)
 
 		if save: self.save_data_pool(dpool)
 		print 'finished last simulation run: exiting'
@@ -226,14 +226,14 @@ class ensemble(lfu.modular_object_qt):
 				print 'performing post processing...'
 				if load: data_pool = self.load_data_pool().data
 				check = time.time()
-				self.postprocess_plan(self, data_pool)
+				data_pool = self.postprocess_plan(self, data_pool)
 				print 'duration of post procs: ', time.time() - check
-				return True
-
+				return True, data_pool
 			except:
 				traceback.print_exc(file=sys.stdout)
 				print 'failed to run post processes'
-				return False
+				return False, data_pool
+		return True, data_pool
 
 	def run_mcfg(self, mcfg):
 		self.set_mcfg(mcfg)
@@ -339,8 +339,10 @@ class ensemble(lfu.modular_object_qt):
 		check_0 = time.time()
 		#self.output_plan.flat_data = False
 		pool = self.load_data_pool()
-		if pool.data.override_targets:
-			override_targets = pool.data.pool_names
+		if hasattr(pool.data, 'override_targets'):
+			if pool.data.override_targets:
+				override_targets = pool.data.pool_names
+			else: override_targets = None
 		else: override_targets = None
 		data_ = lfu.data_container(data = pool.data, 
 				override_targets = override_targets)

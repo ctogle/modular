@@ -372,7 +372,6 @@ class modular_object_qt(object):
 		self.tool_templates = []
 		for handle in self._handles_:
 			handle[0].__dict__[handle[1]] = None
-
 		self._handles_ = []
 		self.rewidget(True)
 
@@ -465,7 +464,7 @@ class plan(modular_object_qt):
 		pass
 
 	def __call__(self, *args, **kwargs):
-		self.enact_plan(*args, **kwargs)
+		return self.enact_plan(*args, **kwargs)
 
 class dictionary(dict):
 

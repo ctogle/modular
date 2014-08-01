@@ -1102,6 +1102,8 @@ def generate_add_remove_select_inspect_box_template(window, key,
 				if function_handles[dex]:
 					for hand in function_handles[dex]:
 						hand[0].__dict__[hand[1]] = func
+						if not hand in hand[0]._handles_:
+							hand[0]._handles_.append(hand)
 
 	return template
 

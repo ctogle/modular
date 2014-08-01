@@ -1,6 +1,7 @@
 import modular_core.libfundamental as lfu
 import modular_core.libsettings as lset
 import modular_core.gpu.lib_gpu as lgpu
+import modular_core.libiteratesystem as lis
 
 if lfu.using_os('windows'):
 	try: from win32com.client import GetObject
@@ -44,13 +45,10 @@ class multiprocess_plan(lfu.plan):
 		except: 
 			print 'defaulting to 4 workers...'
 			processor_count = 8
-
 		pool = mp.Pool(processes = processor_count)
 		move_to = target_processes[0]
 		run_system = target_processes[1]
 		worker_report = []
-		#data_pool = []
-		#data_pool = ensem_reference.data_pool.batch_pool
 		dex0 = 0
 		while dex0 < target_counts[0]:
 			move_to(dex0)
@@ -62,13 +60,6 @@ class multiprocess_plan(lfu.plan):
 					runs_this_round = processor_count
 				else: runs_this_round = runs_left % processor_count
 				check_time = time.time()
-				#IDs = [int(str(dex1) + str(x)) 
-				#	for x in range(runs_this_round)]
-				#argus = [args[2] + (id_,) for id_ in IDs]
-				#result = [pool.apply_async(run_system, argus[d], 
-				#				callback = sub_data_pool.append) 
-				#				for d in range(runs_this_round)]
-				#result = pool.map_async(run_system, argus[0], 
 				result = pool.map_async(run_system, 
 							args[2]*runs_this_round, 
 					callback = sub_data_pool.extend)
@@ -80,8 +71,6 @@ class multiprocess_plan(lfu.plan):
 				worker_report.append(report)
 				print 'multicore reported...', ' location: ', dex0
 
-			#ensem_reference.data_pool.live_pool =\
-			#	np.array(data_pool, dtype = np.float)
 			data_pool.live_pool = np.array(
 				sub_data_pool, dtype = np.float)
 			data_pool._rid_pool_(dex0)
@@ -90,8 +79,6 @@ class multiprocess_plan(lfu.plan):
 		pool.close()
 		pool.join()
 		sub_data_pool = None
-		#data_pool.batch_pool = np.array(
-		#	data_pool.batch_pool, dtype = np.float)
 		self.worker_report = worker_report
 		return data_pool
 
@@ -103,10 +90,7 @@ class multiprocess_plan(lfu.plan):
 			processor_count = 8
 		pool = mp.Pool(processes = processor_count)
 		worker_report = []
-		#global result_pool
 		result_pool = []
-		#result_pool = data_pool.batch_pool
-		#result_pool = ensem_reference.data_pool.batch_pool
 		dex0 = 0
 		while dex0 < run_count:
 			check_time = time.time()
@@ -114,21 +98,9 @@ class multiprocess_plan(lfu.plan):
 			if runs_left >= processor_count: 
 				runs_this_round = processor_count
 			else: runs_this_round = runs_left % processor_count
-			IDs = [int(str(dex0) + str(x)) 
-				for x in range(runs_this_round)]
 			dex0 += runs_this_round
-			#update_func()
-			#argus = zip([ensem_reference]*runs_this_round, IDs)
-			argus = [(ensem_reference, id_,) for x, id_ in 
-						zip(range(runs_this_round), IDs)]
-			#result = [pool.apply_async(run_func, argus[d], 
-			#				callback = result_pool.append) 
-			#				for d in range(runs_this_round)]
-			#pdb.set_trace()
-			#result = pool.map_async(run_func, argus[0], 
 			result = pool.map_async(run_func, 
 				(ensem_reference,)*runs_this_round, 
-				#(ensem_reference,), callback = ext_callback).get() 
 					callback = result_pool.extend) 
 			result.wait()
 			report = ' '.join(['location dex:', str(dex0), 
@@ -140,10 +112,6 @@ class multiprocess_plan(lfu.plan):
 		pool.close()
 		pool.join()
 		self.worker_report = worker_report
-		#ensem_reference.data_pool.batch_pool =\
-		#	np.array(result_pool, dtype = np.float)
-		#global result_pool
-		#data_pool.batch_pool = result_pool
 		data_pool.batch_pool = np.array(
 			result_pool, dtype = np.float)
 		return data_pool

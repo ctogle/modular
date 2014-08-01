@@ -33,7 +33,7 @@
 	x1
 
 <parameter_space>
-	<product_space> 200
+	<product_space> 100
 		lambda1 : value : 2.0-8.0;4.0
 		lambda2 : value : 2.0-8.0;4.0
 		mu : value : 8.0-12.0;2.0

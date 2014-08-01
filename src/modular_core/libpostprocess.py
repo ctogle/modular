@@ -58,6 +58,7 @@ class post_process_plan(lfu.plan):
 			process(*args, **kwargs)
 			print ' '.join(['completed post process:', process.label, 
 						'in:', str(time.time() - check1), 'seconds'])
+		return args[1]
 
 	def reset_process_list(self):
 		del self.post_processes[:]
