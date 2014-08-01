@@ -250,7 +250,6 @@ def create_action(parent = None, label = '', icon = None,
 		else: act.triggered.connect(bindings)
 
 	if icon is not None:
-		print 'icon', icon
 		if type(icon) is types.UnicodeType or\
 				type(icon) is types.StringType:
 					icon = create_icon(icon)
