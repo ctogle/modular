@@ -1,7 +1,10 @@
 import modular_core as mc
 #import modular_core.resources as mcrsrc
 import modular_core.libfundamental as lfu
-import modular_core.libworkerthreads as lwt
+try: import modular_core.libworkerthreads as lwt
+except ImportError:
+	print 'multithreaded ensembles are disabled without QtCore...'
+	lwt = None
 import modular_core.liboutput as lo
 import modular_core.libfiler as lf
 import modular_core.libcriterion as lc
@@ -714,6 +717,9 @@ class ensemble_manager(lfu.modular_object_qt):
 			current_ensem.on_run()
 
 	def run_threaded(self, ensem, run_, args = ()):
+		if lwt is None:
+			print 'ensembled multithreading is disabled - fix QtCore!'
+			return False
 		self.worker_threads.append(lwt.worker_thread(
 			ensem, run_, len(self.worker_threads), args = args))
 		return True
