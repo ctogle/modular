@@ -191,7 +191,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
 
 	spin.setMinimum(bottom)
 	try: spin.setMaximum(top)
-	except OverflowError: spin.setMaximum(top/2.0)
+	except OverflowError: spin.setMaximum(1000000000)
 	spin.setSingleStep(step)
 
 	if initial is not None: spin.setValue(initial)
