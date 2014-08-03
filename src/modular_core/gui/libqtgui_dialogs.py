@@ -119,22 +119,19 @@ class create_obj_dialog(QtGui.QDialog):
 		try: self.title = kwargs['title']
 		except KeyError: self.title = 'Make MObject'
 		self.setWindowTitle(self.title)
-		path = os.getcwd()
 		self.button_icons =\
-			[os.path.join(path, 'resources', 'make.png'), 
-			os.path.join(path, 'resources', 'back.png')]
+			[lfu.get_resource_path('make.png'), 
+			lfu.get_resource_path('back.png')]
 		if 'button_regime' in kwargs.keys():
 			reg = kwargs['button_regime']
 			if reg.startswith('apply'):
-				self.button_icons[0] = os.path.join(
-					path, 'resources', 'apply.png')
+				self.button_icons[0]=lfu.get_resource_path('apply.png')
 
 			if reg.endswith('cancel'):
-				self.button_icons[1] = os.path.join(
-					path, 'resources', 'cancel.png')
+				self.button_icons[1]=lfu.get_resource_path('cancel.png')
 
-		self.setWindowIcon(lgb.create_icon(os.path.join(
-				os.getcwd(), 'resources', 'gear.png')))
+		self.setWindowIcon(lgb.create_icon(
+			lfu.get_resource_path('gear.png')))
 		if 'from_sub' not in kwargs.keys(): self.set_up_widgets()
 		else:
 			if not kwargs['from_sub']: self.set_up_widgets()
