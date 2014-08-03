@@ -31,15 +31,11 @@ def get_resource_path(res = None):
 	res_path = os.path.join(
 		appdirs.user_config_dir(), 
 			'modular_resources')
-	#subpa = mcrsrc.__path__[0]
-	#return os.path.join(subpa, res)
 	if res is None: return res_path
 	else: return os.path.join(res_path, res)
 
 mod_registry_path = get_resource_path('module_registry.txt')
 registry_path = get_resource_path('program_registry.txt')
-#registry_path = os.path.join(os.getcwd(), 
-#	'resources', 'program_registry.txt')
 
 def using_gui(): return USING_GUI
 def find_gui_pack():
@@ -586,6 +582,7 @@ def get_modular_modules_list():
 	listing = [item for item in parse_module_registry()]
 	return listing
 
+#broken
 def list_program_modules(program):
 	all_files_dirs = [item for item in 
 		os.walk(os.path.join(os.getcwd(), 'libs', program))]

@@ -1599,8 +1599,7 @@ class central_widget_wrapper(QtGui.QWidget):
 		try:
 			self.collapses = kwargs['collapses']
 			if self.collapses:
-				gear = os.path.join(os.getcwd(), 
-						'resources', 'gear.png')
+				gear = lfu.get_resource_path('gear.png')
 				self.fold_button = create_buttons([self.toggle], 
 							labels = [''], icons = [gear])[0]
 				set_sizes_limits([[self.fold_button]], 
@@ -2152,8 +2151,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 			return QtGui.QIcon(os.path.join(self.basedir, name))
 
 		else:
-			return QtGui.QIcon(os.path.join(
-				os.getcwd(), 'resources', name))
+			return QtGui.QIcon(lfu.get_resource_path(name))
 
 	def _init_toolbar(self):
 		self.basedir = os.path.join(

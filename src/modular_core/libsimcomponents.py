@@ -137,7 +137,7 @@ class ensemble(lfu.modular_object_qt):
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self.provide_axes_manager_input()
 		self.data_pool_id = lfu.get_new_pool_id()
-		self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+		self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
 				'.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
 	def get_module_reference(self):
@@ -381,7 +381,8 @@ class ensemble(lfu.modular_object_qt):
 						self.cartographer_plan)
 			self.data_scheme = 'smart_batch'
 			self.output_plan.flat_data = False
-			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+			#self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
 										'.'.join(['data_pool', 'smart', 
 											self.data_pool_id, 'pkl']))
 
@@ -390,7 +391,7 @@ class ensemble(lfu.modular_object_qt):
 				self.run_params['plot_targets'])
 			self.data_scheme = 'batch'
 			self.output_plan.flat_data = False
-			self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
+			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
 					'.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
 		return data_pool
@@ -670,8 +671,10 @@ class ensemble_manager(lfu.modular_object_qt):
 		lfu.modular_object_qt.__init__(self, 
 			label = label, parent = parent)
 		if lset.get_setting('auto_clear_data_pools'):
-			self.clean_data_pools()
+			#self.clean_data_pools()
+			print 'auto clearing the data pool has been disabled...'
 
+	# this is disabled...
 	def clean_data_pools(self):
 
 		def pool_name(ensem):
@@ -681,10 +684,12 @@ class ensemble_manager(lfu.modular_object_qt):
 
 		pool_matches = []
 		ensem_matches = []
-		for root, dirnames, filenames in os.walk('data_pools'):
+		#for root, dirnames, filenames in os.walk('data_pools'):
+		for root, dirnames, filenames in os.walk(lfu.get_data_pool_path()):
 			[pool_matches.append(os.path.join(root, finame)) for 
 				finame in fnmatch.filter(filenames, 'data_pool.*.pkl')]
 
+		# this finds the ensempkl files - must search a given directory in the future
 		for mod_dir in os.listdir(os.getcwd()):
 			for root, dirnames, filenames in os.walk(mod_dir):
 				[ensem_matches.append(os.path.join(root, finame)) for 
@@ -698,8 +703,8 @@ class ensemble_manager(lfu.modular_object_qt):
 				if pool.count('smart') > 0:
 					sm_pool = lf.load_pkl_object(pool)
 					for sub_pool in sm_pool.data.data_pool_ids:
-						os.remove(os.path.join(os.getcwd(), 
-								'data_pools', sub_pool))
+						os.remove(os.path.join(
+							lfu.get_data_pool_path(), sub_pool))
 
 				os.remove(os.path.join(os.getcwd(), pool))
 			except OSError, e:
@@ -729,32 +734,6 @@ class ensemble_manager(lfu.modular_object_qt):
 		self.worker_threads = []
 
 	def find_module_options(self):
-		'''
-		#a module will be available if there exist a python file
-		# following the naming convention: 'lib' + module_name + '.py'
-		#  found within the Modular/libs/modules directory
-		#this file must at least contain one line which reads: 
-		# 'module_name = ' + module_name
-		#  Note: within the module file, this line should use the ' character
-		#   in lieu of the " character... this is ridiculous and must be fixed
-		def named_module(mod):
-			mod_fi = os.path.join(modules_directory, mod)
-			with open(mod_fi, 'r') as handle: lines = handle.readlines()
-			namelines = [line[:line.find('\n')] for line in lines if 
-									line.startswith('module_name')]
-			if not namelines: return None
-			else:
-				name = namelines[0]
-				left_ = name.find('\'') + 1
-				right_ = name.rfind('\'')
-				return name[left_:right_]
-
-		modules_directory = os.path.join(os.getcwd(), 'libs', 'modules')
-		modules = [name for name in os.listdir(modules_directory) if 
-					name.startswith('lib') and name.endswith('.py')]
-		modules = [named_module(mod) for mod 
-			in modules if named_module(mod)]
-		'''
 		def grab_modules():
 			mods = []
 			for mod in lfu.get_modular_modules_list():
@@ -764,10 +743,6 @@ class ensemble_manager(lfu.modular_object_qt):
 					mc.modules.__dict__[mod[0]] = plug
 					mods.append(plug.module_name)
 			return mods
-		# this is where i need plugin like code to import the module
-		#import chemical.scripts.chemicallite as chem
-		#mc.modules.chemical = chem
-		#mc.modules.mods = [chem.module_name]
 		mc.modules.mods = grab_modules()
 		return mc.modules.mods
 
@@ -869,8 +844,6 @@ class ensemble_manager(lfu.modular_object_qt):
 
 	def make_tab_book_pages(self, *args, **kwargs):
 		window = args[0]
-		#img_path = os.path.join(os.getcwd(), 'resources', 'gear.png')
-		#img_path = os.path.join(mcrsrc.__path__[0], 'gear.png')
 		img_path = lfu.get_resource_path('gear.png')
 		main_templates = []
 		main_templates.append(
@@ -934,11 +907,11 @@ class ensemble_manager(lfu.modular_object_qt):
 		MakeEnsemble_path = lfu.get_resource_path('make_ensemble.png')
 		RunEnsemble_path = lfu.get_resource_path('run.png')
 		Refresh = lfu.get_resource_path('refresh.png')
-		Next = lfu.get_resource_path('Next.png')
+		Next = lfu.get_resource_path('next.png')
 		Open = lfu.get_resource_path('open.png')
 		Quit = lfu.get_resource_path('quit.png')
-		Expand = lfu.get_resource_path('Expand.png')
-		Collapse = lfu.get_resource_path('Collapse.png')
+		Expand = lfu.get_resource_path('expand.png')
+		Collapse = lfu.get_resource_path('collapse.png')
 		find = lfu.get_resource_path('find.png')
 		generate = lfu.get_resource_path('generate.png')
 		attach_icon_path = lfu.get_resource_path('attach.png')
