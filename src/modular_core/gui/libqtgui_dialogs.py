@@ -4,6 +4,15 @@ import modular_core.gui.libqtgui_bricks as lgb
 import modular_core.gui.libqtgui_masons as lgm
 from PySide import QtGui, QtCore
 
+import traceback, sys
+import six
+import numpy as np
+import itertools as it
+from copy import deepcopy as copy
+import types
+import time
+import os
+
 try:
 	import matplotlib
 	matplotlib.rcParams['backend.qt4'] = 'PySide'
@@ -15,20 +24,12 @@ try:
 	import matplotlib.pyplot as plt
 	import matplotlib.patches as patches
 	import matplotlib.path as path
+	from matplotlib import animation
 except ImportError:
+	traceback.print_exc(file=sys.stdout)
 	print 'matplotlib could not be imported! - dialogs'
 
 from mpl_toolkits.mplot3d import axes3d, Axes3D
-
-import six
-import numpy as np
-import itertools as it
-from copy import deepcopy as copy
-import types
-import time
-import os
-import sys
-import traceback
 
 import pdb
 
@@ -327,8 +328,10 @@ class plot_page(QtGui.QWidget):
 		self.figure = figure
 		self.canvas = canvas
 		self.colors = []
+		self.rolling = False
 		self.roll_dex = 0
 		self.roll_delay = 0.1
+		self.max_roll_dex = None
 
 		self._data_ = data_container
 		self._plot_targets_ = specifics
@@ -354,51 +357,30 @@ class plot_page(QtGui.QWidget):
 		self.surf_target = self._plot_targets_[rng_dex]
 		self.show_plot()
 
-	def resolve_x_domain(self):
-		self.parent.domain_selector[0].children()[1].clear()
-		self.parent.domain_selector[0].children()[1].addItems(
-										self._plot_targets_)
-		try:
-			self.parent.domain_selector[0].children()[1].setCurrentIndex(
-							self._plot_targets_.index(self.x_ax_title))
-
-		except ValueError:
-			try: self.x_ax_title = self._plot_targets_[0]
-			except IndexError:
+	def resolve_domain(self, widg, domain):
+		targs = self._plot_targets_
+		widg.clear()
+		widg.addItems(targs)
+		if not self.__dict__[domain] in targs:
+			if targs: self.__dict__[domain] = targs[0]
+			else:
 				message_dialog(None, 'Nothing was outputted;\
 							\n cant plot nothing!', 'Problem')
 				return
+		tdex = targs.index(self.__dict__[domain])
+		widg.setCurrentIndex(tdex)
 
-			self.parent.domain_selector[0].children()[1].setCurrentIndex(
-							self._plot_targets_.index(self.x_ax_title))
+	def resolve_x_domain(self):
+		widg = self.parent.domain_selector[0].children()[1]
+		self.resolve_domain(widg, 'x_ax_title')
 
 	def resolve_y_domain(self):
-		self.parent.y_domain_selector[0].children()[1].clear()
-		self.parent.y_domain_selector[0].children()[1].addItems(
-										self._plot_targets_)
-		try:
-			self.parent.y_domain_selector[0].children()[1].setCurrentIndex(
-								self._plot_targets_.index(self.y_ax_title))
-
-		except ValueError:
-			self.y_ax_title = self._plot_targets_[0]
-			self.parent.y_domain_selector[0].children()[1].setCurrentIndex(
-								self._plot_targets_.index(self.y_ax_title))
+		widg = self.parent.y_domain_selector[0].children()[1]
+		self.resolve_domain(widg, 'y_ax_title')
 
 	def resolve_surf_target(self):
-		self.parent.surf_target_selector[0].children()[1].clear()
-		self.parent.surf_target_selector[0].children()[1].addItems(
-											self._plot_targets_)
-		try:
-			self.parent.surf_target_selector[0].children()[
-				1].setCurrentIndex(self._plot_targets_.index(
-											self.surf_target))
-
-		except ValueError:
-			self.surf_target = self._plot_targets_[0]
-			self.parent.surf_target_selector[0].children()[
-				1].setCurrentIndex(self._plot_targets_.index(
-											self.surf_target))
+		widg = self.parent.surf_target_selector[0].children()[1]
+		self.resolve_domain(widg, 'surf_target')
 
 	def hide(self, *args, **kwargs):
 		#print 'hide', self.page_label
@@ -406,94 +388,87 @@ class plot_page(QtGui.QWidget):
 		lay.removeWidget(self)
 		QtGui.QWidget.hide(self)
 
+	def inspect_data(self):
+		#the purpose of this function is to verify that self._data_ is valid - preset things for all plotting types!
+		dat = self._data_.data
+		if type(dat) is types.ListType:
+			if not False in [hasattr(da, 'tag') for da in dat]:
+				tags = [da.tag for da in dat]
+				#print 'tags', tags, self.parent.plot_type
+				return True
+			else: return False
+		else: return False
+
 	def show_plot(self, *args, **kwargs):
-		if self.parent.plot_type is 'lines':
-			self.show_plot_lines(*args, **kwargs)
+		valid = self.inspect_data()
+		if valid:
+			if self.parent.plot_type is 'lines':
+				drw = self.show_plot_lines(*args, **kwargs)
 
-		elif self.parent.plot_type is 'color':
-			self.show_plot_color(*args, **kwargs)
+			elif self.parent.plot_type is 'color':
+				drw = self.show_plot_color(*args, **kwargs)
 
-		elif self.parent.plot_type is 'surface':
-			self.show_plot_surface(*args, **kwargs)
+			elif self.parent.plot_type is 'surface':
+				drw = self.show_plot_surface(*args, **kwargs)
 
-		elif self.parent.plot_type is 'bars':
-			self.show_plot_bars(*args, **kwargs)
+			elif self.parent.plot_type is 'bars':
+				drw = self.show_plot_bars(*args, **kwargs)
 
+			if drw: self.canvas.draw()
 		else: print 'plot page is confused...'
 		lay = self.parent.layout()
 		lay.addWidget(self)
 
-	def show_plot_lines(self, *args, **kwargs):
-
+	def get_mpl_line_data(self, data, ax = None):
 		#interpolate y so that it covers domain x
 		def fill_via_interpolation(x, y):
 			print 'interpolation for incorrectly '+\
 				'structured data is not supported'
 
-		def plot_(x, y, label, col):
+		def get_line(x, y, label, col):
 			if not x.size == y.size: x, y = fill_via_interpolation(x, y)
 			try:
 				line = matplotlib.lines.Line2D(
-					#x, y, color = self.colors.pop())
 					x, y, color = self.colors[col])
 			except IndexError: print 'too many lines!'; return
 			except: pdb.set_trace()
 			line.set_label(label)
-			ax.add_line(line)
+			return line
 
+		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, data)
+		if not hasattr(x_ax, 'scalars'):
+			print 'current domain is not proper data type...'
+			return
+		y_axes = [dater for dater in data if dater.label 
+			in self._plot_targets_ and not dater.label is x_ax.label 
+									and hasattr(dater, 'scalars')]
+		if len(y_axes) == 0:
+			print 'no lines to plot...'
+			return
+		x = np.array(x_ax.scalars, dtype = float)
+		ys = [np.array(y_ax.scalars, dtype = float) for y_ax in y_axes]
+		ylabs = [dater.label for dater in y_axes]
+		lines = [get_line(x, y, label, col_dex) for 
+			x, y, label, col_dex in 
+			zip([x]*len(ys), ys, ylabs, range(len(ys)))]
+		if not ax is None:
+			ax.axis([x.min(), x.max(), 
+				min([y.min() for y in ys]), 
+				max([y.max() for y in ys])])
+		return lines
+
+	def show_plot_lines(self, *args, **kwargs):
 		self.resolve_x_domain()
 		ax = self.add_plot()
 		ax.grid(True)
-		if type(self._data_.data[0]) is types.ListType:
-			self._data_.data = lfu.flatten(self._data_.data)
-
-		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, self._data_.data)
-		y_axes = [dater for dater in self._data_.data if dater.label 
-			in self._plot_targets_ and not dater.label is x_ax.label]
-			#in self._plot_targets_]
-		if not y_axes:
-			print 'incorrect plot targets...reconciling...'
-			y_axes = [dater for dater in self._data_.data]
-			self.colors = [self.colormap(i) for i in np.linspace(
-				0, 0.9, min([self.max_line_count, len(y_axes)]))]
-
-		x = np.array(x_ax.scalars)
-		ys = [np.array(y_ax.scalars) for y_ax in y_axes 
-							if hasattr(y_ax, 'scalars')]
-		[plot_(x, y, label, col_dex) for x, y, label, col_dex in 
-			zip([x]*len(ys), ys, [dater.label for dater in y_axes], 
-				range(len(ys)))]
-		ax.axis([x.min(), x.max(), min([y.min() for y in ys]), 
-								max([y.max() for y in ys])])
+		data = self._data_.data
+		lines = self.get_mpl_line_data(data, ax)
+		if lines is None: return False
+		[ax.add_line(li) for li in lines if not li is None]
 		ax.legend()
-		#pylab.gca().set_xscale('log',basex=2)
-		#ax.set_yscale('log')
-		if self.x_log: ax.set_xscale('log')
-		if self.y_log: ax.set_yscale('log')
-		self.canvas.draw()
+		return True
 
-	def show_plot_color(self, *args, **kwargs):
-		self.resolve_x_domain()
-		self.resolve_y_domain()
-		self.resolve_surf_target()
-		ax = self.add_plot()
-		try:
-			surf_vector_dex = [hasattr(dater, 'reduced') 
-				for dater in self._data_.data].index(True)
-
-		except ValueError:
-			print 'no surface_vector found!'; return
-
-		surf_vect = self._data_.data[surf_vector_dex]
-		made_surf = surf_vect.make_surface(
-			x_ax = self.x_ax_title, y_ax = self.y_ax_title, 
-							surf_target = self.surf_target)
-		if not made_surf:
-			print 'surface was not resolved'
-			return
-
-		self.title = self.surf_target
-		ax.set_title(self.title)
+	def get_surface_svr(self, surf_vect):
 		x_ax = lfu.grab_mobj_by_name(self.x_ax_title, 
 								surf_vect.axis_values)
 		y_ax = lfu.grab_mobj_by_name(self.y_ax_title, 
@@ -503,8 +478,108 @@ class plot_page(QtGui.QWidget):
 		try:
 			surf = np.array(surf_vect.reduced[1].scalars, 
 					dtype = float).reshape(len(x), len(y))
+			return x, y, surf
+		except ValueError: return None
 
-		except ValueError:
+	def get_surface_sv(self, surf_vect):
+		xleng = surf_vect.data.shape[1]
+		yleng = surf_vect.data.shape[2]
+		x = np.arange(xleng)
+		y = np.arange(yleng)
+		if not self.rolling: s_dex = surf_vect.axis_defaults[0]
+		else: s_dex = self.roll_dex
+		surf = surf_vect.data[s_dex]
+		self.max_roll_dex = surf_vect.data.shape[0]
+		return x, y, surf
+
+	def get_mpl_surf_data(self, data, ax = None):
+		data = [da for da in data if da.tag.startswith('surface')]
+		if not data:
+			print 'no surfafce data objects'
+			return None, None, None
+
+		surf_vect = data[0]
+		made_surf =\
+			surf_vect.make_surface(
+				x_ax = self.x_ax_title, 
+				y_ax = self.y_ax_title, 
+				surf_target = self.surf_target)
+		if not made_surf:
+			print 'surface was not resolved'
+			return None, None, None
+
+		self.title = self.surf_target
+		if surf_vect.tag == 'surface':
+			x, y, surf = self.get_surface_svr(surf_vect)
+		elif surf_vect.tag == 'surface_vector':
+			x, y, surf = self.get_surface_sv(surf_vect)
+		if surf is None:
+			print 'not organized properly to colorplot...'
+			return None, None, None
+
+		surf = surf.transpose()
+		x_min, x_max = x.min(), x.max()
+		y_min, y_max = y.min(), y.max()
+		z_min, z_max = surf.min(), surf.max()
+
+		delx = [x[i+1] - x[i] for i in range(len(x) - 1)]
+		dely = [y[i+1] - y[i] for i in range(len(y) - 1)]
+		xdels = lfu.uniqfy(delx)
+		ydels = lfu.uniqfy(dely)
+		z_flag = False
+
+		if z_min == z_max:
+			z_flag = True
+			print 'no variation in surface data...'
+
+		uneven_flag = True
+		if len(xdels) == 1 and len(ydels) == 1:
+			uneven_flag = False
+
+		#	#Acceptable interpolations are 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
+		#	#'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
+			pc_mesh = ax.imshow(surf, interpolation = 'bicubic', 
+		#	pc_mesh = plt.imshow(surf, interpolation = 'bicubic', 
+				cmap = plt.get_cmap('jet'), vmin = z_min, vmax = z_max, 
+				origin = 'lower', extent = (x_min, x_max, y_min, y_max))
+
+		else:
+			print 'axes values are not evenly spaced; plot will be boxy'
+			pc_mesh = ax.pcolormesh(x,y,surf,cmap = plt.get_cmap('jet'), 
+						shading = 'gouraud', vmin = z_min, vmax = z_max)
+
+		if not ax is None:
+			ax.set_title(self.title)
+			ax.axis([x_min, x_max, y_min, y_max])
+		return pc_mesh, z_flag, uneven_flag
+
+	def show_plot_color(self, *args, **kwargs):
+		self.resolve_x_domain()
+		self.resolve_y_domain()
+		self.resolve_surf_target()
+		ax = self.add_plot()
+		data = self._data_.data
+		surf, z_flag, uneven_flag = self.get_mpl_surf_data(data, ax) 
+		if surf is None: return
+		'''
+		surf_vect = data[0]
+
+		made_surf =\
+			surf_vect.make_surface(
+				x_ax = self.x_ax_title, 
+				y_ax = self.y_ax_title, 
+				surf_target = self.surf_target)
+		if not made_surf:
+			print 'surface was not resolved'
+			return
+
+		self.title = self.surf_target
+		ax.set_title(self.title)
+		if surf_vect.tag == 'surface':
+			x, y, surf = self.get_surface_svr(surf_vect)
+		elif surf_vect.tag == 'surface_vector':
+			x, y, surf = self.get_surface_sv(surf_vect)
+		if surf is None:
 			print 'not organized properly to colorplot...'
 			return
 
@@ -512,34 +587,35 @@ class plot_page(QtGui.QWidget):
 		x_min, x_max = x.min(), x.max()
 		y_min, y_max = y.min(), y.max()
 		z_min, z_max = surf.min(), surf.max()
-		#plt.xscale('log')
-		#plt.yscale('log')
 
 		delx = [x[i+1] - x[i] for i in range(len(x) - 1)]
 		dely = [y[i+1] - y[i] for i in range(len(y) - 1)]
 		xdels = lfu.uniqfy(delx)
 		ydels = lfu.uniqfy(dely)
-		if len(xdels) == 1 and len(ydels) == 1:
+		z_flag = False
+
+		if z_min == z_max:
+			z_flag = True
+			print 'no variation in surface data...'
+		'''
+		#if len(xdels) == 1 and len(ydels) == 1:
+		'''
+		if not uneven_flag:
+			#Acceptable interpolations are 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
+			#'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
 			pc_mesh = ax.imshow(surf, interpolation = 'bicubic', 
 				cmap = plt.get_cmap('jet'), vmin = z_min, vmax = z_max, 
-				#cmap = 'autumn', vmin = z_min, vmax = z_max, 
 				origin = 'lower', extent = (x_min, x_max, y_min, y_max))
-			#Acceptable interpolations are 'none', 'nearest', 'bilinear', 
-			#'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
-			#'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 
-			#'bessel', 'mitchell', 'sinc', 'lanczos'
-
 		else:
 			print 'axes values are not evenly spaced; plot will be boxy'
-			pc_mesh = ax.pcolormesh(x, y, surf, 
-				cmap = plt.get_cmap('jet'), 
-			#pc_mesh = ax.pcolormesh(x, y, surf, cmap = 'autumn', 
-				shading = 'gouraud', vmin = z_min, vmax = z_max)
-
-		ax.axis([x.min(), x.max(), y.min(), y.max()])
+			pc_mesh = ax.pcolormesh(x,y,surf,cmap = plt.get_cmap('jet'), 
+						shading = 'gouraud', vmin = z_min, vmax = z_max)
+		'''
+		#ax.axis([x_min, x_max, y_min, y_max])
 		ax.grid(True)
-		self.figure.colorbar(pc_mesh)
-		self.canvas.draw()
+		#if not z_flag: self.figure.colorbar(pc_mesh)
+		if not z_flag: self.figure.colorbar(surf)
+		return True
 
 	def show_plot_surface(self, *args, **kwargs):
 		self.resolve_x_domain()
@@ -550,19 +626,17 @@ class plot_page(QtGui.QWidget):
 		self.newest_ax = ax
 		ax.cla()
 		ax.grid(False)
-		#color = (0.1843, 0.3098, 0.3098)
-		#ax.set_axis_bgcolor(color)
-		try:
-			surf_vector_dex = [hasattr(dater, 'reduced') 
-				for dater in self._data_.data].index(True)
 
-		except ValueError:
-			print 'no surface_vector found!'; return
+		data = [da for da in self._data_.data 
+			if da.tag.startswith('surface')]
+		if not data: return
+		surf_vect = data[0]
 
-		surf_vect = self._data_.data[surf_vector_dex]
-		made_surf = surf_vect.make_surface(
-			x_ax = self.x_ax_title, y_ax = self.y_ax_title, 
-							surf_target = self.surf_target)
+		made_surf =\
+			surf_vect.make_surface(
+				x_ax = self.x_ax_title, 
+				y_ax = self.y_ax_title, 
+				surf_target = self.surf_target)
 		if not made_surf:
 			print 'surface was not resolved'
 			return
@@ -579,9 +653,12 @@ class plot_page(QtGui.QWidget):
 		x = np.array(x_ax.scalars, dtype = float)
 		y = np.array(y_ax.scalars, dtype = float)
 		try:
-			surf = np.array(surf_vect.reduced[1].scalars, 
-					dtype = float).reshape(len(x), len(y))
-
+			if hasattr(surf_vect, 'reduced'):
+				surf = np.array(surf_vect.reduced[1].scalars, 
+						dtype = float).reshape(len(x), len(y))
+			else:
+				s_dex = 0
+				surf = surf_vect.data[s_dex]
 		except ValueError:
 			print 'not organized properly to colorplot...'
 			return
@@ -594,17 +671,14 @@ class plot_page(QtGui.QWidget):
 		x, y = np.meshgrid(x, y)
 		ax.set_zlim(z_min, z_max)
 		ax.axis([x_min, x_max, y_min, y_max])
-		surf = ax.plot_surface(x, y, surf, cmap = plt.get_cmap('jet'), 
-		#surf = ax.plot_surface(x, y, surf, cmap = plt.cm.gist_heat, 
-			shade = True, rstride = 1, cstride = 1, 
-			linewidth = 0, antialiased = False, zorder = 1.0)
-
+		surf = ax.plot_surface(x, y, surf, 
+			cmap = plt.get_cmap('jet'), shade = True, 
+			rstride = 1, cstride = 1, linewidth = 0, 
+				antialiased = False, zorder = 1.0)
 		#ax.zaxis.set_major_locator(LinearLocator(10))
 		#ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
 		self.figure.colorbar(surf, shrink = 0.75)
-		#ax.set_axisbelow()
-		self.canvas.draw()
+		return True
 
 	def show_plot_bars(self, *args, **kwargs):		
 		fig = self.figure
@@ -639,8 +713,7 @@ class plot_page(QtGui.QWidget):
 		# update the view limits
 		ax.set_xlim(left[0], right[-1])
 		ax.set_ylim(bottom.min(), top.max())
-		#plt.show()
-		self.canvas.draw()
+		return True
 
 	def add_plot(self, code = 111):
 		self.figure.clf()
@@ -665,6 +738,8 @@ class plot_page(QtGui.QWidget):
 				np.linspace(0, 0.9, min([self.max_line_count, 
 							len(self._plot_targets_) - 1]))]
 
+		if self.x_log: ax.set_xscale('log')
+		if self.y_log: ax.set_yscale('log')
 		return ax
 
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
@@ -679,6 +754,8 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		'Change the title and axes labels', 'gear', 'labels'))
 	toolitems.append(('Roll', 
 		'Roll through a series of plots', 'gear', 'roll'))
+	toolitems.append(('RollToMovie', 
+		'Create a movie from the roll function', 'gear', 'movie'))
 
 	def __init__(self, canvas, parent, coordinates=True):
 		""" coordinates: should we show the coordinates on the right? """
@@ -687,17 +764,13 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		self.coordinates = coordinates
 		self._actions = {}
 		"""A mapping of toolitem method names to their QActions"""
-
 		QtGui.QToolBar.__init__(self, parent)
 		NavigationToolbar2.__init__(self, canvas)
 
 	def _icon(self, name):
 		if name in ['move.png', 'zoom_to_rect.png', 'filesave.png']:
 			return QtGui.QIcon(os.path.join(self.basedir, name))
-
-		else:
-			return QtGui.QIcon(os.path.join(
-				os.getcwd(), 'resources', name))
+		else: return QtGui.QIcon(lfu.get_resource_path(name))
 
 	def _init_toolbar(self):
 		self.basedir = os.path.join(
@@ -743,15 +816,74 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		super(plot_window_toolbar, self).zoom(*args)
 		self._update_buttons_checked()
 
+	def movie(self):
+		# First set up the figure, the axis, and the plot element we want to animate
+		#fig = plt.figure()
+		#ax = plt.axes(xlim=(0, 2), ylim=(-2, 2))
+		#line, = ax.plot([], [], lw=2)
+		fig = self.figure
+
+		# initialization function: plot the background of each frame
+		def init():
+			line.set_data([], [])
+			return line,
+
+		# animation function.  This is called sequentially
+		def animate(i):
+			x = np.linspace(0, 2, 1000)
+			y = np.sin(2 * np.pi * (x - 0.01 * i))
+			line.set_data(x, y)
+			return line,
+
+		# call the animator.  blit=True means only re-draw the parts that have changed.
+		anim = animation.FuncAnimation(fig, animate, init_func=init,
+								frames=200, interval=20, blit=True)
+
+		# save the animation as an mp4.  This requires ffmpeg or mencoder to be
+		# installed.  The extra_args ensure that the x264 codec is used, so that
+		# the video can be embedded in html5.  You may need to adjust this for
+		# your system: for more information, see
+		# http://matplotlib.sourceforge.net/api/animation_api.html
+		#anim.save('basic_animation.mp4', fps=30, 
+		anim.save('basic_animation.avi', fps=30, 
+				extra_args=['-vcodec', 'libx264'])
+
+		def _roll():
+			page = self.parent.get_current_page()
+			if page.max_roll_dex is None:
+				print 'cant roll through this data...'
+				return
+
+			page.rolling = True
+			while page.roll_dex < page.max_roll_dex:
+				#page.show_plot_bars()
+				page.show_plot()
+				time.sleep(page.roll_delay)
+				page.roll_dex += 1
+
+			page.rolling = False
+			page.roll_dex = 0
+			self._update_buttons_checked()
+
+		roll_ = lgb.create_thread_wrapper(_roll)
+		roll_()
+
 	def roll(self):
 
 		def _roll():
 			page = self.parent.get_current_page()
+			if page.max_roll_dex is None:
+				print 'cant roll through this data...'
+				return
+
+			page.rolling = True
 			while page.roll_dex < page.max_roll_dex:
-				page.show_plot_bars()
+				#page.show_plot_bars()
+				page.show_plot()
 				time.sleep(page.roll_delay)
 				page.roll_dex += 1
 
+			page.rolling = False
 			page.roll_dex = 0
 			self._update_buttons_checked()
 
@@ -1019,15 +1151,26 @@ class plot_window(create_obj_dialog):
 								content = layout))]))
 		self.targets_layout.addWidget(self.check_group)
 
-	def change_axis_slice(self, page_dex):
+	def get_surf_dex(self, page_dex):
+		surf_vector_dex = None
+		reduced = False
 		daters = self.pages[page_dex]._data_.data
 		try:
-			surf_vector_dex = [hasattr(dater, 'reduced') 
-						for dater in daters].index(True)
-
+			surf_vector_dex = [dater.tag == 'surface_vector' 
+							for dater in daters].index(True)
+			reduced = False
 		except ValueError:
-			print 'no surface_vector found!'; return
+			try:
+				surf_vector_dex = [hasattr(dater, 'reduced') 
+							for dater in daters].index(True)
+				reduced = True
+			except ValueError: print 'no surface_vectors found!'
+		return surf_vector_dex, reduced
 
+	def change_axis_slice(self, page_dex):
+		daters = self.pages[page_dex]._data_.data
+		surf_vector_dex = self.get_surf_dex(page_dex)[0]
+		if not surf_vector_dex: return
 		surf_vect = daters[surf_vector_dex]
 		cur_slices = [sel.currentText() for sel in self.slice_selectors]
 		str_defaults = [str(val) for val in surf_vect.axis_defaults]
@@ -1044,13 +1187,8 @@ class plot_window(create_obj_dialog):
 		if self.slice_group: self.slice_group.deleteLater()
 		labels = copy(self._all_plot_axes_[page_dex])
 		daters = self.pages[page_dex]._data_.data
-		try:
-			surf_vector_dex = [hasattr(dater, 'reduced') 
-						for dater in daters].index(True)
-
-		except ValueError:
-			print 'no surface_vector found!'; return
-
+		surf_vector_dex = self.get_surf_dex(page_dex)[0]
+		if not surf_vector_dex: return
 		surf_vect = daters[surf_vector_dex]
 		ax_labs, ax_vals = surf_vect.axis_labels, surf_vect.axis_values
 		slice_widgets = []
@@ -1076,7 +1214,8 @@ class plot_window(create_obj_dialog):
 			#determine if ax_box corresponds to a domain axis
 			# hide it if so
 
-		title = 'P-Space Axis Handling'
+		#title = 'P-Space Axis Handling'
+		title = 'Data Axis Handling'
 		self.slice_group = QtGui.QGroupBox(title = title)
 		layout = lgb.create_vert_box(slice_widgets)
 		self.slice_group.setLayout(lgb.create_vert_box([

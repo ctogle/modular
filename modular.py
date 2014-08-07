@@ -2,6 +2,7 @@
 import os, sys, time, pstats, cProfile, argparse
 
 import modular_core.libfundamental as lfu
+lfu.USING_GUI = False
 import modular_core.gui.libqtgui as lqg
 
 import pdb
@@ -44,14 +45,11 @@ def run(options, registry):
 	# in resources/program_registry.txt
 	for reg in registry:
 		if options.__dict__[reg[1]]:
-			#params['gui_lib'] = '.'.join(['libs', 
-			params['gui_lib'] = '.'.join(['modular_core', 
+			params['gui_lib'] = '.'.join([reg[3], 
 					'gui', 'libqtgui_' + reg[0]])
 
 	#default program is modular simulator
-	#else:
 	if not 'gui_lib' in params.keys():
-		#params['gui_lib'] = 'libs.gui.libqtgui_modular'
 		params['gui_lib'] = 'modular_core.gui.libqtgui_modular'
 
 	if lfu.using_gui(): lfu.set_gui_pack(params['gui_lib'])

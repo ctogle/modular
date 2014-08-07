@@ -2,7 +2,8 @@
 #import libs.modular_core.libgeometry as lgeo
 
 import modular_core.libfundamental as lfu
-import modular_core.libgeometry as lgeo
+#import modular_core.libgeometry as lgeo
+import modular_core.libdatacontrol as ldc
 
 import xml.dom.minidom
 from copy import deepcopy as copy
@@ -17,7 +18,8 @@ if __name__ == 'libs.modular_core.libvtkoutput':
 if __name__ == '__main__': print 'this is a library!'
 
 def write_image(system, vtk_filename, specifics = []):
-	plot_targets = lgeo.sort_data_by_type(system.data, specifics)
+	#plot_targets = lgeo.sort_data_by_type(system.data, specifics)
+	plot_targets = ldc.sort_data_by_type(system.data, specifics)
 	doc = xml.dom.minidom.Document()
 	
 	pdb.set_trace()
@@ -29,7 +31,8 @@ def write_image(system, vtk_filename, specifics = []):
 	doc.appendChild(root_element)
 
 	#ImageData Element
-	tempExtent = lgeo.array_to_string(['0', viewdims[0], 
+	#tempExtent = lgeo.array_to_string(['0', viewdims[0], 
+	tempExtent = ldc.array_to_string(['0', viewdims[0], 
 					'0', viewdims[1], '0', viewdims[2]])
 	dataType = doc.createElementNS("VTK", vtktype)
 	dataType.setAttribute("WholeExtent", tempExtent)
@@ -55,7 +58,8 @@ def write_image(system, vtk_filename, specifics = []):
 	point_coords.setAttribute("NumberOfComponents", "3")
 	points.appendChild(point_coords)
 
-	point_coords_string = lgeo.coords_to_string(data['time'], \
+	#point_coords_string = lgeo.coords_to_string(data['time'], \
+	point_coords_string = ldc.coords_to_string(data['time'], \
 		data['time'], [0.0]*len(data['time']))
 	point_coords_data = doc.createTextNode(point_coords_string)
 	point_coords.appendChild(point_coords_data)
@@ -84,7 +88,8 @@ def write_image(system, vtk_filename, specifics = []):
 			node.setAttribute("type", "Int32")
 			node.setAttribute("format", "ascii")
 			point_data.appendChild(node)
-			string = lgeo.array_to_string(data[key])
+			#string = lgeo.array_to_string(data[key])
+			string = ldc.array_to_string(data[key])
 			node_Data = doc.createTextNode(string)
 			node.appendChild(node_Data)
 
@@ -128,7 +133,8 @@ def write_image(system, vtk_filename, specifics = []):
 	outFile.close()
 
 def write_unstructured(system, vtk_filename, specifics = []):
-	plot_targets = lgeo.sort_data_by_type(system.data, specifics)
+	#plot_targets = lgeo.sort_data_by_type(system.data, specifics)
+	plot_targets = ldc.sort_data_by_type(system.data, specifics)
 	doc = xml.dom.minidom.Document()
 
 	root_element = setup_element(doc, 'VTKFile', 
@@ -165,7 +171,8 @@ def write_unstructured(system, vtk_filename, specifics = []):
 		point_data.appendChild(node)
 		keydex = plot_targets['coords'].keys()[0]
 		keydexes = plot_targets['coords'][keydex].keys()
-		point_coords_string = lgeo.coords_to_string(
+		#point_coords_string = lgeo.coords_to_string(
+		point_coords_string = ldc.coords_to_string(
 			plot_targets['coords'][keydex][keydexes[0]],
 			plot_targets['coords'][keydex][keydexes[1]],
 			plot_targets['coords'][keydex][keydexes[2]])
@@ -179,7 +186,8 @@ def write_unstructured(system, vtk_filename, specifics = []):
 			'format' : 'ascii'})
 		point_data.appendChild(node)
 		keydex = plot_targets['scalars'].keys()[0]
-		point_coords_string = lgeo.coords_to_string(
+		#point_coords_string = lgeo.coords_to_string(
+		point_coords_string = ldc.coords_to_string(
 			plot_targets['scalars'][keydex],
 			plot_targets['scalars'][keydex],
 			plot_targets['scalars'][keydex])
@@ -194,7 +202,8 @@ def write_unstructured(system, vtk_filename, specifics = []):
 			'type' : 'Float32', 
 			'format' : 'ascii'})
 		point_data.appendChild(node)
-		string = lgeo.array_to_string(plot_targets['scalars'][key])
+		#string = lgeo.array_to_string(plot_targets['scalars'][key])
+		string = ldc.array_to_string(plot_targets['scalars'][key])
 		node_Data = doc.createTextNode(string)
 		node.appendChild(node_Data)
 

@@ -10,6 +10,7 @@ import modular_core.libfiler as lf
 import modular_core.libcriterion as lc
 import modular_core.libfitroutine as lfr
 import modular_core.libgeometry as lgeo
+import modular_core.libdatacontrol as ldc
 import modular_core.libpostprocess as lpp
 import modular_core.libmultiprocess as lmp
 import modular_core.libiteratesystem as lis
@@ -107,24 +108,37 @@ class ensemble(lfu.modular_object_qt):
 
 		elif len(opts) == 1: module = opts[0]
 		else:
-			module_choice_container = lfu.data_container(data = opts[0])
-			module_options_templates = [lgm.interface_template_gui(
-					layout = 'horizontal', 
-					widgets = ['radio'], 
-					verbosities = [0], 
-					labels = [opts], 
-					initials = [[module_choice_container.data]], 
-					instances = [[module_choice_container]], 
-					keys = [['data']], 
-					box_labels = ['Ensemble Module'], 
-					minimum_sizes = [[(250, 50)]])]
-			mod_dlg = lgd.create_dialog(title = 'Choose Ensemble Module', 
-				templates = module_options_templates, variety = 'templated')
-			module = mod_dlg()
-			if module: module = module_choice_container.data
+			if lfu.using_gui():
+				module_choice_container =\
+					lfu.data_container(data = opts[0])
+				module_options_templates = [lgm.interface_template_gui(
+						layout = 'horizontal', 
+						widgets = ['radio'], 
+						verbosities = [0], 
+						labels = [opts], 
+						initials = [[module_choice_container.data]], 
+						instances = [[module_choice_container]], 
+						keys = [['data']], 
+						box_labels = ['Ensemble Module'], 
+						minimum_sizes = [[(250, 50)]])]
+				mod_dlg = lgd.create_dialog(
+					title = 'Choose Ensemble Module', 
+					templates = module_options_templates, 
+					variety = 'templated')
+				module = mod_dlg()
+				if module: module = module_choice_container.data
+				else:
+					self.cancel_make = True
+					return
 			else:
-				self.cancel_make = True
-				return
+				if not 'module' in kwargs.keys():
+					mod_request = 'enter a module:\n\t'
+					for op in opts:
+						mod_request += op + '\n\t'
+					mod_request += '\n'
+					module = raw_input(mod_request)
+				else: module = None
+				#pdb.set_trace()
 
 		self.impose_default('module', module, **kwargs)
 		self._children_ = [self.simulation_plan, self.output_plan, 
@@ -376,7 +390,8 @@ class ensemble(lfu.modular_object_qt):
 		smart = lset.get_setting('use_smart_pool')
 		if smart and self.cartographer_plan.use_plan and\
 						not self.fitting_plan.use_plan:
-			data_pool = lgeo.batch_data_pool(
+			#data_pool = lgeo.batch_data_pool(
+			data_pool = ldc.batch_data_pool(
 				self.run_params['plot_targets'], 
 						self.cartographer_plan)
 			self.data_scheme = 'smart_batch'
@@ -387,7 +402,8 @@ class ensemble(lfu.modular_object_qt):
 											self.data_pool_id, 'pkl']))
 
 		else:
-			data_pool = lgeo.batch_scalars(
+			#data_pool = lgeo.batch_scalars(
+			data_pool = ldc.batch_scalars(
 				self.run_params['plot_targets'])
 			self.data_scheme = 'batch'
 			self.output_plan.flat_data = False
@@ -401,8 +417,9 @@ class ensemble(lfu.modular_object_qt):
 		data_pool = self.set_data_scheme()
 		current_trajectory = 1
 		while current_trajectory <= self.num_trajectories:
-			data_pool.batch_pool.append(lis.run_system(
-				self, identifier = current_trajectory))
+			rundat = lis.run_system(self, 
+				identifier = current_trajectory)
+			data_pool.batch_pool.append(rundat)
 			current_trajectory += 1
 		return data_pool
 
@@ -746,9 +763,10 @@ class ensemble_manager(lfu.modular_object_qt):
 		mc.modules.mods = grab_modules()
 		return mc.modules.mods
 
-	def add_ensemble(self):
+	def add_ensemble(self, module = 'chemical'):
 		new = ensemble(parent = self, 
-			module_options = self.find_module_options())
+			module_options = self.find_module_options(), 
+			module = module)
 		if new.cancel_make: return
 		else: self.ensembles.append(new)
 		self.current_tab_index = len(self.ensembles)
@@ -1234,7 +1252,8 @@ class sim_system_python(lfu.modular_object_qt):
 			self.end_capture_expression = ''
 
 		try:
-			data = lgeo.scalars_from_labels(
+			#data = lgeo.scalars_from_labels(
+			data = ldc.scalars_from_labels(
 				self.parameters['plot_targets'])
 
 		except KeyError: print 'simulating with no resultant data!'
@@ -1335,7 +1354,60 @@ class sim_system_external(sim_system_python):
 	def toss_bad_daters(self, *args, **kwargs):
 		pass
 
-	def finalize_data(self, data, targets, toss = None):
+	# finalize_data_nontrivial will perform necessary handling for
+	#  non 1-1 listed data (surfaces for example)
+	# it will return a tuple of data objects - general output case
+	# args = [dataobject1, ..., dataobjectN, [targetname1, ..., targetnameN]]
+	# dataobject1 should be simplest data case occurring:
+	#  numpy array of dimension 2, of shape (numtargets, numcaptures)
+	# dataobject2 should be no simpler than the second data case:
+	#  numpy array of dimension 3, of shape (x,x,x) where x is arbitrary
+	# support for other data objects will be added as necessary
+	def finalize_data_nontrivial(self, *args, **kwargs):
+
+		def data_case1(dataobj, targs, **kwargs):
+			tcnt = dataobj.shape[0]
+			subtargs = targs[:tcnt]
+			case1targs.extend(subtargs)
+			kwargs['ignore_targets'] = targs[tcnt:]
+			reord = self.finalize_data(dataobj, subtargs, **kwargs)
+			return reord
+
+		def data_case2(dataobj, targs, **kwargs):
+			subtargs = [t for t in targs if not t in case1targs]
+			#dataobj is 3d - either a pack of surfaces or surfaces
+			# as a function of something
+			if len(subtargs) == 1 and dataobj.shape[0] > 1:
+				#the latter is assumed - nothing happens for now
+				pass
+			elif len(subtargs) == dataobj.shape[0]:
+				#data is a pack of surfaces - nothing happens for now
+				pass
+			return dataobj
+
+		data = args[0]
+		if data is False:
+			self.bAbort = True
+			return data
+
+		if 'toss' in kwargs.keys(): toss = kwargs['toss']
+		else: toss = None
+		targs = args[-1]
+		case1targs = []
+		final = []
+		for dataobj in args[:-1]:
+			if hasattr(dataobj, 'shape'):
+				dim = len(dataobj.shape)
+			if dim == 2:
+				final.append(data_case1(dataobj, targs, toss = toss))
+			elif dim == 3:
+				final.append(data_case2(dataobj, targs, toss = toss))
+		return tuple(final)
+
+	# finalize_data will reoder numpy data so it is 1-1 with plot_targets
+	# it will return the reordered numpy array - simplest output case
+	def finalize_data(self, data, targets, 
+			toss = None, ignore_targets = []):
 		if data is False:
 			self.bAbort = True
 			return data
@@ -1343,9 +1415,10 @@ class sim_system_external(sim_system_python):
 		data = [dater for dater in data if len(dater) > 1]
 		reorder = []
 		for name in self.params['plot_targets']:
+			if name in ignore_targets: continue
 			try: dex = targets.index(name)
 			except ValueError:
-				print 'plot target not in targets...'
+				print 'plot target not in targets...\n\t', name, targets
 				raise ValueError
 			reorder.append(np.array(data[dex][:toss], dtype = np.float))
 

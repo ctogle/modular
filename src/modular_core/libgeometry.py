@@ -2,13 +2,7 @@ import modular_core.libfundamental as lfu
 import modular_core.libmath as lm
 import modular_core.libfiler as lf
 import modular_core.libsettings as lset
-
-'''
-import libs.modular_core.libfundamental as lfu
-import libs.modular_core.libmath as lm
-import libs.modular_core.libfiler as lf
-import libs.modular_core.libsettings as lset
-'''
+import modular_core.libdatacontrol as ldc
 
 import itertools as it
 import types
@@ -33,6 +27,7 @@ if __name__ == 'modular_core.libgeometry':
 
 if __name__ == '__main__': print 'this is a library!'
 
+'''
 class scalars(object):
 
 	def __init__(self, label = 'some scalar', scalars = None, **kwargs):
@@ -92,15 +87,22 @@ class batch_scalars(object):
 			#if not type(values) is types.ListType:
 			if hasattr(values, 'scalars'):
 				values = values.scalars
-				#pdb.set_trace()
+				sca = scalars(label = self.pool_names[dex])
+				sca.scalars = values
+				return sca
 
-			sca = scalars(label = self.pool_names[dex])
-			sca.scalars = values
-			return sca
+			elif hasattr(values, 'tag'):
+				if values.tag == 'surface_vector':
+					self.pool_names = values.surf_targets+values.axis_labels
+					return values
+
+			else:
+				sca = scalars(label = self.pool_names[dex])
+				sca.scalars = values
+				return sca
 
 		relevant = self.batch_pool[traj_dex]
-		batch = [_wrap_(rele, dex) for dex, rele 
-						in enumerate(relevant)]
+		batch = [_wrap_(rele, dex) for dex, rele in enumerate(relevant)]
 		return batch
 
 class batch_data_pool(object):
@@ -186,8 +188,27 @@ class bin_vectors(object):
 
 class surface_vector(object):
 
+	def __init__(self, surfs, surf_labels, axis_labels, axis_values, 
+								label = 'another surface vector'):
+		self.tag = 'surface_vector'
+		self.label = label
+
+		self.axis_labels = axis_labels
+		self.axis_values = [scalars(label = ax, scalars = da) 
+				for ax, da in zip(axis_labels, axis_values)]
+
+		self.surf_targets = surf_labels
+
+		self.data = surfs
+
+	def make_surface(self, x_ax, y_ax, surf_target):
+		#	pdb.set_trace()
+		return True
+
+class surface_vector_reducing(object):
+
 	def __init__(self, data = [], axes = [], surfs = [], 
-					label = 'another surface vector'):
+					label = 'another reducing surface vector'):
 		self.tag = 'surface'
 		self.label = label
 		self.data_scalars = [data for data in data if not data is self]
@@ -241,6 +262,7 @@ class surface_vector(object):
 
 		self.reduced = (sub_axes, sub_surf)
 		return True
+'''
 
 def merge_spaces(subspaces):
 	space = parameter_space(subspaces = subspaces)
@@ -1314,6 +1336,7 @@ class cartographer_plan(lfu.plan):
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
 
+'''
 def scalars_from_labels(targeted):
 	return [scalars(label = target) for target in targeted]
 
@@ -1331,6 +1354,7 @@ def sort_data_by_type(data, specifics = []):
 			sorted_data['coords']['_'.join(dater.coords.keys())] = dater.coords
 
 	return sorted_data
+'''
 
 class metric(lfu.modular_object_qt):
 
@@ -1452,7 +1476,8 @@ class metric_avg_ptwise_diff_on_domain(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalars_from_labels(['mean difference'])
+		#self.data = scalars_from_labels(['mean difference'])
+		self.data = ldc.scalars_from_labels(['mean difference'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
@@ -1479,7 +1504,8 @@ class metric_slope_1st_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalars_from_labels(['mean slope difference'])
+		#self.data = scalars_from_labels(['mean slope difference'])
+		self.data = ldc.scalars_from_labels(['mean slope difference'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
@@ -1511,7 +1537,8 @@ class metric_slope_2nd_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalars_from_labels(['mean 2nd derivative'])
+		#self.data = scalars_from_labels(['mean 2nd derivative'])
+		self.data = ldc.scalars_from_labels(['mean 2nd derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
@@ -1549,7 +1576,8 @@ class metric_slope_3rd_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalars_from_labels(['mean 3rd derivative'])
+		#self.data = scalars_from_labels(['mean 3rd derivative'])
+		self.data = ldc.scalars_from_labels(['mean 3rd derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
@@ -1588,7 +1616,8 @@ class metric_slope_4th_derivative(metric):
 		metric.__init__(self, *args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
-		self.data = scalars_from_labels(['mean 4th derivative'])
+		#self.data = scalars_from_labels(['mean 4th derivative'])
+		self.data = ldc.scalars_from_labels(['mean 4th derivative'])
 		metric.initialize(self, *args, **kwargs)
 
 	def measure(self, *args, **kwargs):
@@ -1619,6 +1648,7 @@ class metric_slope_4th_derivative(metric):
 		return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
 				for k in range(bounds[0] + 2, bounds[1] - 3)]
 
+'''
 def array_to_string(arr):
 	string = ' '
 	string = string.join([str(value) for value in arr])
@@ -1650,6 +1680,7 @@ def quality_coords_to_string(x, y, z, Q, dims):
 
 	string = array_to_string(flat)
 	return string
+'''
 
 valid_metric_base_classes = [
 	lfu.interface_template_class(

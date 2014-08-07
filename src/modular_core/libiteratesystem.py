@@ -30,6 +30,9 @@ def run_system(*args, **kwargs):
 
 	system.decommission()
 	if system.bAbort: system.toss_bad_daters()
+	#if hasattr(system, 'surface_data'): return (system.data, system.surface_data)
+	#if hasattr(system, 'surface_data'): return system.surface_data
+	#else: return system.data
 	return system.data
 
 #run a system and use its data to perform a measurement

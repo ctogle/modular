@@ -52,28 +52,12 @@ class settings_manager(lfu.modular_object_qt):
 
 	def read_settings(self, filename = 'settings.txt'):
 		if self.filename: filename = self.filename
-		#settings_path = os.path.join(self.cfg_path, filename)
-		try:
-			settings_path = resource_string(__name__, 
-				os.path.join('resources', filename))
-		except IOError:
-			#settings_path = os.path.join(os.getcwd(), filename)
-			settings_path = lfu.get_resource_path(filename)
-			if not os.path.exists(settings_path):
-				settings_path = os.path.join(os.getcwd(), filename)
-			with open(settings_path, 'r') as handle:
-				settings_path = handle.read()
-		#settings_path = os.path.join(self.cfg_path, filename)
-		try:
-			#with open(settings_path, 'r') as handle:
-			#	lines = handle.readlines()
-			lines = settings_path.split('\n')
-
-		except IOError:
-			print 'count not find settings file!', settings_path
-			pdb.set_trace()
-			return
-
+		settings_path = os.path.join(self.cfg_path, filename)
+		print 'spath', settings_path
+		if not os.path.exists(settings_path):
+			settings_path = os.path.join(os.getcwd(), filename)
+		with open(settings_path, 'r') as handle:
+			lines = [l.strip() for l in handle.readlines()]
 		parser = ''
 		key_lines = [line.strip() for line in lines if 
 					line.strip().startswith('<') and 
@@ -82,9 +66,7 @@ class settings_manager(lfu.modular_object_qt):
 			if line.startswith('#') == True or line.strip() == '':
 				continue
 
-			#elif line.startswith('<defaults>'):
 			elif line.strip() in key_lines:
-				#parser = 'defaults'
 				parser = line.strip()[1:-1]
 				if not parser in self.settings.keys():
 					self.settings[parser] = {}
@@ -142,7 +124,6 @@ class settings_manager(lfu.modular_object_qt):
 		template = lgm.interface_template_gui(
 					widgets = ['check_set'], 
 					verbosities = [0], 
-					#tooltips = [['Enable multiprocessing by default']], 
 					instances = [[self.settings[key]]], 
 					append_instead = [False], 
 					keys = [[sub_key]], 

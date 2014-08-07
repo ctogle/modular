@@ -2,6 +2,7 @@ import modular_core.libfundamental as lfu
 import modular_core.libfiler as lf
 import modular_core.liboutput as lo
 import modular_core.libgeometry as lgeo
+import modular_core.libdatacontrol as ldc
 import modular_core.libcriterion as lc
 import modular_core.libvtkoutput as lvtk
 import modular_core.libiteratesystem as lis
@@ -481,7 +482,7 @@ class fit_routine(lfu.modular_object_qt):
 		self.parameter_space.set_start_position()
 		for metric in self.metrics:
 			metric.initialize(self, *args, **kwargs)
-		self.data = lgeo.scalars_from_labels(['fitting iteration'] +\
+		self.data = ldc.scalars_from_labels(['fitting iteration'] +\
 				[met.label + ' measurement' for met in self.metrics])
 
 	def kill_proginy(self, *args):
@@ -694,7 +695,7 @@ class fit_routine(lfu.modular_object_qt):
 
 		def get_interped_y(label, data, x, x_to):
 			run_y = lfu.grab_mobj_by_name(label, data)
-			run_interped = lgeo.scalars(
+			run_interped = ldc.scalars(
 				label = 'interpolated best result - ' + label, 
 				scalars = lm.linear_interpolation(
 					x.scalars, run_y.scalars, 
@@ -709,7 +710,7 @@ class fit_routine(lfu.modular_object_qt):
 			self.p_sp_trajectory[self.best_fits[
 						self.prime_metric][0]])
 		best_run_data = lis.run_system(self.ensemble)
-		best_run_data = [lgeo.scalars(label = lab, scalars = dat) 
+		best_run_data = [ldc.scalars(label = lab, scalars = dat) 
 			for lab, dat in zip(self.run_targets, best_run_data)]
 		best_run_data_x = lfu.grab_mobj_by_name(
 			self.data_to_fit_to[0].label, best_run_data)
@@ -973,11 +974,11 @@ class fit_routine_simulated_annealing(fit_routine):
 			cooling_domain = np.array(range(self.final_iteration))
 			cooling_codomain = self.max_temperature*np.exp(
 										lam*cooling_domain)
-			self.cooling_curve = lgeo.scalars(
+			self.cooling_curve = ldc.scalars(
 				label = 'cooling curve', scalars = cooling_codomain)
 
 		fit_routine.initialize(self, *args, **kwargs)
-		self.data.extend(lgeo.scalars_from_labels(
+		self.data.extend(ldc.scalars_from_labels(
 						['annealing temperature']))
 		self.temperature = self.cooling_curve.scalars[self.iteration]
 		self.parameter_space.initial_factor = self.temperature
@@ -1061,11 +1062,11 @@ class fit_routine_autopilot(fit_routine):
 			cooling_domain = np.array(range(self.final_iteration))
 			cooling_codomain = self.max_temperature*np.exp(
 										lam*cooling_domain)
-			self.cooling_curve = lgeo.scalars(
+			self.cooling_curve = ldc.scalars(
 				label = 'cooling curve', scalars = cooling_codomain)
 
 		fit_routine.initialize(self, *args, **kwargs)
-		self.data.extend(lgeo.scalars_from_labels(
+		self.data.extend(ldc.scalars_from_labels(
 						['annealing temperature']))
 		self.temperature = self.cooling_curve.scalars[self.iteration]
 		self.parameter_space.initial_factor = self.temperature

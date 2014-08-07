@@ -1,5 +1,6 @@
 import modular_core.libfundamental as lfu
 import modular_core.libgeometry as lgeo
+import modular_core.libdatacontrol as ldc
 import modular_core.libvtkoutput as lvtk
 import modular_core.liboutput as lo
 import modular_core.libsettings as lset
@@ -718,7 +719,8 @@ class post_process_meanfields(post_process):
 		post_process.postproc(self, *args, **kwargs)
 
 	def meanfields(self, *args, **kwargs):
-		data = lgeo.scalars_from_labels(self.target_list)
+		#data = lgeo.scalars_from_labels(self.target_list)
+		data = ldc.scalars_from_labels(self.target_list)
 		for dex, mean_of in enumerate(self.means_of):
 			bin_axes, mean_axes = select_for_binning(
 				args[0], self.function_of, mean_of)
@@ -856,7 +858,8 @@ class post_process_standard_statistics(post_process):
 
 		#variances = [mean(val) for val in vals]
 		variances = [variance(val) for val in vals]
-		data = lgeo.scalars_from_labels(self.target_list)
+		#data = lgeo.scalars_from_labels(self.target_list)
+		data = ldc.scalars_from_labels(self.target_list)
 		data[0].scalars = bins
 		data[1].scalars = means
 		data[2].scalars = medians
@@ -1015,7 +1018,8 @@ class post_process_correlation_values(post_process):
 							self.bin_count, self.ordered)
 		correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
 						for val_1, val_2 in zip(vals_1, vals_2)])
-		data = lgeo.scalars_from_labels([self.function_of, 
+		#data = lgeo.scalars_from_labels([self.function_of, 
+		data = ldc.scalars_from_labels([self.function_of, 
 			'correlation coefficients', 'correlation p-value'])
 		data[0].scalars = bins
 		data[1].scalars = [verify(val) for val in correlations]
@@ -1135,7 +1139,8 @@ class post_process_counts_to_concentrations(post_process):
 		#FIX THIS TO HANDLE A FULL TRAJECTORY AND NOT JUST ONE scalar OBJECT
 		trajectory = args[0]
 		conv_factor = ((6.02*10.0**23)*(10.0**(-9))*self.volume)**(-1)
-		data = lgeo.scalars_from_labels([trajectory.label])[0]
+		#data = lgeo.scalars_from_labels([trajectory.label])[0]
+		data = ldc.scalars_from_labels([trajectory.label])[0]
 		if data.label in self.dater_ids:
 			data.scalars = [float(count)*conv_factor 
 					for count in trajectory.scalars]
@@ -1227,7 +1232,8 @@ class post_process_slice_from_trajectory(post_process):
 
 	def slice_from_trajectory(self, *args, **kwargs):
 		trajectory = args[0]
-		data = lgeo.scalars_from_labels([label 
+		#data = lgeo.scalars_from_labels([label 
+		data = ldc.scalars_from_labels([label 
 				for label in self.dater_ids])
 		for dater in data:
 			try:
@@ -1364,7 +1370,8 @@ class post_process_reorganize_data(post_process):
 	def data_by_trajectory(self, *args, **kwargs):
 		trajectory = args[0]
 		p_space_map = args[1]
-		data = lgeo.scalars_from_labels(
+		#data = lgeo.scalars_from_labels(
+		data = ldc.scalars_from_labels(
 				['parameter space location index'] +\
 				self.axis_labels + [label for label in self.dater_ids])
 		for dex, locale in enumerate(trajectory):
@@ -1383,8 +1390,9 @@ class post_process_reorganize_data(post_process):
 
 		surf_targets =\
 			['parameter space location index'] + self.dater_ids
-		data.append(lgeo.surface_vector(data, self.axis_labels, 
-						surf_targets, 'reorg surface vector'))
+		#data.append(lgeo.surface_vector_reducing(data, 
+		data.append(ldc.surface_vector_reducing(data, 
+			self.axis_labels, surf_targets, 'reorg surface vector'))
 		return data
 
 	def set_target_settables(self, *args, **kwargs):
@@ -1459,7 +1467,8 @@ class post_process_1_to_1_binary_operation(post_process):
 		trajectory = args[0]
 		dater_1 = lfu.grab_mobj_by_name(self.input_1, trajectory)
 		dater_2 = lfu.grab_mobj_by_name(self.input_2, trajectory)
-		data = lgeo.scalars_from_labels(['_'.join(
+		#data = lgeo.scalars_from_labels(['_'.join(
+		data = ldc.scalars_from_labels(['_'.join(
 			[self.input_1, self.input_2]), self.domain])
 		data[1].scalars = lfu.grab_mobj_by_name(
 						self.domain, trajectory).scalars
@@ -1666,7 +1675,8 @@ class post_process_period_finding(post_process):
 		targ = args[0][targ_dex]
 		periods, amplitudes = self.find_period_in_window(
 							time.scalars, targ.scalars)
-		data = lgeo.scalars_from_labels(self.target_list)
+		#data = lgeo.scalars_from_labels(self.target_list)
+		data = ldc.scalars_from_labels(self.target_list)
 		data[1].scalars, data[2].scalars = self.fill_in(
 					periods, amplitudes, time.scalars)
 		data[0].scalars = copy(time.scalars[:len(data[1].scalars)])
@@ -1792,7 +1802,8 @@ class post_process_measure_probability(post_process):
 		passes = 0.0
 		for traj in args[0]:
 			if self.probability_criterion(traj): passes += 1.0
-		data = lgeo.scalars_from_labels(['probability'])
+		#data = lgeo.scalars_from_labels(['probability'])
+		data = ldc.scalars_from_labels(['probability'])
 		data[0].scalars = [passes/len(args[0])]
 		return data
 

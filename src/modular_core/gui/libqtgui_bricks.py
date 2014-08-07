@@ -11,8 +11,17 @@ from OpenGL import GLU
 
 import numpy as np
 import math
+import six
+import types
+import ctypes
+import glob
+import os, sys, traceback
+from math import sqrt as sqrt
+import threading
 
 from PySide import QtGui, QtCore, QtOpenGL
+
+import pdb
 
 try:
 	import matplotlib
@@ -24,6 +33,7 @@ try:
 
 	import matplotlib.pyplot as plt
 except ImportError:
+	traceback.print_exc(file=sys.stdout)
 	print 'matplotlib could not be imported! - bricks'
 
 QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 20))
@@ -38,17 +48,6 @@ code_metrics = QtGui.QFontMetrics(code_font);
 
 #for all uses of lfu.debug_filter
 debug_filter_thresh = 5
-
-import six
-import types
-import ctypes
-import glob
-import os
-import sys
-from math import sqrt as sqrt
-import threading
-
-import pdb
 
 def set_screensize():
 	_screensize_ = QtGui.QApplication.desktop().availableGeometry()

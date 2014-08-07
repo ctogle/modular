@@ -2,7 +2,7 @@ import modular_core.libfundamental as lfu
 #import libs.modular_core.libfundamental as lfu
 
 import cPickle as pickle
-import os
+import os, traceback, sys
 
 import pdb
 
@@ -13,7 +13,8 @@ def save_pkl_object(obj, filename):
 
 def load_pkl_object(filename):
 	if not os.path.isfile(filename):
-		dp_path = lfu.get_data_pool_path()
+		#dp_path = lfu.get_data_pool_path()
+		dp_path = os.getcwd()
 		filename = os.path.join(dp_path, filename.split(os.path.sep)[-1])
 	try:
 		pkl_file = open(filename, 'rb')
@@ -24,7 +25,9 @@ def load_pkl_object(filename):
 			data = pickle.load(pkl_file)
 		except pickle.UnpicklingError:
 			print 'something is wrong with your pkl file!'
-		except: return None
+		except:
+			traceback.print_exc(file=sys.stdout)
+			return None
 	pkl_file.close()
 	return data
 

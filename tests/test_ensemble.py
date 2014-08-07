@@ -1,7 +1,6 @@
 import unittest
 
 import modular_core.libfundamental as lfu
-lfu.USING_GUI = False
 from modular_core.libsimcomponents import ensemble_manager
 
 import os, sys, pdb
@@ -24,7 +23,7 @@ class mngerTestCase(unittest.TestCase):
 				'stringchemical_dep_mcfgs', 
 				'MM_kinetics_means.mcfg')
 	mnger = ensemble_manager()
-	ensem = mnger.add_ensemble()
+	ensem = mnger.add_ensemble(module = 'chemical')
 
 	def pause(self, *args, **kwargs):
 		sys.stdout = sys.__stdout__

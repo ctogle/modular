@@ -608,13 +608,8 @@ def get_output_path():
 	return opath
 
 def parse_registry():
-	#reg_string = resource_string(__name__, 
-	#	os.path.join('resources', 'program_registry.txt'))
-	registry_path = os.path.join(appdirs.user_config_dir(), 
-			'modular_resources', 'program_registry.txt')
-	with open(registry_path, 'r') as handle:
-	#reg = reg_string.split('\n')
-		reg = handle.readlines()
+	registry_path = get_resource_path('program_registry.txt')
+	with open(registry_path, 'r') as handle: reg = handle.readlines()
 	reg = [line for line in reg if not line.startswith('#') 
 								and not line.strip() == '']
 	reg = [[pa.strip() for pa in line.split(':')] for line in reg]
@@ -1078,7 +1073,7 @@ def resolve_filepath(filename, isdir = False):
 		if found: return found
 
 if __name__ == 'modular_core.libfundamental':
-	USING_GUI = True
+	USING_GUI = False
 
 if __name__ == '__main__':
 	print 'this is a library!'
