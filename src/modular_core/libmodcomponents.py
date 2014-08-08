@@ -137,7 +137,8 @@ universal_support = [['end_criteria',
 def parse_mcfg(lines, *args):
 	params = args[0]
 	ensem = args[1]
-	module_support = args[2]
+	try: module_support = args[2]
+	except IndexError: module_support = [[], []]
 
 	plot_flag = False
 	post_proc_flag = False

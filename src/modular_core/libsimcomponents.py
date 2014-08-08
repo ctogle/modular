@@ -5,6 +5,7 @@ try: import modular_core.libworkerthreads as lwt
 except ImportError:
 	print 'multithreaded ensembles are disabled without QtCore...'
 	lwt = None
+import modular_core.libmodcomponents as lmc
 import modular_core.liboutput as lo
 import modular_core.libfiler as lf
 import modular_core.libcriterion as lc
@@ -140,7 +141,8 @@ class ensemble(lfu.modular_object_qt):
 				else: module = None
 				#pdb.set_trace()
 
-		self.impose_default('module', module, **kwargs)
+		if module is None: self.impose_default('module', module, **kwargs)
+		else: self.module = module
 		self._children_ = [self.simulation_plan, self.output_plan, 
 						self.fitting_plan, self.cartographer_plan, 
 					self.postprocess_plan, self.multiprocess_plan]
@@ -156,22 +158,19 @@ class ensemble(lfu.modular_object_qt):
 
 	def get_module_reference(self):
 		module = mc.modules.__dict__[self.module]
-		'''
-		try: module = sys.modules['modular_core.modules.' + self.module]
-		except KeyError:
-			pdb.set_trace()
-			self.parent.put_module_in_use(self.module)
-			module = sys.modules['modular_core.modules.' + self.module]		
-			#module = sys.modules['libs.modules.lib' + self.module]		
-		'''
 		return module
 
 	def load_module(self, reset_params = False, parse_params = False):
 		module = self.get_module_reference()
-		if reset_params: module.set_parameters(self)
+		if reset_params:
+			if hasattr(module, 'set_parameters'):
+				module.set_parameters(self)
+			else: lmc.set_parameters(self)
 		if parse_params:
-			lf.parse_lines(self.mcfg_path, module.parse_mcfg, 
-						parser_args = (self.run_params, self))
+			if hasattr(module, 'parse_mcfg'): parser = module.parse_mcfg
+			else: parser = lmc.parse_mcfg
+			lf.parse_lines(self.mcfg_path, parser, 
+				parser_args = (self.run_params, self))
 		self.update_targets()
 
 	def run(self, *args, **kwargs):
@@ -626,11 +625,16 @@ class ensemble(lfu.modular_object_qt):
 										lfu.show_label_pool], 
 									None, None, None, None])
 		_modu_ = self.get_module_reference()
+		if hasattr(_modu_, 'generate_gui_templates_qt'):
+			temp_gen = _modu_.generate_gui_templates_qt
+		else: temp_gen = lmc.generate_gui_templates_qt
 		main_panel_templates, sub_panel_templates, sub_panel_labels =\
-						_modu_.generate_gui_templates_qt(window, self)
+												temp_gen(window, self)
 				#sys.modules['mc.modules.' + self.module\
 				#			].generate_gui_templates_qt(window, self)
-		run_param_keys = _modu_.run_param_keys
+		if hasattr(_modu_, 'run_param_keys'):
+			run_param_keys = _modu_.run_param_keys
+		else: run_param_keys = lmc.run_param_keys
 		tree_half_template = lgm.interface_template_gui(
 				widgets = ['tree_book'], 
 				verbosities = [1], 
