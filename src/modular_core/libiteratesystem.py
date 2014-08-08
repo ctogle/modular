@@ -14,9 +14,7 @@ import pdb
 def run_system(*args, **kwargs):
 	ensemble = args[0]
 	try:libmodule = __import__(ensemble.module)
-	#try:libmodule = modular_core.modules.__dict__[ensemble.module]
 	except:traceback.print_exc(file=sys.stdout)
-	#libmodule = sys.modules['modular_core.modules.' + ensemble.module]
 	system = libmodule.main.sim_system(ensemble, params =\
 			ensemble.run_params.partition['system'])
 	if 'timeout' in kwargs.keys(): system.timeout = kwargs['timeout']
@@ -30,9 +28,6 @@ def run_system(*args, **kwargs):
 
 	system.decommission()
 	if system.bAbort: system.toss_bad_daters()
-	#if hasattr(system, 'surface_data'): return (system.data, system.surface_data)
-	#if hasattr(system, 'surface_data'): return system.surface_data
-	#else: return system.data
 	return system.data
 
 #run a system and use its data to perform a measurement

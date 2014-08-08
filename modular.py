@@ -2,7 +2,7 @@
 import os, sys, time, pstats, cProfile, argparse
 
 import modular_core.libfundamental as lfu
-lfu.USING_GUI = False
+lfu.USING_GUI = True
 import modular_core.gui.libqtgui as lqg
 
 import pdb
