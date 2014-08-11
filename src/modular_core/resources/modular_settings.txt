@@ -6,6 +6,7 @@ profile = False
 <data handling>
 use_smart_pool = True
 auto_clear_data_pools = True
+ensempkl_directory = none
 
 <ensemble defaults>
 mapparameterspace = True
