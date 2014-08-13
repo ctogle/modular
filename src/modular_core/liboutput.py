@@ -334,8 +334,10 @@ class output_plan(lfu.plan):
 						self.output_txt, self.output_plt]
 
 	def update_filenames(self, *args, **kwargs):
-		self.save_filename = lfu.increment_filename(self.save_filename)
-		lfu.modular_object_qt(self).update_filenames(self.filenames)
+		self.save_filename = increment_filename(self.save_filename)
+		files = self.filenames
+		for key in files.keys():
+				files[key] = increment_filename(files[key])
 
 	def find_proper_paths(self):
 		propers = {}
@@ -691,6 +693,29 @@ class output_plan(lfu.plan):
 					writers_splitter_template]]))
 		lfu.modular_object_qt.set_settables(
 				self, *args, from_sub = True)
+
+def increment_filename(fi):
+	if fi == '': return fi
+	else:
+		fi = fi.split('.')
+		if len(fi) == 1:	#non-indexed filename without extension
+			return '.'.join(fi + ['0'])
+
+		else:
+			try:	#no file extension but an index to increment
+				dex = int(fi[-1])
+				dex = str(dex + 1)
+				return '.'.join(fi[:-1] + [dex])
+
+			except ValueError:	#assume a file extension
+				try:
+					dex = int(fi[-2])
+					dex = str(dex + 1)
+					return '.'.join(fi[:-1] + [dex] + fi[-1:])
+
+				except ValueError:	#had file extension but no index
+					return '.'.join(fi[:-1] + ['0'] + fi[-1:])
+				except TypeError: pdb.set_trace()
 
 valid_writers_base_classes = [
 	lfu.interface_template_class(

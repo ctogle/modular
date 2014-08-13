@@ -258,9 +258,9 @@ class modular_object_qt(object):
 	def to_string(self):
 		return self.label
 
-	def update_filenames(self, files):
-		for key in files.keys():
-			files[key] = increment_filename(files[key])
+	#def update_filenames(self, files):
+	#	for key in files.keys():
+	#		files[key] = increment_filename(files[key])
 
 	def set_base_class(self, new_class = None, even_if = False):
 		if new_class is not None:
@@ -492,10 +492,11 @@ class dictionary(dict):
 		try: mobj.__dict__.rid_widg_templates('template owners')
 		except AttributeError: pass
 		except:
-			trc = traceback.format_exc()
-			err = trc + '\nproblem ridding widgets!'
+			#trc = traceback.format_exc()
+			#err = trc + '\nproblem ridding widgets!'
+			err = '\nproblem ridding widgets!'
 			debug_filter(err, debug_filter_thresh)
-			pdb.set_trace()
+			#pdb.set_trace()
 
 	def find_relevant_partition(self, partition_key = None):
 		if not partition_key is None:
@@ -694,29 +695,6 @@ def remove_program_from_registry(program_name):
 	with open(registry_path, 'w') as handle:
 		lines = comments + ['\n\n'] + registered
 		[handle.write(line) for line in lines]
-
-def increment_filename(fi):
-	if fi == '': return fi
-	else:
-		fi = fi.split('.')
-		if len(fi) == 1:	#non-indexed filename without extension
-			return '.'.join(fi + ['0'])
-
-		else:
-			try:	#no file extension but an index to increment
-				dex = int(fi[-1])
-				dex = str(dex + 1)
-				return '.'.join(fi[:-1] + [dex])
-
-			except ValueError:	#assume a file extension
-				try:
-					dex = int(fi[-2])
-					dex = str(dex + 1)
-					return '.'.join(fi[:-1] + [dex] + fi[-1:])
-
-				except ValueError:	#had file extension but no index
-					return '.'.join(fi[:-1] + ['0'] + fi[-1])
-				except TypeError: pdb.set_trace()
 
 def flatten(unflat_list):
 	return [item for sublist in unflat_list for item in sublist]

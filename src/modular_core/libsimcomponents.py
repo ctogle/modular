@@ -147,7 +147,8 @@ class ensemble(lfu.modular_object_qt):
 					self.postprocess_plan, self.multiprocess_plan]
 		self.load_module(reset_params = True)
 		self.mcfg_dir = lfu.get_mcfg_path()
-		if not os.path.isdir(self.mcfg_dir): self.mcfg_dir = os.getcwd()
+		if not self.mcfg_dir is None and not os.path.isdir(self.mcfg_dir):
+			self.mcfg_dir = os.getcwd()
 		self.impose_default('multithread_gui', False, **kwargs)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 		self.provide_axes_manager_input()
