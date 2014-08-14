@@ -671,18 +671,27 @@ def remove_module_from_registry(module_name):
 	return True
 
 def add_program_to_registry(program_name, 
-		program_run_option, program_description):
+		program_run_option, program_description, 
+			program_module):
 	with open(registry_path, 'r') as handle:
 		reg = handle.readlines()
 		comments = [line for line in reg if line.startswith('#')]
 		registered = [line for line in reg if 
 			not line.startswith('#') and not line.strip() == '']
+		exts = [spl[1] for spl in [reg.split(' : ') for reg in registered]]
+		if program_run_option in exts:
+			print '\n\textension is already in use!\n'
+			return False
+
 		registered.append('\n'+' : '.join([program_name, 
-			program_run_option, program_description]))
+			program_run_option, program_description, 
+					program_module]))
 
 	with open(registry_path, 'w') as handle:
 		lines = comments + ['\n\n'] + registered
 		[handle.write(line) for line in lines]
+
+	return True
 
 def remove_program_from_registry(program_name):
 	with open(registry_path, 'r') as handle:
@@ -695,6 +704,8 @@ def remove_program_from_registry(program_name):
 	with open(registry_path, 'w') as handle:
 		lines = comments + ['\n\n'] + registered
 		[handle.write(line) for line in lines]
+
+	return True
 
 def flatten(unflat_list):
 	return [item for sublist in unflat_list for item in sublist]
