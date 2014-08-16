@@ -13,7 +13,6 @@ def profile_function(func_):
 	s = pstats.Stats('profile.prof')
 	s.strip_dirs().sort_stats('time').print_stats()
 	os.remove('profile.prof')
-	pdb.set_trace()
 
 if __name__ == '__main__':
 	print 'this is a library!'

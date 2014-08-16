@@ -321,8 +321,8 @@ class ensemble(lfu.modular_object_qt):
 		if self.data_scheme == 'smart_batch':
 			data_pool.data.live_pool = []
 			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-										'.'.join(['data_pool', 'smart', 
-											self.data_pool_id, 'pkl']))
+						'.'.join(['data_pool', 'smart', 
+						self.data_pool_id, 'pkl']))
 
 		elif self.data_scheme == 'batch':
 			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
@@ -389,19 +389,16 @@ class ensemble(lfu.modular_object_qt):
 		smart = lset.get_setting('use_smart_pool')
 		if smart and self.cartographer_plan.use_plan and\
 						not self.fitting_plan.use_plan:
-			#data_pool = lgeo.batch_data_pool(
 			data_pool = ldc.batch_data_pool(
 				self.run_params['plot_targets'], 
 						self.cartographer_plan)
 			self.data_scheme = 'smart_batch'
 			self.output_plan.flat_data = False
-			#self.data_pool_pkl = os.path.join(os.getcwd(), 'data_pools', 
 			self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-										'.'.join(['data_pool', 'smart', 
-											self.data_pool_id, 'pkl']))
+						'.'.join(['data_pool', 'smart', 
+						self.data_pool_id, 'pkl']))
 
 		else:
-			#data_pool = lgeo.batch_scalars(
 			data_pool = ldc.batch_scalars(
 				self.run_params['plot_targets'])
 			self.data_scheme = 'batch'

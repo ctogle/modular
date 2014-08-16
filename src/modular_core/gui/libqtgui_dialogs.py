@@ -219,6 +219,10 @@ class labels_dialog(create_obj_dialog):
 			self.domain = kwargs['domain']
 
 		else: self.domain = None
+		if 'cplot_interpolation' in kwargs.keys():
+			self.cplot_interpolation = kwargs['cplot_interpolation']
+
+		else: self.cplot_interpolation = None
 		if self.plot_targets: self.target = self.plot_targets[0]
 		else: self.target = None
 		colormap = plt.get_cmap('jet')
@@ -300,20 +304,28 @@ class labels_dialog(create_obj_dialog):
 				keys = [['target'], None], 
 				bindings = [None, [self.pick_color]], 
 				panel_label = 'Line Colors', 
-				box_labels = ['Plot Target']))
+				box_labels = ['Plot Target', None]))
+		self.widg_templates.append(
+			lgm.interface_template_gui(
+				widgets = ['radio'], 
+				instances = [[self]], 
+				keys = [['cplot_interpolation']], 
+				labels = [['bicubic', 'bilinear', 'nearest']], 
+				initials = [[self.cplot_interpolation]], 
+				box_labels = ['Color Plot Settings']))
 		self.set_up_widgets()
 
 def change_labels_dialog(title, x_ax, y_ax, max_lines, 
-				colors, targets, domain, xlog, ylog):
+		colors, targets, domain, xlog, ylog, cintrp):
 	dlg = labels_dialog(newtitle = title, newxtitle = x_ax, 
 		newytitle = y_ax, max_line_count = max_lines, colors = colors, 
-							plot_targets = targets, domain = domain, 
-										x_log = xlog, y_log = ylog)
+					plot_targets = targets, domain = domain, 
+			x_log = xlog, y_log = ylog, cplot_interpolation = cintrp)
 	made = dlg()
 	if made:
 		return (dlg.newtitle, dlg.newxtitle, 
 				dlg.newytitle, dlg.colors, 
-				dlg.x_log, dlg.y_log)
+				dlg.x_log, dlg.y_log, dlg.cplot_interpolation)
 
 	else: return False
 
@@ -344,6 +356,8 @@ class plot_page(QtGui.QWidget):
 		self.x_log = False
 		self.y_log = False
 		self.surf_target = title
+
+		self.cplot_interpolation = 'bicubic'
 
 	def change_domain(self, dom_dex = 0):
 		self.x_ax_title = self._plot_targets_[dom_dex]
@@ -539,8 +553,10 @@ class plot_page(QtGui.QWidget):
 		#	#Acceptable interpolations are 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
 		#	#'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
 			pc_mesh = ax.imshow(surf, aspect = 'auto', 
-				interpolation = 'bicubic', 
-		#	pc_mesh = plt.imshow(surf, interpolation = 'bicubic', 
+				interpolation = self.cplot_interpolation, 
+				#interpolation = 'nearest', 
+				#interpolation = 'bilinear', 
+				#interpolation = 'bicubic', 
 				cmap = plt.get_cmap('jet'), vmin = z_min, vmax = z_max, 
 				origin = 'lower', extent = (x_min, x_max, y_min, y_max))
 
@@ -898,15 +914,16 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 					page.x_ax_title, page.y_ax_title, 
 					page.max_line_count, page.colors, 
 						page._plot_targets_, domain, 
-							page.x_log, page.y_log)
+			page.x_log, page.y_log, page.cplot_interpolation)
 		if not labels_dlg: return
-		new_title,new_x_label,new_y_label,colors,xlog,ylog = labels_dlg
+		new_title,new_x_label,new_y_label,colors,xlog,ylog,cintrp = labels_dlg
 		page.title = new_title
 		page.x_ax_title = new_x_label
 		page.x_log = xlog
 		page.y_ax_title = new_y_label
 		page.y_log = ylog
 		page.colors = colors
+		page.cplot_interpolation = cintrp
 		ax = page.newest_ax
 		ax.set_xlabel(new_x_label, fontsize = 18)
 		ax.set_ylabel(new_y_label, fontsize = 18)
