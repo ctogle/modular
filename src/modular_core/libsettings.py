@@ -50,6 +50,9 @@ class settings_manager(lfu.modular_object_qt):
 		settings_path = os.path.join(self.cfg_path, filename)
 		if not os.path.exists(settings_path):
 			settings_path = os.path.join(os.getcwd(), filename)
+		if not os.path.exists(settings_path):
+			print 'cannot find settings file!', filename
+			return None
 		with open(settings_path, 'r') as handle:
 			lines = [l.strip() for l in handle.readlines()]
 		parser = ''

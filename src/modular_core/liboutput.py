@@ -47,7 +47,7 @@ def parse_output_plan_line(*args):
 	if 'all' in relevant:
 		if lfu.using_gui(): output.set_settables(0, ensem)
 		else: output.set_target_settables(0, ensem)
-		#output.targeted = output.get_target_labels()
+		output.targeted = output.get_target_labels()
 	else: output.targeted = relevant
 
 class writer(lfu.modular_object_qt):

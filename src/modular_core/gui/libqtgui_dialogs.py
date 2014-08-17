@@ -512,7 +512,10 @@ class plot_page(QtGui.QWidget):
 			print 'no surfafce data objects'
 			return None, None, None
 
-		surf_vect = data[0]
+		slabs = [d.label for d in data]
+		if self.surf_target in slabs:
+			surf_vect = data[slabs.index(self.surf_target)]
+		else: surf_vect = data[0]
 		made_surf =\
 			surf_vect.make_surface(
 				x_ax = self.x_ax_title, 

@@ -299,8 +299,8 @@ class ensemble(lfu.modular_object_qt):
 			except TypeError: proc_pool_count = 0
 			self.data_pool_descr = ' '.join(['Data', 'Pool', 'Holds', 
 					str(sim_pool_count), 'Simulation', 'Trajectories', 
-								'and', str(proc_pool_count), 'Post', 
-												'Process', 'Pools'])
+						'and', str(proc_pool_count), 'Post', 
+								'Process', 'Pools'])
 
 	def save_data_pool(self, data_pool):
 		print 'saving data pool...'
@@ -387,8 +387,8 @@ class ensemble(lfu.modular_object_qt):
 
 	def set_data_scheme(self):
 		smart = lset.get_setting('use_smart_pool')
-		if smart and self.cartographer_plan.use_plan and\
-						not self.fitting_plan.use_plan:
+		if (smart is None or smart is True) and self.cartographer_plan.use_plan and\
+							not self.fitting_plan.use_plan:
 			data_pool = ldc.batch_data_pool(
 				self.run_params['plot_targets'], 
 						self.cartographer_plan)
@@ -1345,12 +1345,12 @@ class sim_system_external(sim_system_python):
 			subtargs = [t for t in targs if not t in case1targs]
 			#dataobj is 3d - either a pack of surfaces or surfaces
 			# as a function of something
-			if len(subtargs) == 1 and dataobj.shape[0] > 1:
-				#the latter is assumed - nothing happens for now
-				pass
-			elif len(subtargs) == dataobj.shape[0]:
-				#data is a pack of surfaces - nothing happens for now
-				pass
+			#if len(subtargs) == 1 and dataobj.shape[0] > 1:
+			#	#the latter is assumed - nothing happens for now
+			#	pass
+			#elif len(subtargs) == dataobj.shape[0]:
+			#	#data is a pack of surfaces - nothing happens for now
+			#	pass
 			return dataobj
 
 		data = args[0]
@@ -1368,8 +1368,9 @@ class sim_system_external(sim_system_python):
 				dim = len(dataobj.shape)
 			if dim == 2:
 				final.append(data_case1(dataobj, targs, toss = toss))
-			elif dim == 3:
+			elif dim == 4:
 				final.append(data_case2(dataobj, targs, toss = toss))
+
 		return tuple(final)
 
 	# finalize_data will reoder numpy data so it is 1-1 with plot_targets

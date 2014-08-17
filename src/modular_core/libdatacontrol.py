@@ -101,16 +101,6 @@ class batch_scalars(object):
 				sca = scalars(label = self.pool_names[dex])
 				sca.scalars = values
 				return sca
-				'''
-				elif hasattr(values, 'tag'):
-					if values.tag == 'surface_vector':
-						self.pool_names.extend(
-							values.surf_targets+values.axis_labels)
-						return values
-
-				elif type(values) is types.TupleType:
-					pdb.set_trace()
-				'''
 			else:
 				sca = scalars(label = self.pool_names[dex])
 				sca.scalars = values
@@ -126,15 +116,18 @@ class batch_scalars(object):
 		relevant = self.batch_pool[traj_dex]	#this will be system.data
 		if type(relevant) is types.TupleType:	#numpy arrays or a tuple thereof
 			batch = []
+			if len(relevant[0].shape) == 2:
+				non_surf_cnt = relevant[0].shape[0]
+			else: non_surf_cnt = 0
 			for subdataobj in relevant:
-				# relies on first data obj consuming all but one target label... NOT ROBUST
 				if len(subdataobj.shape) == 2:
 					subbatch = [_wrap_(rele,dex) for 
 						dex,rele in enumerate(subdataobj)]
-				elif len(subdataobj.shape) == 3:
-					subbatch = [_wrap_surf_(subdataobj,-1)]
+				elif len(subdataobj.shape) == 4:
+					subbatch = [_wrap_surf_(rele,dex+non_surf_cnt) for 
+						dex,rele in enumerate(subdataobj)]
 				batch.extend(subbatch)
-		else:									#if there is no tuple - the given numpy array should represent 1-1 targets
+		else:#if there is no tuple - the given numpy array should represent 1-1 targets
 			batch = [_wrap_(rele,dex) for 
 				dex,rele in enumerate(relevant)]
 		return batch
@@ -238,7 +231,6 @@ class surface_vector(object):
 		self.data = surfs
 
 	def make_surface(self, x_ax, y_ax, surf_target):
-		#	pdb.set_trace()
 		if surf_target == self.label: return True
 		else: return False
 
