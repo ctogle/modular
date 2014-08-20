@@ -32,6 +32,8 @@ class interface_template_gui(lfu.interface_template_new_style):
 		'read_only' : 1, 
 		'multiline' : 1, 
 		'box_labels' : 1, 
+		'refresh' : 2, 
+		'window' : 2, 
 		'parents' : 2, 
 		'instances' : 2, 
 		'keys' : 2, 
@@ -349,8 +351,8 @@ class standard_mason(object):
 		try: callbacks = template.callbacks[widg_dex]
 		except AttributeError: callbacks = []
 		check_widget = lgb.create_check_boxes(append_instead, 
-							keys, instances, labels, is_list, 
-					None, rewidget, provide_master, callbacks)
+				keys, instances, labels, is_list, 
+				None, rewidget, provide_master, callbacks)
 		try:
 			title = template.box_labels[widg_dex]
 			group = QtGui.QGroupBox(title = title)
@@ -455,7 +457,7 @@ class standard_mason(object):
 		combo_widget = [lgb.create_combo_box(labels, icons, datas, 
 			initial = initial, bindings = bindings, bind_event =\
 			bind_event, inst = instance, key = key, rewidget = rewidget, 
-							refresh_widgets = refresh, window = window)]
+					refresh_widgets = refresh, window = window)]
 		try:
 			title = template.box_labels[widg_dex]
 			group = QtGui.QGroupBox(title = title)
@@ -590,8 +592,8 @@ class standard_mason(object):
 		except AttributeError: window = None
 		return [lgb.create_radios(options = labels, title = title, 
 				initial = initial, instance = instance, key = key, 
-						rewidget = rewidget, refresh = refresh, 
-											window = window)]
+					rewidget = rewidget, refresh = refresh, 
+							window = window)]
 
 	def interpret_template_splitter(self, template, widg_dex):
 		try: templates = template.templates[widg_dex]
@@ -760,12 +762,18 @@ class standard_mason(object):
 		try: initial = template.initials[widg_dex][0]
 		except AttributeError: initial = None
 		try: instance = template.instances[widg_dex][1]
-		except AttributeError: instance = None
-		try: key = template.keys[widg_dex][1]
+		except AttributeError: initial = None
+		try: embed = template.instances[widg_dex][2]
+		except AttributeError: embed = False
+		except IndexError: embed = False
+		#try: key = template.keys[widg_dex][1]
+		try: key = template.keys[widg_dex][0]
 		except AttributeError: key = None
+		try: cbacks = template.callbacks[widg_dex]
+		except AttributeError: cbacks = []
 		return [lgb.create_mobj_catalog(template, mobjs = mobjs, 
-								mason = mason, inst = instance, 
-								key = key, initial = initial)]
+			mason = mason, inst = instance,	key = key, 
+			initial = initial, embed = embed, callbacks = cbacks)]
 
 	def interpret_template_tab_book(self, template, widg_dex):
 		try: pages = template.pages[widg_dex]
@@ -813,8 +821,8 @@ class standard_mason(object):
 		except AttributeError: labels = []
 		try: entries = template.entries[widg_dex]
 		except AttributeError: entries = []
-		return [lgb.create_list_controller(headers = labels, 
-										entries = entries)]
+		return [lgb.create_list_controller(
+			headers = labels, entries = entries)]
 
 	def interpret_template_console_listener(self, template, widg_dex):
 		return [lgb.create_console_listener()]
@@ -823,8 +831,16 @@ class standard_mason(object):
 		return [lgb.create_opengl_view()]
 
 	def interpret_template_plot(self, template, widg_dex):
-		data = template.datas[widg_dex]
-		return [lgb.create_plot_widget(data)]
+		try: data = template.datas[widg_dex]
+		except AttributeError:
+			data = lfu.data_container(domains = [], codomains = [])
+		try: callbacks = template.callbacks[widg_dex]
+		except AttributeError: callbacks = []
+		try: figure = template.instances[widg_dex][0]
+		except AttributeError: figure = None
+		try: canvas = template.instances[widg_dex][1]
+		except AttributeError: canvas = None
+		return [lgb.create_plot_widget(data, callbacks, figure, canvas)]
 
 class recasting_mason(standard_mason):
 

@@ -37,7 +37,7 @@ def message_dialog(window, message, dialog_title, if_yes = None):
 	if if_yes is not None:
 		reply = QtGui.QMessageBox.question(window, dialog_title, 
 				message, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, 
-												QtGui.QMessageBox.No)
+								QtGui.QMessageBox.No)
 		if hasattr(if_yes, '__call__'):
 			if reply == QtGui.QMessageBox.Yes: if_yes()
 
@@ -78,7 +78,7 @@ def create_dialog(title = 'Dialog', message = '', variety = 'input',
 
 	def show_dialog_dir():
 		return QtGui.QFileDialog.getExistingDirectory(
-						parent, 'Open file', initial)
+				parent, 'Open file', initial)
 
 	def show_dialog_templated():
 		if templates is None: temps = []
@@ -333,7 +333,7 @@ class plot_page(QtGui.QWidget):
 
 	def __init__(self, plt_window, label, figure, canvas, 
 			data_container, specifics, axes, filename, title, 
-									x_ax_title, y_ax_title):
+						x_ax_title, y_ax_title):
 		super(plot_page, self).__init__()
 		self.parent = plt_window
 		self.page_label = label
@@ -342,7 +342,7 @@ class plot_page(QtGui.QWidget):
 		self.colors = []
 		self.rolling = False
 		self.roll_dex = 0
-		self.roll_delay = 0.1
+		self.roll_delay = 1.0
 		self.max_roll_dex = None
 
 		self._data_ = data_container
@@ -359,12 +359,37 @@ class plot_page(QtGui.QWidget):
 
 		self.cplot_interpolation = 'bicubic'
 
+	def get_targets(self):
+		return self._plot_targets_
+	def set_targets(self, targets):
+		self._plot_targets_ = targets
+
+	def get_xtitle(self):
+		return self.x_ax_title
+	def set_xtitle(self, new):
+		self.x_ax_title = new
+
+	def get_ytitle(self):
+		return self.y_ax_title
+	def set_ytitle(self, new):
+		self.y_ax_title = new
+
+	def get_title(self):
+		return self.title
+	def set_title(self, new):
+		self.title = new
+
+	def get_newest_ax(self):
+		return self.newest_ax
+
 	def change_domain(self, dom_dex = 0):
-		self.x_ax_title = self._plot_targets_[dom_dex]
+		#self.x_ax_title = self._plot_targets_[dom_dex]
+		self.set_xtitle(self._plot_targets_[dom_dex])
 		self.show_plot()
 
 	def change_color_domain_y(self, dom_dex = 0):
-		self.y_ax_title = self._plot_targets_[dom_dex]
+		#self.y_ax_title = self._plot_targets_[dom_dex]
+		self.set_ytitle(self._plot_targets_[dom_dex])
 		self.show_plot()
 
 	def change_color_surface_target(self, rng_dex):
@@ -379,7 +404,7 @@ class plot_page(QtGui.QWidget):
 			if targs: self.__dict__[domain] = targs[0]
 			else:
 				message_dialog(None, 'Nothing was outputted;\
-							\n cant plot nothing!', 'Problem')
+					\n cant plot nothing!', 'Problem')
 				return
 		tdex = targs.index(self.__dict__[domain])
 		widg.setCurrentIndex(tdex)
@@ -728,7 +753,7 @@ class plot_page(QtGui.QWidget):
 		barpath = path.Path.make_compound_path_from_polys(XY)
 		# make a patch out of it
 		patch = patches.PathPatch(barpath, facecolor='blue', 
-								edgecolor='gray', alpha=0.8)
+			edgecolor='gray', alpha=0.8)
 		ax.add_patch(patch)
 		# update the view limits
 		ax.set_xlim(left[0], right[-1])
@@ -887,6 +912,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 
 		roll_ = lgb.create_thread_wrapper(_roll)
 		roll_()
+		#_roll()
 
 	def roll(self):
 
@@ -909,6 +935,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 
 		roll_ = lgb.create_thread_wrapper(_roll)
 		roll_()
+		#_roll()
 
 	def labels(self):
 		page = self.parent.get_current_page()
@@ -927,7 +954,8 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		page.y_log = ylog
 		page.colors = colors
 		page.cplot_interpolation = cintrp
-		ax = page.newest_ax
+		#ax = page.newest_ax
+		ax = page.get_newest_ax()
 		ax.set_xlabel(new_x_label, fontsize = 18)
 		ax.set_ylabel(new_y_label, fontsize = 18)
 		if self.parent.plot_type in ['surface']:
@@ -1169,7 +1197,7 @@ class plot_window(create_obj_dialog):
 		layout = lgb.create_vert_box(check_widget)
 		self.check_group.setLayout(lgb.create_vert_box([
 			lgb.create_scroll_area(lgb.central_widget_wrapper(
-								content = layout))]))
+						content = layout))]))
 		self.targets_layout.addWidget(self.check_group)
 
 	def get_surf_dex(self, page_dex):
@@ -1177,13 +1205,14 @@ class plot_window(create_obj_dialog):
 		reduced = False
 		daters = self.pages[page_dex]._data_.data
 		try:
-			surf_vector_dex = [dater.tag == 'surface_vector' 
-							for dater in daters].index(True)
+			#surf_vectors = [dater.tag == 'surface_vector' for dater in daters]
+			surf_targ = self.pages[page_dex].surf_target
+			surf_vector_dex = [dater.label == surf_targ for dater in daters].index(True)
 			reduced = False
 		except ValueError:
 			try:
 				surf_vector_dex = [hasattr(dater, 'reduced') 
-							for dater in daters].index(True)
+					for dater in daters].index(True)
 				reduced = True
 			except ValueError: print 'no surface_vectors found!'
 		return surf_vector_dex, reduced

@@ -1,13 +1,9 @@
 
 __doc__ = """fundamental functions/classes for modular"""
 
-#import modular_core.resources as mcrsrc
-#import modular_core.data_pools as mcdps
-
 import re
 import sys
 pipe_mirror = None
-#stderr = None
 import time
 import types
 import ctypes
@@ -40,10 +36,8 @@ registry_path = get_resource_path('program_registry.txt')
 
 def using_gui(): return USING_GUI
 def find_gui_pack():
-	#set_gui_pack('modular_core.gui.libqtgui')
 	if using_gui(): set_gui_pack('modular_core.gui.libqtgui')
 	else:
-		#pass
 		global gui_pack; global gui_library
 		gui_pack = data_container(lgm = None, lgb = None, lgd = None)
 		gui_library = 'NO GUI LIBRARY'
@@ -59,10 +53,6 @@ def initialize_gui(params):
 	global lset; global stdout; global stderr
 	try: import libs.modular_core.libsettings as lset
 	except ImportError: lset = None
-	#stdout = gui_pack.lgb.console_listener(True)
-	#stderr = gui_pack.lgb.console_listener(False)
-	#sys.stdout = stdout
-	#sys.stderr = stderr
 	app = application(params, sys.argv)
 	sys.exit(app.exec_())
 
@@ -163,6 +153,16 @@ class modular_object_qt(object):
 	data = []
 	visible_attributes = []
 
+	def _display_interface_(self, mason):
+		lgb = gui_pack.lgb
+		self.set_settables()
+		self.panel = lgb.create_scroll_area(
+			lgb.create_panel(self.widg_templates, mason))
+		if hasattr(self, '_geometry_'): geometry = self._geometry_
+		else: geometry = (150, 120, 384, 512)
+		self.panel.setGeometry(*geometry)
+		self.panel.show()
+
 	def _examine_(self): pdb.set_trace()
 
 	def _restore_label_pool_(self):
@@ -223,7 +223,6 @@ class modular_object_qt(object):
 
 		else: self._label = 'mobj__'
 		self.impose_default('parent', None, **kwargs)
-		if 'data' in kwargs.keys(): print kwargs['data']
 		self.impose_default('data', [], **kwargs)
 		if 'visible_attributes' in kwargs.keys():
 			self.visible_attributes = kwargs['visible_attributes']

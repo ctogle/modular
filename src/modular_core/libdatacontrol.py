@@ -217,7 +217,7 @@ class surface_vector(object):
 
 	def __init__(self, surfs, 
 	#def __init__(self, surfs, surf_labels, axis_labels, axis_values, 
-								label = 'another surface vector'):
+			label = 'another surface vector'):
 		self.tag = 'surface_vector'
 		self.label = label
 
@@ -238,7 +238,7 @@ class surface_vector_reducing(object):
 
 	def __init__(self, data = [], axes = [], surfs = [], 
 					label = 'another reducing surface vector'):
-		self.tag = 'surface'
+		self.tag = 'surface_reducing'
 		self.label = label
 		self.data_scalars = [data for data in data if not data is self]
 		self.axis_labels = axes

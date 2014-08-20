@@ -205,7 +205,7 @@ class writer_plt(writer):
 		filenames = [], iteration_resolution = 1, 
 		label = 'another plt output writer', 
 		base_class = lfu.interface_template_class(
-					object, 'plt writer object')):
+			object, 'plt writer object')):
 		self.plt_window = None
 		self.filenames = filenames
 		self.iteration_resolution = iteration_resolution
@@ -232,7 +232,8 @@ class writer_plt(writer):
 			#app = lgb.QtGui.QApplication(sys.argv)
 			titl = self.parent.parent.label
 			if titl == 'mobj__': titl = self.parent.label
-			self.plt_window = lgd.plot_window(
+			#self.plt_window = lgd.plot_window(
+			self.plt_window = lfu.gui_pack.lqg.plot_window(
 				title = titl, plot_types = plot_types)
 
 	def sanitize(self, *args, **kwargs):
@@ -250,9 +251,9 @@ class writer_plt(writer):
 			print '\ttargets:', specifics
 		else:
 			self.plt_window.set_plot_info(data_container, plt_filename, 
-							specifics, title = self.axes_manager.title, 
-								x_ax_title = self.axes_manager.x_title, 
-								y_ax_title = self.axes_manager.y_title)
+					specifics, title = self.axes_manager.title, 
+					x_ax_title = self.axes_manager.x_title, 
+					y_ax_title = self.axes_manager.y_title)
 
 	def set_uninheritable_settables(self, *args, **kwargs):
 		self.visible_attributes = ['label', 'base_class', 'filenames']

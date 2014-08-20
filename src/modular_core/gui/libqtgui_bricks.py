@@ -203,7 +203,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
 	return spin
 
 def create_radios(parent = None, options = [], title = '', 
-			initial = None, instance = None, key = None, 
+		initial = None, instance = None, key = None, 
 		rewidget = True, refresh = None, window = None):
 
 	def apply_refresh(rads):
@@ -385,6 +385,13 @@ def create_calender(parent = None, show_date_func = None):
 	return calender
 
 def create_panel(templates, mason, collapses = False, layout = 'grid'):
+
+	if not type(templates) is types.ListType:
+		if hasattr(templates, 'templates'):
+			templates = templates.templates
+		else:
+			dummy_panel = create_label(text = 'No Plot Page Selected')
+			return dummy_panel
 
 	def get_position(safe, positions):
 		for pos in safe:
@@ -876,7 +883,7 @@ def create_slider(instance, key, orientation = 'horizontal',
 
 def create_check_boxes(append_instead, keys, instances, labels, 
 		inst_is_list = None, inst_is_dict = None, rewidget = True, 
-						provide_master = False, callbacks = []):
+				provide_master = False, callbacks = []):
 	'''
 	def apply_to_inst(*args, **kwargs):
 		dat = args[0]
@@ -1027,15 +1034,16 @@ def create_check_boxes(append_instead, keys, instances, labels,
 		[set_initial_state_toggle(check, inst, key) 
 			for check, inst, key in zip(checks, instances, keys)]
 
+	if provide_master: checks = [create_master(checks)] + checks
 	if rewidget:
 		[check.stateChanged.connect(
 		create_mobj_rewidget_function(inst)) 
 		for check, inst, key in zip(checks, instances, keys)]
 
 	if callbacks:
-		[check.stateChanged.connect(call) for call in callbacks]
+		[[check.stateChanged.connect(call) for call in callbacks] 
+			for check in checks]
 
-	if provide_master: checks = [create_master(checks)] + checks
 	return checks
 
 def create_frame(parent = None):
@@ -1444,11 +1452,11 @@ def create_combo_box(labels, icons, datas, bindings = None,
 	if bindings:
 		if bind_event is 'useronly':
 			[combo.activated.connect(bind) for bind 
-					in bindings if not bind is None]
+				in bindings if not bind is None]
 
 		else:
 			[combo.currentIndexChanged.connect(bind) for bind
-							in bindings if not bind is None]
+					in bindings if not bind is None]
 
 	elif inst and key:
 		bind = generate_instkey_combo_function(combo, inst, key)
@@ -1719,19 +1727,20 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
 		return dummy_inspector
 
 	elif hasattr(mobj, '_inspector_is_mobj_panel_') and\
-						mobj._inspector_is_mobj_panel_:
-		window = lfu.gui_pack.lqg._window_
-		mobj.set_settables(window)
+			mobj._inspector_is_mobj_panel_:
+		if mobj.rewidget_:
+			window = lfu.gui_pack.lqg._window_
+			mobj.set_settables(window)
 		pan = create_panel(mobj.widg_templates, mason, layout = lay)
-		x_size = pan.sizeHint().width()
-		y_size = pan.sizeHint().height()*2
-		set_sizes_limits([[pan]], [[(x_size, y_size)]])
+		#x_size = pan.sizeHint().width()
+		#y_size = pan.sizeHint().height()*2
+		#set_sizes_limits([[pan]], [[(x_size, y_size)]])
 		return pan
 
 	mobj_lines = [mobj.__class__.__name__ + '\n']
 	mobj_attrs = mobj_to_pairs(mobj)
 	mobj_lines.extend([str(attr[0]) + ' : ' + str(attr[1]) 
-								for attr in mobj_attrs])
+				for attr in mobj_attrs])
 	mobj_lines = lfu.pagify(mobj_lines, 60)
 	inspector = create_label(text = mobj_lines)
 	return inspector
@@ -1742,7 +1751,8 @@ class mobj_catalog(QtGui.QVBoxLayout):
 	# chosen from a selector widget, with memory, 
 	#  each panel corresponding to one mobj
 	def __init__(self, temp, mason, mobjs = [], inst = None, 
-								key = None, initial = None):
+			key = None, initial = None, embed = False, 
+			callbacks = []):
 		super(mobj_catalog, self).__init__()
 		self.mobjs = mobjs
 		self.mason = mason
@@ -1750,8 +1760,19 @@ class mobj_catalog(QtGui.QVBoxLayout):
 		dummy = [None]*len(self.mobj_labels)
 		self.selector = create_combo_box(self.mobj_labels, dummy, dummy)
 		self.selector.currentIndexChanged.connect(self.change_page)
+		if callbacks:
+			change_page_callbacks = callbacks[0]
+			[self.selector.currentIndexChanged.connect(call) 
+				for call in change_page_callbacks]
+		if len(callbacks) > 1: roll_call = callbacks[1]
+		else: roll_call = None
+		if roll_call:
+			self.roll_button = create_buttons(
+				[roll_call], ['Roll Pages'])[0]
+			self.addWidget(self.roll_button)
+
 		self.addWidget(self.selector)
-		self.set_up_pages()
+		self.set_up_pages(embed)
 		if not inst is None and not key is None:
 			self.selected_page_label = inst.__dict__[key]
 			if self.selected_page_label is None:
@@ -1769,19 +1790,21 @@ class mobj_catalog(QtGui.QVBoxLayout):
 		self.selector.setCurrentIndex(start_dex)
 		self.set_current_page(start_dex)
 
-	def set_up_pages(self):
-		self.pages = [create_inspector(None)]
+	def set_up_pages(self, embed = False):
+		if embed: wrap_func = create_panel
+		else: wrap_func = create_inspector
+		self.pages = [wrap_func(None)]
 		if type(self.mobjs) is types.ListType:
-			[self.pages.append(create_inspector(mobj, self.mason)) 
-										for mobj in self.mobjs]
+			[self.pages.append(wrap_func(mobj, self.mason)) 
+						for mobj in self.mobjs]
 
 		elif type(self.mobjs) is types.DictionaryType:
-			[self.pages.append(create_inspector(
-					self.mobjs[key], self.mason)) 
-					for key in self.mobjs.keys()]
+			[self.pages.append(wrap_func(
+				self.mobjs[key], self.mason)) 
+				for key in self.mobjs.keys()]
 
 		else: print 'cannot create catalog from non-list, \
-							non-dictionary mobj collection'
+				non-dictionary mobj collection'
 
 		[self.addWidget(page) for page in self.pages]
 		[page.hide() for page in self.pages]
@@ -1805,9 +1828,11 @@ class mobj_catalog(QtGui.QVBoxLayout):
 				self.maintenance_handle[1]] = self.mobj_labels[page_dex]
 
 def create_mobj_catalog(temp, mobjs = [], mason = None, 
-				inst = None, key = None, initial = 0):
+		inst = None, key = None, initial = 0, 
+		embed = False, callbacks = []):
 	catalog = mobj_catalog(temp, mason, mobjs = mobjs, 
-			inst = inst, key = key, initial = initial)
+		inst = inst, key = key, initial = initial, embed = embed, 
+		callbacks = callbacks)
 	return central_widget_wrapper(content = catalog)
 
 def create_list_controller(headers, entries):
@@ -2053,30 +2078,48 @@ class opengl_view(QtOpenGL.QGLWidget):
 			(height - side) / 2, side, side)
 		self.camera.update_projection(width, height)
 
-def create_plot_widget(data):
-	domains = data.domains
-	codomains = data.codomains
-	qp = quick_plot(domains, codomains)
+def create_plot_widget(data, callbacks = [], figure = None, canvas = None):
+	#domains = data.domains
+	#codomains = data.codomains
+	#qp = quick_plot(domains, codomains, callbacks, figure, canvas)
+	qp = quick_plot(data, callbacks, figure, canvas)
 	return qp
 
 qp_fig = None
 class quick_plot(QtGui.QWidget):
 
-	def __init__(self, xs, ys):
+	#def __init__(self, xs, ys, callbacks = [], 
+	def __init__(self, data, callbacks = [], 
+			qp_figure = None, canvas = None):
 		super(quick_plot, self).__init__()
-		global qp_fig
-		if qp_fig is None: qp_fig = plt.figure()
+		if qp_figure is None:
+			global qp_fig
+			if qp_fig is None: qp_fig = plt.figure()
+			self.qp_fig = qp_fig
+		else: self.qp_fig = qp_figure
+		#if canvas: self.canvas = canvas
+		#else: self.canvas = FigureCanvas(self.qp_fig)
+		self.canvas = FigureCanvas(self.qp_fig)
+		self.lplot_data_types = ['scalar']
+		self.cplot_data_types = ['surface_vector', 'surface_reducing']
+		self.plot_type = None
+		self.user_xtitle = None
+		self.user_ytitle = None
+		self.user_ztitle = None
+		self.user_title = None
+		self.callbacks = callbacks
 		self.max_line_count = 20
+		self.colormap = plt.get_cmap('jet')
 		self.set_up_widgets()
-		self.set_geometry()
-		self.plot(xs, ys)
-		self.show()
-		self.repaint()
+		#self.set_geometry()
+		#self.plot(xs, ys)
+		#self.show()
+		#self.repaint()
 
 	def set_up_widgets(self):
-		self.canvas = FigureCanvas(qp_fig)
 		self.setBackgroundRole(QtGui.QPalette.Window)
-		self.toolbar = plot_window_toolbar(self.canvas, self)
+		self.toolbar = plot_window_toolbar(
+			self.canvas, self, self.callbacks)
 		layout = create_vert_box([self.canvas, self.toolbar])
 		#layout = create_vert_box([self.canvas])
 		self.setLayout(layout)
@@ -2087,7 +2130,83 @@ class quick_plot(QtGui.QWidget):
 		geometry = (x, y, x_size, y_size)
 		self.setGeometry(*geometry)
 
-	def plot(self, xs, ys):
+	def get_minmaxes(self, xs_, ys_):
+		if type(xs_[0]) is types.ListType:
+			minmax = [
+				min([min(x) for x in xs_]), 
+				max([max(x) for x in xs_]), 
+				min([min(y) for y in ys_]), 
+				max([max(y) for y in ys_])]
+		else:
+			minmax = [
+				min([x.min() for x in xs_]), 
+				max([x.max() for x in xs_]), 
+				min([y.min() for y in ys_]), 
+				max([y.max() for y in ys_])]
+		return minmax
+
+	def set_labels(self, xlab = None, ylab = None, 
+			zlab = None, title = None):
+		ax = self.newest_ax
+		if self.user_xtitle: final_xlab = self.user_xtitle
+		elif xlab: final_xlab = xlab
+		else: final_xlab = 'xtitle'
+
+		if self.user_ytitle: final_ylab = self.user_ytitle
+		elif ylab: final_ylab = ylab
+		else: final_ylab = 'ytitle'
+
+		if self.user_ztitle: final_zlab = self.user_ztitle
+		elif zlab: final_zlab = zlab
+		else: final_zlab = 'ztitle'
+
+		if self.user_title: final_title = self.user_title
+		elif title: final_title = title
+		else: final_title = 'title'
+
+		ax.set_xlabel(final_xlab, fontsize = 18)
+		ax.set_ylabel(final_ylab, fontsize = 18)
+
+	def pre_plot(self):
+		self.qp_fig.clf()
+		ax = self.qp_fig.gca()
+		self.newest_ax = ax
+		ax.cla()
+		ax.grid(True)
+		return ax
+
+	def plot(self, *args, **kwargs):
+		if 'ptype' in kwargs: ptype = kwargs['ptype']
+		elif self.plot_type: ptype = self.plot_type
+		else: ptype = 'lines'
+		data = args[0]
+		xlab = args[1]
+		ylab = args[2]
+		if ptype == 'lines':
+			ldata = [d for d in data.data if d.tag 
+				in self.lplot_data_types]
+			try: xs = lfu.grab_mobj_by_name(data.xdomain, ldata)
+			except ValueError:
+				print 'domain is not in line data'
+				return
+			ys = [d for d in ldata if d.label in data.active_targs] 
+			self.plot_lines(xs, ys, xlab, ylab)
+
+		elif ptype == 'color':
+			surf_target = data.zdomain
+			cdata = [d for d in data.data if d.tag 
+				in self.cplot_data_types]
+			try: sdata = lfu.grab_mobj_by_name(surf_target, cdata)
+			except ValueError:
+				print 'surface target is surface data'
+				return
+			self.plot_color(sdata, surf_target, xlab, ylab)
+
+		elif ptype == 'surface': self.plot_surface(*args, **kwargs)
+		elif ptype == 'bars': self.plot_bars(*args, **kwargs)
+		else: print 'invalid plot type!', ptype
+
+	def plot_lines(self, xs, ys, xlab = None, ylab = None):
 
 		def plot_(x, y, label, color):
 			line = matplotlib.lines.Line2D(
@@ -2095,66 +2214,65 @@ class quick_plot(QtGui.QWidget):
 			if not label == '__skip__': line.set_label(label)
 			ax.add_line(line)
 
-		qp_fig.clf()
-		ax = qp_fig.gca()
-		ax.cla()
-		ax.grid(True)
-		x_labs = [x.label for x in xs]
+		ax = self.pre_plot()
+
+		if type(xs) is types.ListType: x_labs = [x.label for x in xs]
+		else: x_labs = [xs.label]*len(ys)
 		y_labs = [y.label for y in ys]
-		ax.set_xlabel(x_labs[0], fontsize = 18)
-		ax.set_ylabel(y_labs[0], fontsize = 18)
-		colormap = plt.get_cmap('jet')
-		self.colors = [colormap(i) for i in 
+		self.set_labels(x_labs[0], y_labs[0])
+
+		self.colors = [self.colormap(i) for i in 
 			np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
 		for d, da in enumerate(ys):
 			if hasattr(da, 'color'):
 				self.colors[d] = da.color
-		xs_ = [x.scalars for x in xs]
+		if type(xs) is types.ListType: xs_ = [x.scalars for x in xs]
+		else: xs_ = [xs.scalars]*len(ys)
 		ys_ = [y.scalars for y in ys]
 		[plot_(x, y, lab, col) for x, y, lab, col 
 			in zip(xs_, ys_, y_labs, self.colors)]
-		ax.axis([
-			min([x.min() for x in xs_]), 
-			max([x.max() for x in xs_]), 
-			min([y.min() for y in ys_]), 
-			max([y.max() for y in ys_])])
+		ax.axis(self.get_minmaxes(xs_, ys_))
 		ax.legend()
 		self.canvas.draw()
+		self.plot_type = 'lines'
+
+	def plot_color(self, surf, starget = None, xlab = None, ylab = None):
+		print 'plot color!'
+		ax = self.pre_plot()
+		
+
+	def plot_surface(self, *args, **kwargs):
+		pdb.set_trace()
+
+	def plot_bars(self, *args, **kwargs):
+		pdb.set_trace()
 
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 	message = QtCore.Signal(str)
 	if hasattr(NavigationToolbar2, 'toolitems'):
 		toolitems = [t for t in NavigationToolbar2.toolitems 
-						if t[0] in ('Pan', 'Zoom', 'Save')]
+				if t[0] in ('Pan', 'Zoom', 'Save')]
 	else: toolitems = []
-	#toolitems = [t for t in NavigationToolbar2.toolitems 
-	#				if t[0] in ('Pan', 'Zoom', 'Save')]
-	toolitems.append(('Labels', 
-		'Change the title and axes labels', 'gear', 'labels'))
-	toolitems.append(('Roll', 
-		'Roll through a series of plots', 'gear', 'roll'))
+	toolitems.append(('Labels','Change the title and axes labels','gear','labels'))
+	toolitems.append(('Roll','Roll through a series of plots','gear','roll'))
 
-	def __init__(self, canvas, parent, coordinates=True):
-		""" coordinates: should we show the coordinates on the right? """
+	def __init__(self, canvas, parent, current_page = None, coordinates = True):
+		self.current_page = current_page[0]
+		#self.toolitems.extend(extra_tools)
 		self.canvas = canvas
 		self.parent = parent
 		self.coordinates = coordinates
 		self._actions = {}
-		"""A mapping of toolitem method names to their QActions"""
-
 		QtGui.QToolBar.__init__(self, parent)
 		NavigationToolbar2.__init__(self, canvas)
 
 	def _icon(self, name):
 		if name in ['move.png', 'zoom_to_rect.png', 'filesave.png']:
 			return QtGui.QIcon(os.path.join(self.basedir, name))
-
-		else:
-			return QtGui.QIcon(lfu.get_resource_path(name))
+		else: return QtGui.QIcon(lfu.get_resource_path(name))
 
 	def _init_toolbar(self):
-		self.basedir = os.path.join(
-			matplotlib.rcParams['datapath'], 'images')
+		self.basedir = os.path.join(matplotlib.rcParams['datapath'], 'images')
 		for text, tooltip_text, image_file, callback in self.toolitems:
 			if text is None: self.addSeparator()
 			else:
@@ -2166,7 +2284,6 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 			if tooltip_text is not None: a.setToolTip(tooltip_text)
 
 		self.buttons = {}
-
 		# Add the x,y location widget at the right side of the toolbar
 		# The stretch factor is 1 which means any resizing of the toolbar
 		# will resize this label instead of the buttons.
@@ -2179,7 +2296,6 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 			  QtGui.QSizePolicy.Ignored))
 			labelAction = self.addWidget(self.locLabel)
 			labelAction.setVisible(True)
-
 		# reference holder for subplots_adjust window
 		self.adj_window = None
 
@@ -2199,42 +2315,55 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 	def roll(self):
 
 		def _roll():
-			page = self.parent.get_current_page()
+			page = cpage()
+			#page = self.parent.get_current_page()
 			while page.roll_dex < page.max_roll_dex:
-				page.show_plot_bars()
+				page.show_plot_roll()
+				#page.show_plot_bar()
 				time.sleep(page.roll_delay)
 				page.roll_dex += 1
 
-			page.roll_dex = 0
+			page.roll_dex = None
 			self._update_buttons_checked()
 
-		roll_ = lgb.create_thread_wrapper(_roll)
+		if self.current_page: cpage = self.current_page
+		else: cpage = self.parent.get_current_page
+		roll_ = create_thread_wrapper(_roll)
 		roll_()
 
 	def labels(self):
-		page = self.parent.get_current_page()
-		domain = self.parent.get_current_page().x_ax_title
-		labels_dlg = change_labels_dialog(page.title, 
-					page.x_ax_title, page.y_ax_title, 
-					page.max_line_count, page.colors, 
-						page._plot_targets_, domain, 
-							page.x_log, page.y_log)
+		lgd = lfu.gui_pack.lgd
+		#import modular_core.gui.libqtgui_dialogs as lgd
+		#page = self.parent.get_current_page()
+		page = self.current_page()
+		#domain = page.x_ax_title
+		domain = page.get_xtitle()
+		labels_dlg = lgd.change_labels_dialog(
+			page.get_title(), 
+			domain, page.get_ytitle(), 
+			page.max_line_count, page.colors, 
+			page.get_targets(), domain, 
+			page.x_log, page.y_log, page.cplot_interpolation)
 		if not labels_dlg: return
-		new_title,new_x_label,new_y_label,colors,xlog,ylog = labels_dlg
-		page.title = new_title
-		page.x_ax_title = new_x_label
+		new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp = labels_dlg
+		page.set_title(new_title)
+		page.set_xtitle(new_x_label)
 		page.x_log = xlog
-		page.y_ax_title = new_y_label
+		page.set_ytitle(new_y_label)
 		page.y_log = ylog
 		page.colors = colors
-		ax = page.newest_ax
+		page.cplot_interpolation = cinterp
+		#ax = page.newest_ax
+		ax = page.get_newest_ax()
 		ax.set_xlabel(new_x_label, fontsize = 18)
 		ax.set_ylabel(new_y_label, fontsize = 18)
 		if self.parent.plot_type in ['surface']:
 			ax.set_zlabel(new_title, fontsize = 18)
 		ax.set_title(new_title)
-		#self.canvas.draw()
-		self.parent.get_current_page().show_plot()
+		if self.current_page: cpage = self.current_page
+		else: cpage = self.parent.current_page
+		#self.parent.get_current_page().show_plot()
+		cpage().show_plot()
 
 	def dynamic_update(self):
 		self.canvas.draw()
@@ -2254,16 +2383,14 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		height = self.canvas.figure.bbox.height
 		y1 = height - y1
 		y0 = height - y0
-
 		w = abs(x1 - x0)
 		h = abs(y1 - y0)
-
 		rect = [int(val)for val in (min(x0, x1), min(y0, y1), w, h)]
 		self.canvas.drawRectangle(rect)
 
 	def configure_subplots(self):
 		image = os.path.join(matplotlib.rcParams['datapath'],
-		 'images', 'matplotlib.png')
+					'images', 'matplotlib.png')
 		dia = SubplotToolQt(self.canvas.figure, self.parent)
 		dia.setWindowIcon(QtGui.QIcon(image))
 		dia.exec_()
@@ -2273,11 +2400,9 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		sorted_filetypes = list(six.iteritems(filetypes))
 		sorted_filetypes.sort()
 		default_filetype = self.canvas.get_default_filetype()
-
 		startpath = matplotlib.rcParams.get('savefig.directory', '')
 		startpath = os.path.expanduser(startpath)
-		start = os.path.join(startpath, 
-			self.canvas.get_default_filename())
+		start = os.path.join(startpath,self.canvas.get_default_filename())
 		filters = []
 		selectedFilter = None
 		for name, exts in sorted_filetypes:
@@ -2291,20 +2416,18 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
 		#fname = _getSaveFileName(self.parent, 
 		#	"Choose a filename to save to",
 		#	start, filters, selectedFilter)
-		from libqtgui_dialogs import create_dialog						# UNACCEPTABLE HACK!!!   FIX THIS!!!
-		fname = create_dialog('Choose File', 'File?', 'file_save', 
-								'Image (*.png, *.pdf)', startpath)
+		from libqtgui_dialogs import create_dialog
+		fname = create_dialog('Choose File', 'File?', 
+			'file_save', 'Image (*.png, *.pdf)', 
+			startpath)
 		fname = fname()
 		if fname:
 			if startpath == '':
-				# explicitly missing key or empty str signals to use cwd
 				matplotlib.rcParams['savefig.directory'] = startpath
 			else:
-				# save dir for next time
 				savefig_dir = os.path.dirname(six.text_type(fname))
 				matplotlib.rcParams['savefig.directory'] = savefig_dir
-			try:
-				self.canvas.print_figure(six.text_type(fname))
+			try: self.canvas.print_figure(six.text_type(fname))
 			except Exception as e:
 				QtGui.QMessageBox.critical(
 					self, "Error saving file", str(e),
