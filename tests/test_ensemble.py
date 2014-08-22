@@ -19,6 +19,9 @@ class mngerTestCase(unittest.TestCase):
 	correl_mcfg = os.path.join(os.getcwd(), 
 				'stringchemical_dep_mcfgs', 
 				'correl_demo.mcfg')
+	correl_mcfg_nonmp = os.path.join(os.getcwd(), 
+				'stringchemical_dep_mcfgs', 
+				'correl_demo_nonmp.mcfg')
 	means_mcfg = os.path.join(os.getcwd(), 
 				'stringchemical_dep_mcfgs', 
 				'MM_kinetics_means.mcfg')
@@ -42,6 +45,14 @@ class mngerTestCase(unittest.TestCase):
 	def atest_can_run_fitting(self):
 		"""ensemble successfully run the fitting mcfg?"""
 		self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
+		self.assertTrue(self.ensem.produce_output())
+
+	def test_can_run_correl_nonmp(self):
+		"""ensemble successfully run the non mp correl demo mcfg?"""
+		#thread = self.mnger.run_threaded(self.ensem, 
+		#	self.ensem.run_mcfg, args = (self.correl_mcfg,))
+		#self.assertTrue(thread)
+		self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg_nonmp))
 		self.assertTrue(self.ensem.produce_output())
 
 	def test_can_run_correl(self):

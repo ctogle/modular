@@ -20,8 +20,6 @@ class pkl_handler(lfu.modular_object_qt):
 		self.settings = self.settings_manager.read_settings()
 		self.impose_default('capture_targets', [], **kwargs)
 		self.impose_default('pkl_files_directory', os.getcwd(), **kwargs)
-		#self.impose_default('output', lo.output_plan(
-		#	label = 'pkl handler output', parent = self), **kwargs)
 		lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
 	def load_data(self):
@@ -36,7 +34,7 @@ class pkl_handler(lfu.modular_object_qt):
 				label = outp, parent = self))
 			data_.append([])
 			self.capture_targets = []
-			relev = [p for p in pkl_files if p.startswith(outp)]
+			relev = [p for p in pkl_files if p[:p.find('.')] == outp]
 			for fi in relev:
 				fipath = os.path.join(self.pkl_files_directory, fi)
 				dat = lf.load_pkl_object(fipath)
@@ -44,12 +42,13 @@ class pkl_handler(lfu.modular_object_qt):
 				self.capture_targets.extend([d.label for d in dat.data])
 			targs = lfu.uniqfy(self.capture_targets)
 			outputs[-1].targeted = targs
+			outputs[-1].save_filename = outp
 			self.capture_targets = targs
 			outputs[-1].set_target_settables()
 			outputs[-1].flat_data = False
 
 		[outp(lfu.data_container(data = da)) for 
-				outp, da in zip(outputs, data_)]
+			outp, da in zip(outputs, data_)]
 
 	def set_settables(self, *args, **kwargs):
 		window = args[0]
@@ -61,7 +60,7 @@ class pkl_handler(lfu.modular_object_qt):
 				keys = [['pkl_files_directory']], 
 				instances = [[self]], 
 				initials = [[self.pkl_files_directory, 
-								None, os.getcwd()]], 
+						None, os.getcwd()]], 
 				labels = [['Choose Directory With .pkl Data']], 
 				box_labels = ['Data Directory']))
 		#self.widg_templates.append(
@@ -71,7 +70,7 @@ class pkl_handler(lfu.modular_object_qt):
 				bindings = [[self.load_data]], 
 				labels = [['Load .pkl Data']])
 		lfu.modular_object_qt.set_settables(
-				self, *args, from_sub = True)
+			self, *args, from_sub = True)
 
 class pkl_plotter(lqg.application):
 	gear_icon = lfu.get_resource_path('gear.png')
