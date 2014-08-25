@@ -384,7 +384,8 @@ def create_calender(parent = None, show_date_func = None):
     #date.toString()
     return calender
 
-def create_panel(templates, mason, collapses = False, layout = 'grid'):
+def create_panel(templates, mason, collapses = False, layout = 'grid',
+        pan_scrolls = False):
 
     if not type(templates) is types.ListType:
         if hasattr(templates, 'templates'):
@@ -410,7 +411,9 @@ def create_panel(templates, mason, collapses = False, layout = 'grid'):
     elif layout == 'horizontal':
         safe_positions = [(0, y) for y in range(len(templates))]
 
-    scroll_flag = False
+    #scroll_flag = False
+    if pan_scrolls: scroll_flag = True
+    else: scroll_flag = False
     widgets = []
     positions = []
     spans = []
@@ -1631,6 +1634,20 @@ class central_widget_wrapper(QtGui.QWidget):
         self.collapsed = False
         self.setLayout(content)
 
+    def replace_content(self, templates, mason):
+        pdb.set_trace()
+        oldlay = self.layout()
+        if not oldlay is None:
+            oldlay.deleteLater()
+            #widgs = []
+            #for te in templates:
+            #    widgs.extend(mason.interpret_template(te))
+        print 'replace content!!'
+        pan = create_panel(templates, mason)
+        lay = create_vert_box([pan])
+        self.setLayout(lay)
+        #else: print 'no layout!'
+
     def toggle(self):
         self.collapsed = not self.collapsed
         if self.collapsed: self.fold()
@@ -2201,7 +2218,8 @@ class quick_plot(QtGui.QWidget):
             xdom = data.xdomain
             ydom = data.ydomain
             cdata = [d for d in data.data if d.tag 
-                in self.cplot_data_types]
+                in self.cplot_data_types and 
+                d.label in data.active_targs]
             # the labels of cdata do not match domains of cdata....
             #try: sdata = lfu.grab_mobj_by_name(surf_target, cdata)
             #except ValueError:

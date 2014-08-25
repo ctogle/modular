@@ -1,4 +1,24 @@
 
+
+<run options>
+profile = False
+
+<data handling>
+use_smart_pool = True
+auto_clear_data_pools = True
+ensempkl_directory = none
+
+<ensemble defaults>
+mapparameterspace = True
+trajectory_count = 100
+fitting = True
+postprocessing = True
+fitting_aware = True
+mcfg_path = none
+
+<fitting>
+default_fitting_input_path = none
+
 <interface>
 multithread_gui = True
 debug_verbosity = 2
@@ -14,7 +34,5 @@ output_txt = False
 output_vtk = False
 output_pkl = False
 default_output_path = none
-
-
 
 

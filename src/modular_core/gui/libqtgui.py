@@ -183,11 +183,11 @@ class plot_page(lfu.modular_object_qt):
         self.title = title
         self.xtitle = xtitle
         self.ytitle = ytitle
-        self.x_log = False
-        self.y_log = False
-        self.max_line_count = 20
-        self.colors = []
-        self.cplot_interpolation = 'nearest'
+        #self.x_log = False
+        #self.y_log = False
+        #self.max_line_count = 20
+        #self.colors = []
+        #self.cplot_interpolation = 'nearest'
         #Acceptable interpolations are:
         # 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 
         # 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 
@@ -274,13 +274,14 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('pages', [], **kwargs)
         self.impose_default('title', 'Plot Window', **kwargs)
         self.impose_default('targs', [], **kwargs)
-        ptypes = ['lines', 'color', 'surface', 'bars']
+        ptypes = ['lines', 'color']
+        #ptypes = ['lines', 'color', 'surface', 'bars']
         self.impose_default('plot_type', 'lines', **kwargs)
         self.impose_default('plot_types', ptypes, **kwargs)
         self.impose_default('roll_dex', None, **kwargs)
         self.impose_default('max_roll_dex', None, **kwargs)
         self.impose_default('roll_delay', 0.25, **kwargs)
-
+        self.surf_data_types = ['surface_vector', 'surface_reducing']
         x, y = lfu.convert_pixel_space(256, 256)
         x_size, y_size = lfu.convert_pixel_space(1024, 768)
         self._geometry_ = (x, y, x_size, y_size)
@@ -296,18 +297,7 @@ class plot_window(lfu.modular_object_qt):
         self.xdomain = page.xdomain
         self.ydomain = page.ydomain
         self.zdomain = page.zdomain
-        #if not self.check_selection_consistency():
-        #   print 'pages options are not consistent:\
-        #        cannot propagate selections...'
         self._display_interface_(self.mason)
-
-    #def check_selection_consistency(self):
-    #   active = [pg.active_targs == self.active_targs for pg in self.pages]
-    #   xdom = [pg.xdomain == self.xdomain for pg in self.pages]
-    #   ydom = [pg.ydomain == self.ydomain for pg in self.pages]
-    #   zdom = [pg.zdomain == self.zdomain for pg in self.pages]
-    #   consistent = [not False in li for li in [active, xdom, ydom, zdom]]
-    #   return not False in consistent
 
     def get_current_page(self):
         if self.selected_page_label == 'None': return None
@@ -319,7 +309,11 @@ class plot_window(lfu.modular_object_qt):
 
     def set_up_widgets(self):
         current_page = self.get_current_page()
-        if self.using_surfaces(): self.update_slice_panel() 
+        if self.using_surfaces():
+            could = self.update_slice_panel() 
+            if could: self.slice_panel[0].show()
+            else: self.slice_panel[0].hide()
+        else: self.slice_panel[0].hide()
         if not current_page is None: current_page.redraw_plot()
 
     def set_plot_info(self, dcontainer, filename, specs, title = 'title', 
@@ -346,21 +340,47 @@ class plot_window(lfu.modular_object_qt):
             time.sleep(rdelay)
 
     def update_slice_panel(self):
+        slice_temps = self.make_slice_templates()
+        if not slice_temps: return False
         pan = self.slice_panel[0]
-        pdb.set_trace()
+        lay = pan.children()[0]
+        cent = pan.children()[1]
+        lay.removeWidget(cent)
+        cent.deleteLater()
+        new_pan = lgb.create_panel(slice_temps, 
+            self.mason, False, 'vertical', True)
+        lay.addWidget(new_pan)
+        return True
 
     def make_slice_templates(self):
+        def generate_slice_func(vals,dex):
+            def slice_func(new):
+                ax_defs[dex] = float(vals[new])
+            return slice_func
+
         page = self.get_current_page()
         data = page.data
-        pdb.set_trace()
-        slice_templates = []
-        for lab, sca, def_ in zip(ax_labs, ax_vals, ax_defs):
-            #slice_templates.append(
-            #   lgm.interface_template_gui(
-            #       widgets = ['selector'], 
-            #       labels = [[]]
-            #       ))
-            print lab, def_, sca
+        surfdata = [d for d in data.data if 
+            d.tag in self.surf_data_types and 
+            d.label in self.active_targs]
+        if surfdata: surf = surfdata[0]
+        else: return []
+        ax_labs = surf.axis_labels
+        ax_vals = surf.axis_values
+        ax_defs = surf.axis_defaults
+        rng = range(len(ax_defs))
+        slice_templates = []      
+        for dex, lab, sca, def_ in zip(rng, ax_labs, ax_vals, ax_defs):
+            scastr = sca.as_string_list()
+            slice_templates.append(
+                lgm.interface_template_gui(
+                    widgets = ['selector'], 
+                    labels = [scastr], 
+                    initials = [[str(def_)]], 
+                    bindings = [[generate_slice_func(scastr,dex)]], 
+                    refresh = [[True]], 
+                    window = [[self]], 
+                    box_labels = [lab]))
         return slice_templates
 
     def set_settables(self, *args, **kwargs):
@@ -420,7 +440,7 @@ class plot_window(lfu.modular_object_qt):
                 refresh = [[True]], 
                 window = [[self]], 
                 box_labels = ['Plot Type'])
-        self.widg_templates.append(
+        targ_template =\
             lgm.interface_template_gui(
                 panel_position = (0,1), 
                 widgets = ['check_set'], 
@@ -428,24 +448,23 @@ class plot_window(lfu.modular_object_qt):
                 instances = [[self]], 
                 keys = [['active_targs']], 
                 labels = [self.targs], 
-                box_labels = ['Targets'], 
-                append_instead = [True]))
-        if not self.using_surfaces():
-            slice_templates = []
-            slice_templates.append(
-                lgm.interface_template_gui(
-                    widgets = ['image'], 
-                    verbosities = [10], 
-                    paths = [lfu.get_resource_path('gear.png')], 
-                    ))
-            slice_verb = 10
-        else:
-            slice_templates = self.make_slice_templates()
-            slice_verb = 1
+                append_instead = [True])
+        self.widg_templates.append(
+            lgm.interface_template_gui(
+                panel_position = (0,1),
+                widgets = ['panel'], 
+                scrollable = [True], 
+                templates = [[targ_template]], 
+                box_labels = ['Targets']))
+        slice_templates = self.make_slice_templates()
+        if slice_templates: slice_verb = 1
+        else: slice_verb = 10
         self.widg_templates.append(
             lgm.interface_template_gui(
                 panel_position = (0,2), 
                 widgets = ['panel'], 
+                layouts = ['vertical'], 
+                scrollable = [True], 
                 verbosities = [slice_verb], 
                 handles = [(self, 'slice_panel')], 
                 box_labels = ['Additional Axis Handling'], 

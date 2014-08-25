@@ -1405,7 +1405,8 @@ class post_process_reorganize_data(post_process):
 
         except AttributeError: self.axis_labels = []
         self.capture_targets = ['parameter space location index'] +\
-                self.axis_labels + [label for label in self.dater_ids]
+            self.axis_labels + [label for label in self.dater_ids] +\
+            ['reorg surface vector']
         self.output.targeted = [targ for targ in self.output.targeted 
                                     if targ in self.capture_targets]
         post_process.set_target_settables(self, *args, **kwargs)

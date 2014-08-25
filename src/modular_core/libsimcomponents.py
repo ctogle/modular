@@ -364,7 +364,10 @@ class ensemble(lfu.modular_object_qt):
         else: override_targets = None
         data_ = lfu.data_container(data = pool.data, 
                 override_targets = override_targets)
-        if self.output_plan.must_output(): self.output_plan(data_)
+        outputs = []
+        if self.output_plan.must_output():
+            self.output_plan(data_)
+            outputs.append(self.output_plan)
         if not pool.postproc_data is None:
             processes = self.postprocess_plan.post_processes
             for dex, proc in enumerate(processes):
@@ -374,6 +377,7 @@ class ensemble(lfu.modular_object_qt):
                         data = pool.postproc_data[dex])
                     proc.determine_regime(self)
                     proc.output(data_)
+                    outputs.append(proc.output)
 
         if not pool.routine_data is None:
             routines = self.fitting_plan.routines
@@ -383,8 +387,15 @@ class ensemble(lfu.modular_object_qt):
                     data_ = lfu.data_container(
                         data = pool.routine_data[dex])
                     rout.output(data_)
+                    outputs.append(rout.output)
 
         print 'produced output: ', time.time() - check_0
+        plt_flag = True in [o.plt_flag for o in outputs]
+        if plt_flag:
+            app = lgb.QtGui.QApplication.instance()
+            if not lo.qapp_started_flag:
+                app.exec_()
+                lo.qapp_started_flag = True
         return True
 
     def set_data_scheme(self):

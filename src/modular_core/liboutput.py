@@ -462,12 +462,15 @@ class output_plan(lfu.plan):
 
             if plt_flag: self.writers[3].plt_window()
 
+        self.plt_flag = plt_flag
+        '''
         if plt_flag:
             app = lgb.QtGui.QApplication.instance()
             global qapp_started_flag
             if not qapp_started_flag:
                 app.exec_()
                 qapp_started_flag = True
+        '''
 
     def verify_nonempty_save_directory(self):
         if not self.save_directory:
