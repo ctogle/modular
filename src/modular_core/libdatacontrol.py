@@ -221,7 +221,7 @@ class surface_vector(object):
         self.tag = 'surface_vector'
         self.label = label
 
-        rng = np.arange(surfs.shape[0])
+        rng = np.arange(surfs.shape[0], dtype = float)
         self.axis_labels = ['surface_index']
         self.axis_values = [
             scalars(label = 'surface_index', scalars = rng)]
@@ -235,8 +235,8 @@ class surface_vector(object):
         yleng = self.data.shape[2]
         x = np.arange(xleng)
         y = np.arange(yleng)
-        s_dex = surf_vect.axis_defaults[0]
-        surf = surf_vect.data[s_dex]
+        s_dex = self.axis_defaults[0]
+        surf = self.data[s_dex]
         return (x, y, surf)
         #if surf_target == self.label: return True
         #else: return False

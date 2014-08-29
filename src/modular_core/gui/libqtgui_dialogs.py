@@ -329,6 +329,7 @@ def change_labels_dialog(title, x_ax, y_ax, max_lines,
 
     else: return False
 
+'''
 class plot_page(QtGui.QWidget):
 
     def __init__(self, plt_window, label, figure, canvas, 
@@ -606,7 +607,6 @@ class plot_page(QtGui.QWidget):
         data = self._data_.data
         surf, z_flag, uneven_flag = self.get_mpl_surf_data(data, ax) 
         if surf is None: return
-        '''
         surf_vect = data[0]
 
         made_surf =\
@@ -642,9 +642,7 @@ class plot_page(QtGui.QWidget):
         if z_min == z_max:
             z_flag = True
             print 'no variation in surface data...'
-        '''
         #if len(xdels) == 1 and len(ydels) == 1:
-        '''
         if not uneven_flag:
             #Acceptable interpolations are 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 
             #'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
@@ -655,7 +653,6 @@ class plot_page(QtGui.QWidget):
             print 'axes values are not evenly spaced; plot will be boxy'
             pc_mesh = ax.pcolormesh(x,y,surf,cmap = plt.get_cmap('jet'), 
                         shading = 'gouraud', vmin = z_min, vmax = z_max)
-        '''
         #ax.axis([x_min, x_max, y_min, y_max])
         ax.grid(True)
         #if not z_flag: self.figure.colorbar(pc_mesh)
@@ -1409,6 +1406,7 @@ class quick_plot(QtGui.QWidget):
         ax.legend()
         self.canvas.draw()
 
+'''
 ###################
 #plotting business#
 ###################

@@ -545,7 +545,6 @@ def create_file_name_box(inst, key, label, initial, exts = '',
         dat = args[0]
         if inst_is_dict:
             if inst_is_dict[0]: inst[key] = dat
-
         else: inst.__dict__[key] = dat
 
     def button_bind_file():
@@ -553,7 +552,7 @@ def create_file_name_box(inst, key, label, initial, exts = '',
             'Choose File', 'File?', 'file', exts, init_dir)
         file_ = fidlg()
         if file_ is not None:
-            file_ = file_[file_.rfind('/') + 1:]
+            #file_ = file_[file_.rfind('/') + 1:]
             apply_to_inst(file_)
             #inst.__dict__[key] = file_
             text_box.setText(file_)
@@ -586,7 +585,11 @@ def create_file_name_box(inst, key, label, initial, exts = '',
         else: button_bind = button_bind_file
 
     button = create_buttons([button_bind], [label])[0]
-    layout = create_vert_box([text_box, button])
+    #layout = create_vert_box([text_box, button])
+    #layout = create_horz_box([text_box, button])
+    layout = create_grid_box([text_box, button], 
+        in_positions = [(0,0),(0,1)], 
+        spans = [(3,1),(1,1)], spacing = 10)
     file_name_box = central_widget_wrapper(content = layout)
     return file_name_box
 
@@ -2188,6 +2191,40 @@ class quick_plot(QtGui.QWidget):
             ax.set_zlabel(final_zlab, fontsize = 18)
         ax.set_title(final_title, fontsize = 20)
 
+    def roll_data(self, data):    
+        if self.plot_type == 'lines':
+            print 'no plot roll for line data!'
+        elif self.plot_type == 'color':
+            crolldatatypes = self.cplot_data_types[:1]
+            cdata = [d for d in data.data if d.tag in crolldatatypes 
+                    and d.label in data.active_targs]
+            if len(cdata) == 1: sdata = cdata[0]
+            elif len(cdata) > 1:
+                sdata = cdata[0]
+                print 'multiple surface data objects available'
+                print '\tdefaulting to first found:', sdata.label
+            else:
+                print 'no surface data objects which roll are available!'
+                return
+            #pdb.set_trace()
+            print 'data rolling is incomplete!'
+            #self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
+        elif self.plot_type == 'surface':
+            print 'no plot roll for surface data'
+        elif self.plot_type == 'bars':
+            print 'no plot roll for bar data'
+        
+        #cata = self._catalog_[0].children()[0]
+        #sele = cata.selector
+        #rdelay = 0.02
+        #rdex = 1
+        #max_rdex = len(cata.pages) - 1
+        #while rdex <= max_rdex:
+        #    sele.setCurrentIndex(rdex)
+        #    cata.pages[rdex].repaint()
+        #    rdex += 1
+        #    time.sleep(rdelay)
+
     def pre_plot(self):
         self.qp_fig.clf()
         ax = self.qp_fig.gca()
@@ -2217,6 +2254,7 @@ class quick_plot(QtGui.QWidget):
             surf_target = data.zdomain
             xdom = data.xdomain
             ydom = data.ydomain
+            self.cplot_interpolation = data.cplot_interpolation
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
                 d.label in data.active_targs]
@@ -2383,23 +2421,25 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         self._update_buttons_checked()
 
     def roll(self):
+        cpage = self.current_page()
+        cpage.roll_data()
 
-        def _roll():
-            page = cpage()
-            #page = self.parent.get_current_page()
-            while page.roll_dex < page.max_roll_dex:
-                page.show_plot_roll()
-                #page.show_plot_bar()
-                time.sleep(page.roll_delay)
-                page.roll_dex += 1
+        #def _roll():
+        #    page = cpage()
+        #    #page = self.parent.get_current_page()
+        #    while page.roll_dex < page.max_roll_dex:
+        #        page.show_plot_roll()
+        #        #page.show_plot_bar()
+        #        time.sleep(page.roll_delay)
+        #        page.roll_dex += 1
 
-            page.roll_dex = None
-            self._update_buttons_checked()
+        #    page.roll_dex = None
+        #    self._update_buttons_checked()
 
-        if self.current_page: cpage = self.current_page
-        else: cpage = self.parent.get_current_page
-        roll_ = create_thread_wrapper(_roll)
-        roll_()
+        #if self.current_page: cpage = self.current_page
+        #else: cpage = self.parent.get_current_page
+        #roll_ = create_thread_wrapper(_roll)
+        #roll_()
 
     def labels(self):
         lgd = lfu.gui_pack.lgd
@@ -2422,7 +2462,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         page.set_ytitle(new_y_label)
         page.y_log = ylog
         page.colors = colors
-        page.cplot_interpolation = cinterp
+        page.parent.cplot_interpolation = cinterp
         #ax = page.newest_ax
         ax = page.get_newest_ax()
         ax.set_xlabel(new_x_label, fontsize = 18)

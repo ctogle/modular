@@ -183,11 +183,11 @@ class plot_page(lfu.modular_object_qt):
         self.title = title
         self.xtitle = xtitle
         self.ytitle = ytitle
-        #self.x_log = False
-        #self.y_log = False
-        #self.max_line_count = 20
-        #self.colors = []
-        #self.cplot_interpolation = 'nearest'
+        self.x_log = False
+        self.y_log = False
+        self.max_line_count = 20
+        self.colors = []
+        self.cplot_interpolation = parent.cplot_interpolation
         #Acceptable interpolations are:
         # 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 
         # 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 
@@ -241,12 +241,20 @@ class plot_page(lfu.modular_object_qt):
         data.ydomain = self.parent.ydomain
         data.zdomain = self.parent.zdomain
         data.active_targs = self.parent.active_targs
+        data.cplot_interpolation = self.parent.cplot_interpolation
         ptype = self.parent.plot_type
         qplot.plot(data, xlab, ylab, title, ptype = ptype)
 
     def show_plot(self):
         self.redraw_plot(self.get_xtitle(), 
             self.get_ytitle(), self.get_title())
+
+    def roll_data(self):
+        qplot = self.qplot[0]
+        data = self.data
+        data.active_targs = self.parent.active_targs
+        data.slice_panel = self.parent.slice_panel[0]
+        qplot.roll_data(data)
 
     def set_settables(self, *args, **kwargs):
         window = args[0]
@@ -274,8 +282,10 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('pages', [], **kwargs)
         self.impose_default('title', 'Plot Window', **kwargs)
         self.impose_default('targs', [], **kwargs)
+        self.impose_default('slice_widgets', [], **kwargs)
         ptypes = ['lines', 'color']
         #ptypes = ['lines', 'color', 'surface', 'bars']
+        self.impose_default('cplot_interpolation', 'bicubic', **kwargs)
         self.impose_default('plot_type', 'lines', **kwargs)
         self.impose_default('plot_types', ptypes, **kwargs)
         self.impose_default('roll_dex', None, **kwargs)

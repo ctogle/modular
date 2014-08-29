@@ -18,6 +18,7 @@ class interface_template_gui(lfu.interface_template_new_style):
         'layout' : 0, 
         'grid_spacing' : 0, 
         'panel_position' : 0, 
+        'panel_span' : 0, 
         'panel_scrollable' : 0, 
         'panel_label' : 0, 
         'widgets' : 1, 

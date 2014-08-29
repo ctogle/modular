@@ -420,7 +420,7 @@ class ensemble(lfu.modular_object_qt):
                     '.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
         return data_pool
-
+                                   
     #no multiprocessing, no parameter variation, and no fitting
     def run_systems_boring(self):
         data_pool = self.set_data_scheme()
