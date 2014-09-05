@@ -34,5 +34,6 @@ output_txt = False
 output_vtk = False
 output_pkl = False
 default_output_path = none
+cplot_interpolation = bicubic
 
 

@@ -234,8 +234,11 @@ class writer_plt(writer):
             if qapp.instance() is None:
                 app = qapp(sys.argv)
                 app.setStyle(lgb.create_style('plastique'))
+            cplot_interp_def = lset.get_setting('cplot_interpolation')
+            print 'cplot!!', cplot_interp_def
             self.plt_window = glib.plot_window(
-                title = titl, plot_types = plot_types)
+                title = titl, plot_types = plot_types, 
+                    cplot_interpolation = cplot_interp_def)
 
     def sanitize(self, *args, **kwargs):
         self.plt_window = None

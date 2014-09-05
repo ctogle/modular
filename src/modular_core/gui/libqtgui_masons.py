@@ -357,7 +357,10 @@ class standard_mason(object):
         try:
             title = template.box_labels[widg_dex]
             group = QtGui.QGroupBox(title = title)
-            layout = lgb.create_vert_box(check_widget)
+            if len(check_widget) > 20:
+                layout = lgb.create_grid_box(check_widget)
+            else:
+                layout = lgb.create_vert_box(check_widget)
             group.setLayout(layout)
             return [group]
 

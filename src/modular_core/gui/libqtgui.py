@@ -183,8 +183,8 @@ class plot_page(lfu.modular_object_qt):
         self.title = title
         self.xtitle = xtitle
         self.ytitle = ytitle
-        self.x_log = False
-        self.y_log = False
+        self.x_log = parent.x_log
+        self.y_log = parent.y_log
         self.max_line_count = 20
         self.colors = []
         self.cplot_interpolation = parent.cplot_interpolation
@@ -234,14 +234,19 @@ class plot_page(lfu.modular_object_qt):
         ax = self.qplot[0].newest_ax
         return ax
 
-    def redraw_plot(self, xlab = None, ylab = None, title = None):
-        qplot = self.qplot[0]
-        data = self.data
+    def get_plot_info(self, data):
         data.xdomain = self.parent.xdomain
         data.ydomain = self.parent.ydomain
         data.zdomain = self.parent.zdomain
         data.active_targs = self.parent.active_targs
         data.cplot_interpolation = self.parent.cplot_interpolation
+        data.x_log = self.parent.x_log
+        data.y_log = self.parent.y_log
+        return data
+
+    def redraw_plot(self, xlab = None, ylab = None, title = None):
+        qplot = self.qplot[0]
+        data = self.get_plot_info(self.data)
         ptype = self.parent.plot_type
         qplot.plot(data, xlab, ylab, title, ptype = ptype)
 
@@ -251,10 +256,27 @@ class plot_page(lfu.modular_object_qt):
 
     def roll_data(self):
         qplot = self.qplot[0]
-        data = self.data
-        data.active_targs = self.parent.active_targs
-        data.slice_panel = self.parent.slice_panel[0]
-        qplot.roll_data(data)
+        data = self.get_plot_info(self.data)
+        #if self.plot_type == 'lines':
+        #    print 'no plot roll for line data!'
+        #elif self.plot_type == 'color':
+        if self.parent.plot_type == 'color':
+            slsels = data.sliceselectors
+            slicekeys = slsels.__dict__.keys()
+            selkeys = [ke for ke in slicekeys if
+                ke.startswith('_sliceselector_')]
+            sels = [slsels.__dict__[ke][0] for ke in selkeys]
+            sels = [sl.children()[1] for sl in sels]
+            rolsel = sels[0]#select the 0th axis only for now!
+            max_rdex = rolsel.count() - 1
+            data.slice_panel = self.parent.slice_panel[0]
+            data.roll_delay = self.parent.get_roll_delay(max_rdex)
+        #elif self.plot_type == 'surface':
+        #    print 'no plot roll for surface data'
+        #elif self.plot_type == 'bars':
+        #    print 'no plot roll for bar data'
+        #data.roll_delay = self.parent.roll_delay
+        qplot.roll_data(data, self.get_xtitle(), self.get_ytitle())
 
     def set_settables(self, *args, **kwargs):
         window = args[0]
@@ -283,14 +305,20 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('title', 'Plot Window', **kwargs)
         self.impose_default('targs', [], **kwargs)
         self.impose_default('slice_widgets', [], **kwargs)
+        self.impose_default('x_log', False, **kwargs)
+        self.impose_default('y_log', False, **kwargs)
         ptypes = ['lines', 'color']
         #ptypes = ['lines', 'color', 'surface', 'bars']
         self.impose_default('cplot_interpolation', 'bicubic', **kwargs)
         self.impose_default('plot_type', 'lines', **kwargs)
         self.impose_default('plot_types', ptypes, **kwargs)
-        self.impose_default('roll_dex', None, **kwargs)
-        self.impose_default('max_roll_dex', None, **kwargs)
-        self.impose_default('roll_delay', 0.25, **kwargs)
+        #self.impose_default('roll_dex', None, **kwargs)
+        #self.impose_default('max_roll_dex', None, **kwargs)
+        self.impose_default('roll_delay', 0.001, **kwargs)
+        self.impose_default('roll_time_span', 1.0, **kwargs)
+        self.impose_default('roll_methods', 
+            ['time_span', 'preset'], **kwargs)
+        self.impose_default('roll_method', 'time_span', **kwargs)
         self.surf_data_types = ['surface_vector', 'surface_reducing']
         x, y = lfu.convert_pixel_space(256, 256)
         x_size, y_size = lfu.convert_pixel_space(1024, 768)
@@ -337,12 +365,21 @@ class plot_window(lfu.modular_object_qt):
         if not self.selected_page_label:
             self.selected_page_label = self.pages[-1].label
 
+    def get_roll_delay(self, max_r_dex):
+        if self.roll_method == 'time_span':
+            rdelay = self.roll_time_span/float(max_r_dex)
+        elif self.roll_method == 'preset': rdelay = self.roll_delay
+        else:
+            print 'roll method is invalid!'
+            return
+        return rdelay
+
     def roll_pages(self):
         cata = self._catalog_[0].children()[0]
         sele = cata.selector
-        rdelay = 0.02
         rdex = 1
         max_rdex = len(cata.pages) - 1
+        rdelay = self.get_roll_delay(max_rdex)
         while rdex <= max_rdex:
             sele.setCurrentIndex(rdex)
             cata.pages[rdex].repaint()
@@ -370,10 +407,16 @@ class plot_window(lfu.modular_object_qt):
 
         page = self.get_current_page()
         data = page.data
+        data.sliceselectors = lfu.data_container()
         surfdata = [d for d in data.data if 
             d.tag in self.surf_data_types and 
             d.label in self.active_targs]
-        if surfdata: surf = surfdata[0]
+        if surfdata:
+            clabs = [d.label for d in surfdata]
+            if self.zdomain in clabs:
+                sudex = clabs.index(self.zdomain)
+            else: sudex = 0
+            surf = surfdata[sudex]
         else: return []
         ax_labs = surf.axis_labels
         ax_vals = surf.axis_values
@@ -385,6 +428,8 @@ class plot_window(lfu.modular_object_qt):
             slice_templates.append(
                 lgm.interface_template_gui(
                     widgets = ['selector'], 
+                    handles = [(data.sliceselectors, 
+                        '_sliceselector_'+str(dex))], 
                     labels = [scastr], 
                     initials = [[str(def_)]], 
                     bindings = [[generate_slice_func(scastr,dex)]], 

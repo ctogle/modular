@@ -606,8 +606,8 @@ def get_output_path():
     if not os.path.exists(opath):
         print 'default output path is not a path - setting to working directory'
         opath = os.getcwd()
-        lset.set_setting('default_output_path', 
-                opath, True, core_settings_path)
+        #lset.set_setting('default_output_path', 
+        #    opath, True, core_settings_path)
     return opath
 
 def parse_registry():

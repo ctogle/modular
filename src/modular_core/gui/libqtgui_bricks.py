@@ -18,6 +18,7 @@ import glob
 import os, sys, traceback
 from math import sqrt as sqrt
 import threading
+import time
 
 from PySide import QtGui, QtCore, QtOpenGL
 
@@ -233,7 +234,8 @@ def create_radios(parent = None, options = [], title = '',
 
     apply_refresh(radios)
     group = QtGui.QGroupBox(title = title)
-    layout = create_vert_box(radios)
+    if len(radios) > 20: layout = create_grid_box(radios)
+    else: layout = create_vert_box(radios)
     group.setLayout(layout)
     return group
 
@@ -2191,7 +2193,7 @@ class quick_plot(QtGui.QWidget):
             ax.set_zlabel(final_zlab, fontsize = 18)
         ax.set_title(final_title, fontsize = 20)
 
-    def roll_data(self, data):    
+    def roll_data(self, data, xlab = None, ylab = None):    
         if self.plot_type == 'lines':
             print 'no plot roll for line data!'
         elif self.plot_type == 'color':
@@ -2200,31 +2202,37 @@ class quick_plot(QtGui.QWidget):
                     and d.label in data.active_targs]
             if len(cdata) == 1: sdata = cdata[0]
             elif len(cdata) > 1:
-                sdata = cdata[0]
-                print 'multiple surface data objects available'
-                print '\tdefaulting to first found:', sdata.label
+                starg = data.zdomain
+                clabs = [d.label for d in cdata]
+                if starg in clabs: sdata = cdata[clabs.index(starg)]
+                else:
+                    sdata = cdata[0]
+                    print 'multiple surface data objects available'
+                    print '\tdefaulting to first found:', sdata.label
             else:
                 print 'no surface data objects which roll are available!'
                 return
-            #pdb.set_trace()
-            print 'data rolling is incomplete!'
-            #self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
+            slsels = data.sliceselectors
+            slicekeys = slsels.__dict__.keys()
+            selkeys = [ke for ke in slicekeys if
+                ke.startswith('_sliceselector_')]
+            sels = [slsels.__dict__[ke][0] for ke in selkeys]
+            sels = [sl.children()[1] for sl in sels]
+            rolsel = sels[0]#select the 0th axis only for now!
+            rdelay = data.roll_delay
+            rdex = 0
+            max_rdex = rolsel.count() - 1
+            while rdex <= max_rdex:
+                rolsel.setCurrentIndex(rdex)
+                self.plot(data, xlab, ylab, silent = True)
+                self.repaint()
+                rdex += 1
+                time.sleep(rdelay)
         elif self.plot_type == 'surface':
             print 'no plot roll for surface data'
         elif self.plot_type == 'bars':
             print 'no plot roll for bar data'
         
-        #cata = self._catalog_[0].children()[0]
-        #sele = cata.selector
-        #rdelay = 0.02
-        #rdex = 1
-        #max_rdex = len(cata.pages) - 1
-        #while rdex <= max_rdex:
-        #    sele.setCurrentIndex(rdex)
-        #    cata.pages[rdex].repaint()
-        #    rdex += 1
-        #    time.sleep(rdelay)
-
     def pre_plot(self):
         self.qp_fig.clf()
         ax = self.qp_fig.gca()
@@ -2240,6 +2248,7 @@ class quick_plot(QtGui.QWidget):
         data = args[0]
         xlab = args[1]
         ylab = args[2]
+        xlog, ylog = data.x_log, data.y_log
         if ptype == 'lines':
             ldata = [d for d in data.data if d.tag 
                 in self.lplot_data_types]
@@ -2248,7 +2257,7 @@ class quick_plot(QtGui.QWidget):
                 print 'domain is not in line data'
                 return
             ys = [d for d in ldata if d.label in data.active_targs] 
-            self.plot_lines(xs, ys, xlab, ylab)
+            self.plot_lines(xs, ys, xlab, ylab, xlog, ylog)
 
         elif ptype == 'color':
             surf_target = data.zdomain
@@ -2258,29 +2267,33 @@ class quick_plot(QtGui.QWidget):
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
                 d.label in data.active_targs]
-            # the labels of cdata do not match domains of cdata....
-            #try: sdata = lfu.grab_mobj_by_name(surf_target, cdata)
-            #except ValueError:
-            #   print 'surface target is not surface data'
-            #   pdb.set_trace()
-            #   return
             if len(cdata) == 1: sdata = cdata[0]
             elif len(cdata) > 1:
-                sdata = cdata[0]
-                print 'multiple surface data objects available'
-                print '\tdefaulting to first found:', sdata.label
+                clabs = [d.label for d in cdata]
+                if surf_target in clabs:
+                    sdata = cdata[clabs.index(surf_target)]
+                else:
+                    sdata = cdata[0]
+                    if not 'silent' in kwargs.keys() or not kwargs['silent']:
+                        print 'multiple surface data objects available'
+                        print '\tdefaulting to first found:', sdata.label
             else: print 'no surface data objects available!'; return
             self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
 
         elif ptype == 'surface': self.plot_surface(*args, **kwargs)
         elif ptype == 'bars': self.plot_bars(*args, **kwargs)
         else: print 'invalid plot type!', ptype
+        #ax = self.newest_ax
+        #if data.x_log: ax.set_xscale('log')
+        #if data.y_log: ax.set_yscale('log')
 
-    def plot_lines(self, xs, ys, xlab = None, ylab = None):
+    def plot_lines(self, xs, ys, xlab = None, ylab = None, 
+                              xlog = False, ylog = False):
 
         def plot_(x, y, label, color):
-            line = matplotlib.lines.Line2D(
-                x, y, color = color)
+            if len(x) < len(y): y = y[:len(x)]
+            if len(y) < len(x): x = x[:len(y)]
+            line = matplotlib.lines.Line2D(x, y, color = color)
             if not label == '__skip__': line.set_label(label)
             ax.add_line(line)
 
@@ -2303,6 +2316,8 @@ class quick_plot(QtGui.QWidget):
             in zip(xs_, ys_, y_labs, self.colors)]
         ax.axis(self.get_minmaxes(xs_, ys_))
         ax.legend()
+        if xlog: ax.set_xscale('log')
+        if ylog: ax.set_yscale('log')
         self.canvas.draw()
         self.plot_type = 'lines'
 
@@ -2463,10 +2478,13 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         page.y_log = ylog
         page.colors = colors
         page.parent.cplot_interpolation = cinterp
+        page.parent.x_log = xlog
+        page.parent.y_log = ylog
         #ax = page.newest_ax
         ax = page.get_newest_ax()
         ax.set_xlabel(new_x_label, fontsize = 18)
         ax.set_ylabel(new_y_label, fontsize = 18)
+        if page.parent.y_log: ax.set_yscale('log')
         if self.parent.plot_type in ['surface']:
             ax.set_zlabel(new_title, fontsize = 18)
         ax.set_title(new_title)
