@@ -27,19 +27,6 @@ if __name__ == 'modular_core.libdatacontrol':
 
 if __name__ == '__main__': print 'this is a library!'
 
-'''
-some elaboration on the data handling in modular
-
-a simulation is expected to output several forms
-to output lists of 1-1 data:
-    assign self.data to a numpy array
-    these should be 1-1 with system.params['plot_targets']
-
-this presents my first problem - 
-    not all data types are being specified in plot_targets...
-
-'''
-
 class scalars(object):
 
     def __init__(self, label = 'some scalar', scalars = None, **kwargs):
