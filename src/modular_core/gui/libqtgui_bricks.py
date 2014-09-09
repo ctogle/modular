@@ -2124,6 +2124,7 @@ class quick_plot(QtGui.QWidget):
         self.canvas = FigureCanvas(self.qp_fig)
         self.lplot_data_types = ['scalar']
         self.cplot_data_types = ['surface_vector', 'surface_reducing']
+        self.vplot_data_types = ['voxel_vector']
         self.cplot_interpolation = 'bicubic'
         self.plot_type = None
         self.user_xtitle = None
@@ -2282,6 +2283,25 @@ class quick_plot(QtGui.QWidget):
 
         elif ptype == 'surface': self.plot_surface(*args, **kwargs)
         elif ptype == 'bars': self.plot_bars(*args, **kwargs)
+        elif ptype == 'voxels':
+            vox_target = data.zdomain
+            xdom = data.xdomain
+            ydom = data.ydomain
+            vdata = [d for d in data.data if d.tag 
+                in self.vplot_data_types and 
+                d.label in data.active_targs]
+            if len(vdata) == 1: vdata = vdata[0]
+            elif len(vdata) > 1:
+                vlabs = [d.label for d in vdata]
+                if vox_target in vlabs:
+                    vdata = vdata[vlabs.index(vox_target)]
+                else:
+                    vdata = vdata[0]
+                    if not 'silent' in kwargs.keys() or not kwargs['silent']:
+                        print 'multiple voxel data objects available'
+                        print '\tdefaulting to first found:',vdata.label
+            else: print 'no voxel data objects available!'; return
+            self.plot_voxels(*args, **kwargs)
         else: print 'invalid plot type!', ptype
         #ax = self.newest_ax
         #if data.x_log: ax.set_xscale('log')
@@ -2370,6 +2390,9 @@ class quick_plot(QtGui.QWidget):
     def plot_bars(self, *args, **kwargs):
         pdb.set_trace()
 
+    def plot_voxels(self, *args, **kwargs):
+        pdb.set_trace()
+
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
     message = QtCore.Signal(str)
     if hasattr(NavigationToolbar2, 'toolitems'):
@@ -2439,29 +2462,9 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         cpage = self.current_page()
         cpage.roll_data()
 
-        #def _roll():
-        #    page = cpage()
-        #    #page = self.parent.get_current_page()
-        #    while page.roll_dex < page.max_roll_dex:
-        #        page.show_plot_roll()
-        #        #page.show_plot_bar()
-        #        time.sleep(page.roll_delay)
-        #        page.roll_dex += 1
-
-        #    page.roll_dex = None
-        #    self._update_buttons_checked()
-
-        #if self.current_page: cpage = self.current_page
-        #else: cpage = self.parent.get_current_page
-        #roll_ = create_thread_wrapper(_roll)
-        #roll_()
-
     def labels(self):
         lgd = lfu.gui_pack.lgd
-        #import modular_core.gui.libqtgui_dialogs as lgd
-        #page = self.parent.get_current_page()
         page = self.current_page()
-        #domain = page.x_ax_title
         domain = page.get_xtitle()
         labels_dlg = lgd.change_labels_dialog(
             page.get_title(), 

@@ -180,19 +180,21 @@ class plot_axes_manager(lfu.modular_object_qt):
     def use_line_plot(self):
         if self.parent.parent.parent.use_line_plot:
             return True
-
         else: return False
 
     def use_color_plot(self):
         if self.parent.parent.parent.use_color_plot:
             return True
-
         else: return False
 
     def use_bar_plot(self):
         if self.parent.parent.parent.use_bar_plot:
             return True
+        else: return False
 
+    def use_voxel_plot(self):
+        if self.parent.parent.parent.use_voxel_plot:
+            return True
         else: return False
 
     def set_settables(self, *args, **kwargs):
@@ -223,6 +225,8 @@ class writer_plt(writer):
             plot_types.append('lines')
         if self.axes_manager.use_bar_plot():
             plot_types.append('bars')
+        if self.axes_manager.use_voxel_plot():
+            plot_types.append('voxels')
         self.axes_manager.grab_info_from_output_plan_parent()
         if lfu.using_gui():
             titl = self.parent.parent.label
@@ -400,6 +404,8 @@ class output_plan(lfu.plan):
 
             #targs = self.get_target_labels()
             for traj in system.data:
+                #pdb.set_trace()
+                #traj = lfu.flatten(traj)
                 data_container = lfu.data_container(data = traj)
                 try: self.update_filenames()
                 except TypeError: print 'terror'

@@ -460,6 +460,7 @@ class ensemble(lfu.modular_object_qt):
 
         data_pool._rid_pool_(iteration - 1)
         self.cartographer_plan.iteration = 0
+        #self.output_plan.flat_data = False
         return data_pool
 
     #multiprocessing with parameter variation, no fitting
@@ -472,6 +473,7 @@ class ensemble(lfu.modular_object_qt):
                     [traj[1].trajectory_count for traj in 
                     self.cartographer_plan.trajectory], 1], 
                             args = [('dex'), (), (self,)])
+        #self.output_plan.flat_data = False
         return data_pool
 
     def on_save(self):
@@ -1349,21 +1351,17 @@ class sim_system_external(sim_system_python):
         def data_case1(dataobj, targs, **kwargs):
             tcnt = dataobj.shape[0]
             subtargs = targs[:tcnt]
-            case1targs.extend(subtargs)
+            #case1targs.extend(subtargs)
             kwargs['ignore_targets'] = targs[tcnt:]
             reord = self.finalize_data(dataobj, subtargs, **kwargs)
             return reord
 
         def data_case2(dataobj, targs, **kwargs):
-            subtargs = [t for t in targs if not t in case1targs]
-            #dataobj is 3d - either a pack of surfaces or surfaces
-            # as a function of something
-            #if len(subtargs) == 1 and dataobj.shape[0] > 1:
-            #   #the latter is assumed - nothing happens for now
-            #   pass
-            #elif len(subtargs) == dataobj.shape[0]:
-            #   #data is a pack of surfaces - nothing happens for now
-            #   pass
+            #subtargs = [t for t in targs if not t in case1targs]
+            return dataobj
+
+        def data_case3(dataobj, targs, **kwargs):
+            #subtargs = [t for t in targs if not t in case1targs]
             return dataobj
 
         data = args[0]
@@ -1374,7 +1372,8 @@ class sim_system_external(sim_system_python):
         if 'toss' in kwargs.keys(): toss = kwargs['toss']
         else: toss = None
         targs = args[-1]
-        case1targs = []
+        #case1targs = []
+        #case2targs = []
         final = []
         for dataobj in args[:-1]:
             if hasattr(dataobj, 'shape'):
@@ -1383,6 +1382,8 @@ class sim_system_external(sim_system_python):
                 final.append(data_case1(dataobj, targs, toss = toss))
             elif dim == 4:
                 final.append(data_case2(dataobj, targs, toss = toss))
+            elif dim == 5:
+                final.append(data_case3(dataobj, targs, toss = toss))
 
         return tuple(final)
 

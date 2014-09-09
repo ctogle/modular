@@ -307,7 +307,7 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('slice_widgets', [], **kwargs)
         self.impose_default('x_log', False, **kwargs)
         self.impose_default('y_log', False, **kwargs)
-        ptypes = ['lines', 'color']
+        ptypes = ['lines', 'color', 'surface', 'bars', 'voxels']
         #ptypes = ['lines', 'color', 'surface', 'bars']
         self.impose_default('cplot_interpolation', 'bicubic', **kwargs)
         self.impose_default('plot_type', 'lines', **kwargs)
@@ -442,8 +442,8 @@ class plot_window(lfu.modular_object_qt):
         self.handle_widget_inheritance(*args, **kwargs)
         [pg.set_settables(self, **kwargs) for pg in self.pages]
         self.widg_templates.append(
-            lgm.interface_template_gui(
-                layout = 'grid', 
+                lgm.interface_template_gui(
+                    layout = 'grid', 
                 panel_position = (0,3), 
                 widgets = ['mobj_catalog'], 
                 instances = [[self.pages,self]], 

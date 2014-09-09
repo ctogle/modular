@@ -420,12 +420,13 @@ class modular_object_qt(object):
                 child.set_settables(*kwargs['infos'])
 
     def provide_axes_manager_input(self, 
-            lp = True, cp = True, bp = True, 
+            lp = True, cp = True, bp = True, vp = True, 
             x_title = 'x-title', 
             y_title = 'y-title', title = 'title'):
         self.use_line_plot = lp
         self.use_color_plot = cp
         self.use_bar_plot = bp
+        self.use_voxel_plot = vp
         self.x_title = x_title
         self.y_title = y_title
         self.title = title

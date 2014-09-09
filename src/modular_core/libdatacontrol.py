@@ -18,7 +18,7 @@ from scipy.integrate import simps as integrate
 import traceback
 
 import pdb
-
+                                         
 if __name__ == 'modular_core.libdatacontrol':
     if lfu.gui_pack is None: lfu.find_gui_pack()
     lgm = lfu.gui_pack.lgm
@@ -87,7 +87,7 @@ class batch_scalars(object):
                 values = values.scalars
                 sca = scalars(label = self.pool_names[dex])
                 sca.scalars = values
-                return sca
+                return sca               
             else:
                 sca = scalars(label = self.pool_names[dex])
                 sca.scalars = values
@@ -99,20 +99,54 @@ class batch_scalars(object):
             #   ['populations'], ['x','y'], [x_, y_], 
             #       label = 'population surfaces')
             return surfv
+        
+        def _wrap_voxels_(values, dex):
+            voxelv = voxel_vector(values, 
+                label = self.pool_names[dex])
+            return voxelv
 
         relevant = self.batch_pool[traj_dex]    #this will be system.data
         if type(relevant) is types.TupleType:   #numpy arrays or a tuple thereof
             batch = []
             if len(relevant[0].shape) == 2:
-                non_surf_cnt = relevant[0].shape[0]
-            else: non_surf_cnt = 0
+                #non_surf_cnt = relevant[0].shape[0]
+                has_lines = True
+                lcnt = relevant[0].shape[0]
+            else:
+                has_lines = False#non_surf_cnt = 0
+                lcnt = 0
+            if len(relevant) > 1:
+                if len(relevant[1].shape) == 4:
+                    has_surfs = True
+                    scnt = relevant[1].shape[0]
+                elif len(relevant[1].shape) == 5:
+                    has_surfs = False
+                    has_voxels = True
+                    scnt = 0
+                    vcnt = relevant[1].shape[0]
+                else:
+                    print 'unknown data object type!!'
+                    pdb.set_trace()
+                if len(relevant) > 2:
+                    if len(relevant[2].shape) == 5:
+                        has_voxels = True
+                        vcnt = relevant[2].shape[0]
+                else:
+                    has_voxels = False
+                    vcnt = 0
+            else:
+                has_surfs = False
+                has_voxels = False
             for subdataobj in relevant:
                 if len(subdataobj.shape) == 2:
                     subbatch = [_wrap_(rele,dex) for 
-                        dex,rele in enumerate(subdataobj)]
+                        dex,rele in zip(xrange(lcnt), subdataobj)]
                 elif len(subdataobj.shape) == 4:
-                    subbatch = [_wrap_surf_(rele,dex+non_surf_cnt) for 
-                        dex,rele in enumerate(subdataobj)]
+                    subbatch = [_wrap_surf_(rele,dex) for 
+                        dex,rele in zip(xrange(lcnt,lcnt+scnt), subdataobj)]
+                elif len(subdataobj.shape) == 5:
+                    subbatch = [_wrap_voxels_(rele,dex) for 
+                        dex,rele in zip(xrange(lcnt+scnt,lcnt+scnt+vcnt), subdataobj)]
                 batch.extend(subbatch)
         else:#if there is no tuple - the given numpy array should represent 1-1 targets
             batch = [_wrap_(rele,dex) for 
@@ -199,6 +233,30 @@ class bin_vectors(object):
         self.bins = [] #set once
         self.tag = 'bin_vector'
         self.label = label
+
+class voxel_vector(object):
+
+    def __init__(self, cubes, label = 'another voxel vector'):
+        self.tag = 'voxel_vector'
+        self.label = label
+
+        rng = np.arange(cubes.shape[0], dtype = float)
+        self.axis_labels = ['cube_index']
+        self.axis_values = [
+            scalars(label = 'cube_index', scalars = rng)]
+        self.axis_defaults = [da.scalars[0] for da in self.axis_values]
+
+        self.data = cubes
+
+    def make_cube(self, *args, **kwargs):
+        pdb.set_trace()
+        xleng = self.data.shape[1]
+        yleng = self.data.shape[2]
+        x = np.arange(xleng)
+        y = np.arange(yleng)
+        s_dex = self.axis_defaults[0]
+        surf = self.data[s_dex]
+        return (x, y, surf)
 
 class surface_vector(object):
 
