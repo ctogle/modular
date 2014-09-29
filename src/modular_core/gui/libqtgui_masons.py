@@ -254,6 +254,10 @@ class standard_mason(object):
                 widg_list = self.interpret_template_plot(
                                     template, widg_dex)
 
+            elif widget_type == 'table':
+                widg_list = self.interpret_template_table(
+                                    template, widg_dex)
+
             else:
                 print 'no interpretation of widget type: ' + widget_type
                 return None
@@ -494,13 +498,13 @@ class standard_mason(object):
         except AttributeError: key = None
         try: rewidget = template.rewidget[widg_dex][0]
         except AttributeError: rewidget = True
-        try: callback = template.callbacks[widg_dex][0]
-        except AttributeError: callback = None
+        try: callbacks = template.callbacks[widg_dex]
+        except AttributeError: callbacks = None
         spin_widget = [lgb.create_spin_box(parent = parent, 
             double = double, min_val = min_val, max_val = max_val, 
             sing_step = sing_step, initial = initial, 
                     instance = instance, key = key, 
-                    rewidget = rewidget, callback = callback)]
+                    rewidget = rewidget, callbacks = callbacks)]
         try:
             title = template.box_labels[widg_dex]
             group = QtGui.QGroupBox(title = title)
@@ -594,10 +598,12 @@ class standard_mason(object):
         except AttributeError: refresh = False
         try: window = template.window[widg_dex][0]
         except AttributeError: window = None
+        try: cbacks = template.callbacks[widg_dex]
+        except AttributeError: cbacks = []
         return [lgb.create_radios(options = labels, title = title, 
                 initial = initial, instance = instance, key = key, 
                     rewidget = rewidget, refresh = refresh, 
-                            window = window)]
+                    window = window, callbacks = cbacks)]
 
     def interpret_template_splitter(self, template, widg_dex):
         try: templates = template.templates[widg_dex]
@@ -846,6 +852,19 @@ class standard_mason(object):
         except AttributeError: canvas = None
         return [lgb.create_plot_widget(data, callbacks, figure, canvas)]
 
+    def interpret_template_table(self, template, widg_dex):
+        try: labs = template.labels[widg_dex]
+        except AttributeError: labs = [[], []]
+        heads, rows = labs[0], labs[1]
+        try: temps = template.templates[widg_dex]
+        except AttributeError: temps = []
+        try: mason = template.mason
+        except AttributeError: mason = self
+        try: callbacks = template.callbacks[widg_dex]
+        except AttributeError: callbacks = []
+        return [lgb.create_table_widget(mason, 
+            heads, rows, temps, callbacks = callbacks)]
+
 class recasting_mason(standard_mason):
 
     def __init__(self, parent = None, label =\
@@ -970,10 +989,11 @@ class cartographer_mason(standard_mason):
         except AttributeError: instance = None
         try: key = template.keys[widg_dex][0]
         except AttributeError: key = None
-        widgs = [lgb.create_spin_box(double = double, 
-                    min_val = min_val, max_val = max_val, 
-                sing_step = sing_step, initial = initial, 
-                        instance = instance, key = key)]
+        try: callbacks = template.callbacks[widg_dex]
+        except AttributeError: callbacks = []
+        widgs = [lgb.create_spin_box(double = double, min_val = min_val, 
+            max_val = max_val, sing_step = sing_step, initial = initial, 
+                instance = instance, key = key, callbacks = callbacks)]
         p_sp_template = template.parameter_space_templates[widg_dex]
         if not p_sp_template is None:
             widgs.append(self.interpret_template_p_sp(p_sp_template))

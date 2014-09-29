@@ -29,13 +29,18 @@ if __name__ == '__main__': print 'this is a library!'
 
 class scalars(object):
 
-    def __init__(self, label = 'some scalar', scalars = None, **kwargs):
+    def __init__(self, label = 'some scalar', 
+            scalars = None, domain = None, **kwargs):
         self.label = label
         self.tag = 'scalar'
+        if not domain is None:
+            if type(domain) is types.ListType:
+                domain = np.array(domain)
+            self.domain = domain
+
         if not scalars is None:
             if type(scalars) is types.ListType:
                 scalars = np.array(scalars)
-
             self.scalars = scalars
 
         else: self.scalars = []
@@ -93,6 +98,13 @@ class batch_scalars(object):
                 sca.scalars = values
                 return sca
 
+        def _wrap_bins_(values, dex):
+            binv = bin_vector(values, 
+                label = self.pool_names[dex])
+            #   ['populations'], ['x','y'], [x_, y_], 
+            #       label = 'population surfaces')
+            return binv
+        
         def _wrap_surf_(values, dex):
             surfv = surface_vector(values, 
                 label = self.pool_names[dex])
@@ -107,7 +119,26 @@ class batch_scalars(object):
 
         relevant = self.batch_pool[traj_dex]    #this will be system.data
         if type(relevant) is types.TupleType:   #numpy arrays or a tuple thereof
-            batch = []
+            shapes = {
+                    'lcnt':0, 
+                    'bcnt':0, 
+                    'scnt':0, 
+                    'vcnt':0, 
+                        }
+            for rele in relevant:
+                if len(rele.shape) == 2:
+                    shapes['lcnt'] += rele.shape[0]
+                elif len(rele.shape) == 3:
+                    shapes['bcnt'] += rele.shape[0]
+                elif len(rele.shape) == 4:
+                    shapes['scnt'] += rele.shape[0]
+                elif len(rele.shape) == 5:
+                    shapes['vcnt'] += rele.shape[0]
+            lcnt = shapes['lcnt']
+            bcnt = shapes['bcnt']
+            scnt = shapes['scnt']
+            vcnt = shapes['vcnt']
+            '''
             if len(relevant[0].shape) == 2:
                 #non_surf_cnt = relevant[0].shape[0]
                 has_lines = True
@@ -116,7 +147,8 @@ class batch_scalars(object):
                 has_lines = False#non_surf_cnt = 0
                 lcnt = 0
             if len(relevant) > 1:
-                if len(relevant[1].shape) == 4:
+                if len(relevant[1].shape) == 3:
+                elif len(relevant[1].shape) == 4:
                     has_surfs = True
                     scnt = relevant[1].shape[0]
                 elif len(relevant[1].shape) == 5:
@@ -137,20 +169,28 @@ class batch_scalars(object):
             else:
                 has_surfs = False
                 has_voxels = False
+            '''
+
+            batch = []
             for subdataobj in relevant:
                 if len(subdataobj.shape) == 2:
                     subbatch = [_wrap_(rele,dex) for 
                         dex,rele in zip(xrange(lcnt), subdataobj)]
+                elif len(subdataobj.shape) == 3:
+                    subbatch = [_wrap_bins_(rele,dex) for 
+                        dex,rele in zip(xrange(lcnt,lcnt+bcnt), subdataobj)]
                 elif len(subdataobj.shape) == 4:
                     subbatch = [_wrap_surf_(rele,dex) for 
-                        dex,rele in zip(xrange(lcnt,lcnt+scnt), subdataobj)]
+                        dex,rele in zip(xrange(lcnt+bcnt,lcnt+bcnt+scnt), subdataobj)]
                 elif len(subdataobj.shape) == 5:
                     subbatch = [_wrap_voxels_(rele,dex) for 
-                        dex,rele in zip(xrange(lcnt+scnt,lcnt+scnt+vcnt), subdataobj)]
+                        dex,rele in zip(xrange(lcnt+bcnt+scnt,lcnt+bcnt+scnt+vcnt), subdataobj)]
                 batch.extend(subbatch)
+
         else:#if there is no tuple - the given numpy array should represent 1-1 targets
             batch = [_wrap_(rele,dex) for 
                 dex,rele in enumerate(relevant)]
+
         return batch
 
 class batch_data_pool(object):
@@ -224,15 +264,27 @@ class batch_data_pool(object):
                 print 'saved sub pool', dex
                 self.live_pool = []
 
-class bin_vectors(object):
+class bin_vector(object):
 #Note: inheriting from lfu.modular_object here makes things SLOW!
 
-    def __init__(self, label = 'another bin vector'):
-        self.counts = [] #updated with a vector 1-1 with self.bins
-        self.time = [] #updated once per capture
-        self.bins = [] #set once
+    def __init__(self, bins, label = 'another bin vector'):
         self.tag = 'bin_vector'
         self.label = label
+
+        rng = np.arange(bins.shape[0], dtype = float)
+        self.axis_labels = ['bin_index']
+        self.axis_values = [
+            scalars(label = 'bin_index', scalars = rng)]
+        self.axis_defaults = [da.scalars[0] for da in self.axis_values]
+
+        self.data = bins
+
+    def make_bins(self, *args, **kwargs):
+        xleng = self.data.shape[1]
+        x = np.arange(xleng + 1)
+        s_dex = self.axis_defaults[0]
+        bins = self.data[s_dex]
+        return (x, bins)
 
 class voxel_vector(object):
 
@@ -249,14 +301,28 @@ class voxel_vector(object):
         self.data = cubes
 
     def make_cube(self, *args, **kwargs):
-        pdb.set_trace()
         xleng = self.data.shape[1]
         yleng = self.data.shape[2]
-        x = np.arange(xleng)
-        y = np.arange(yleng)
+        zleng = self.data.shape[3]
         s_dex = self.axis_defaults[0]
-        surf = self.data[s_dex]
-        return (x, y, surf)
+        cube = self.data[s_dex]
+        uniq = np.unique(cube)
+        if len(uniq) > 4:
+            print 'voxel vector is incomplete!!'
+            pdb.set_trace()
+        colors = ['r', 'g', 'b']
+        markers = ['o', 'o', 'o']
+        scatter = []
+        for un in uniq:
+            if un == 0.0: continue
+            locs = np.where(cube == un)
+            #locs = zip(*np.where(cube == un))
+            if locs:
+                c = colors.pop()
+                m = markers.pop()
+                scatter.append((c, m, locs))
+        # return [(color, marker, list_of_coords), ...]
+        return scatter
 
 class surface_vector(object):
 

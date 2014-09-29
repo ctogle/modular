@@ -260,7 +260,7 @@ class plot_page(lfu.modular_object_qt):
         #if self.plot_type == 'lines':
         #    print 'no plot roll for line data!'
         #elif self.plot_type == 'color':
-        if self.parent.plot_type == 'color':
+        if self.parent.plot_type in ['color','voxels','bars']:
             slsels = data.sliceselectors
             slicekeys = slsels.__dict__.keys()
             selkeys = [ke for ke in slicekeys if
@@ -276,6 +276,7 @@ class plot_page(lfu.modular_object_qt):
         #elif self.plot_type == 'bars':
         #    print 'no plot roll for bar data'
         #data.roll_delay = self.parent.roll_delay
+
         qplot.roll_data(data, self.get_xtitle(), self.get_ytitle())
 
     def set_settables(self, *args, **kwargs):
@@ -307,7 +308,7 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('slice_widgets', [], **kwargs)
         self.impose_default('x_log', False, **kwargs)
         self.impose_default('y_log', False, **kwargs)
-        ptypes = ['lines', 'color', 'surface', 'bars', 'voxels']
+        ptypes = ['lines', 'color', 'surface', 'bars', 'voxels', 'tables']
         #ptypes = ['lines', 'color', 'surface', 'bars']
         self.impose_default('cplot_interpolation', 'bicubic', **kwargs)
         self.impose_default('plot_type', 'lines', **kwargs)
@@ -319,7 +320,9 @@ class plot_window(lfu.modular_object_qt):
         self.impose_default('roll_methods', 
             ['time_span', 'preset'], **kwargs)
         self.impose_default('roll_method', 'time_span', **kwargs)
+        self.bin_data_types = ['bin_vector']
         self.surf_data_types = ['surface_vector', 'surface_reducing']
+        self.vox_data_types = ['voxel_vector']
         x, y = lfu.convert_pixel_space(256, 256)
         x_size, y_size = lfu.convert_pixel_space(1024, 768)
         self._geometry_ = (x, y, x_size, y_size)
@@ -342,12 +345,18 @@ class plot_window(lfu.modular_object_qt):
         pdex = self.page_labels.index(self.selected_page_label)
         return self.pages[pdex]
 
+    def using_bars(self):
+        return self.plot_type in ['bars']
+
     def using_surfaces(self):
         return self.plot_type in ['surface', 'color']
 
+    def using_voxels(self):
+        return self.plot_type in ['voxels']
+
     def set_up_widgets(self):
         current_page = self.get_current_page()
-        if self.using_surfaces():
+        if self.using_surfaces() or self.using_voxels() or self.using_bars():
             could = self.update_slice_panel() 
             if could: self.slice_panel[0].show()
             else: self.slice_panel[0].hide()
@@ -408,22 +417,37 @@ class plot_window(lfu.modular_object_qt):
         page = self.get_current_page()
         data = page.data
         data.sliceselectors = lfu.data_container()
-        surfdata = [d for d in data.data if 
-            d.tag in self.surf_data_types and 
-            d.label in self.active_targs]
-        if surfdata:
-            clabs = [d.label for d in surfdata]
-            if self.zdomain in clabs:
-                sudex = clabs.index(self.zdomain)
-            else: sudex = 0
-            surf = surfdata[sudex]
-        else: return []
+        #if self.using_surfaces():
+        #    reledata = [d for d in data.data if 
+        #        d.tag in self.surf_data_types and 
+        #        d.label in self.active_targs]
+        #elif self.using_voxels():
+        #    reledata = [d for d in data.data if 
+        #        d.tag in self.vox_data_types and
+        #        d.label in self.active_targs]
+        #else:
+        slice_types =\
+            self.bin_data_types +\
+            self.surf_data_types +\
+            self.vox_data_types
+        reledata = [d for d in data.data if 
+            d.tag in slice_types and d.label 
+            in self.active_targs]
+        if reledata:
+            dlabs = [d.label for d in reledata]
+            if self.zdomain in dlabs:
+                ddex = dlabs.index(self.zdomain)
+            else: ddex = 0
+            surf = reledata[ddex]
+        else:
+            return []
         ax_labs = surf.axis_labels
         ax_vals = surf.axis_values
         ax_defs = surf.axis_defaults
         rng = range(len(ax_defs))
         slice_templates = []      
         for dex, lab, sca, def_ in zip(rng, ax_labs, ax_vals, ax_defs):
+            #pdb.set_trace()
             scastr = sca.as_string_list()
             slice_templates.append(
                 lgm.interface_template_gui(

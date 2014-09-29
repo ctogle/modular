@@ -1348,7 +1348,7 @@ class sim_system_external(sim_system_python):
     # support for other data objects will be added as necessary
     def finalize_data_nontrivial(self, *args, **kwargs):
 
-        def data_case1(dataobj, targs, **kwargs):
+        def data_case_1(dataobj, targs, **kwargs):
             tcnt = dataobj.shape[0]
             subtargs = targs[:tcnt]
             #case1targs.extend(subtargs)
@@ -1356,11 +1356,15 @@ class sim_system_external(sim_system_python):
             reord = self.finalize_data(dataobj, subtargs, **kwargs)
             return reord
 
-        def data_case2(dataobj, targs, **kwargs):
+        def data_case_2(dataobj, targs, **kwargs):
             #subtargs = [t for t in targs if not t in case1targs]
             return dataobj
 
-        def data_case3(dataobj, targs, **kwargs):
+        def data_case_3(dataobj, targs, **kwargs):
+            #subtargs = [t for t in targs if not t in case1targs]
+            return dataobj
+
+        def data_case_4(dataobj, targs, **kwargs):
             #subtargs = [t for t in targs if not t in case1targs]
             return dataobj
 
@@ -1378,12 +1382,15 @@ class sim_system_external(sim_system_python):
         for dataobj in args[:-1]:
             if hasattr(dataobj, 'shape'):
                 dim = len(dataobj.shape)
+            else: pdb.set_trace()
             if dim == 2:
-                final.append(data_case1(dataobj, targs, toss = toss))
+                final.append(data_case_1(dataobj, targs, toss = toss))
+            elif dim == 3:
+                final.append(data_case_2(dataobj, targs, toss = toss))
             elif dim == 4:
-                final.append(data_case2(dataobj, targs, toss = toss))
+                final.append(data_case_3(dataobj, targs, toss = toss))
             elif dim == 5:
-                final.append(data_case3(dataobj, targs, toss = toss))
+                final.append(data_case_4(dataobj, targs, toss = toss))
 
         return tuple(final)
 

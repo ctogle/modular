@@ -33,6 +33,9 @@ try:
     from matplotlib.backend_bases import NavigationToolbar2
 
     import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    import matplotlib.path as path
+    from mpl_toolkits.mplot3d import Axes3D
 except ImportError:
     traceback.print_exc(file=sys.stdout)
     print 'matplotlib could not be imported! - bricks'
@@ -156,20 +159,21 @@ def create_icon(icon_path):
 def create_spin_box(parent = None, double = False, min_val = None, 
                 max_val = None, sing_step = None, initial = None, 
                     instance = None, key = None, rewidget = True, 
-                                decimals = 10, callback = None):
+                                decimals = 10, callbacks = None):
 
     def spin_function():
-        if callable(callback): val = callback(
-                    spin.value(), instance, key)
-        else: val = spin.value()
+        #if callable(callback): val = callback(
+        #            spin.value(), instance, key)
+        #else: val = spin.value()
+        val = spin.value()
         if type(instance) is types.DictionaryType or\
                     type(instance) is types.ListType:
             instance[key] = val
         else: instance.__dict__[key] = val
         if rewidget and issubclass(instance.__class__, 
             lfu.modular_object_qt): instance.rewidget(True)
-        elif rewidget and hasattr(parent, 'rewidget'):
-            parent.rewidget(True)
+        #elif rewidget and hasattr(parent, 'rewidget'):
+        #    parent.rewidget(True)
 
     if double:
         spin = QtGui.QDoubleSpinBox()
@@ -197,15 +201,25 @@ def create_spin_box(parent = None, double = False, min_val = None,
     if initial is not None: spin.setValue(initial)
     else: spin.setValue(1)
     #if not callback: spin.valueChanged.connect(callback)
-    if callback: spin.valueChanged.connect(callback)
-    elif not instance is None and not key is None:
+    def close_callback(call):
+        def _closed_cb_(): call(spin)
+        return _closed_cb_
+    if callbacks:
+        [spin.valueChanged.connect(close_callback(call)) 
+            for call in callbacks]
+    #elif not instance is None and not key is None:
+    #    spin.valueChanged.connect(spin_function)
+    #else: print 'spin widget is not method-bound...'
+    if not instance is None and not key is None:
+        spin._modu_inst_ = instance
+        spin._modu_key_ = key
         spin.valueChanged.connect(spin_function)
-    else: print 'spin widget is not method-bound...'
     return spin
 
 def create_radios(parent = None, options = [], title = '', 
         initial = None, instance = None, key = None, 
-        rewidget = True, refresh = None, window = None):
+        rewidget = True, refresh = None, window = None, 
+        callbacks = []):
 
     def apply_refresh(rads):
         if refresh and hasattr(window, 'set_up_widgets'):
@@ -231,6 +245,10 @@ def create_radios(parent = None, options = [], title = '',
     if not (key is None or instance is None):
         [rad.clicked.connect(make_select_func(dex)) 
                 for dex, rad in enumerate(radios)]
+
+    if callbacks:
+        for cb in callbacks:
+            [rad.clicked.connect(cb) for rad in radios]
 
     apply_refresh(radios)
     group = QtGui.QGroupBox(title = title)
@@ -792,10 +810,10 @@ def create_buttons(bindings, labels = None,
 
     def do_bindings(btn, evt, func):
         if type(func) is types.ListType:
-            for ev, fu in zip(evt, func): do_binding(btn, ev, fu)
-
-        else:
-            do_binding(btn, evt, func)
+            if evt is None: evt = [None]*len(func)
+            for ev, fu in zip(evt, func):
+                do_binding(btn, ev, fu)
+        else: do_binding(btn, evt, func)
 
     #btn.setSizePolicy(QtGui.QSizePolicy.Fixed,
     # QtGui.QSizePolicy.Fixed)
@@ -1414,11 +1432,13 @@ def create_text_box(parent = None, instance = None, key = None,
     #pressing enter would return the color to normal
     if not bind_events:
         #box.returnPressed.connect(generate_text_edit_func(box))
-        box.textChanged.connect(generate_text_edit_func(box))
+        #box.textChanged.connect(generate_text_edit_func(box))
+        box.textEdited.connect(generate_text_edit_func(box))
 
     else:
         for bi_ev, bi in zip(bind_events, bindings):
-            if bi_ev == 'changed': box.textChanged.connect(bi)
+            #if bi_ev == 'changed': box.textChanged.connect(bi)
+            if bi_ev == 'changed': box.textEdited.connect(bi)
             elif bi_ev == 'enter': box.returnPressed.connect(bi)
 
     return box
@@ -2017,6 +2037,7 @@ def create_opengl_view():
     return glwidget
 
 class opengl_view(QtOpenGL.QGLWidget):
+
     def __init__(self, parent = None, key_callback = None, 
                 idle_callback = None, draw_callback = None, 
                             data_callback = None, fps = 5):
@@ -2039,9 +2060,11 @@ class opengl_view(QtOpenGL.QGLWidget):
         self.fps = fps
         self.timer = create_timer()
         self.timer.start(1000.0/self.fps, self)
+
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId(): self.updateGL()
         else: QtOpenGL.QGLWidget.timerEvent(self, event)
+
     def keyPressEvent(self, event):
         QtOpenGL.QGLWidget.keyPressEvent(self, event)
         ch = event.text()
@@ -2052,10 +2075,12 @@ class opengl_view(QtOpenGL.QGLWidget):
         elif ch == '.': self.camera.toggle_select('forward')
         elif self.key_callback:
             self.key_callback(event.text(), 'xx', 'yy')
+
     def mousePressEvent(self, event):
         self.last_m_pos = QtCore.QPoint(event.pos())
         self.last_m_but = event.button()
         QtOpenGL.QGLWidget.mousePressEvent(self, event)
+
     def mouseMoveEvent(self, event):
         dx = event.x() - self.last_m_pos.x()
         dy = event.y() - self.last_m_pos.y()
@@ -2068,37 +2093,45 @@ class opengl_view(QtOpenGL.QGLWidget):
         elif self.last_m_but is self._r_button_: self.camera.pan(dx, dy)
         elif self.last_m_but is self._m_button_: print 'pan middle!'
         self.last_m_pos = QtCore.QPoint(event.pos())
+
     def wheelEvent(self, event):
         num_degrees = event.delta() / 8
         num_steps = num_degrees / 15
         step = -2*num_steps
         self.camera.zoom(step)
         event.accept()
+
     def minimumSizeHint(self): return QtCore.QSize(50, 50)
     def sizeHint(self): return QtCore.QSize(400, 400)
+
     def initializeGL(self):
-        import libs.world3d_simulator.lib3dworld as l3d
-        import libs.world3d_simulator.libopenglutilities as lgl
-        lgl._depth()
-        self.camera = l3d.camera(2,2,2)
-        self.object_ = l3d.cube(shader = self.camera.shader)
-        self.camera.selectables = [self.object_]
+        #import make_places.world3d as l3d
+        import make_places.gl_util as lgl
+        #import make_places.openglutilities as lgl
+        #lgl._depth()
+        #self.camera = l3d.camera(2,2,2)
+        #self.object_ = l3d.cube(shader = self.camera.shader)
+        #self.camera.selectables = [self.object_]
         self.qglClearColor(self.purple.darker())
         if callable(self.data_callback):
-            self.data_callback(self.camera.shader)
+            self.data_callback()
+            #self.data_callback(self.camera.shader)
+
     def paintGL(self):
         if self.idle_callback: self.idle_callback()
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        self.camera.draw_gl()
-        if self.draw_callback: self.draw_callback(self.camera.shader)
-        else: self.object_.draw_gl(self.camera.shader)
+        #self.camera.draw_gl()
+        #if self.draw_callback: self.draw_callback(self.camera.shader)
+        if self.draw_callback: self.draw_callback()
+        #else: self.object_.draw_gl(self.camera.shader)
+
     def resizeGL(self, width, height):
         self.width = width
         self.height = height
         side = min(width, height)
         GL.glViewport((width - side) / 2, 
             (height - side) / 2, side, side)
-        self.camera.update_projection(width, height)
+        #self.camera.update_projection(width, height)
 
 def create_plot_widget(data, callbacks = [], figure = None, canvas = None):
     #domains = data.domains
@@ -2123,6 +2156,7 @@ class quick_plot(QtGui.QWidget):
         #else: self.canvas = FigureCanvas(self.qp_fig)
         self.canvas = FigureCanvas(self.qp_fig)
         self.lplot_data_types = ['scalar']
+        self.bplot_data_types = ['bin_vector']
         self.cplot_data_types = ['surface_vector', 'surface_reducing']
         self.vplot_data_types = ['voxel_vector']
         self.cplot_interpolation = 'bicubic'
@@ -2231,12 +2265,78 @@ class quick_plot(QtGui.QWidget):
                 time.sleep(rdelay)
         elif self.plot_type == 'surface':
             print 'no plot roll for surface data'
+
         elif self.plot_type == 'bars':
+            pdb.set_trace()
+            vrolldatatypes = self.vplot_data_types
+            vdata = [d for d in data.data if d.tag in vrolldatatypes 
+                    and d.label in data.active_targs]
+            if len(vdata) == 1: vdata = vdata[0]
+            elif len(vdata) > 1:
+                vtarg = data.zdomain
+                vlabs = [d.label for d in vdata]
+                if vtarg in vlabs: vdata = vdata[vlabs.index(vtarg)]
+                else:
+                    vdata = vdata[0]
+                    print 'multiple surface data objects available'
+                    print '\tdefaulting to first found:', vdata.label
+            else:
+                print 'no surface data objects which roll are available!'
+                return
+            slsels = data.sliceselectors
+            slicekeys = slsels.__dict__.keys()
+            selkeys = [ke for ke in slicekeys if
+                ke.startswith('_sliceselector_')]
+            sels = [slsels.__dict__[ke][0] for ke in selkeys]
+            sels = [sl.children()[1] for sl in sels]
+            rolsel = sels[0]#select the 0th axis only for now!
+            rdelay = data.roll_delay
+            rdex = 0
+            max_rdex = rolsel.count() - 1
+            while rdex <= max_rdex:
+                rolsel.setCurrentIndex(rdex)
+                self.plot(data, xlab, ylab, silent = True)
+                self.repaint()
+                rdex += 1
+                time.sleep(rdelay)
             print 'no plot roll for bar data'
-        
-    def pre_plot(self):
+
+        elif self.plot_type == 'voxels':
+            vrolldatatypes = self.vplot_data_types
+            vdata = [d for d in data.data if d.tag in vrolldatatypes 
+                    and d.label in data.active_targs]
+            if len(vdata) == 1: vdata = vdata[0]
+            elif len(vdata) > 1:
+                vtarg = data.zdomain
+                vlabs = [d.label for d in vdata]
+                if vtarg in vlabs: vdata = vdata[vlabs.index(vtarg)]
+                else:
+                    vdata = vdata[0]
+                    print 'multiple surface data objects available'
+                    print '\tdefaulting to first found:', vdata.label
+            else:
+                print 'no surface data objects which roll are available!'
+                return
+            slsels = data.sliceselectors
+            slicekeys = slsels.__dict__.keys()
+            selkeys = [ke for ke in slicekeys if
+                ke.startswith('_sliceselector_')]
+            sels = [slsels.__dict__[ke][0] for ke in selkeys]
+            sels = [sl.children()[1] for sl in sels]
+            rolsel = sels[0]#select the 0th axis only for now!
+            rdelay = data.roll_delay
+            rdex = 0
+            max_rdex = rolsel.count() - 1
+            while rdex <= max_rdex:
+                rolsel.setCurrentIndex(rdex)
+                self.plot(data, xlab, ylab, silent = True)
+                self.repaint()
+                rdex += 1
+                time.sleep(rdelay)
+
+    def pre_plot(self, proj = None):
         self.qp_fig.clf()
-        ax = self.qp_fig.gca()
+        ax = self.qp_fig.gca(projection = proj)
         self.newest_ax = ax
         ax.cla()
         ax.grid(True)
@@ -2249,6 +2349,11 @@ class quick_plot(QtGui.QWidget):
         data = args[0]
         xlab = args[1]
         ylab = args[2]
+        try:
+            title = args[3]
+            self.user_title = title
+        except IndexError: pass
+
         xlog, ylog = data.x_log, data.y_log
         if ptype == 'lines':
             ldata = [d for d in data.data if d.tag 
@@ -2282,7 +2387,25 @@ class quick_plot(QtGui.QWidget):
             self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
 
         elif ptype == 'surface': self.plot_surface(*args, **kwargs)
-        elif ptype == 'bars': self.plot_bars(*args, **kwargs)
+        elif ptype == 'bars':
+            btarget = data.ydomain
+            xdom = data.xdomain
+            bdata = [d for d in data.data if d.tag 
+                in self.bplot_data_types and 
+                d.label in data.active_targs]
+            if len(bdata) == 1: bdata = bdata[0]
+            elif len(bdata) > 1:
+                blabs = [d.label for d in bdata]
+                if btarget in blabs:
+                    bdata = bdata[blabs.index(btarget)]
+                else:
+                    bdata = bdata[0]
+                    if not 'silent' in kwargs.keys() or not kwargs['silent']:
+                        print 'multiple bin data objects available'
+                        print '\tdefaulting to first found:', bdata.label
+            else: print 'no bin data objects available!'; return
+            self.plot_bars(bdata, btarget, xdom, xlab)
+
         elif ptype == 'voxels':
             vox_target = data.zdomain
             xdom = data.xdomain
@@ -2301,7 +2424,7 @@ class quick_plot(QtGui.QWidget):
                         print 'multiple voxel data objects available'
                         print '\tdefaulting to first found:',vdata.label
             else: print 'no voxel data objects available!'; return
-            self.plot_voxels(*args, **kwargs)
+            self.plot_voxels(vdata, xdom, ydom, vox_target)
         else: print 'invalid plot type!', ptype
         #ax = self.newest_ax
         #if data.x_log: ax.set_xscale('log')
@@ -2310,11 +2433,13 @@ class quick_plot(QtGui.QWidget):
     def plot_lines(self, xs, ys, xlab = None, ylab = None, 
                               xlog = False, ylog = False):
 
-        def plot_(x, y, label, color):
+        def plot_(x, y, label, color, style, width):
             if len(x) < len(y): y = y[:len(x)]
             if len(y) < len(x): x = x[:len(y)]
-            line = matplotlib.lines.Line2D(x, y, color = color)
-            if not label == '__skip__': line.set_label(label)
+            skip = label.startswith('__skip__')
+            line = matplotlib.lines.Line2D(x, y, color = color, 
+                linestyle = style, linewidth = width)
+            if not skip: line.set_label(label)
             ax.add_line(line)
 
         ax = self.pre_plot()
@@ -2326,14 +2451,31 @@ class quick_plot(QtGui.QWidget):
 
         self.colors = [self.colormap(i) for i in 
             np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
+        styles = ['solid']*len(self.colors)
+        widths = [1.0]*len(self.colors)
         for d, da in enumerate(ys):
+            if hasattr(da, 'linewidth'):
+                widths[d] = da.linewidth
+            if hasattr(da, 'linestyle'):
+                styles[d] = da.linestyle
             if hasattr(da, 'color'):
                 self.colors[d] = da.color
-        if type(xs) is types.ListType: xs_ = [x.scalars for x in xs]
-        else: xs_ = [xs.scalars]*len(ys)
-        ys_ = [y.scalars for y in ys]
-        [plot_(x, y, lab, col) for x, y, lab, col 
-            in zip(xs_, ys_, y_labs, self.colors)]
+        if not type(xs) is types.ListType:xs = [xs]*len(ys)
+        #if type(xs) is types.ListType:xs_ = [x.scalars for x in xs]
+        #else: xs_ = [xs.scalars]*len(ys)
+        #ys_ = [y.scalars for y in ys]
+        xs_, ys_ = [], []
+        use_xdom = False
+        for sdx,x,y in zip(range(self.max_line_count),xs,ys):
+            #if sdx >= self.max_line_count: continue
+            if hasattr(y,'override_domain') and y.override_domain:
+                xs_.append(y.domain)
+            else:
+                xs_.append(x.scalars)
+                use_xdom = True
+            ys_.append(y.scalars)
+        [plot_(x, y, lab, col, ls, lw) for x, y, lab, col, ls, lw
+            in zip(xs_, ys_, y_labs, self.colors, styles, widths)]
         ax.axis(self.get_minmaxes(xs_, ys_))
         ax.legend()
         if xlog: ax.set_xscale('log')
@@ -2387,11 +2529,52 @@ class quick_plot(QtGui.QWidget):
     def plot_surface(self, *args, **kwargs):
         pdb.set_trace()
 
-    def plot_bars(self, *args, **kwargs):
-        pdb.set_trace()
+    def plot_bars(self, bins_, btarget, xdom, xlab = None):
+        ax = self.pre_plot()
+        made_bins =\
+            bins_.make_bins(
+                x_ax = xdom, 
+                bin_target = btarget)
+        if not made_bins:
+            print 'bins were not resolved'
+            return
+        else: x, bins = made_bins
 
-    def plot_voxels(self, *args, **kwargs):
-        pdb.set_trace()
+        #counts_ = self._data_.data[bin_vectors_dex].counts
+        #n = counts_[self.roll_dex]
+        n = bins
+        #bins = self._data_.data[bin_vectors_dex].bins
+        # get the corners of the rectangles for the histogram
+        left = np.array(x[:-1])
+        #left = np.array(bins[:-1])
+        right = np.array(x[1:])
+        #right = np.array(bins[1:])
+        bottom = np.zeros(len(left))
+        top = bottom + n
+        # we need a (numrects x numsides x 2) numpy array for the path helper
+        # function to build a compound path
+        XY = np.array([[left,left,right,right], [bottom,top,top,bottom]]).T
+        # get the Path object
+        barpath = path.Path.make_compound_path_from_polys(XY)
+        # make a patch out of it
+        patch = patches.PathPatch(barpath,
+            facecolor='blue',edgecolor='gray',alpha=0.8)
+        ax.add_patch(patch)
+        # update the view limits
+        ax.set_xlim(left[0], right[-1])
+        ax.set_ylim(bottom.min(), top.max())
+
+        self.canvas.draw()
+        self.plot_type = 'bars'
+
+    def plot_voxels(self, vdata, xlab, ylab, zlab):
+        ax = self.pre_plot(proj = '3d')
+        scattered = vdata.make_cube()
+        for c, m, coords in scattered:
+            ax.scatter(*coords, c = c, marker = m)
+        self.set_labels(xlab, ylab, zlab, vdata.label)
+        self.canvas.draw()
+        self.plot_type = 'voxels'
 
 class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
     message = QtCore.Signal(str)
@@ -2563,6 +2746,40 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
                 QtGui.QMessageBox.critical(
                     self, "Error saving file", str(e),
                     QtGui.QMessageBox.Ok, QtGui.QMessageBox.NoButton)
+
+def create_table_widget(mason, headers, rowheaders, templates, callbacks = []):
+    table = QtGui.QTableWidget()
+    hcnt = len(headers)
+    rcnt = len(rowheaders)
+    table.setColumnCount(hcnt)
+    table.setRowCount(rcnt)
+    table.setHorizontalHeaderLabels(headers)
+    table.setVerticalHeaderLabels(rowheaders)
+    table.setShowGrid(False)
+    items = []
+    for xdx in xrange(len(templates)):
+        for ydx in xrange(len(templates[xdx])):
+            loc = (xdx,ydx,)
+            temp = templates[xdx][ydx]
+            if not temp is None:
+                if isinstance(temp,lfu.gui_pack.lgm.interface_template_gui):
+                    items.append(loc + (central_widget_wrapper(
+                      content = mason.interpret_template(temp)),))
+                else:items.append(loc + ('  ' + temp,))
+            else:items.append(loc + (QtGui.QTableWidgetItem('  '),))
+    for it in items:
+        if isinstance(it[2],QtGui.QWidget):
+            table.setCellWidget(it[0], it[1], it[2])
+        else: table.setItem(it[0], it[1], it[2])
+
+    def func(cdx):
+        [call(table,rowheaders[cdx]) for call in callbacks]
+    vheader = table.verticalHeader()
+    vheader.sectionClicked.connect(func)
+    #table.itemSelectionChanged.connect(func)
+    table.resizeRowsToContents()
+    table.resizeColumnsToContents()
+    return table
 
 if __name__ == '__main__': print 'this is a library!'
 
