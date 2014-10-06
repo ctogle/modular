@@ -206,7 +206,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
         return _closed_cb_
     if callbacks:
         [spin.valueChanged.connect(close_callback(call)) 
-            for call in callbacks]
+            for call in callbacks if not call is None]
     #elif not instance is None and not key is None:
     #    spin.valueChanged.connect(spin_function)
     #else: print 'spin widget is not method-bound...'
@@ -248,7 +248,8 @@ def create_radios(parent = None, options = [], title = '',
 
     if callbacks:
         for cb in callbacks:
-            [rad.clicked.connect(cb) for rad in radios]
+            if not cb is None:
+                [rad.clicked.connect(cb) for rad in radios]
 
     apply_refresh(radios)
     group = QtGui.QGroupBox(title = title)
@@ -1067,8 +1068,9 @@ def create_check_boxes(append_instead, keys, instances, labels,
         for check, inst, key in zip(checks, instances, keys)]
 
     if callbacks:
-        [[check.stateChanged.connect(call) for call in callbacks] 
-            for check in checks]
+        [[check.stateChanged.connect(call) 
+            for call in callbacks if not call is None] 
+                for check in checks]
 
     return checks
 
@@ -1432,8 +1434,9 @@ def create_text_box(parent = None, instance = None, key = None,
     #pressing enter would return the color to normal
     if not bind_events:
         #box.returnPressed.connect(generate_text_edit_func(box))
-        #box.textChanged.connect(generate_text_edit_func(box))
-        box.textEdited.connect(generate_text_edit_func(box))
+        box.textChanged.connect(generate_text_edit_func(box))
+        # DO NOT DO THE FOLLOWING THING AGAIN!
+        #box.textEdited.connect(generate_text_edit_func(box))
 
     else:
         for bi_ev, bi in zip(bind_events, bindings):

@@ -1846,9 +1846,12 @@ def select_for_binning(pool, be_binned, be_meaned):
                                     if mean_lookup[k] == True]
     return bin_axes, mean_axes
 
-def bin_scalars(axes, ax_vals, bin_res, ordered = True):
-    bin_min = min([min(ax.scalars) for ax in axes])
-    bin_max = max([max(ax.scalars) for ax in axes])
+def bin_scalars(axes, ax_vals, bin_res, ordered = True, 
+        bin_basis_override = None):
+    if bin_basis_override is None: baxes = axes
+    else: baxes = bin_basis_override
+    bin_min = min([min(ax.scalars) for ax in baxes])
+    bin_max = max([max(ax.scalars) for ax in baxes])
     orders = 1000000000000000000.0
     bin_res = (bin_max - bin_min) / bin_res
     bins = [x / orders for x in 

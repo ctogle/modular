@@ -846,10 +846,14 @@ class standard_mason(object):
             data = lfu.data_container(domains = [], codomains = [])
         try: callbacks = template.callbacks[widg_dex]
         except AttributeError: callbacks = []
-        try: figure = template.instances[widg_dex][0]
-        except AttributeError: figure = None
-        try: canvas = template.instances[widg_dex][1]
-        except AttributeError: canvas = None
+        try: insts = template.instances[widg_dex]
+        except AttributeError: insts = []
+        if len(insts) == 2:
+            figure = template.instances[widg_dex][0]
+            canvas = template.instances[widg_dex][1]
+        else:    
+            figure = None
+            canvas = None
         return [lgb.create_plot_widget(data, callbacks, figure, canvas)]
 
     def interpret_template_table(self, template, widg_dex):
