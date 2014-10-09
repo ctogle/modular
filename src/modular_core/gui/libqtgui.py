@@ -202,6 +202,10 @@ class plot_page(lfu.modular_object_qt):
         else: self.ydomain = ytitle
         if data.data: self.zdomain = data.data[0].label
         else: self.zdomain = title
+        if hasattr(data, 'user_callbacks'):
+            ucbs = data.user_callbacks
+        else: ucbs = {}
+        self.user_callbacks = ucbs
         label = ' : '.join([str(pagenum), self.filename])
         lfu.modular_object_qt.__init__(self, 
             label = label, data = data, parent = parent)
@@ -338,6 +342,7 @@ class plot_window(lfu.modular_object_qt):
         self.xdomain = page.xdomain
         self.ydomain = page.ydomain
         self.zdomain = page.zdomain
+        self.user_callbacks = page.user_callbacks
         self._display_interface_(self.mason)
 
     def get_current_page(self):
@@ -477,6 +482,9 @@ class plot_window(lfu.modular_object_qt):
                         self.roll_pages]], 
                 minimum_sizes = [[(1024, 768)]], 
                 initials = [[self.selected_page_label]]))
+        ucbs = self.user_callbacks
+        cblab = 'change_x_domain'
+        cb = ucbs[cblab] if cblab in ucbs.keys() else None
         self.widg_templates.append(
             lgm.interface_template_gui(
                 panel_position = (0,0), 
@@ -486,9 +494,13 @@ class plot_window(lfu.modular_object_qt):
                 initials = [[self.xdomain]], 
                 instances = [[self]], 
                 keys = [['xdomain']], 
+                bindings = [[cb] if cb else None], 
                 refresh = [[True]], 
                 window = [[self]], 
                 box_labels = ['X-Domain']))
+        ucbs = self.user_callbacks
+        cblab = 'change_y_domain'
+        cb = ucbs[cblab] if cblab in ucbs.keys() else None
         self.widg_templates[-1] +=\
             lgm.interface_template_gui(
                 widgets = ['selector'], 
@@ -496,9 +508,13 @@ class plot_window(lfu.modular_object_qt):
                 initials = [[self.ydomain]], 
                 instances = [[self]], 
                 keys = [['ydomain']], 
+                bindings = [[cb] if cb else None], 
                 refresh = [[True]], 
                 window = [[self]], 
                 box_labels = ['Y-Domain'])
+        ucbs = self.user_callbacks
+        cblab = 'change_z_domain'
+        cb = ucbs[cblab] if cblab in ucbs.keys() else None
         self.widg_templates[-1] +=\
             lgm.interface_template_gui(
                 widgets = ['selector'], 
@@ -506,6 +522,7 @@ class plot_window(lfu.modular_object_qt):
                 initials = [[self.zdomain]], 
                 instances = [[self]], 
                 keys = [['zdomain']], 
+                bindings = [[cb] if cb else None], 
                 refresh = [[True]], 
                 window = [[self]], 
                 box_labels = ['Surface Target'])

@@ -494,7 +494,6 @@ class output_plan(lfu.plan):
         if args: ensem = args[0]
         if self.parent is None:
             target_labels = ensem.run_params['plot_targets']
-
         else:
             try:
                 self.parent.run_params['plot_targets'] = lfu.uniqfy(
@@ -502,7 +501,6 @@ class output_plan(lfu.plan):
                 target_labels = self.parent.run_params['plot_targets']
             except AttributeError:
                 target_labels = self.parent.capture_targets
-
         return target_labels
 
     def set_target_settables(self, *args, **kwargs):

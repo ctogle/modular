@@ -383,7 +383,7 @@ class post_process(lfu.modular_object_qt):
             #input_regime = 'simulation', valid_inputs = ['simulation'], 
             input_regime = None, valid_inputs = None, 
             visible_attributes = ['label'], base_class = None, 
-            _always_sourceable_ = None):
+            _always_sourceable_ = None, _single_input_ = False):
 
         if valid_base_classes is None:
             valid_base_classes = valid_postproc_base_classes
@@ -401,7 +401,9 @@ class post_process(lfu.modular_object_qt):
 
         if input_regime is None:
             #input_regime = ['simulation']
-            input_regime = self._always_sourceable_[:]
+            if _single_input_:
+                input_regime = self._always_sourceable_[0]
+            else:input_regime = self._always_sourceable_[:]
 
         self.input_regime = input_regime
         self.valid_inputs = valid_inputs
@@ -409,6 +411,7 @@ class post_process(lfu.modular_object_qt):
         self.valid_regimes = valid_regimes
         self.capture_targets = capture_targets
         self.brand_new = True
+        self._single_input_ = _single_input_
         lfu.modular_object_qt.__init__(self, label = label, 
             parent = parent, valid_base_classes = valid_base_classes, 
                             visible_attributes = visible_attributes, 
@@ -437,12 +440,17 @@ class post_process(lfu.modular_object_qt):
     def inputs_to_string(self):
         inps = []
         valid_inputs = self.get_valid_inputs(None, self.parent.parent)
-        for input_ in self.input_regime:
-            #if input_.startswith('simulation'): numb = 0
+        if type(self.input_regime) is types.ListType:
+            for input_ in self.input_regime:
+                #if input_.startswith('simulation'): numb = 0
+                if input_.startswith(self._always_sourceable_[0]): numb = 0
+                else: numb = valid_inputs.index(input_) - 1
+                inps.append(numb)
+        else:
+            input_ = self.input_regime
             if input_.startswith(self._always_sourceable_[0]): numb = 0
             else: numb = valid_inputs.index(input_) - 1
             inps.append(numb)
-
         inps = ', '.join([str(inp) for inp in inps])
         return inps
 
@@ -460,6 +468,26 @@ class post_process(lfu.modular_object_qt):
         else: return self.get_source_reference_nofit(*args, **kwargs)
     def get_source_reference_nofit(self, *args, **kwargs):
         sources = args[1].postprocess_plan.post_processes
+        '''#
+        try:
+            if type(self.input_regime) is types.ListType:
+                inputs = [lfu.grab_mobj_by_name(inp, sources) 
+                    for inp in self.input_regime if not 
+                        inp in self._always_sourceable_]
+            else:
+                inputs = [lfu.grab_mobj_by_name(self.input_regime, sources) 
+                    if not self.input_regime in self._always_sourceable_]
+        except ValueError:
+            self.fix_inputs()
+            #return self.get_source_reference(*args, **kwargs)
+            return []
+        '''#
+        inputs = self.handle_sources(sources)
+        return inputs
+    def get_source_reference_fit(self, *args, **kwargs):
+        sources = args[1].postprocess_plan.post_processes + \
+                                args[1].fitting_plan.routines
+        '''#
         try:
             inputs = [lfu.grab_mobj_by_name(inp, sources) for inp in 
                 self.input_regime if not inp in self._always_sourceable_]
@@ -468,14 +496,18 @@ class post_process(lfu.modular_object_qt):
             self.fix_inputs()
             #return self.get_source_reference(*args, **kwargs)
             return []
+        '''#
+        inputs = self.handle_sources(sources)
         return inputs
-    def get_source_reference_fit(self, *args, **kwargs):
-        sources = args[1].postprocess_plan.post_processes + \
-                                args[1].fitting_plan.routines
+    def handle_sources(self, sources):
         try:
-            inputs = [lfu.grab_mobj_by_name(inp, sources) for inp in 
-                self.input_regime if not inp in self._always_sourceable_]
-                #in self.input_regime if not inp == 'simulation']
+            if type(self.input_regime) is types.ListType:
+                inputs = [lfu.grab_mobj_by_name(inp, sources) for inp in 
+                    self.input_regime if not inp in self._always_sourceable_]
+            else:
+                if not self.input_regime in self._always_sourceable_:
+                    inputs = [lfu.grab_mobj_by_name(self.input_regime, sources)]
+                else: inputs = []
         except ValueError:
             self.fix_inputs()
             #return self.get_source_reference(*args, **kwargs)
@@ -506,11 +538,15 @@ class post_process(lfu.modular_object_qt):
 
     def get_targetables(self, *args, **kwargs):
         targets = []
+        # this will work because self.input_regime would be 'simulation' if
+        # self._single_input_
         if 'simulation' in self.input_regime:
             targets.extend(copy(args[1].run_params['plot_targets']))
-        #elif self.input_regime: targets.extend(self._always_sourceable_)
         for source in self.get_source_reference(*args, **kwargs):
             targets.extend(copy(source.capture_targets))
+        if '_always_sources_' in kwargs.keys():
+            for src in kwargs['_always_sources_']:
+                targets.extend(copy(src.capture_targets))
         return lfu.uniqfy(targets)
 
     def initialize(self, *args, **kwargs):
@@ -535,6 +571,12 @@ class post_process(lfu.modular_object_qt):
 
         else: print 'post process regime could not be resolved', self
 
+    def start_pool(self, *args, **kwargs):
+        pool = []
+        if 'simulation' in self.input_regime:
+            pool = args[1]
+        return pool
+
     def postproc(self, *args, **kwargs):
         #pool should invariably be a list of 
         #   lists of data objects for each trajectory
@@ -542,15 +584,21 @@ class post_process(lfu.modular_object_qt):
         #   a pool and a p_space are optional, default
         #   is to use the ensemble
         self.determine_regime(args[0])
-        pool = []
+
+        pool = self.start_pool(*args, **kwargs)
+        #pool = []
         sources = self.get_source_reference(1, *args, **kwargs)
+        #       WILL SOURCES CONTAIN DUPLICATE REFERENCES????
+        #     POOL IS AT ARGS[1] BUT INPUT REGIME IS NOT SIMULATION!!
         #for src in sources: lfu.zip_list(pool, src.data)
-        if 'simulation' in self.input_regime:
-            #lfu.zip_list(pool, args[0].data_pool.get_batch())
-            #pool = args[0].data_pool
-            pool = args[1]
+        #if 'simulation' in self.input_regime:
+        #    #lfu.zip_list(pool, args[0].data_pool.get_batch())
+        #    #pool = args[0].data_pool
+        #    pool = args[1]
 
         for src in sources: lfu.zip_list(pool, src.data)
+        
+        
         if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']
         else: p_space = args[0].cartographer_plan
         self.p_space = p_space      #THIS LINE MIGHT BE UNNECESSARY
@@ -640,17 +688,33 @@ class post_process(lfu.modular_object_qt):
         #where_reference = ensem.run_params['output_plans']
         self.handle_widget_inheritance(*args, **kwargs)
         if self.valid_inputs:
-            self.widg_templates.append(
-                lgm.interface_template_gui(
-                    panel_position = (0, 2), 
-                    widgets = ['check_set'], 
-                    tooltips = [['Requires GUI update (Ctrl+G)' 
-                            for input_ in self.valid_inputs]], 
-                    append_instead = [True], 
-                    instances = [[self]], 
-                    keys = [['input_regime']], 
-                    labels = [self.valid_inputs], 
-                    box_labels = ['Input Data']))
+            if self._single_input_:
+                self.widg_templates.append(
+                    lgm.interface_template_gui(
+                        panel_position = (0, 2), 
+                        widgets = ['radio'], 
+                        tooltips = [['Requires GUI update (Ctrl+G)' 
+                                for input_ in self.valid_inputs]], 
+                        #append_instead = [True], 
+                        initials = [[self.input_regime]], 
+                        instances = [[self]], 
+                        keys = [['input_regime']], 
+                        labels = [self.valid_inputs], 
+                        refresh = [[True]], 
+                        window = [[window]], 
+                        box_labels = ['Input Data']))
+            else:
+                self.widg_templates.append(
+                    lgm.interface_template_gui(
+                        panel_position = (0, 2), 
+                        widgets = ['check_set'], 
+                        tooltips = [['Requires GUI update (Ctrl+G)' 
+                                for input_ in self.valid_inputs]], 
+                        append_instead = [True], 
+                        instances = [[self]], 
+                        keys = [['input_regime']], 
+                        labels = [self.valid_inputs], 
+                        box_labels = ['Input Data']))
 
         recaster = lgm.recasting_mason(parent = window)
         classes = [template._class for template 

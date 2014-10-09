@@ -1305,7 +1305,7 @@ def create_text_box(parent = None, instance = None, key = None,
                 bindings = None, rewidget = True, inst_is_dict = None, 
                 for_code = False):
 
-    '''
+    '''#
     When the text changes the PySide.QtGui.QLineEdit.textChanged() 
     signal is emitted; 
     when the text changes other than by calling 
@@ -1339,7 +1339,7 @@ def create_text_box(parent = None, instance = None, key = None,
                 #if the binding provided is None, 
                 #the binding should update instance.__dict__[key]
                 bind_events = [['returnPressed', 'textEdited']]))
-    '''
+    '''#
 
     def apply_to_inst(*args, **kwargs):
         dat = args[0]
@@ -2169,7 +2169,7 @@ class quick_plot(QtGui.QWidget):
         self.user_ztitle = None
         self.user_title = None
         self.callbacks = callbacks
-        self.max_line_count = 20
+        self.max_line_count = 32
         self.colormap = plt.get_cmap('jet')
         self.set_up_widgets()
         #self.set_geometry()
@@ -2436,12 +2436,12 @@ class quick_plot(QtGui.QWidget):
     def plot_lines(self, xs, ys, xlab = None, ylab = None, 
                               xlog = False, ylog = False):
 
-        def plot_(x, y, label, color, style, width):
+        def plot_(x, y, label, color, style, width, mark):
             if len(x) < len(y): y = y[:len(x)]
             if len(y) < len(x): x = x[:len(y)]
             skip = label.startswith('__skip__')
             line = matplotlib.lines.Line2D(x, y, color = color, 
-                linestyle = style, linewidth = width)
+                linestyle = style, linewidth = width, marker = mark)
             if not skip: line.set_label(label)
             ax.add_line(line)
 
@@ -2456,6 +2456,7 @@ class quick_plot(QtGui.QWidget):
             np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
         styles = ['solid']*len(self.colors)
         widths = [1.0]*len(self.colors)
+        marks = [None]*len(self.colors)
         for d, da in enumerate(ys):
             if hasattr(da, 'linewidth'):
                 widths[d] = da.linewidth
@@ -2463,12 +2464,15 @@ class quick_plot(QtGui.QWidget):
                 styles[d] = da.linestyle
             if hasattr(da, 'color'):
                 self.colors[d] = da.color
+            if hasattr(da, 'marker'):
+                marks[d] = da.marker
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
         #if type(xs) is types.ListType:xs_ = [x.scalars for x in xs]
         #else: xs_ = [xs.scalars]*len(ys)
         #ys_ = [y.scalars for y in ys]
         xs_, ys_ = [], []
         use_xdom = False
+        ioffset = 0
         for sdx,x,y in zip(range(self.max_line_count),xs,ys):
             #if sdx >= self.max_line_count: continue
             if hasattr(y,'override_domain') and y.override_domain:
@@ -2476,9 +2480,26 @@ class quick_plot(QtGui.QWidget):
             else:
                 xs_.append(x.scalars)
                 use_xdom = True
+            if hasattr(y,'subscalars'):
+                subs = y.subscalars
+                lx = xs_[-1]
+                subcnt = len(subs)
+                ycol = self.colors[sdx + ioffset]
+                for su in subs:
+                    idx = sdx + ioffset
+                    y_labs.insert(idx,'__skip__')
+                    self.colors.insert(idx,ycol)
+                    styles.insert(idx,'-.')
+                    widths.insert(idx,'0.5')
+                    marks.insert(idx,'+')
+                    ioffset += 1
+                xs_.extend([lx for dx in range(len(subs))])
+                ys_.extend(subs)
             ys_.append(y.scalars)
-        [plot_(x, y, lab, col, ls, lw) for x, y, lab, col, ls, lw
-            in zip(xs_, ys_, y_labs, self.colors, styles, widths)]
+        [plot_(x, y, lab, col, ls, lw, ma) for 
+            x, y, lab, col, ls, lw, ma
+                in zip(xs_, ys_, y_labs, 
+                    self.colors, styles, widths, marks)]
         ax.axis(self.get_minmaxes(xs_, ys_))
         ax.legend()
         if xlog: ax.set_xscale('log')
