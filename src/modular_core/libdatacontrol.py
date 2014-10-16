@@ -30,7 +30,8 @@ if __name__ == '__main__': print 'this is a library!'
 class scalars(object):
 
     def __init__(self, label = 'some scalar', 
-            scalars = None, domain = None, **kwargs):
+            scalars = None, domain = None, 
+            subscalars = None, **kwargs):
         self.label = label
         self.tag = 'scalar'
         if not domain is None:
@@ -44,6 +45,15 @@ class scalars(object):
             self.scalars = scalars
 
         else: self.scalars = []
+
+        if not subscalars is None:
+            subscas = []
+            for subs in subscalars:
+                if type(subs) is types.ListType:
+                    subs = np.array(subs)
+                    subscas.append(subs)
+                else: subscas.append(subs)
+            self.subscalars = subscas
         for key in kwargs.keys(): self.__dict__[key] = kwargs[key]
 
     def as_string_list(self):

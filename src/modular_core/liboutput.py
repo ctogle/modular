@@ -396,6 +396,8 @@ class output_plan(lfu.plan):
                 proper_targets = [system.override_targets]*4
             else: proper_targets = self.find_proper_targets()
         else: proper_targets = self.find_proper_targets()
+        if not hasattr(system, 'plt_callbacks'):
+            system.plt_callbacks = {}
         to_be_outted = []
         if not self.flat_data:  #if the list of data objects is not flat (system.data is the list)
             #self.to_be_outted has a 3rd element pointing to system within non-flat pool
@@ -406,7 +408,8 @@ class output_plan(lfu.plan):
             for traj in system.data:
                 #pdb.set_trace()
                 #traj = lfu.flatten(traj)
-                data_container = lfu.data_container(data = traj)
+                data_container = lfu.data_container(data = traj, 
+                    plt_callbacks = system.plt_callbacks)
                 try: self.update_filenames()
                 except TypeError: print 'terror'
                 proper_paths = self.find_proper_paths()

@@ -9,7 +9,6 @@ import types
 import ctypes
 import importlib
 import os
-from pkg_resources import resource_string
 import appdirs
 
 lset = None

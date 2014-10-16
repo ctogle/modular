@@ -202,8 +202,8 @@ class plot_page(lfu.modular_object_qt):
         else: self.ydomain = ytitle
         if data.data: self.zdomain = data.data[0].label
         else: self.zdomain = title
-        if hasattr(data, 'user_callbacks'):
-            ucbs = data.user_callbacks
+        if hasattr(data, 'plt_callbacks'):
+            ucbs = data.plt_callbacks
         else: ucbs = {}
         self.user_callbacks = ucbs
         label = ' : '.join([str(pagenum), self.filename])

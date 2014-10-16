@@ -51,6 +51,18 @@ def find_infinite_tail(sequence,
     last_good_dex = complete_deltas.index(deltas[-1])
     return last_good_dex + 1
 
+def minmax(vals):
+    check = [v for v in vals if not v is None]
+    if not check: raise ValueError
+    else:
+        mi = check[0]
+        ma = check[0]
+        for v in check:
+            #if v is None: pass
+            if v < mi: mi = v
+            elif v > ma: ma = v
+        return mi,ma
+
 def linear_interpolation(list_to_x, list_to_y, to_list_x, kind = 5):
     interpolation = sp.interp1d(list_to_x, list_to_y, 
                                 bounds_error = False, 

@@ -1480,13 +1480,21 @@ def create_combo_box(labels, icons, datas, bindings = None,
             if dater is None: combo.addItem(icon, label)
             else: combo.addItem(icon, label, userData = dater)
 
+    def binding_wrap(bind, combo):
+        def _wrap_():
+            bind(combo)
+        return _wrap_
+
     if bindings:
         if bind_event is 'useronly':
-            [combo.activated.connect(bind) for bind 
-                in bindings if not bind is None]
+            #[combo.activated.connect(bind) for bind 
+            [combo.activated.connect(binding_wrap(bind, combo)) 
+                for bind in bindings if not bind is None]
 
         else:
-            [combo.currentIndexChanged.connect(bind) for bind
+            #[combo.currentIndexChanged.connect(bind) for bind
+            [combo.currentIndexChanged.connect(
+                binding_wrap(bind, combo)) for bind
                     in bindings if not bind is None]
 
     elif inst and key:
@@ -2192,6 +2200,12 @@ class quick_plot(QtGui.QWidget):
         self.setGeometry(*geometry)
 
     def get_minmaxes(self, xs_, ys_):
+        xminmaxes = [lm.minmax(x) for x in xs_]
+        yminmaxes = [lm.minmax(y) for y in ys_]
+        xmins,xmaxs = zip(*xminmaxes)
+        ymins,ymaxs = zip(*yminmaxes)
+        return [min(xmins),max(xmaxs),min(ymins),max(ymaxs)]
+        '''#
         if type(xs_[0]) is types.ListType:
             minmax = [
                 min([min(x) for x in xs_]), 
@@ -2205,6 +2219,7 @@ class quick_plot(QtGui.QWidget):
                 min([y.min() for y in ys_]), 
                 max([y.max() for y in ys_])]
         return minmax
+        '''#
 
     def set_labels(self, xlab = None, ylab = None, 
             zlab = None, title = None):
@@ -2436,7 +2451,13 @@ class quick_plot(QtGui.QWidget):
     def plot_lines(self, xs, ys, xlab = None, ylab = None, 
                               xlog = False, ylog = False):
 
+        def rid_nones(x,y):
+            x = [x_ for x_,y_ in zip(x,y) if not y_ is None]
+            y = [y_ for y_ in y if not y_ is None]
+            return x, y
+
         def plot_(x, y, label, color, style, width, mark):
+            #x,y = rid_nones(x,y)
             if len(x) < len(y): y = y[:len(x)]
             if len(y) < len(x): x = x[:len(y)]
             skip = label.startswith('__skip__')
@@ -2475,6 +2496,7 @@ class quick_plot(QtGui.QWidget):
         ioffset = 0
         for sdx,x,y in zip(range(self.max_line_count),xs,ys):
             #if sdx >= self.max_line_count: continue
+            #x.scalars,y.scalars = rid_nones(x.scalars,y.scalars)
             if hasattr(y,'override_domain') and y.override_domain:
                 xs_.append(y.domain)
             else:

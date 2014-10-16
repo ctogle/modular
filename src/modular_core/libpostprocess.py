@@ -424,19 +424,6 @@ class post_process(lfu.modular_object_qt):
         self.initialize(*args, **kwargs)
         self.postproc(*args, **kwargs)
 
-    '''
-    def _destroy_(self, *args, **kwargs):
-        try:
-            del self.parent.parent.run_params['output_plans'][
-                                    self.label + ' output']
-
-        except KeyError:
-            print 'couldnt destroy output plan!'
-            pdb.set_trace()
-
-        lfu.modular_object_qt._destroy_(self)
-    '''
-
     def inputs_to_string(self):
         inps = []
         valid_inputs = self.get_valid_inputs(None, self.parent.parent)
@@ -460,6 +447,7 @@ class post_process(lfu.modular_object_qt):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = True
+        self.use_voxel_plot = False
         self.use_bar_plot = True
 
     def get_source_reference(self, *args, **kwargs):
@@ -801,6 +789,7 @@ class post_process_meanfields(post_process):
         self.use_line_plot = True
         self.use_color_plot = False
         self.use_bar_plot = False
+        self.use_voxel_plot = False
         self.x_title = self.function_of
 
     def set_target_settables(self, *args, **kwargs):
@@ -941,6 +930,7 @@ class post_process_standard_statistics(post_process):
         self.use_line_plot = True
         self.use_color_plot = False
         self.use_bar_plot = False
+        self.use_voxel_plot = False
         self.x_title = self.function_of
 
     def set_target_settables(self, *args, **kwargs):
@@ -1060,6 +1050,7 @@ class post_process_correlation_values(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = False
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     def postproc(self, *args, **kwargs):
@@ -1183,6 +1174,7 @@ class post_process_counts_to_concentrations(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = False
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     def initialize(self, *args, **kwargs):
@@ -1288,6 +1280,7 @@ class post_process_slice_from_trajectory(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = False
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     def postproc(self, *args, **kwargs):
@@ -1408,6 +1401,7 @@ class post_process_reorganize_data(post_process):
         self.use_line_plot = True
         #self.use_line_plot = False
         self.use_color_plot = True
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     def postproc(self, *args, **kwargs):
@@ -1526,6 +1520,7 @@ class post_process_1_to_1_binary_operation(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = False
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     def grab_daters(self, *args, **kwargs):
@@ -1712,6 +1707,7 @@ class post_process_period_finding(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = False
+        self.use_voxel_plot = False
         self.use_bar_plot = False
 
     #the superclass actually runs the method, but here the subclass
@@ -1857,6 +1853,7 @@ class post_process_measure_probability(post_process):
     def provide_axes_manager_input(self):
         self.use_line_plot = True
         self.use_color_plot = True
+        self.use_voxel_plot = False
         self.use_bar_plot = True
 
     def postproc(self, *args, **kwargs):
@@ -1911,11 +1908,14 @@ def select_for_binning(pool, be_binned, be_meaned):
     return bin_axes, mean_axes
 
 def bin_scalars(axes, ax_vals, bin_res, ordered = True, 
-        bin_basis_override = None):
+        bin_basis_override = None, 
+        bin_max = None, bin_min = None):
     if bin_basis_override is None: baxes = axes
     else: baxes = bin_basis_override
-    bin_min = min([min(ax.scalars) for ax in baxes])
-    bin_max = max([max(ax.scalars) for ax in baxes])
+    if bin_min is None:
+        bin_min = min([min(ax.scalars) for ax in baxes])
+    if bin_max is None:
+        bin_max = max([max(ax.scalars) for ax in baxes])
     orders = 1000000000000000000.0
     bin_res = (bin_max - bin_min) / bin_res
     bins = [x / orders for x in 

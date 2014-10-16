@@ -200,7 +200,7 @@ def get_setting(setting, fail_silent = False,
         print 'found setting', setting, ': ', sett, 'in default file', file_
         return sett
 
-    if not fail_silent: print 'coult not find setting', setting
+    if not fail_silent: print 'could not find setting', setting
 
 def set_setting(setting, to_set_to, save_ = False, file_ = None):
     for key in settings.keys():
