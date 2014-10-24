@@ -1,4 +1,7 @@
 .idea
 *.swp
 *.pyc
+src/build/*
+src/dist/*
+src/modular_core_pkg.egg-info/*
 

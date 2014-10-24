@@ -1,4 +1,4 @@
-import libs.modular_core.libfundamental as lfu
+import modular_core.libfundamental as lfu
 
 import socket
 import thread
@@ -123,7 +123,7 @@ class transceiver(lfu.modular_object_qt):
         lfu.modular_object_qt.set_settables(
                 self, *args, from_sub = True)
 
-if __name__ == 'libs.modular_core.libudp':
+if __name__ == 'modular_core.libudp':
     if lfu.gui_pack is None: lfu.find_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
