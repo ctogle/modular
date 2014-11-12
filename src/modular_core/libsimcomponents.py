@@ -420,6 +420,14 @@ class ensemble(lfu.modular_object_qt):
                     '.'.join(['data_pool', self.data_pool_id, 'pkl']))
 
         return data_pool
+
+    def set_run_params_to_location(self):
+        module = self.get_module_reference()
+        if hasattr(module, 'run_params_to_location'):
+            module.run_params_to_location(self)
+        else: lmc.run_params_to_location(self)
+        self.update_targets()
+        print 'run params to location'
                                    
     #no multiprocessing, no parameter variation, and no fitting
     def run_systems_boring(self):

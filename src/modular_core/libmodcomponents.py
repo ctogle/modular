@@ -49,6 +49,9 @@ def set_parameters(ensem):
                 ensem.run_params.partition['system']
     ensem.run_params.create_partition('template owners', [])
 
+def run_params_to_location(ensem):
+    print 'run params to location'
+
 def generate_panel_template_lookup_standard(
         window, ensemble, target_labels = None):
     panel_template_lookup = []

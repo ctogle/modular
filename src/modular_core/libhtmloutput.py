@@ -25,7 +25,9 @@ def create_table(nameList, attList, headers, filename):
     columns = len(attReturnList)
 
     #Construction of table
-    text_file = open(filename + ".html", "w")
+    if not filename.endswith('.html'):
+        filename += '.html'
+    text_file = open(filename, "w")
     text_file.write(
         "<table border={} width={} cellspacing={}\
             cellpadding={} bgcolor={} cols={}>\n".format(
