@@ -416,6 +416,7 @@ class plot_window(lfu.modular_object_qt):
     def make_slice_templates(self):
         def generate_slice_func(vals,dex):
             def slice_func(new):
+		new = new.currentIndex()
                 ax_defs[dex] = float(vals[new])
             return slice_func
 
