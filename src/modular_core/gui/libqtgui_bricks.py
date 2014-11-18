@@ -2523,7 +2523,9 @@ class quick_plot(QtGui.QWidget):
                 in zip(xs_, ys_, y_labs, 
                     self.colors, styles, widths, marks)]
         ax.axis(self.get_minmaxes(xs_, ys_))
-        ax.legend()
+        #ax.legend()
+        leg = ax.legend()
+        leg.draggable()
         if xlog: ax.set_xscale('log')
         if ylog: ax.set_yscale('log')
         self.canvas.draw()

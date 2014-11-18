@@ -420,6 +420,30 @@ class post_process(lfu.modular_object_qt):
             label = self.label + ' output', parent = self)
         self._children_ = [self.output]
 
+    def recast(self, new_base_class, base_example = None):
+        self.__class__ = new_base_class
+        self.base_class._class = self.__class__
+        if base_example is None:
+            baseargs = {
+                'label':'mobj__', 
+                '_always_sourceable_':self._always_sourceable_, 
+                        }
+            base_example = self.base_class._class(**baseargs)
+            #base_example = self.base_class._class(label = 'mobj__')
+            if isinstance(base_example.__dict__, lfu.dictionary):
+                dictionary_version = lfu.dictionary()
+                for key in self.__dict__:
+                    dictionary_version[key] = self.__dict__[key]
+
+                self.__dict__ = dictionary_version
+                self.__dict__.partition =\
+                    base_example.__dict__.partition
+
+        self.base_class._tag = base_example.base_class._tag
+        for key in base_example.__dict__.keys():
+            if not hasattr(self, key):
+                self.__dict__[key] = base_example.__dict__[key]
+
     def __call__(self, *args, **kwargs):
         self.initialize(*args, **kwargs)
         self.postproc(*args, **kwargs)
