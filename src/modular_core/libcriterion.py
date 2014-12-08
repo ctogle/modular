@@ -42,6 +42,23 @@ def parse_criterion_line(*args, **kwargs):
         ensem.simulation_plan.add_capture_criteria(crit = crit)
     #return crit
 
+def read_criteria(crits, start_string):
+        for crit in crits:
+            if issubclass(crit.__class__, criterion_iteration):
+                value = crit.max_iterations
+                start_string += 'iteration>=' + str(value)
+
+            elif issubclass(crit.__class__, criterion_sim_time):
+                value = crit.max_time
+                start_string += 'time>=' + str(value)
+
+            elif issubclass(crit.__class__, criterion_scalar_increment):
+                target = crit.key
+                value = str(crit.increment)
+                start_string += ':'.join(['increment', target, value])
+
+        return start_string
+
 class criterion(lfu.modular_object_qt):
 
     #ABSTRACT

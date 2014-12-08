@@ -427,12 +427,12 @@ class ensemble(lfu.modular_object_qt):
             module.run_params_to_location(self)
         else: lmc.run_params_to_location(self)
         self.update_targets()
-        print 'run params to location'
                                    
     #no multiprocessing, no parameter variation, and no fitting
     def run_systems_boring(self):
         data_pool = self.set_data_scheme()
         current_trajectory = 1
+        self.set_run_params_to_location()
         while current_trajectory <= self.num_trajectories:
             rundat = lis.run_system(self, 
                 identifier = current_trajectory)
@@ -443,6 +443,7 @@ class ensemble(lfu.modular_object_qt):
     #multiprocessing, no parameter variation, no fitting
     def run_systems_mutliproc(self):
         data_pool = self.set_data_scheme()
+        self.set_run_params_to_location()
         data_pool = self.multiprocess_plan.distribute_work_simple_runs(
             data_pool, run_func = lis.run_system, ensem_reference = self, 
                                     run_count = self.num_trajectories)
@@ -457,6 +458,8 @@ class ensemble(lfu.modular_object_qt):
         iteration = self.cartographer_plan.iteration
         while iteration < arc_length:
             move_func(iteration)
+            self.set_run_params_to_location()
+            print 'set those params!'
             data_pool._prep_pool_(iteration)
             for dex in range(self.cartographer_plan.trajectory[
                                 iteration][1].trajectory_count):
@@ -749,6 +752,9 @@ class ensemble_manager(lfu.modular_object_qt):
                 if plug.module_name == mod[0]:
                     mc.modules.__dict__[mod[0]] = plug
                     mods.append(plug.module_name)
+
+                    module = _system_string_ = ''
+
             return mods
         mc.modules.mods = grab_modules()
         return mc.modules.mods

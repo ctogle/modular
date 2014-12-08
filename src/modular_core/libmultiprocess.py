@@ -52,6 +52,7 @@ class multiprocess_plan(lfu.plan):
         dex0 = 0
         while dex0 < target_counts[0]:
             move_to(dex0)
+            ensem_reference.set_run_params_to_location()
             dex1 = 0
             sub_data_pool = []
             while dex1 < target_counts[1][dex0]:
