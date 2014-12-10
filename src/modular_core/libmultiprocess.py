@@ -45,14 +45,26 @@ class multiprocess_plan(lfu.plan):
         except: 
             print 'defaulting to 4 workers...'
             processor_count = 8
-        pool = mp.Pool(processes = processor_count)
+        
+        
+        #ensem_reference.set_run_params_to_location()
+        #pool = mp.Pool(processes = processor_count)
+        pool = mp.Pool(processes = processor_count, 
+            initializer = ensem_reference.set_run_params_to_location)
+
         move_to = target_processes[0]
         run_system = target_processes[1]
         worker_report = []
         dex0 = 0
         while dex0 < target_counts[0]:
             move_to(dex0)
-            ensem_reference.set_run_params_to_location()
+
+            #ensem_reference.set_run_params_to_location()
+            #pool = mp.Pool(processes = processor_count)
+
+            #pdb.set_trace()
+            pool._initializer()
+
             dex1 = 0
             sub_data_pool = []
             while dex1 < target_counts[1][dex0]:
@@ -70,15 +82,19 @@ class multiprocess_plan(lfu.plan):
                     'runs this round:', str(runs_this_round), 'in:', 
                         str(time.time() - check_time), 'seconds'])
                 worker_report.append(report)
-                print 'multicore reported...', ' location: ', dex0
+            print 'multicore reported...', ' location: ', dex0
 
             data_pool.live_pool = np.array(
                 sub_data_pool, dtype = np.float)
             data_pool._rid_pool_(dex0)
             dex0 += 1
 
+            #pool.close()
+            #pool.join()
+
         pool.close()
         pool.join()
+
         sub_data_pool = None
         self.worker_report = worker_report
         return data_pool

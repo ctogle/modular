@@ -477,6 +477,7 @@ class ensemble(lfu.modular_object_qt):
     #multiprocessing with parameter variation, no fitting
     def run_systems_multiproc_mapping(self):
         data_pool = self.set_data_scheme()
+        #self.set_run_params_to_location()
         data_pool = self.multiprocess_plan.distribute_work(
             data_pool, self, target_processes =\
                 [self.cartographer_plan.move_to, lis.run_system], 

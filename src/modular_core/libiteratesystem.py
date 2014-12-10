@@ -17,6 +17,7 @@ def run_system(*args, **kwargs):
     except:traceback.print_exc(file=sys.stdout)
     system = libmodule.main.sim_system(ensemble, params =\
             ensemble.run_params.partition['system'])
+
     if 'timeout' in kwargs.keys(): system.timeout = kwargs['timeout']
     if 'identifier' in kwargs.keys():
         system.identifier = kwargs['identifier']

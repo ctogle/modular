@@ -63,7 +63,7 @@ class mngerTestCase(unittest.TestCase):
         self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg_nonmp))
         self.assertTrue(self.ensem.produce_output())
 
-    def Atest_can_run_correl(self):
+    def test_can_run_correl(self):
         """ensemble successfully run the correl demo mcfg?"""
         #thread = self.mnger.run_threaded(self.ensem, 
         #   self.ensem.run_mcfg, args = (self.correl_mcfg,))
