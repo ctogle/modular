@@ -1,0 +1,17 @@
+ccopy_reg
+_reconstructor
+p1
+(cmodular_core.libfundamental
+data_container
+p2
+c__builtin__
+object
+p3
+NtRp4
+(dp5
+S'args'
+p6
+(tsS'data'
+p7
+(lp8
+sb.

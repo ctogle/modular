@@ -12,9 +12,6 @@ import pdb
 
 #handles one run of a simulation; returns data
 def run_system(*args, **kwargs):
-
-    print 'from run func'
-
     ensemble = args[0]
     libmodule = __import__(ensemble.module)
     #try:libmodule = __import__(ensemble.module)

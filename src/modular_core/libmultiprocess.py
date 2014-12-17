@@ -82,7 +82,7 @@ class multiprocess_plan(lfu.plan):
                     'runs this round:', str(runs_this_round), 'in:', 
                         str(time.time() - check_time), 'seconds'])
                 worker_report.append(report)
-            print 'multicore reported...', ' location: ', dex0
+                print 'multicore reported...', ' location: ', dex0
 
             data_pool.live_pool = np.array(
                 sub_data_pool, dtype = np.float)
@@ -119,13 +119,10 @@ class multiprocess_plan(lfu.plan):
             else: runs_this_round = runs_left % processor_count
             dex0 += runs_this_round
             pool._initializer()
-            print 'initialize pool!', run_func
             result = pool.map_async(run_func, 
                 (ensem_reference,)*runs_this_round, 
                     callback = result_pool.extend) 
-            print 'after async before wait!', result
             result.wait()
-            print 'after wait!', result
             report = ' '.join(['location dex:', str(dex0), 
                 'runs this round:', str(runs_this_round), 'in:', 
                         str(time.time() - check_time), 'seconds'])
