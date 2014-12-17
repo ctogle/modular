@@ -105,10 +105,12 @@ class multiprocess_plan(lfu.plan):
         except: 
             print 'defaulting to 8 workers...'
             processor_count = 8
-        pool = mp.Pool(processes = processor_count)
+        pool = mp.Pool(processes = processor_count, 
+            initializer = ensem_reference.set_run_params_to_location)
         worker_report = []
         result_pool = []
         dex0 = 0
+
         while dex0 < run_count:
             check_time = time.time()
             runs_left = run_count - dex0
@@ -116,10 +118,14 @@ class multiprocess_plan(lfu.plan):
                 runs_this_round = processor_count
             else: runs_this_round = runs_left % processor_count
             dex0 += runs_this_round
+            pool._initializer()
+            print 'initialize pool!', run_func
             result = pool.map_async(run_func, 
                 (ensem_reference,)*runs_this_round, 
                     callback = result_pool.extend) 
+            print 'after async before wait!', result
             result.wait()
+            print 'after wait!', result
             report = ' '.join(['location dex:', str(dex0), 
                 'runs this round:', str(runs_this_round), 'in:', 
                         str(time.time() - check_time), 'seconds'])

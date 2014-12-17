@@ -343,7 +343,9 @@ class fit_routine(lfu.modular_object_qt):
         data_pool = kwargs['dpool'].batch_pool
         worker_pool = None
         if self.use_mean_fitting or self.use_genetics:
-            worker_pool = mp.Pool(processes = self.worker_count)
+            ensem_to_loc = self.ensemble.set_run_params_to_location
+            worker_pool = mp.Pool(processes = self.worker_count, 
+                initializer = ensem_to_loc)
 
         if self.use_genetics:
             iterate = self.iterate_genetic
@@ -616,6 +618,9 @@ class fit_routine(lfu.modular_object_qt):
 
                 else: runs_this_round = runs_left % processor_count
                 dex0 += runs_this_round
+
+                worker_pool._initializer()
+
                 result = worker_pool.map_async(run_func, 
                         [(argu, kwds)]*runs_this_round, 
                         callback = measurements.extend)
@@ -629,7 +634,9 @@ class fit_routine(lfu.modular_object_qt):
                 measurements = [np.mean(measure) for 
                     measure in zip(*measurements)]
 
-        else: measurements = run_func((argu, kwds))
+        else:
+            self.ensemble.set_run_params_to_location()
+            measurements = run_func((argu, kwds))
         if measurements is False:
             print 'no valid measurements...undoing...'
             self.timeouts += 1

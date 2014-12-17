@@ -36,26 +36,26 @@ class mngerTestCase(unittest.TestCase):
         pdb.set_trace()
         sys.stdout = log
 
-    def test_can_make_ensemble(self):
+    def Atest_can_make_ensemble(self):
         """ensemble successfully made?"""
         self.assertFalse(self.ensem == None)
 
-    def test_can_run_simple_ensemble(self):
+    def Atest_can_run_simple_ensemble(self):
         """ensemble successfully run the simple mcfg?"""
         self.assertTrue(self.ensem.run_mcfg(self.simple_mcfg))
         self.assertTrue(self.ensem.produce_output())
 
-    def test_can_run_with_external_signal(self):
+    def Atest_can_run_with_external_signal(self):
         """ensemble successfully run the external signal mcfg?"""
         self.assertTrue(self.ensem.run_mcfg(self.ext_signal_mcfg))
         self.assertTrue(self.ensem.produce_output())
 
-    def atest_can_run_fitting(self):
+    def test_can_run_fitting(self):
         """ensemble successfully run the fitting mcfg?"""
         self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
         self.assertTrue(self.ensem.produce_output())
 
-    def test_can_run_correl_nonmp(self):
+    def Atest_can_run_correl_nonmp(self):
         """ensemble successfully run the non mp correl demo mcfg?"""
         #thread = self.mnger.run_threaded(self.ensem, 
         #   self.ensem.run_mcfg, args = (self.correl_mcfg,))
@@ -63,7 +63,7 @@ class mngerTestCase(unittest.TestCase):
         self.assertTrue(self.ensem.run_mcfg(self.correl_mcfg_nonmp))
         self.assertTrue(self.ensem.produce_output())
 
-    def test_can_run_correl(self):
+    def Atest_can_run_correl(self):
         """ensemble successfully run the correl demo mcfg?"""
         #thread = self.mnger.run_threaded(self.ensem, 
         #   self.ensem.run_mcfg, args = (self.correl_mcfg,))
@@ -93,7 +93,7 @@ class mngerTestCase(unittest.TestCase):
         self.assertTrue(self.ensem.run_mcfg(self.means_mcfg))
         self.assertTrue(self.ensem.produce_output())
 
-    def test_can_produce_output(self):
+    def Atest_can_produce_output(self):
         """ensemble successfully made output?"""
         ensem = self.ensem
         ensem.run_mcfg(self.simple_mcfg)
