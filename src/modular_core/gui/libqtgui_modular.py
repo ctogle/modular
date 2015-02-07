@@ -3,7 +3,7 @@ import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
 lgd = lqg.lgd
 lgb = lqg.lgb
-import modular_core.libsimcomponents as lsc
+import modular_core.libensemble as lensem
 
 import os
 import sys
@@ -11,13 +11,11 @@ import sys
 import pdb
 
 class modular(lqg.application):
-    #gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
     gear_icon = lfu.get_resource_path('gear.png')
-    _content_ = [lsc.ensemble_manager()]
-    lsc.manager = _content_[0]
 
     def __init__(self, *args, **kwargs):
-        lqg.application.__init__(self, *args, **kwargs)
+        self._content_ = [lensem.ensemble_manager()]
+        lqg.application.__init__(self,*args,**kwargs)
         x, y = lfu.convert_pixel_space(784, 256)
         x_size, y_size = lfu.convert_pixel_space(512, 512)
         self._standards_ = {
@@ -33,9 +31,7 @@ class modular(lqg.application):
         lqg.application.setStyle(lgb.create_style('plastique'))
         #lqg.application.setStyle(lgb.create_style('clean'))
 
-_application_ = modular
-_application_locked_ = True
-
+def initialize():lqg.initialize_app(modular)
 
 
 

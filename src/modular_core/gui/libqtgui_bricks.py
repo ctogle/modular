@@ -1,5 +1,3 @@
-#import libs.modular_core.libfundamental as lfu
-#import libs.modular_core.libmath as lm
 import modular_core.libfundamental as lfu
 import modular_core.libmath as lm
 
@@ -53,9 +51,9 @@ code_metrics = QtGui.QFontMetrics(code_font);
 #for all uses of lfu.debug_filter
 debug_filter_thresh = 5
 
-def set_screensize():
-    _screensize_ = QtGui.QApplication.desktop().availableGeometry()
-    return _screensize_
+def screensize():
+    _screensize = QtGui.QApplication.desktop().availableGeometry()
+    return _screensize
 
 def generate_add_function(base_class, parent = None, 
                         wheres = [], rewidget = True):
@@ -88,7 +86,7 @@ def generate_remove_function(get_selected, parent = None,
                 elif type(whar) is types.DictionaryType:
                     #del whar[select.label]
                     if issubclass(select.__class__, 
-                            lfu.modular_object_qt):
+                            lfu.mobject):
                         whar[select.label]._destroy_()
 
                     else: del whar[select.label]
@@ -171,7 +169,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
             instance[key] = val
         else: instance.__dict__[key] = val
         if rewidget and issubclass(instance.__class__, 
-            lfu.modular_object_qt): instance.rewidget(True)
+            lfu.mobject): instance.rewidget(True)
         #elif rewidget and hasattr(parent, 'rewidget'):
         #    parent.rewidget(True)
 
@@ -231,7 +229,7 @@ def create_radios(parent = None, options = [], title = '',
         def rad_select_func():
             instance.__dict__[key] = options[dex]
             if rewidget and issubclass(instance.__class__, 
-                lfu.modular_object_qt): instance.rewidget(True)
+                lfu.mobject): instance.rewidget(True)
 
         return rad_select_func
 
@@ -555,7 +553,7 @@ class check_spin_widget(QtGui.QLabel):
 
     def handle_rewidget(self):
         if self.rewidget and issubclass(self.inst.__class__, 
-            lfu.modular_object_qt): self.inst.rewidget(True)
+            lfu.mobject): self.inst.rewidget(True)
 
 def create_file_name_box(inst, key, label, initial, exts = '', 
         directory = False, init_dir = None, rewidget = True, 
@@ -626,8 +624,8 @@ def set_sizes_limits(widgs, sizes, limit = 'min'):
         for widg_group, size_group in zip(widgs, sizes):
             if size_group is not None:
                 for widg, size in zip(widg_group, size_group):
-                    if size is not None:
-                        w_size, h_size = lfu.convert_pixel_space(*size)
+                    if not size is None:
+                        w_size, h_size = lfu.convert_pixel_space(size[0],size[1])
                         #if one dimension is None...
                         #widg.setMinimumWidth(285)
                         #widg.setMinimumHeight(285)
@@ -1239,7 +1237,7 @@ def tree_book_panels_from_lookup(panel_template_lookup,
             mobj_labels.append(mobj.label)
 
     ltg = sys.modules['modular_core.gui.libqtgui_masons'].interface_template_gui
-    mobj_class = sys.modules['modular_core.libfundamental'].modular_object_qt
+    mobj_class = sys.modules['modular_core.libfundamental'].mobject
     panel_templates = []
     sub_panel_templates = []
     sub_panel_labels = []
@@ -1268,7 +1266,7 @@ def create_tab_book(pages, mason, initial = None,
 
     def keep_index_func(dex):
         inst.__dict__[key] = dex
-        if rewidg: inst.rewidget(True)
+        if rewidg: inst._rewidget(True)
 
     #pages is a list of tuples
     # each tuple: ('page label', page_template_list)
@@ -1348,23 +1346,23 @@ def create_text_box(parent = None, instance = None, key = None,
                 print 'applied to dict inst from lgb', dat
                 instance._set_label_(dat)
 
-            elif isinstance(instance, 
-                lfu.unique_pool_item) and key is 'value':
-                    instance._set_(dat)
+            #elif isinstance(instance, 
+            #    lfu.unique_pool_item) and key is 'value':
+            #        instance._set_(dat)
 
             instance[key] = dat
 
         else:
             if key is 'label': instance._set_label_(dat)
-            elif isinstance(instance, 
-                lfu.unique_pool_item) and key is 'value':
-                    instance._set_(dat)
+            #elif isinstance(instance, 
+            #    lfu.unique_pool_item) and key is 'value':
+            #        instance._set_(dat)
 
             instance.__dict__[key] = dat
 
     def rewidg_on_inst(*args, **kwargs):
-        if inst_is_dict: inst_is_dict[1].rewidget(*args, **kwargs)
-        else: instance.rewidget(*args, **kwargs)
+        if inst_is_dict: inst_is_dict[1]._rewidget(*args, **kwargs)
+        else: instance._rewidget(*args, **kwargs)
 
     def generate_text_edit_func(box):
 
@@ -1465,7 +1463,7 @@ def create_combo_box(labels, icons, datas, bindings = None,
         def instkey_combo_function():
             dex = combo.currentIndex()
             inst.__dict__[key] = labels[dex]
-            if rewidget: inst.rewidget(True)
+            if rewidget: inst._rewidget(True)
 
         return instkey_combo_function
 
@@ -1757,8 +1755,8 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
             lfu.debug_filter('inspector problem', 10); return []
         fixed_lap = []
         for pair in lap:            
-            if  issubclass(pair[1].__class__, lfu.modular_object_qt) or\
-                issubclass(pair[1].__class__, lfu.interface_template_new_style):
+            if  issubclass(pair[1].__class__, lfu.mobject) or\
+                issubclass(pair[1].__class__, lfu.data_container):
                 if pair[1].visible_attributes:
                     bump += ' '*4
                     nest = mobj_to_pairs(pair[1], bump)
@@ -1781,9 +1779,9 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
 
     elif hasattr(mobj, '_inspector_is_mobj_panel_') and\
             mobj._inspector_is_mobj_panel_:
-        if mobj.rewidget_:
+        if mobj.rewidget:
             window = lfu.gui_pack.lqg._window_
-            mobj.set_settables(window)
+            mobj._rewidget(window)
         pan = create_panel(mobj.widg_templates, mason, layout = lay)
         #x_size = pan.sizeHint().width()
         #y_size = pan.sizeHint().height()*2

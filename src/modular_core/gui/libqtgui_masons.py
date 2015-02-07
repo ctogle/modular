@@ -1,17 +1,11 @@
-#import libs.modular_core.libfundamental as lfu
-#import libs.gui.libqtgui_bricks as lgb
 import modular_core.libfundamental as lfu
 import modular_core.gui.libqtgui_bricks as lgb
 
-#import libs.modular_core.libsettings as lset
-
 from PySide import QtGui, QtCore
-import types
-import os
 
-import pdb
+import pdb,os,types
 
-class interface_template_gui(lfu.interface_template_new_style):
+class interface_template_gui(lfu.data_container):
     gui_package = 'PySide'
     _depth_lookup_ =\
             {
@@ -33,6 +27,7 @@ class interface_template_gui(lfu.interface_template_new_style):
         'read_only' : 1, 
         'multiline' : 1, 
         'box_labels' : 1, 
+        'verbosities' : 1, 
         'refresh' : 2, 
         'window' : 2, 
         'parents' : 2, 
@@ -63,7 +58,8 @@ class interface_template_gui(lfu.interface_template_new_style):
             }
 
     def __init__(self, *args, **kwargs):
-        lfu.interface_template_new_style.__init__(self, *args, **kwargs)
+        lfu.data_container.__init__(self, *args, **kwargs)
+        del self.__dict__['args']
 
     def __str__(self):
         _str = []
@@ -268,8 +264,8 @@ class standard_mason(object):
                     inst = handle[0]
                     key = handle[1]
                     inst.__dict__[key] = widg_list
-                    if not handle in inst._handles_:
-                        inst._handles_.append(handle)
+                    if not handle in inst.widg_handles:
+                        inst.widg_handles.append(handle)
 
             except AttributeError: pass
             widgs.append(widg_list)
@@ -869,52 +865,6 @@ class standard_mason(object):
         return [lgb.create_table_widget(mason, 
             heads, rows, temps, callbacks = callbacks)]
 
-class recasting_mason(standard_mason):
-
-    def __init__(self, parent = None, label =\
-                'recasting mason for pyside'):
-        standard_mason.__init__(self, label = label, parent = parent)
-
-    def interpret_template_radio(self, template, widg_dex):
-
-        def generate_recast_inst_func(dex):
-
-            def recast_inst_func():
-                selected = labels[dex]
-                new_class = lfu.lookup_pairwise(zip(
-                    [base._class for base in 
-                        instance.valid_base_classes], 
-                    [base._tag for base in 
-                        instance.valid_base_classes]), selected)
-                instance.recast(new_class)
-                instance.rewidget(True)
-
-            return recast_inst_func
-
-        try: labels = template.labels[widg_dex]
-        except AttributeError: labels = ['...no labels...']
-        try: title = template.box_labels[widg_dex]
-        except AttributeError: title = ''
-        try: initial = template.initials[widg_dex][0]
-        except AttributeError: initial = None
-        try: inst_tuple = template.instances[widg_dex][0]
-        except AttributeError: inst_tuple = None
-        try: key = template.keys[widg_dex][0]
-        except AttributeError: key = None
-        try: rewidget = template.rewidget[widg_dex][0]
-        except AttributeError: rewidget = True
-        if inst_tuple:
-            instance = inst_tuple[1]
-            base_class = inst_tuple[0]
-
-        radios = [lgb.create_radios(options = labels, title = title, 
-                        initial = initial, instance = base_class, 
-                                key = key, rewidget = rewidget)]
-        [rad.clicked.connect(lgb.create_reset_widgets_wrapper(
-            self.parent, generate_recast_inst_func(dex))) for 
-            dex, rad in enumerate(radios[0].children()[1:])]
-        return radios
-
 class cartographer_mason(standard_mason):
 
     def __init__(self, parent = None, label = \
@@ -1149,8 +1099,8 @@ def generate_add_remove_select_inspect_box_template(window, key,
                 if function_handles[dex]:
                     for hand in function_handles[dex]:
                         hand[0].__dict__[hand[1]] = func
-                        if not hand in hand[0]._handles_:
-                            hand[0]._handles_.append(hand)
+                        if not hand in hand[0].widg_handles:
+                            hand[0].widg_handles.append(hand)
 
     return template
 

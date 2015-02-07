@@ -1,10 +1,14 @@
 import modular_core.libfundamental as lfu
-#import libs.modular_core.libfundamental as lfu
 
 import cPickle as pickle
-import os, traceback, sys
+import pdb,os,sys,traceback
 
-import pdb
+if __name__ == 'libs.modular_core.libfiler':
+    lfu.check_gui_pack()
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'libfiler of modular_core'
 
 def save_pkl_object(obj, filename):
     output = open(filename, 'wb')
@@ -60,17 +64,8 @@ def output_lines(lines, direc, finame = None,
 
     return True
 
-def parse_lines(file_path, parser, parser_args = ()):
-    with open(file_path, 'r') as handle: lines = handle.readlines()
-    parser(lines, *parser_args)
 
-if __name__ == '__main__':
-    print 'Hush - This is a library!'
 
-if __name__ == 'libs.modular_core.libfiler':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
-    lgm = lfu.gui_pack.lgm
-    lgd = lfu.gui_pack.lgd
-    lgb = lfu.gui_pack.lgb
+
 
 

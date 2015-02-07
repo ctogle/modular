@@ -1,35 +1,28 @@
 import modular_core.libfundamental as lfu
 
-from pkg_resources import resource_string
-
-import types
-import os
-
-import pdb
+import types,os,pdb
 
 settings = {}
 
 if __name__ == 'modular_core.libsettings':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+    lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-
 if __name__ == '__main__': print 'this is a library!'
 
-class settings_manager(lfu.modular_object_qt):
+class settings_manager(lfu.mobject):
 
-    def __init__(self, *args, **kwargs):
+    true_strings = ['true','True','On','on']
+    false_strings = ['false','False','Off','off']
+
+    def __init__(self,*args,**kwargs):
+        self._default('settings',{},**kwargs)
+        self._default('settings_types',{},**kwargs)
+        self._default('filename',None,**kwargs)
+        lfu.mobject.__init__(self,*args,**kwargs)
+        if lgm:self.mason = lgm.standard_mason()
         self.cfg_path = lfu.get_resource_path()
-        self.true_strings = ['true', 'True', 'On', 'on']
-        self.false_strings = ['false', 'False', 'Off', 'off']
-        self.impose_default('settings', {}, **kwargs)
-        self.impose_default('settings_types', {}, **kwargs)
-        if lgm: self.mason = lgm.standard_mason()
-        if 'filename' in kwargs.keys():
-            self.filename = kwargs['filename']
-        else: self.filename = None
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
 
     def write_settings(self, filename = 'settings.txt'):
         if self.filename: filename = self.filename
@@ -111,7 +104,7 @@ class settings_manager(lfu.modular_object_qt):
         self.display()
 
     def display(self):
-        self.set_settables()
+        self._widget()
         self.panel = lgb.create_scroll_area(
             lgb.create_panel(self.widg_templates, self.mason))
         self.panel.setGeometry(150, 120, 384, 512)
@@ -148,8 +141,8 @@ class settings_manager(lfu.modular_object_qt):
                     box_labels = [sub_key])
         return template
 
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, **kwargs)
+    def _widget(self, *args, **kwargs):
+        self._sanitize(*args, **kwargs)
         sub_panel_templates = []
         for key in self.settings.keys():
             sub_panel_templates.append((key, []))
@@ -185,7 +178,7 @@ class settings_manager(lfu.modular_object_qt):
                 layouts = ['horizontal'], 
                 bindings = [[self.write_settings, self.revert_settings]], 
                 labels = [['Save Settings', 'Revert Settings']]))
-        lfu.modular_object_qt.set_settables(self, *args, from_sub = True)
+        lfu.mobject._widget(self,*args,from_sub = True)
 
 def get_setting(setting, fail_silent = False, 
         default_from_file = True, file_ = ''):

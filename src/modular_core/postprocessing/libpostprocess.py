@@ -1,10 +1,12 @@
 import modular_core.libfundamental as lfu
 import modular_core.libgeometry as lgeo
-import modular_core.libdatacontrol as ldc
-import modular_core.libvtkoutput as lvtk
-import modular_core.liboutput as lo
 import modular_core.libsettings as lset
-import modular_core.libcriterion as lc
+
+import modular_core.data.libdatacontrol as ldc
+import modular_core.io.libvtkoutput as lvtk
+import modular_core.io.liboutput as lo
+import modular_core.criteria.libcriterion as lc
+
 try: import gpu.lib_gpu as lgpu
 except: lgpu = None
 
@@ -42,8 +44,8 @@ class post_process_plan(lfu.plan):
 
     def __init__(self, *args, **kwargs):
         self.current_tab_index = 0
-        self.impose_default('label', 'post process plan', **kwargs)
-        self.impose_default('post_processes', [], **kwargs)
+        self._default('label', 'post process plan', **kwargs)
+        self._default('post_processes', [], **kwargs)
         use = lset.get_setting('postprocessing')
         kwargs['use_plan'] = use
         fit = lset.get_setting('fitting_aware')
@@ -63,7 +65,7 @@ class post_process_plan(lfu.plan):
 
     def reset_process_list(self):
         del self.post_processes[:]
-        del self._children_[:]
+        del self.children[:]
 
     def add_process(self, new = None):
         proc_class_def = valid_postproc_base_classes[0]._class
@@ -73,7 +75,7 @@ class post_process_plan(lfu.plan):
         new._fitting_aware_ = self._fitting_aware_
         #new._always_sourceable_ = self._always_sourceable_
         self.post_processes.append(new)
-        self._children_.append(new)
+        self.children.append(new)
         self.rewidget(True)
 
     def remove_process(self, selected = None):
@@ -81,7 +83,7 @@ class post_process_plan(lfu.plan):
         else: select = self.get_selected()
         if select:
             self.post_processes.remove(select)
-            self._children_.remove(select)
+            self.children.remove(select)
             if hasattr(self.parent, 'run_params'):
                 del self.parent.run_params['output_plans'][
                                 select.label + ' output']
@@ -334,7 +336,7 @@ def parse_postproc_line(*args):
     if lfu.using_gui(): proc.set_settables(0, ensem)
     else: proc.set_target_settables(0, ensem)
 
-class post_process(lfu.modular_object_qt):
+class post_process(lfu.mobject):
 
     #ABSTRACT
     '''
@@ -360,7 +362,7 @@ class post_process(lfu.modular_object_qt):
 
     def _set_label_(self, value):
         before = self.label
-        if lfu.modular_object_qt._set_label_(self, value):
+        if lfu.mobject._set_label_(self, value):
             procs = self.parent.post_processes
             for proc in procs:
                 if before in proc.input_regime:
@@ -412,13 +414,13 @@ class post_process(lfu.modular_object_qt):
         self.capture_targets = capture_targets
         self.brand_new = True
         self._single_input_ = _single_input_
-        lfu.modular_object_qt.__init__(self, label = label, 
+        lfu.mobject.__init__(self, label = label, 
             parent = parent, valid_base_classes = valid_base_classes, 
                             visible_attributes = visible_attributes, 
                                             base_class = base_class)
         self.output = lo.output_plan(
             label = self.label + ' output', parent = self)
-        self._children_ = [self.output]
+        self.children = [self.output]
 
     def recast(self, new_base_class, base_example = None):
         self.__class__ = new_base_class
@@ -598,7 +600,6 @@ class post_process(lfu.modular_object_qt):
         self.determine_regime(args[0])
 
         pool = self.start_pool(*args, **kwargs)
-        #pool = []
         sources = self.get_source_reference(1, *args, **kwargs)
         #       WILL SOURCES CONTAIN DUPLICATE REFERENCES????
         #     POOL IS AT ARGS[1] BUT INPUT REGIME IS NOT SIMULATION!!
@@ -608,8 +609,16 @@ class post_process(lfu.modular_object_qt):
         #    #pool = args[0].data_pool
         #    pool = args[1]
 
-        for src in sources: lfu.zip_list(pool, src.data)
-        
+        def zip_list(target,new_list):
+            if target:
+                target_names = [targ.label for targ in target[0]]
+                for k in range(len(target)):
+                    valid = [dater for dater in new_list[k] 
+                        if dater.label not in target_names]
+                    target[k].extend(valid)
+            else: target.extend(new_list)
+
+        for src in sources:zip_list(pool,src.data)
         
         if 'p_space' in kwargs.keys(): p_space = kwargs['p_space']
         else: p_space = args[0].cartographer_plan
@@ -667,19 +676,19 @@ class post_process(lfu.modular_object_qt):
         try:
             if type(args[0]) is types.BooleanType:
                 if args[0]: self.output.rewidget_ = True
-                lfu.modular_object_qt.rewidget(self, *args, **kwargs)
+                lfu.mobject.rewidget(self, *args, **kwargs)
 
         except IndexError:
-            return lfu.modular_object_qt.rewidget(self, *args, **kwargs)
+            return lfu.mobject.rewidget(self, *args, **kwargs)
 
     def sanitize(self, *args, **kwargs):
-        lfu.modular_object_qt.sanitize(self, *args, **kwargs)
+        lfu.mobject.sanitize(self, *args, **kwargs)
 
     def handle_widget_inheritance(self, *args, **kwargs):
         if 'from_sub' in kwargs.keys():
             if not kwargs['from_sub']:
                 self.set_target_settables(*args, **kwargs)
-        lfu.modular_object_qt.handle_widget_inheritance(
+        lfu.mobject.handle_widget_inheritance(
                                 self, *args, **kwargs)
 
     def set_target_settables(self, *args, **kwargs):
@@ -754,7 +763,7 @@ class post_process(lfu.modular_object_qt):
                 widgets = ['text'], 
                 #where_store = where_reference, 
                 box_labels = ['Post Process Name']))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
 class post_process_meanfields(post_process):
@@ -774,10 +783,10 @@ class post_process_meanfields(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'all trajectories'
 
-        self.impose_default('function_of', None, **kwargs)
-        self.impose_default('means_of', None, **kwargs)
-        self.impose_default('bin_count', 100, **kwargs)
-        self.impose_default('ordered', True, **kwargs)
+        self._default('function_of', None, **kwargs)
+        self._default('means_of', None, **kwargs)
+        self._default('bin_count', 100, **kwargs)
+        self._default('ordered', True, **kwargs)
         post_process.__init__(self, *args, **kwargs)
 
     def to_string(self):
@@ -894,10 +903,10 @@ class post_process_standard_statistics(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'all trajectories'
 
-        self.impose_default('function_of', None, **kwargs)
-        self.impose_default('mean_of', None, **kwargs)
-        self.impose_default('bin_count', 100, **kwargs)
-        self.impose_default('ordered', True, **kwargs)
+        self._default('function_of', None, **kwargs)
+        self._default('mean_of', None, **kwargs)
+        self._default('bin_count', 100, **kwargs)
+        self._default('ordered', True, **kwargs)
         post_process.__init__(self, *args, **kwargs)
 
     def to_string(self):
@@ -1047,12 +1056,12 @@ class post_process_correlation_values(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'all trajectories'
 
-        self.impose_default('target_1', None, **kwargs)
-        self.impose_default('target_2', None, **kwargs)
-        self.impose_default('function_of', None, **kwargs)
-        self.impose_default('bin_count', 100, **kwargs)
-        self.impose_default('ordered', True, **kwargs)
-        self.impose_default('fill_value', -100.0, **kwargs)
+        self._default('target_1', None, **kwargs)
+        self._default('target_2', None, **kwargs)
+        self._default('function_of', None, **kwargs)
+        self._default('bin_count', 100, **kwargs)
+        self._default('ordered', True, **kwargs)
+        self._default('fill_value', -100.0, **kwargs)
         #post_process.__init__(self, label = label, regime = regime, 
         #   base_class = base_class, valid_regimes = valid_regimes, 
         #   input_regime = input_regime, valid_inputs = valid_inputs, 
@@ -1286,8 +1295,8 @@ class post_process_slice_from_trajectory(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'per trajectory'
 
-        self.impose_default('dater_ids', None, **kwargs)
-        self.impose_default('slice_dex', -1, **kwargs)
+        self._default('dater_ids', None, **kwargs)
+        self._default('slice_dex', -1, **kwargs)
     #   post_process.__init__(self, label = label, regime = regime, 
     #       base_class = base_class, valid_regimes = valid_regimes, 
     #       capture_targets = capture_targets)
@@ -1407,7 +1416,7 @@ class post_process_reorganize_data(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'all trajectories'
 
-        self.impose_default('dater_ids', None, **kwargs)
+        self._default('dater_ids', None, **kwargs)
         #post_process.__init__(self, label = label, regime = regime, 
         #   base_class = base_class, valid_regimes = valid_regimes, 
         #   input_regime = input_regime, valid_inputs = valid_inputs, 
@@ -1526,12 +1535,12 @@ class post_process_1_to_1_binary_operation(post_process):
         if not 'regime' in kwargs.keys():
             kwargs['regime'] = 'per trajectory'
 
-        self.impose_default('use_gpu', False, **kwargs)
-        self.impose_default('input_1', None, **kwargs)
-        self.impose_default('input_2', None, **kwargs)
-        self.impose_default('domain', None, **kwargs)
-        self.impose_default('operation', '+', **kwargs)
-        self.impose_default('operations', 
+        self._default('use_gpu', False, **kwargs)
+        self._default('input_1', None, **kwargs)
+        self._default('input_2', None, **kwargs)
+        self._default('domain', None, **kwargs)
+        self._default('operation', '+', **kwargs)
+        self._default('operations', 
             ['+', '-', '*', '/'], **kwargs)
         post_process.__init__(self, *args, **kwargs)
 
@@ -1867,7 +1876,7 @@ class post_process_measure_probability(post_process):
         self.probability_criterion =\
             lc.trajectory_criterion_ceiling(parent = self)
         post_process.__init__(self, *args, **kwargs)
-        self._children_ = [self.probability_criterion]
+        self.children = [self.probability_criterion]
 
     def to_string(self):
         #label : probability : 0
@@ -1903,7 +1912,8 @@ class post_process_measure_probability(post_process):
 
     def set_settables(self, *args, **kwargs):
         self.handle_widget_inheritance(*args, from_sub = False)
-        #capture_targetable = self.get_targetables(*args, **kwargs)
+        capture_targetable = self.get_targetables(*args, **kwargs)
+        kwargs['capture_targetable'] = capture_targetable
         self.probability_criterion.set_settables(*args, **kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
@@ -1981,34 +1991,6 @@ def bin_scalars(axes, ax_vals, bin_res, ordered = True,
 
     return bins, vals
 
-valid_postproc_base_classes = [
-                            lfu.interface_template_class(
-                        post_process_meanfields, 
-                                    'meanfields'), 
-                            lfu.interface_template_class(
-                        post_process_standard_statistics, 
-                                    'standard statistics'), 
-                        #   lfu.interface_template_class(
-                        #post_process_counts_to_concentrations, 
-                        #       'counts to concentrations'), 
-                            lfu.interface_template_class(
-                        post_process_correlation_values, 
-                                'correlation'), 
-                            lfu.interface_template_class(
-                        post_process_slice_from_trajectory, 
-                                'slice from trajectory'), 
-                            lfu.interface_template_class(
-                        post_process_reorganize_data, 
-                                'reorganize data'), 
-                            lfu.interface_template_class(
-                        post_process_1_to_1_binary_operation, 
-                                'one to one binary operation'), 
-                        #   lfu.interface_template_class(
-                        #post_process_measure_probability, 
-                        #               'probability'), 
-                            lfu.interface_template_class(
-                        post_process_period_finding, 
-                                    'period finding')]
 
 
 

@@ -1,21 +1,16 @@
 import modular_core.libfundamental as lfu
+
 import modular_core.gui.libqtgui_masons as lgm
 import modular_core.gui.libqtgui_bricks as lgb
 import modular_core.gui.libqtgui_dialogs as lgd
 
-#from PyQt4 import QtGui, QtCore
 from PySide import QtGui, QtCore
-import PySide
 
 try:
     import matplotlib
     matplotlib.rcParams['backend.qt4'] = 'PySide'
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canvas
-    #from matplotlib.backend_bases import NavigationToolbar2 as plt_toolbar
     import matplotlib.pyplot as plt
-    #import matplotlib.patches as patches
-    #import matplotlib.path as path
-    #from mpl_toolkits.mplot3d import axes3d, Axes3D
 except ImportError:
     traceback.print_exc(file=sys.stdout)
     print 'matplotlib could not be imported! - dialogs'
@@ -29,16 +24,16 @@ import pdb
 
 _window_ = None
 
-def initialize_gui(params):
-    app = application(params, sys.argv)
+def initialize_app(gapp):
+    lfu.using_gui = True
+    app = gapp(sys.argv)
     sys.exit(app.exec_())
 
 class application(QtGui.QApplication):
 
     _content_ = []
     _standards_ = {}
-    def __init__(self, params, argv):
-        self.params = params
+    def __init__(self,argv):
         QtGui.QApplication.__init__(self, argv)
         self.initialize(content = self._content_,
                     standards = self._standards_)
@@ -73,8 +68,8 @@ class gui_window(QtGui.QMainWindow):
         except KeyError: title = '--'
         try: geometry = standards['geometry']
         except KeyError:
-            x, y = lfu.convert_pixel_space(300, 300)
-            x_size, y_size = lfu.convert_pixel_space(512, 512)
+            x, y = lfu.convert_pixel_space(300,300)
+            x_size, y_size = lfu.convert_pixel_space(512,512)
             geometry = (x, y, x_size, y_size)
 
         try: self.setWindowIcon(lgb.create_icon(
@@ -87,9 +82,9 @@ class gui_window(QtGui.QMainWindow):
         if type(self.content) is types.ListType:
             #obliges if mobj needs widgets recalculated
             #uses the mobjs' widgets for the current widget set
-            [content.set_settables(*self.settables_infos) for 
-                content in self.content if content.rewidget(
-                        infos = self.settables_infos)]
+            [content._widget(*self.settables_infos) for content in 
+                self.content if content._rewidget(infos = self.settables_infos)]
+
             self.widg_templates = lfu.flatten([content.widg_templates 
                         for content in self.content])
             self.menu_templates = lfu.flatten([content.menu_templates
@@ -169,7 +164,7 @@ class gui_window(QtGui.QMainWindow):
         geometry = (x, y, x_size, y_size)
         self.setGeometry(*geometry)
 
-class plot_page(lfu.modular_object_qt):
+class plot_page(lfu.mobject):
 
     _inspector_is_mobj_panel_ = True
 
@@ -207,7 +202,7 @@ class plot_page(lfu.modular_object_qt):
         else: ucbs = {}
         self.user_callbacks = ucbs
         label = ' : '.join([str(pagenum), self.filename])
-        lfu.modular_object_qt.__init__(self, 
+        lfu.mobject.__init__(self, 
             label = label, data = data, parent = parent)
 
     def get_targets(self):
@@ -283,7 +278,7 @@ class plot_page(lfu.modular_object_qt):
 
         qplot.roll_data(data, self.get_xtitle(), self.get_ytitle())
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self, *args, **kwargs):
         window = args[0]
         toolbar_funcs = [window.get_current_page]
         data = self.data
@@ -298,10 +293,10 @@ class plot_page(lfu.modular_object_qt):
                 handles = [(self, 'qplot')], 
                 callbacks = [toolbar_funcs], 
                 datas = [data]))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject._widget(
             self, *args, from_sub = True)
 
-class plot_window(lfu.modular_object_qt):
+class plot_window(lfu.mobject):
 
     def __init__(self, *args, **kwargs):
         self.impose_default('selected_page_label', None, **kwargs)
@@ -334,7 +329,7 @@ class plot_window(lfu.modular_object_qt):
         self.mason = lgm.standard_mason()
         self.figure = plt.figure()
         self.canvas = figure_canvas(self.figure)
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
 
     def __call__(self, *args, **kwargs):
         page = self.get_current_page()
@@ -468,9 +463,9 @@ class plot_window(lfu.modular_object_qt):
                     box_labels = [lab]))
         return slice_templates
 
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, **kwargs)
-        [pg.set_settables(self, **kwargs) for pg in self.pages]
+    def _widget(self, *args, **kwargs):
+        self.handle_widget_inheritance(*args,**kwargs)
+        [pg._widget(self,**kwargs) for pg in self.pages]
         self.widg_templates.append(
                 lgm.interface_template_gui(
                     layout = 'grid', 
@@ -566,8 +561,7 @@ class plot_window(lfu.modular_object_qt):
                 handles = [(self, 'slice_panel')], 
                 box_labels = ['Additional Axis Handling'], 
                 templates = [slice_templates]))
-        lfu.modular_object_qt.set_settables(
-            self, *args, from_sub = True)
+        lfu.mobject._widget(self,*args,from_sub = True)
 
 if __name__ == '__main__': 'this is a library!'
 

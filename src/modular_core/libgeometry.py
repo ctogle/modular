@@ -1,8 +1,9 @@
 import modular_core.libfundamental as lfu
 import modular_core.libmath as lm
-import modular_core.libfiler as lf
 import modular_core.libsettings as lset
-import modular_core.libdatacontrol as ldc
+
+import modular_core.io.libfiler as lf
+import modular_core.data.libdatacontrol as ldc
 
 import itertools as it
 import types
@@ -20,7 +21,7 @@ import traceback
 import pdb
 
 if __name__ == 'modular_core.libgeometry':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+    #if lfu.gui_pack is None: lfu.find_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
@@ -36,15 +37,15 @@ def generate_parameter_space_from_run_params(parent, run_params):
         try:
             if type(par) is types.ListType:
                 for pa in [para for para in par if 
-                        isinstance(para, lfu.modular_object_qt)]:
+                        isinstance(para, lfu.mobject)]:
                     check_for_nested_contributors(subspaces, par)
 
             elif type(par) is types.DictionaryType:
                 for key in [key for key in par.keys() if 
-                        isinstance(par[key], lfu.modular_object_qt)]:
+                        isinstance(par[key], lfu.mobject)]:
                     check_for_nested_contributors(subspaces, par[key])
 
-            elif isinstance(par, lfu.modular_object_qt):
+            elif isinstance(par, lfu.mobject):
                 for template in par.parameter_space_templates:
                     if template.contribute_to_p_sp:
                         subspaces.append(one_dim_space(template))
@@ -60,12 +61,12 @@ def generate_parameter_space_from_run_params(parent, run_params):
         param = run_params[key]
         if type(param) is types.ListType:
             for par in [par for par in param if 
-                    isinstance(par, lfu.modular_object_qt)]:
+                    isinstance(par, lfu.mobject)]:
                 check_for_nested_contributors(subspaces, par)
 
         elif type(param) is types.DictionaryType:
             for subkey in [key for key in param.keys() if 
-                    isinstance(param[key], lfu.modular_object_qt)]:
+                    isinstance(param[key], lfu.mobject)]:
                 check_for_nested_contributors(subspaces, param[subkey])
 
         elif not key == '_parent': pdb.set_trace()
@@ -185,7 +186,7 @@ class one_dim_space(object):
         self.continuous = template.p_sp_continuous
         self.increment = template.p_sp_increment
         self.constraints = template.constraints
-        self.label = ' : '.join([template.instance.label, template.key])
+        self.name = ' : '.join([template.instance.name,template.key])
         if not self.continuous and not scalars_:
             scalars_ = np.linspace(self.bounds[0], 
                 self.bounds[1], self.increment)
@@ -255,7 +256,7 @@ class one_dim_space(object):
         step = self.validate_step(step)
         return step
 
-class axis_constraint(lfu.modular_object_qt):
+class axis_constraint(lfu.mobject):
 
     def __init__(self, *args, **kwargs):
         self.impose_default('inst', None, **kwargs)
@@ -263,7 +264,7 @@ class axis_constraint(lfu.modular_object_qt):
         self.impose_default('inst_ruler', None, **kwargs)
         self.impose_default('key_ruler', None, **kwargs)
         self.impose_default('op', None, **kwargs)
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
 
     def get_values(self):
         this_ax_val = self.inst.__dict__[self.key]
@@ -285,15 +286,12 @@ class axis_constraint(lfu.modular_object_qt):
             self.inst.__dict__[self.key] =\
                 self.inst_ruler.__dict__[self.key_ruler]
 
-class parameter_space_location(lfu.modular_object_qt):
+class parameter_space_location(lfu.mobject):
 
-    #def __init__(self, label = 'p-space position', 
-    def __init__(self, 
-            location = [], trajectory_count = 1):
+    def __init__(self,location = [],trajectory_count = 1):
         self.location = location
         self.trajectory_count = trajectory_count
-        #lfu.modular_object_qt.__init__(self, label = label)
-        lfu.modular_object_qt.__init__(self)
+        lfu.mobject.__init__(self)
 
     def __setitem__(self, key, value):
         self.location[key] = value
@@ -304,13 +302,13 @@ class parameter_space_location(lfu.modular_object_qt):
     def __len__(self):
         return len(self.location)
 
-class parameter_space_step(lfu.modular_object_qt):
+class parameter_space_step(lfu.mobject):
 
     def __init__(self, location = [], 
                         initial = [], 
                         final = [], 
                         delta_quality = []):
-        lfu.modular_object_qt.__init__(self)
+        lfu.mobject.__init__(self)
         self.location = location
         self.initial = initial
         self.final = final
@@ -339,7 +337,7 @@ def parse_p_space(p_sub, ensem):
         return valid
 
     def turn_on_mobjs_first_p_space_axis(mobj):
-        dex = axes.index(mobj.label)
+        dex = axes.index(mobj.name)
         mobj_attr = variants[dex]
         #mobj.set_settables(0, ensem)
         mobj.set_pspace_settables(0, ensem)
@@ -410,12 +408,12 @@ def parse_p_space(p_sub, ensem):
             if type(p_mobjs[key]) is types.DictionaryType:
                 for sub_key in p_mobjs[key].keys():
                     mobj = p_mobjs[key][sub_key]
-                    if mobj.label in axes:
+                    if mobj.name in axes:
                         turn_on_mobjs_first_p_space_axis(mobj)
 
             if type(p_mobjs[key]) is types.ListType:
                 for mobj in p_mobjs[key]:
-                    if mobj.label in axes:
+                    if mobj.name in axes:
                         turn_on_mobjs_first_p_space_axis(mobj)
 
     ensem.cartographer_plan.generate_parameter_space()
@@ -441,28 +439,6 @@ def parse_p_space(p_sub, ensem):
         ensem.cartographer_plan.on_append_trajectory(traj_dlg.result)
         ensem.cartographer_plan.traj_count = p_sub[0][1]
         ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
-        '''
-        traj_dlg = lgd.trajectory_dialog(parent = None, 
-            base_object = selected, composition_method = comp_meth, 
-            p_space = ensem.cartographer_plan.parameter_space)
-
-        for ax, vari, rng in zip(axes, variants, ranges):
-            trj_dlg_dex = traj_dlg.axis_labels.index(
-                            ' : '.join([ax, vari]))
-            traj_dlg.variations[trj_dlg_dex] = validate(rng)
-
-        traj_dlg.on_make()
-        if traj_dlg.made:
-            ensem.cartographer_plan.trajectory_string =\
-                                traj_dlg.result_string
-            ensem.cartographer_plan.on_delete_selected_pts(
-                                        preselected = None)
-            ensem.cartographer_plan.on_reset_trajectory_parameterization()
-            ensem.cartographer_plan.on_append_trajectory(traj_dlg.result)
-
-        ensem.cartographer_plan.traj_count = p_sub[0][1]
-        ensem.cartographer_plan.on_assert_trajectory_count(all_ = True)
-        '''
 
     elif comp_meth == 'Fitting':
         subspaces = ensem.cartographer_plan.parameter_space.subspaces
@@ -485,7 +461,7 @@ class p_space_proxy(object):
         if not self.variations: self.NO_AXES_FLAG = True
         else: self.NO_AXES_FLAG = False
         self.comp_methods = ['Product Space', '1 - 1 Zip']
-        self.axis_labels = [subsp.label for subsp in 
+        self.axis_labels = [subsp.name for subsp in 
                             self.p_space.subspaces]
         if 'composition_method' in kwargs.keys():
             self.composition_method = kwargs['composition_method']
@@ -554,7 +530,7 @@ class p_space_proxy(object):
             self.create_one_to_one_locations()
         self.result = self.constructed
 
-class parameter_space(lfu.modular_object_qt):
+class parameter_space(lfu.mobject):
 
     '''
     initialize with template to make a space
@@ -587,14 +563,14 @@ class parameter_space(lfu.modular_object_qt):
         self.impose_default('steps', [], **kwargs)
         self.impose_default('step_normalization', 5.0, **kwargs)
         self.dimensions = len(self.subspaces)
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
 
     def set_start_position(self):
         self.undo_level = 0
         for subsp in self.subspaces:
             subsp.initialize()
             rele_val = subsp.current_location()
-            print 'starting position of', subsp.label, ':', rele_val, ':', subsp.bounds
+            print 'starting position of', subsp.name, ':', rele_val, ':', subsp.bounds
 
     def get_start_position(self):
         location = [sp.inst.__dict__[sp.key] 
@@ -602,7 +578,7 @@ class parameter_space(lfu.modular_object_qt):
         return parameter_space_location(location = location)
 
     def get_current_position(self):
-        return [(axis.inst.label, axis.key, 
+        return [(axis.inst.name, axis.key, 
             str(axis.current_location())) 
             for axis in self.subspaces]
 
@@ -763,7 +739,7 @@ class parameter_space(lfu.modular_object_qt):
 
         return dexes
 
-class interface_template_p_space_axis(lfu.interface_template_new_style):
+class interface_template_p_space_axis(lfu.data_container):
 
     rewidget_ = True
 
@@ -786,7 +762,7 @@ class interface_template_p_space_axis(lfu.interface_template_new_style):
         self.gui_give_p_sp_cont_disc_control =\
                 gui_give_p_sp_cont_disc_control
         if lgm: self.mason = lgm.standard_mason(parent = self)
-        lfu.interface_template_new_style.__init__(self, 
+        lfu.data_container.__init__(self, 
             parent = parent, visible_attributes = visible_attributes)
 
     def rewidget(self, *args, **kwargs):
@@ -855,8 +831,8 @@ class interface_template_p_space_axis(lfu.interface_template_new_style):
 
 class cartographer_plan(lfu.plan):
 
-    def __init__(self, label = 'mapping plan', parent = None, 
-            parameter_space_mobjs = {}, traj_count = 1, key_path = ''):
+    def __init__(self,parent = None,name = 'mapping plan',
+            parameter_space_mobjs = {},traj_count = 1,key_path = ''):
         self.parameter_space = None
         self.parameter_space_mobjs = parameter_space_mobjs
         self.trajectory = []
@@ -866,8 +842,7 @@ class cartographer_plan(lfu.plan):
         self.key_path = key_path
         self.trajectory_string = ''
         use = lset.get_setting('mapparameterspace')
-        lfu.plan.__init__(self, label = label, 
-            parent = parent, use_plan = use)
+        lfu.plan.__init__(self,name = name,parent = parent,use_plan = use)
 
     def to_string(self):
         if self.trajectory:
@@ -948,7 +923,7 @@ class cartographer_plan(lfu.plan):
             return line
 
         if not self.parameter_space is None:
-            axis_labels = [subsp.label for subsp in 
+            axis_labels = [subsp.name for subsp in 
                     self.parameter_space.subspaces]
 
         else:
@@ -1074,7 +1049,7 @@ class cartographer_plan(lfu.plan):
             #   the first is the index of the location
             #   the second is the values in 1-1 with 
             #   p-space subspaces
-            headers = [subsp.label for subsp in 
+            headers = [subsp.name for subsp in 
                 self.parameter_space.subspaces] + ['']
             #self.widg_templates.append(
             left_side = [lgm.interface_template_gui(
@@ -1096,30 +1071,10 @@ class cartographer_plan(lfu.plan):
                 templates = [split_widg_templates], 
                 scrollable = [True], 
                 box_labels = ['Parameter Space']))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
-'''
-def scalars_from_labels(targeted):
-    return [scalars(label = target) for target in targeted]
-
-def bin_vectors_from_labels(targeted):
-    return [bin_vectors(label = target) for target in targeted]
-
-def sort_data_by_type(data, specifics = []):
-    if not specifics: specifics = [dater.label for dater in data]
-    sorted_data = {'scalars': {}, 'coords': {}}
-    for dater in [dater for dater in data if dater.label in specifics]:
-        if dater.tag == 'scalar':
-            sorted_data['scalars'][dater.label] = dater.scalars
-
-        elif dater.tag == 'coordinates':
-            sorted_data['coords']['_'.join(dater.coords.keys())] = dater.coords
-
-    return sorted_data
-'''
-
-class metric(lfu.modular_object_qt):
+class metric(lfu.mobject):
 
     #ABSTRACT
     '''
@@ -1143,7 +1098,7 @@ class metric(lfu.modular_object_qt):
         self.impose_default('best_advantage', 2.0, **kwargs)
         self.impose_default('best_flag', False, **kwargs)
         self.impose_default('is_heaviest', False, **kwargs)
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
         self._children_ = []
 
     def check_best(self, display = False):
@@ -1161,7 +1116,7 @@ class metric(lfu.modular_object_qt):
 
         if (self.best_flag or display) and self.is_heaviest:
             meas = self.data[0].scalars[-1]
-            print ' '.join(['\nmetric', self.label, 'measured best', 
+            print ' '.join(['\nmetric', self.name, 'measured best', 
                     str(meas), str(len(self.data[0].scalars) - 1)])
             for pos in self.parent.parameter_space.get_current_position():
                 print pos
@@ -1187,7 +1142,7 @@ class metric(lfu.modular_object_qt):
         try: report_only = kwargs['report_only']
         except KeyError: report_only = False
 
-        labels = [[do.label for do in de] for de in args]
+        labels = [[do.name for do in de] for de in args]
         run_data_domain = run_data[labels[1].index(labels[0][0])]
         try:
             run_data_codomains = [run_data[labels[1].index(
@@ -1195,7 +1150,7 @@ class metric(lfu.modular_object_qt):
                         in range(len(labels[0][1:]))]
         except ValueError: pdb.set_trace()
         run_data_interped = [scalars(
-            label = 'interpolated result - ' + codomain.label, 
+            label = 'interpolated result - ' + codomain.name, 
             scalars = lm.linear_interpolation(run_data_domain.scalars, 
                     codomain.scalars, to_fit_to[0].scalars, 'linear')) 
                                 for codomain in run_data_codomains]
@@ -1221,7 +1176,7 @@ class metric(lfu.modular_object_qt):
 
                 else: self.acceptance_weight *= 2.0
             if (self.best_flag or kwargs['display']) and self.is_heaviest:
-                print ' '.join(['metric', self.label, 'measured', 
+                print ' '.join(['metric', self.name, 'measured', 
                     str(meas), str(len(self.data[0].scalars))])
                 print self.parent.parameter_space.get_current_position()
                 lgd.quick_plot_display(to_fit_to[0], 
@@ -1233,9 +1188,8 @@ class metric(lfu.modular_object_qt):
 class metric_avg_ptwise_diff_on_domain(metric):
 
     def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'pointwise difference metric'
-
+        if not 'name' in kwargs.keys():
+            kwargs['name'] = 'pointwise difference metric'
         metric.__init__(self, *args, **kwargs)
 
     def initialize(self, *args, **kwargs):
@@ -1261,9 +1215,8 @@ class metric_avg_ptwise_diff_on_domain(metric):
 class metric_slope_1st_derivative(metric):
 
     def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'slope metric'
-
+        if not 'name' in kwargs.keys():
+            kwargs['name'] = 'slope metric'
         metric.__init__(self, *args, **kwargs)
 
     def initialize(self, *args, **kwargs):
@@ -1294,9 +1247,8 @@ class metric_slope_1st_derivative(metric):
 class metric_slope_2nd_derivative(metric):
 
     def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = '2nd derivative metric'
-
+        if not 'name' in kwargs.keys():
+            kwargs['name'] = '2nd derivative metric'
         metric.__init__(self, *args, **kwargs)
 
     def initialize(self, *args, **kwargs):
@@ -1333,9 +1285,8 @@ class metric_slope_2nd_derivative(metric):
 class metric_slope_3rd_derivative(metric):
 
     def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = '3rd derivative metric'
-
+        if not 'name' in kwargs.keys():
+            kwargs['name'] = '3rd derivative metric'
         metric.__init__(self, *args, **kwargs)
 
     def initialize(self, *args, **kwargs):
@@ -1373,9 +1324,8 @@ class metric_slope_3rd_derivative(metric):
 class metric_slope_4th_derivative(metric):
 
     def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = '4th derivative metric'
-
+        if not 'name' in kwargs.keys():
+            kwargs['name'] = '4th derivative metric'
         metric.__init__(self, *args, **kwargs)
 
     def initialize(self, *args, **kwargs):
@@ -1411,53 +1361,6 @@ class metric_slope_4th_derivative(metric):
         return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
                 for k in range(bounds[0] + 2, bounds[1] - 3)]
 
-'''
-def array_to_string(arr):
-    string = ' '
-    string = string.join([str(value) for value in arr])
-    string += ' '
-    return string
-
-def coords_to_string(x, y, z):
-    #concat = x + y + z
-    concat = np.concatenate((x, y, z))
-    array = [[concat[k], concat[k + len(x)], concat[k + 2*len(x)]] \
-                                        for k in range(len(x))]
-    array = [item for sublist in array for item in sublist]
-    return array_to_string(array)
-
-def quality_coords_to_string(x, y, z, Q, dims):
-    string = str()
-    xdim = int(dims[0]) + 1
-    ydim = int(dims[1]) + 1
-    zdim = int(dims[2]) + 1
-    npts = xdim*ydim*zdim
-    flat = ['0']*npts
-    for j in range(len(Q)):
-        try:
-            flat[int(z[j])*xdim*ydim + int(y[j])*xdim + int(x[j])]=str(Q[j])
-
-        except IndexError:
-            print 'Youve got an indexing problem'
-            pdb.set_trace()
-
-    string = array_to_string(flat)
-    return string
-'''
-
-valid_metric_base_classes = [
-    lfu.interface_template_class(
-        metric_slope_1st_derivative, 
-            'slope-1 comparison metric'), 
-    lfu.interface_template_class(
-        metric_slope_2nd_derivative, 
-            'slope-2 comparison metric'), 
-    lfu.interface_template_class(
-        metric_slope_3rd_derivative, 
-            'slope-3 comparison metric'), 
-    lfu.interface_template_class(
-        metric_avg_ptwise_diff_on_domain, 
-            'pointwise difference metric')]
 
 
 

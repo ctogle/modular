@@ -1,14 +1,15 @@
 import modular_core.libfundamental as lfu
-import modular_core.libfiler as lf
-import modular_core.liboutput as lo
 import modular_core.libgeometry as lgeo
-import modular_core.libdatacontrol as ldc
-import modular_core.libcriterion as lc
-import modular_core.libvtkoutput as lvtk
 import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
 import modular_core.libmath as lm
 import modular_core.libmultiprocess as lmp
+
+import modular_core.io.libvtkoutput as lvtk
+import modular_core.io.libfiler as lf
+import modular_core.io.liboutput as lo
+import modular_core.data.libdatacontrol as ldc
+import modular_core.criteria.libcriterion as lc
 
 from copy import deepcopy as copy
 import multiprocessing as mp
@@ -24,22 +25,21 @@ import sys
 
 import pdb
 
-if __name__ == 'modular_core.libfitroutine':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+if __name__ == 'modular_core.fitting.libfitroutine':
+    lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-
 if __name__ == '__main__': print 'this is a library!'
 
 class fit_routine_plan(lfu.plan):
 
     def __init__(self, *args, **kwargs):
-        self.impose_default('label', 'fit routine plan', **kwargs)
-        self.impose_default('routines', [], **kwargs)
-        self.impose_default('selected_routine', None, **kwargs)
-        self.impose_default('selected_routine_label', None, **kwargs)
-        self.impose_default('show_progress_plots', True, **kwargs)
+        self._default('label', 'fit routine plan', **kwargs)
+        self._default('routines', [], **kwargs)
+        self._default('selected_routine', None, **kwargs)
+        self._default('selected_routine_label', None, **kwargs)
+        self._default('show_progress_plots', True, **kwargs)
         kwargs['use_plan'] = lset.get_setting('fitting')
         lfu.plan.__init__(self, *args, **kwargs)
 
@@ -91,7 +91,7 @@ class fit_routine_plan(lfu.plan):
                         select.label, self.routines)
             self.routines.pop(select_dex)
             self.routines.insert(select_dex - 1, select)
-            #self.set_selected(select_dex - 1)
+            #self._widget(select_dex - 1)
             self.rewidget_routines()
 
     def move_routine_down(self, *args, **kwargs):
@@ -101,7 +101,7 @@ class fit_routine_plan(lfu.plan):
                         select.label, self.routines)
             self.routines.pop(select_dex)
             self.routines.insert(select_dex + 1, select)
-            #self.set_selected(select_dex + 1)
+            #self._widget(select_dex + 1)
             self.rewidget_routines()
 
     def rewidget_routines(self, rewidg = True):
@@ -120,21 +120,10 @@ class fit_routine_plan(lfu.plan):
         except IndexError:
             print 'no routine selected'; return
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self,*args,**kwargs):
         window = args[0]
-        self.handle_widget_inheritance(*args, **kwargs)
-        '''
-        if not selected_routine is None:
-            where_reference = ensemble.run_params['output_plans']
-            rout_remove_data_links = [lfu.interface_template_dependance(
-                (where_reference, selected_routine.label, True), 
-                linkages = [(where_reference, selected_routine.label, 
-                                            True, 'direct_remove')])]
+        self._sanitize(*args,**kwargs)
 
-        else:
-            where_reference = None
-            rout_remove_data_links = None
-        '''
         try: select_label = self.selected_routine.label
         except AttributeError: select_label = None
         self.widg_templates.append(
@@ -162,7 +151,7 @@ class fit_routine_plan(lfu.plan):
                                 self.move_routine_up), 
                         lgb.create_reset_widgets_wrapper(window, 
                                 self.move_routine_down)]]))
-        lfu.plan.set_settables(self, *args, from_sub = True)
+        lfu.plan._widget(self, *args, from_sub = True)
 
 def parse_fitting_line(*args):
     data = args[0]
@@ -197,9 +186,9 @@ def parse_fitting_line(*args):
                 rout.input_data_aliases = aliases
 
     ensem.fitting_plan.add_routine(new = rout)
-    if lfu.using_gui(): rout.set_settables(0, ensem)
+    if lfu.using_gui(): rout._widget(0, ensem)
 
-class fit_routine(lfu.modular_object_qt):
+class fit_routine(lfu.mobject):
 
     #ABSTRACT
     #base class should not assume scalars are the data object
@@ -327,7 +316,7 @@ class fit_routine(lfu.modular_object_qt):
             kwargs['base_class'] = lfu.interface_template_class(
                                 object, 'fit routine abstract')
 
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
         self.output = lo.output_plan(label = ' '.join(
                 [self.label, 'output']), parent = self)
         #self.output.flat_data = False
@@ -856,7 +845,7 @@ class fit_routine(lfu.modular_object_qt):
         lf.output_lines(lines, self.output.save_directory, 
             'fitting_key.txt', dont_ask = self.auto_overwrite_key)
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self, *args, **kwargs):
         window = args[0]
         ensem = args[1]
         if self.brand_new:
@@ -954,7 +943,7 @@ class fit_routine(lfu.modular_object_qt):
                 instances = [[self]], 
                 widgets = ['text'], 
                 box_labels = ['Fit Routine Name']))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject._widget(
                 self, *args, from_sub = True)
 
 class fit_routine_simulated_annealing(fit_routine):
@@ -1010,7 +999,7 @@ class fit_routine_simulated_annealing(fit_routine):
         self.p_sp_step_factor = self.temperature
         fit_routine.iterate(self, *args, **kwargs)
 
-    '''
+    '''#
     def move_in_parameter_space(self, *args, **kwargs):
         self.temperature = self.cooling_curve.scalars[self.iteration]
         self.p_sp_step_factor = self.temperature
@@ -1019,94 +1008,20 @@ class fit_routine_simulated_annealing(fit_routine):
         self.many_steps = int(max([1, abs(random.gauss(1, 
             dims))*(self.p_sp_step_factor/initial_factor)]))
         fit_routine.move_in_parameter_space(self, *args, **kwargs)
-    '''
+    '''#
 
     def capture_plot_data(self, *args, **kwargs):
         fit_routine.capture_plot_data(self, *args, **kwargs)
         self.data[-1].scalars.append(self.temperature)
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self, *args, **kwargs):
         self.capture_targets =\
                 ['fitting iteration'] +\
                 [met.label + ' measurement' 
                     for met in self.metrics] +\
                     ['annealing temperature']
         self.handle_widget_inheritance(*args, from_sub = False)
-        fit_routine.set_settables(self, *args, from_sub = True)
-
-class fit_routine_autopilot(fit_routine):
-    '''
-    autopilot should facilitate several things
-        management of iterative routines
-            run coarse-magnitudes, coarse-decimate, and fine
-            in such a way to best fit a system
-        has to control attributes for fitting
-            creep_factor
-            max_iterations
-            max_last_best
-            step_normalization
-            domain_weights
-    '''
-    def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'autopilot routine'
-
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                            object, 'autopilot')
-
-        self.impose_default('cooling_curve', None, **kwargs)
-        self.impose_default('max_temperature', 1000, **kwargs)
-        self.impose_default('temperature', None, **kwargs)
-        fit_routine.__init__(self, *args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        if not self.cooling_curve:
-            self.final_iteration =\
-                self.fitted_criteria[0].max_iterations
-            lam = -1.0 * np.log(self.max_temperature)/\
-                                self.final_iteration
-            cooling_domain = np.array(range(self.final_iteration))
-            cooling_codomain = self.max_temperature*np.exp(
-                                        lam*cooling_domain)
-            self.cooling_curve = ldc.scalars(
-                label = 'cooling curve', scalars = cooling_codomain)
-
-        fit_routine.initialize(self, *args, **kwargs)
-        self.data.extend(ldc.scalars_from_labels(
-                        ['annealing temperature']))
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        self.parameter_space.initial_factor = self.temperature
-
-    def iterate_genetic(self, *args, **kwargs):
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        fit_routine.iterate_genetic(self, *args, **kwargs)
-
-    def iterate(self, *args, **kwargs):
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        fit_routine.iterate(self, *args, **kwargs)
-
-    def capture_plot_data(self, *args, **kwargs):
-        fit_routine.capture_plot_data(self, *args, **kwargs)
-        self.data[-1].scalars.append(self.temperature)
-                #self.parameter_space.initial_factor)
-
-    def move_in_parameter_space(self, *args, **kwargs):
-        self.p_sp_step_factor = self.temperature
-        initial_factor = self.parameter_space.initial_factor
-        dims = self.parameter_space.dimensions
-        self.many_steps = int(max([1, abs(random.gauss(1, 
-            dims))*(self.temperature/initial_factor)]))
-        fit_routine.move_in_parameter_space(self, *args, **kwargs)
-
-    def set_settables(self, *args, **kwargs):
-        self.capture_targets =\
-                ['fitting iteration'] +\
-                [met.label + ' measurement' 
-                    for met in self.metrics] +\
-                    ['annealing temperature']
-        self.handle_widget_inheritance(*args, from_sub = False)
-        fit_routine.set_settables(self, *args, from_sub = True)
+        fit_routine._widget(self, *args, from_sub = True)
 
 class criterion_impatient(lc.criterion):
 
@@ -1147,7 +1062,7 @@ class criterion_impatient(lc.criterion):
         self.visible_attributes = ['label', 'base_class', 
                             'bRelevant', 'max_timeouts']
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self, *args, **kwargs):
         self.handle_widget_inheritance(*args, from_sub = False)
         self.widg_templates.append(
             lgm.interface_template_gui(
@@ -1159,7 +1074,7 @@ class criterion_impatient(lc.criterion):
                 instances = [[self]], 
                 keys = [['max_timeouts']], 
                 box_labels = ['Timeout Limit']))
-        criterion.set_settables(self, *args, from_sub = True)
+        criterion._widget(self, *args, from_sub = True)
 
 class criterion_minimize_measures(lc.criterion):
 
@@ -1201,11 +1116,6 @@ class criterion_minimize_measures(lc.criterion):
         return False
 
 
-
-valid_fit_routine_base_classes = [
-    lfu.interface_template_class(
-        fit_routine_simulated_annealing, 
-                'simulated annealing')]
 
 
 

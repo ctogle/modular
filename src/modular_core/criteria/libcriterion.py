@@ -59,7 +59,7 @@ def read_criteria(crits, start_string):
 
         return start_string
 
-class criterion(lfu.modular_object_qt):
+class criterion(lfu.mobject):
 
     #ABSTRACT
     def __init__(   self, parent = None, verify_pass_func = None, 
@@ -81,7 +81,7 @@ class criterion(lfu.modular_object_qt):
 
         self.bRelevant = bRelevant  #checking relevance is the
                 #responsibility of the owner of the criterion!!
-        lfu.modular_object_qt.__init__(self, parent= parent, 
+        lfu.mobject.__init__(self, parent= parent, 
             label = label, visible_attributes = visible_attributes, 
                             valid_base_classes = valid_base_classes, 
                                             base_class = base_class)
@@ -126,7 +126,7 @@ class criterion(lfu.modular_object_qt):
                 instances = [[self]], 
                 initials = [[self.label]], 
                 box_labels = ['Criterion Name']))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
 class criterion_iteration(criterion):
@@ -182,12 +182,10 @@ class criterion_iteration(criterion):
 
 class criterion_sim_time(criterion):
 
-    def __init__(self, parent = None, max_time = 100.0, base_class =\
-            lfu.interface_template_class(object, 'time limit'), 
+    def __init__(self, parent = None, max_time = 100.0,
             label = 'time limit criterion', visible_attributes =\
-            ['label', 'base_class', 'bRelevant', 'max_time']):
-        criterion.__init__(self, parent = parent, label = label, 
-                                        base_class = base_class)
+            ['label','bRelevant','max_time']):
+        criterion.__init__(self,parent = parent,label = label)
         self.max_time = max_time
 
     def to_string(self):
@@ -204,8 +202,7 @@ class criterion_sim_time(criterion):
         return False
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 
-                                'bRelevant', 'max_time' ]
+        self.visible_attributes = ['label','bRelevant','max_time']
         #this has to be overridden even if this class lacks
         # its own uninheritable settables
 
@@ -226,12 +223,10 @@ class criterion_sim_time(criterion):
 
 class criterion_capture_count(criterion):
 
-    def __init__(self, parent = None, max_captures = 100.0, base_class =\
-        lfu.interface_template_class(object, 'capture limit'), 
+    def __init__(self, parent = None, max_captures = 100.0, 
             label = 'capture limit criterion', visible_attributes =\
-            ['label', 'base_class', 'bRelevant', 'max_captures']):
-        criterion.__init__(self, parent = parent, label = label, 
-                                        base_class = base_class)
+            ['label', 'bRelevant', 'max_captures']):
+        criterion.__init__(self,parent = parent,label = label)
         self.max_captures = max_captures
 
     def to_string(self):
@@ -253,8 +248,7 @@ class criterion_capture_count(criterion):
             return True
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 
-                            'bRelevant', 'max_captures']
+        self.visible_attributes = ['label','bRelevant','max_captures']
         #this has to be overridden even if this class lacks
         # its own uninheritable settables
 
@@ -276,14 +270,9 @@ class criterion_capture_count(criterion):
 class criterion_scalar_increment(criterion):
 
     def __init__(self, parent = None, increment = 10.0, key = 'time', 
-            keys = ['iteration', 'time'], 
-            base_class = lfu.interface_template_class(
-                            object, 'scalar increment'), 
-            label = 'scalar increment criterion', visible_attributes =\
-            ['label', 'base_class', 'bRelevant', 'key', 'increment']):
-        criterion.__init__(self, parent = parent, label = label, 
-                                        base_class = base_class)
-        #self.key expected to match dater.label
+            keys = ['iteration', 'time'],label = 'scalar increment criterion',
+            visible_attributes = ['label','bRelevant','key','increment']):
+        criterion.__init__(self,parent = parent,label = label)
         self.key = key
         self.keys = keys
         self.increment = increment
@@ -317,8 +306,7 @@ class criterion_scalar_increment(criterion):
                                                 >= self.increment
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 
-                'bRelevant', 'key', 'keys', 'increment']
+        self.visible_attributes = ['label','bRelevant','key','keys','increment']
 
     def set_settables(self, *args, **kwargs):
         ensem = args[0]
@@ -350,15 +338,8 @@ class trajectory_criterion(criterion):
 
     #ABSTRACT
     def __init__(self, *args, **kwargs):
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] =\
-                lfu.interface_template_class(
-                    object, 'trajectory criterion abstract')
         if not 'label' in kwargs.keys():
             kwargs['label'] = 'trajectory criterion'
-        global valid_trajectory_criterion_base_classes
-        kwargs['valid_base_classes'] =\
-            valid_trajectory_criterion_base_classes
         criterion.__init__(self, *args, **kwargs)
 
     def verify_pass(self, trajectory):
@@ -374,19 +355,27 @@ class trajectory_criterion(criterion):
 class trajectory_criterion_ceiling(trajectory_criterion):
 
     def __init__(self, *args, **kwargs):
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                trajectory_criterion_ceiling, 'ceiling limit')
         self.impose_default('ceiling', 2500, **kwargs)
+        self.impose_default('target', None, **kwargs)
         trajectory_criterion.__init__(self, *args, **kwargs)
         self._children_ = []
-    '''
+
     def verify_pass(self, trajectory):
+        
         pdb.set_trace()
         return False
 
     def set_settables(self, *args, **kwargs):
         self.handle_widget_inheritance(*args, from_sub = False)
+        capture_targetable = kwargs['capture_targetable']
+        self.widg_templates.append(
+            lgm.interface_template_gui(
+                widgets = ['radio'], 
+                labels = [capture_targetable], 
+                initials = [[self.target]], 
+                instances = [[self]], 
+                keys = [['target']], 
+                box_labels = ['Target']))
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['spin'], 
@@ -398,21 +387,6 @@ class trajectory_criterion_ceiling(trajectory_criterion):
                 keys = [['ceiling']], 
                 box_labels = ['Ceiling Limit']))
         trajectory_criterion.set_settables(self, *args, from_sub = True)
-    '''
-
-valid_criterion_base_classes = [
-        lfu.interface_template_class(
-    criterion_sim_time, 'time limit'), 
-        lfu.interface_template_class(
-    criterion_iteration, 'iteration limit'), 
-        lfu.interface_template_class(
-    criterion_capture_count, 'capture limit'), 
-        lfu.interface_template_class(
-    criterion_scalar_increment, 'scalar increment')]
-
-valid_trajectory_criterion_base_classes = [
-        lfu.interface_template_class(
-    trajectory_criterion_ceiling, 'ceiling limit')]
 
 if __name__ == 'modular_core.libcriterion':
     if lfu.gui_pack is None: lfu.find_gui_pack()

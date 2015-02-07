@@ -1,9 +1,10 @@
 import modular_core.libfundamental as lfu
-import modular_core.libfiler as lf
-import modular_core.libvtkoutput as lvtk
-import modular_core.libtxtoutput as ltxt
 import modular_core.libgeometry as lgeo
 import modular_core.libsettings as lset
+
+import modular_core.io.libfiler as lf
+import modular_core.io.libvtkoutput as lvtk
+import modular_core.io.libtxtoutput as ltxt
 
 #from cStringIO import StringIO
 import os, sys
@@ -15,7 +16,6 @@ import numpy as np
 import pdb
 
 if __name__ == 'modular_core.liboutput':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
@@ -51,28 +51,17 @@ def parse_output_plan_line(*args):
         output.targeted = output.get_target_labels()
     else: output.targeted = relevant
 
-class writer(lfu.modular_object_qt):
+class writer(lfu.mobject):
 
     def __init__(self, parent = None, filenames = [], 
-        label = 'another output writer', 
-        base_class = lfu.interface_template_class(
-                        object, 'writer object'), 
-        valid_base_classes = None, visible_attributes =\
-                    ['label', 'base_class', 'filenames']):
-        global valid_writers_base_classes
-        if valid_base_classes is None:
-            valid_base_classes = valid_writers_base_classes
-
-        if base_class is None:
-            base_class = lfu.interface_template_class(
-                                    object, 'writer')
+            label = 'another output writer',
+            visible_attributes = ['label','filenames']):
 
         self.filenames = filenames
-        #lfu.modular_object_qt.__init__(self, label = label, 
-        lfu.modular_object_qt.__init__(self, 
+        #lfu.mobject.__init__(self, label = label, 
+        lfu.mobject.__init__(self, 
                 visible_attributes = visible_attributes, 
-                valid_base_classes = valid_base_classes, 
-                parent = parent, base_class = base_class)
+                parent = parent)
         self.axes_manager = plot_axes_manager(parent = self)
         self._children_ = [self.axes_manager]
 
@@ -105,34 +94,21 @@ class writer(lfu.modular_object_qt):
 
 class writer_vtk(writer):
 
-    def __init__(self, parent = None, 
-        filenames = [], iteration_resolution = 1, 
-        label = 'another vtk output writer', 
-        base_class = lfu.interface_template_class(
-                    object, 'vtk writer object')):
+    def __init__(self,parent = None,filenames = [],label = 'vtk output writer'):
         self.filenames = filenames
-        self.iteration_resolution = iteration_resolution
-        writer.__init__(self, label = label, 
-            parent = parent, base_class = base_class)
+        writer.__init__(self,label = label,parent = parent)
 
     def __call__(self, system, vtk_filename, specifics):
         lvtk.write_unstructured(system, vtk_filename, specifics)
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 
-                    'filenames', 'iteration_resolution']
+        self.visible_attributes = ['label','filenames']
 
 class writer_pkl(writer):
 
-    def __init__(self, parent = None, 
-        filenames = [], iteration_resolution = 1, 
-        label = 'another pkl output writer', 
-        base_class = lfu.interface_template_class(
-                    object, 'pkl writer object')):
+    def __init__(self,parent = None,filenames = [],label = 'pkl output writer'):
         self.filenames = filenames
-        self.iteration_resolution = iteration_resolution
-        writer.__init__(self, label = label, 
-            parent = parent, base_class = base_class)
+        writer.__init__(self,label = label,parent = parent)
 
     def __call__(self, *args):
         system = args[0]
@@ -144,17 +120,13 @@ class writer_pkl(writer):
             print 'failed to output .pkl file'
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 'filenames']
+        self.visible_attributes = ['label','filenames']
 
 class writer_txt(writer):
 
-    def __init__(self, parent = None, filenames = [], 
-        label = 'another csv output writer', 
-        base_class = lfu.interface_template_class(
-                    object, 'txt writer object')):
+    def __init__(self,parent = None,filenames = [],label = 'csv output writer'):
         self.filenames = filenames
-        writer.__init__(self, label = label, 
-            parent = parent, base_class = base_class)
+        writer.__init__(self,label = label,parent = parent)
 
     def __call__(self, *args):
         system = args[0]
@@ -163,9 +135,9 @@ class writer_txt(writer):
         ltxt.write_csv(system, filename, specifics)
 
     def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 'filenames']
+        self.visible_attributes = ['label','filenames']
 
-class plot_axes_manager(lfu.modular_object_qt):
+class plot_axes_manager(lfu.mobject):
 
     _children_ = []
 
@@ -204,16 +176,10 @@ class plot_axes_manager(lfu.modular_object_qt):
 
 class writer_plt(writer):
 
-    def __init__(self, parent = None, 
-        filenames = [], iteration_resolution = 1, 
-        label = 'another plt output writer', 
-        base_class = lfu.interface_template_class(
-            object, 'plt writer object')):
+    def __init__(self,parent = None,filenames = [],label = 'plt output writer'):
         self.plt_window = None
         self.filenames = filenames
-        self.iteration_resolution = iteration_resolution
-        writer.__init__(self, label = label, 
-            parent = parent, base_class = base_class)
+        writer.__init__(self,label = label,parent = parent)
 
     def get_plt_window(self):
         plot_types = []
@@ -268,14 +234,13 @@ qapp_started_flag = False
 class output_plan(lfu.plan):
 
     #any mobj which owns this mobj needs to have .capture_targets
-    def __init__(self, label = 'another output plan', use_plan = True, 
+    def __init__(self,name = 'an output plan',use_plan = True, 
             visible_attributes = [
                 'label', 'use_plan', 'output_vtk', 
                 'output_pkl', 'output_txt', 'output_plt', 
                 'save_directory', 'save_filename', 
                 'filenames', 'directories', 'targeted'], 
             parent = None):
-        self.__dict__ = lfu.dictionary()
         self.writers = [    writer_vtk(parent = self), 
                             writer_pkl(parent = self), 
                             writer_txt(parent = self), 
@@ -311,10 +276,8 @@ class output_plan(lfu.plan):
         self.default_paths_pkl = True
         self.default_paths_txt = True
         self.default_paths_plt = True
-        lfu.plan.__init__(self, label = label, use_plan = True, 
-            visible_attributes = visible_attributes, parent = parent)
-        self._children_ = self.writers
-        self.__dict__.create_partition('template owners', ['writers'])
+        lfu.plan.__init__(self,name = name,use_plan = True,parent = parent,
+            children = self.writers,visible_attributes = visible_attributes)
 
     def to_string(self):
         #0 : C:\Users\bartl_000\Desktop\Work\output : ensemble_output : none : all
@@ -697,7 +660,7 @@ class output_plan(lfu.plan):
                 orientations = [['vertical']], 
                 templates = [[top_template, 
                     writers_splitter_template]]))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
 def increment_filename(fi):
@@ -723,15 +686,6 @@ def increment_filename(fi):
                     return '.'.join(fi[:-1] + ['0'] + fi[-1:])
                 except TypeError: pdb.set_trace()
 
-valid_writers_base_classes = [
-    lfu.interface_template_class(
-    writer_vtk, 'vtk'), 
-    lfu.interface_template_class(
-    writer_pkl, 'pickle'), 
-    lfu.interface_template_class(
-    writer_txt, 'text'), 
-    lfu.interface_template_class(
-    writer_plt, 'plot')]
 
 
 

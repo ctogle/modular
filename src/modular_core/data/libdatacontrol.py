@@ -1,7 +1,8 @@
 import modular_core.libfundamental as lfu
 import modular_core.libmath as lm
-import modular_core.libfiler as lf
 import modular_core.libsettings as lset
+
+import modular_core.io.libfiler as lf
 
 import itertools as it
 import types
