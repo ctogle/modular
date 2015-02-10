@@ -27,14 +27,19 @@ np.seterr(divide = 'raise')
 
 import pdb
 
-if __name__ == 'modular_core.libpostprocess':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+if __name__ == 'modular_core.postprocessing.libpostprocess':
+    lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'libpostprocess of modular_core'
 
-if __name__ == '__main__':
-    print 'this is a library!'
+
+
+
+
+
+
 
 class post_process_plan(lfu.plan):
 
@@ -68,7 +73,7 @@ class post_process_plan(lfu.plan):
         del self.children[:]
 
     def add_process(self, new = None):
-        proc_class_def = valid_postproc_base_classes[0]._class
+        proc_class_def = post_process_meanfields
         #if not new: new = post_process_meanfields(parent = self, 
         if not new: new = proc_class_def(parent = self, 
                 _always_sourceable_ = self._always_sourceable_)
@@ -765,6 +770,14 @@ class post_process(lfu.mobject):
                 box_labels = ['Post Process Name']))
         lfu.mobject.set_settables(
                 self, *args, from_sub = True)
+
+
+
+
+
+
+
+
 
 class post_process_meanfields(post_process):
 

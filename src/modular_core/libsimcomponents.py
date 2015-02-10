@@ -41,7 +41,7 @@ if __name__ == '__main__': print 'this is a library!'
 
 manager = None
 
-class ensemble(lfu.mobject):
+class ensemble_____(lfu.mobject):
 
     current_tab_index = 0
 
@@ -577,9 +577,8 @@ class ensemble(lfu.mobject):
                 child.set_settables(*kwargs['infos'])
 
     def set_settables(self, *args, **kwargs):
-        self.provide_axes_manager_input()
         window = args[0]
-        self.handle_widget_inheritance(*args, **kwargs)
+        self._sanitize(*args,**kwargs)
         config_file_box_template = lgm.interface_template_gui(
                 layout = 'grid', 
                 widg_positions = [(0, 0), (1, 0), (1, 1), (2, 0)], 
@@ -729,11 +728,11 @@ class simulation_plan(lfu.plan):
     def _enact(self,*args,**kwargs):
         print 'simulation plan does not enact...'
 
-    def _sanitize(self, *args, **kwargs):
+    def _sanitize(self,*args,**kwargs):
         self.widg_templates_end_criteria = []
         self.widg_templates_capture_criteria = []
         self.widg_templates_plot_targets = []
-        lfu.plan._sanitize(self)
+        lfu.plan._sanitize(self,*args,**kwargs)
 
     def reset_criteria_lists(self):
         del self.end_criteria[:]
@@ -741,8 +740,9 @@ class simulation_plan(lfu.plan):
         del self.children[:]
         self._rewidget(True)
 
-    def add_end_criteria(self, crit = None):
-        if crit is None: new = lc.criterion_sim_time(parent = self)
+    def add_end_criteria(self,crit = None):
+        if crit is None:
+            new = lc.criterion_sim_time(parent = self)
         else:
             new = crit
             new.parent = self
@@ -751,17 +751,16 @@ class simulation_plan(lfu.plan):
         self.children.append(new)
         self._rewidget(True)
 
-    def add_capture_criteria(self, crit = None):
+    def add_capture_criteria(self,crit = None):
         if crit is None:
-            new = lc.criterion_scalar_increment(parent = self)
-
+            new = lc.criterion_increment(parent = self)
         else:
             new = crit
             new.parent = self
 
         self.capture_criteria.append(new)
         self.children.append(new)
-        self.rewidget(True)
+        self._rewidget(True)
 
     def clear_criteria(self):
         def clear(crits):
@@ -770,7 +769,7 @@ class simulation_plan(lfu.plan):
         clear(self.end_criteria)
         clear(self.capture_criteria)
         self.children = []
-        self.rewidget(True)
+        self._rewidget(True)
 
     def remove_end_criteria(self, crit = None):
         if crit: select = crit
@@ -810,21 +809,19 @@ class simulation_plan(lfu.plan):
     def set_selected_criteria(self, dex):
         select = self.capture_criteria[dex]
         self.selected_capt_crit = select
-        self.rewidget(True)
+        self._rewidget(True)
 
     def verify_plot_targets(self, targs):
         targets = self.parent.run_params['plot_targets']
         targets = [targ for targ in targets if targ in targs]
         self.parent.run_params['plot_targets'] = targets
-        self.parent.run_params.partition['system'][
-                        'plot_targets'] = targets
-        self.parent.run_params['output_plans'][
-                    'Simulation'].rewidget(True)
+        self.parent.run_params['output_plans']['Simulation']._rewidget(True)
 
-    def set_settables(self, *args, **kwargs):
+    def _widget(self,*args,**kwargs):
         window = args[0]
-        ensem = args[1]
-        self.handle_widget_inheritance(*args, **kwargs)
+        ensem = self.parent
+        #ensem = args[1]
+        self._sanitize(*args,**kwargs)
         const_targs = self._always_targetable_
         targs = ensem.run_params['plot_targets']
         self.plot_targets = ensem.run_params['plot_targets']
@@ -888,7 +885,7 @@ class simulation_plan(lfu.plan):
                 box_labels = ['Capture Targets'], 
                 scrollable = [True], 
                 templates = [targets_template]))
-        lfu.plan.set_settables(self, *args, from_sub = True)
+        lfu.plan._widget(self, *args, from_sub = True)
 
 class sim_system_python(lfu.mobject):
 

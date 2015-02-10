@@ -54,6 +54,8 @@ class mobject(object):
                 handle[0].__dict__[handle[1]] = None
             self.widg_handles = []
             self._rewidget(True)
+            if ('propagate' in kwargs.keys() and kwargs['propagate']):
+                for c in self.children:c._sanitize(*args,**kwargs)
 
     def _rewidget(self,rw = None,**kwargs):
         if rw is None:
@@ -228,7 +230,7 @@ def grab_mobj_from_dict_by_name(name,mobj_dict):
     return mobj_dict[name]
 
 def grab_mobj_from_list_by_name(name,mobj_list):
-    return mobj_list[[mobj.label for mobj in mobj_list].index(name)]
+    return mobj_list[[mobj.name for mobj in mobj_list].index(name)]
 
 # retrieve mobject names from dict/list of mobjects
 def grab_mobj_names(mobj_collection):
@@ -238,10 +240,10 @@ def grab_mobj_names(mobj_collection):
         return grab_mobj_dict_names(mobj_collection)
 
 def grab_mobj_list_names(mobj_list):
-    return [mobj.label for mobj in mobj_list]
+    return [mobj.name for mobj in mobj_list]
 
 def grab_mobj_dict_names(mobj_dict):
-    return [mobj_dict[key].label for key in mobj_dict.keys()]
+    return [mobj_dict[key].name for key in mobj_dict.keys()]
 
 # identify mobject by index in dict/list of mobjects
 def grab_mobj_index_by_name(name,collection):
@@ -252,8 +254,17 @@ def grab_mobj_index_by_name(name,collection):
             return which
 
 ###############################################################################
-### simulation module functions
+### simulation module classes/functions
 ###############################################################################
+
+# a run_parameter is any input to a simulation
+###  it gets parameter space support, gui support, parsing support
+class run_parameter(mobject):
+
+    def __init__(self,*args,**kwargs):
+        mobject.__init__(self,*args,**kwargs)
+
+    def _initialize(self,*args,**kwargs):pass
 
 # read the list of installed/registered simulation modules
 def list_simulation_modules():

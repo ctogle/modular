@@ -10,11 +10,23 @@ if __name__ == 'libs.modular_core.libfiler':
     lgb = lfu.gui_pack.lgb
 if __name__ == '__main__':print 'libfiler of modular_core'
 
+# write text to path; ask permission to overwrite if safe
+def write_text(path,text,safe = True):
+    if safe and os.path.isfile(path):
+        msg = 'Are you sure you want\nto overwrite file?:\n'+path
+        check = lgd.message_dialog(None,msg,'Overwrite',True)
+        if not check: return
+    with open(path,'w') as handle:handle.write(text)
+
+
+
+#
 def save_pkl_object(obj, filename):
     output = open(filename, 'wb')
     pickle.dump(obj, output)
     output.close()
 
+#
 def load_pkl_object(filename):
     if not os.path.isfile(filename):
         #dp_path = lfu.get_data_pool_path()
@@ -35,6 +47,7 @@ def load_pkl_object(filename):
     pkl_file.close()
     return data
 
+#
 def output_lines(lines, direc, finame = None, 
         overwrite = True, dont_ask = False):
     #if no finame is given, direc should contain the full path

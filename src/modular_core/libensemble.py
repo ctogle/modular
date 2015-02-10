@@ -25,12 +25,24 @@ if __name__ == 'modular_core.libensemble':
     lgb = lfu.gui_pack.lgb
 if __name__ == '__main__':pass
 
+###############################################################################
+### an ensemble represents a collection of simulations and their analysis
+###   each ensemble has:
+###     exactly one simulation module
+###     parameter space of any dimension
+###     set of post processes and fitting routines
+###     unique data pool held in an os safe place
+###     output plans and those of its processes
+###     a set of targets to capture data for
+###     an interface nested within that of its associated ensemble_manager
+###############################################################################
+
 class ensemble(lfu.mobject):
 
     def _new_data_pool_id(self):
         return str(time.time())
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,*args,**kwargs):
         self._default('name','ensemble',**kwargs)
         self._default('mcfg_dir',lfu.get_mcfg_path(),**kwargs)
         self._default('mcfg_path','',**kwargs)
@@ -64,6 +76,7 @@ class ensemble(lfu.mobject):
         self.run_params['post_processes'] = self.postprocess_plan.post_processes
         self.run_params['p_space_map'] = None
         self.run_params['multiprocessing'] = None
+        self.capture_targets = self.run_params['plot_targets']
 
         self._select_module(**kwargs)
         self.module._reset_parameters(self)
@@ -77,12 +90,6 @@ class ensemble(lfu.mobject):
 
         self.aborted = False
         self.current_tab_index = 0
-        self.treebook_memory = [0,[],[]]
-
-        ###########################################################
-        #self._module_memory_ = []
-        #self.provide_axes_manager_input()
-        ###########################################################
 
     def _select_module(self,**kwargs):
         self.cancel_make = False
@@ -121,11 +128,34 @@ class ensemble(lfu.mobject):
         # otherwise use the baseclass from lmc
         module = mc.modules.__dict__[self.module_name]
         if hasattr(module,'simulation_module'):
-            self.module = module.simulation_module()
-        else:self.module = lmc.simulation_module()
+            self.module = module.simulation_module(parent = self)
+        else:self.module = lmc.simulation_module(parent = self)
+        self.children.append(self.module)
+
+    def _save(self,save_dir = None):
+        if save_dir is None:
+            dirdlg = lgd.create_dialog('Choose File','File?','directory')
+            save_dir = dirdlg()
+        if save_dir:
+            self._sanitize()
+            manager = self.parent
+            self.parent = None
+            save_file = self.name + '.ensempkl'
+            save_path = os.path.join(save_dir,save_file)
+            lf.save_pkl_object(self,save_path)
+            self.parent = manager
+            print 'saved ensemble:',self.name
+
+    def _run_mcfg(self,mcfg):
+        self.mcfg_path = mcfg
+        self._parse_mcfg()
+
+        self.output_plan.targeted = self.run_params['plot_targets'][:]
+        self.output_plan.set_target_settables()
+        return self.run()
 
     def _select_mcfg(self,file_ = None):
-        if file_ is None and not os.path.isfile(self.mcfg_path):
+        if not file_ and not os.path.isfile(self.mcfg_path):
             fidlg = lgd.create_dialog('Choose File','File?','file', 
                     'Modular config files (*.mcfg)',self.mcfg_dir)
             file_ = fidlg()
@@ -135,29 +165,18 @@ class ensemble(lfu.mobject):
 
     def _parse_mcfg(self,*args,**kwargs):
         self.module._reset_parameters(self)
-        self.module._parse_mcfg(self.mcfg_path,self)
-        self._rewidget(True)
-
-
-
-    def _write_mcfg(self,*args,**kwargs):
-        try:
-            if not self.mcfg_path:
-                fidlg = lgd.create_dialog('Choose File', 'File?', 'file', 
-                    'Modular config files (*.mcfg)', self.mcfg_dir)
-                file_ = fidlg()
-                if not file_: return
-
-            else: file_ = self.mcfg_path
-            module = self.get_module_reference()
-            lf.output_lines(module.write_mcfg(
-                self.run_params, self), file_)
-
+        try:self.module._parse_mcfg(self.mcfg_path,self)
         except:
             traceback.print_exc(file = sys.stdout)
-            lgd.message_dialog(None, 'Failed to write file!', 'Problem')
+            lgd.message_dialog(None,'Failed to parse file!','Problem')
+        self._rewidget(True)
 
-
+    def _write_mcfg(self,*args,**kwargs):
+        self._select_mcfg(self.mcfg_path)
+        try:self.module._write_mcfg(self.mcfg_path,self)
+        except:
+            traceback.print_exc(file = sys.stdout)
+            lgd.message_dialog(None,'Failed to write file!','Problem')
 
     def _mcfg_widget(self,*args,**kwargs):
         window = args[0]
@@ -185,87 +204,92 @@ class ensemble(lfu.mobject):
             labels = [['Parse mcfg File','Generate mcfg File']])
         return config_text + config_buttons
 
+    def _sanitize(self,*args,**kwargs):
+        self.data_pool = None
+        lfu.mobject._sanitize(self,*args,**kwargs)
+
     def _widget(self,*args,**kwargs):
         window = args[0]
         self._sanitize(*args,**kwargs)
         config_file_box_template = self._mcfg_widget(*args,**kwargs)
-
-
-
-        self.widg_templates.append(config_file_box_template)
-        lfu.mobject._widget(self,*args,from_sub = True)
-        return
-
-
-
-        top_half_template = lgm.interface_template_gui(
-                layout = 'grid', 
+        top_half_template =\
+            lgm.interface_template_gui(
+                widgets = ['text'],
+                layout = 'grid',
+                grid_spacing = 10,
                 panel_scrollable = True, 
-                widg_positions = [(0, 0), (0, 3), (0, 1), 
-                                (1, 2), (1, 0), (0, 2)], 
-                layouts = ['vertical', 'vertical', 'vertical', 
-                            'vertical', 'vertical', 'vertical'], 
-                #widg_spans = [None, (2, 1), (2, 1), None, None, None], 
-                widg_spans = [None, None, (2, 1), None, None, None], 
-                grid_spacing = 10, 
-                box_labels = ['Ensemble Name', None, 'Run Options', 
-                    'Number of Trajectories', 'Data Pool Description', 
-                            'Configuration File'], 
-                widgets = ['text', 'button_set', 
-                    'check_set', 'spin', 'text', 'panel'], 
-                #verbosities = [0, [0, 0, 0, 0, 2], 0, 0, 2, 0], 
-                verbosities = [0, [0, 0, 0, 5], 0, 0, 2, 0], 
-                multiline = [False, None, None, None, True, None], 
-                templates = [None, None, None, None, None, 
-                            [config_file_box_template]], 
-                append_instead = [None, None, False, None, None, None], 
-                read_only = [None, None, None, None, True, None], 
-                #instances = [[self], [None], [self.output_plan, 
-                instances = [[self], [None], [
-                    self.fitting_plan, self.cartographer_plan, 
-                    self.postprocess_plan, self.multiprocess_plan, 
-                            self, self], [self], [self], [None]], 
-                #keys = [['label'], [None], ['use_plan', 'use_plan', 
-                keys = [['label'], [None], ['use_plan', 
-                                'use_plan', 'use_plan', 'use_plan', 
-                            'skip_simulation'], 
-                    ['num_trajectories'], ['data_pool_descr'], [None]], 
-                labels = [[None], ['Run Ensemble', 'Save Ensemble', 
-                            #'Reset Ensemble', 'Update Ensemble', 
-                            'Update Ensemble', 'Print Label Pool'], 
-                            #['use output plan', 'use fitting plan', 
-                            ['use fitting plan', 
-                    'map parameter space', 'use post processing', 
-                    'use multiprocessing', 'skip simulation', 
-                        ], [None], [None], [None]], 
-                initials = [[self.label], None, None, 
-                            [self.num_trajectories], 
-                        [self.data_pool_descr], None], 
-                minimum_values = [None, None, None, 
-                                [1], None, None], 
-                maximum_values = [None, None, None, 
-                                [1000000], None, None], 
-                bindings = [[None], [self.parent.run_current_ensemble, 
-                    self.on_save, 
-                    #self.on_save, lgb.create_reset_widgets_wrapper(
-                    #                       window, self.on_reset), 
-                    lgb.create_reset_widgets_function(window), 
-                                        lfu.show_label_pool], 
-                                    None, None, None, None])
+                layouts = ['vertical'],
+                widg_positions = [(0,0)],
+                box_labels = ['Ensemble Name'],
+                verbosities = [0],
+                instances = [[self]],
+                keys = [['label']],
+                initials = [[self.name]])
+        top_half_template +=\
+            lgm.interface_template_gui(
+                widgets = ['button_set'],
+                widg_positions = [(0, 3)],
+                layouts = ['vertical'],
+                verbosities = [[0, 0, 0, 5]], 
+                labels = [['Run Ensemble',
+                    'Save Ensemble','Update Ensemble']], 
+                bindings = [[self.parent._run_current_ensemble,self._save]])
+        top_half_template +=\
+            lgm.interface_template_gui(
+                widgets = ['check_set'],
+                widg_positions = [(0, 1)], 
+                layouts = ['vertical'],
+                widg_spans = [(2, 1)],
+                box_labels = ['Run Options'],
+                verbosities = [0],
+                append_instead = [False],
+                instances = [[
+                    self.fitting_plan,self.cartographer_plan, 
+                    self.postprocess_plan,self.multiprocess_plan,self]],
+                keys = [['use_plan']*4 + ['skip_simulation']], 
+                labels = [[
+                    'map parameter space','use post processing', 
+                    'use multiprocessing','skip simulation']])
+        top_half_template +=\
+            lgm.interface_template_gui(
+                widg_positions = [(1, 2)],
+                layouts = ['vertical'],
+                box_labels = ['Number of Trajectories'],
+                widgets = ['spin'],
+                verbosities = [0],
+                instances = [[self]],
+                keys = [['num_trajectories']],
+                initials = [[self.num_trajectories]], 
+                minimum_values = [[1]],
+                maximum_values = [[1000000]])
+        top_half_template +=\
+            lgm.interface_template_gui(
+                widg_positions = [(1, 0)],
+                layouts = ['vertical'],
+                box_labels = ['Data Pool Description'], 
+                widgets = ['text'],
+                verbosities = [2],
+                multiline = [True],
+                read_only = [True],
+                instances = [[self]],
+                keys = [['data_pool_descr']],
+                initials = [[self.data_pool_descr]]) 
+        top_half_template +=\
+            lgm.interface_template_gui(
+                widg_positions = [(0, 2)], 
+                layouts = ['vertical'],
+                box_labels = ['Configuration File'], 
+                widgets = ['panel'],
+                verbosities = [0],
+                templates = [[config_file_box_template]])
 
-
-
-        _modu_ = self.get_module_reference()
-        if hasattr(_modu_, 'generate_gui_templates_qt'):
-            temp_gen = _modu_.generate_gui_templates_qt
-        else: temp_gen = lmc.generate_gui_templates_qt
-        main_panel_templates,sub_panel_templates,sub_panel_labels = temp_gen(window,self)
-        if hasattr(_modu_, 'run_param_keys'):
-            run_param_keys = _modu_.run_param_keys
-        else: run_param_keys = lmc.run_param_keys
-
-
-
+        #self.widg_templates.append(top_half_template)
+        #lfu.mobject._widget(self,*args,from_sub = True)
+        #tree_half_template = self.module.widg_templates[0]
+        '''#
+        temp_gen = self.module._generate_gui_templates
+        main_templates,sub_templates,sub_labels = temp_gen(window,self)
+        run_param_keys = self.module.run_parameter_keys
         tree_half_template = lgm.interface_template_gui(
                 widgets = ['tree_book'], 
                 verbosities = [1], 
@@ -275,20 +299,31 @@ class ensemble(lfu.mobject):
                 keys = [['treebook_memory']], 
                 pages = [[(page_template,template_list,param_key,sub_labels) 
                     for page_template,template_list,param_key,sub_labels in 
-                        zip(main_panel_templates,sub_panel_templates, 
-                            run_param_keys,sub_panel_labels)]], 
+                        zip(main_templates,sub_templates, 
+                            run_param_keys,sub_labels)]], 
                 headers = [['Ensemble Run Parameters']])
+        '''#
+        #self.module._widget(window,self,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['tab_book'], 
                 verbosities = [0], 
                 handles = [(self, 'tab_ref')], 
-                pages = [[('Main', [top_half_template]), 
-                        ('Run Parameters', [tree_half_template])]], 
+                pages = [[('Main',[top_half_template]), 
+                    ('Run Parameters',self.module.widg_templates)]], 
+                    #('Run Parameters',[tree_half_template])]], 
                 initials = [[self.current_tab_index]], 
                 instances = [[self]], 
                 keys = [['current_tab_index']]))
         lfu.mobject._widget(self,*args,from_sub = True)
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+### ensemble_manager is the top level object of modular simulator
+###   it creates an interface for handling multiple ensembles
+###############################################################################
 
 class ensemble_manager(lfu.mobject):
 
@@ -357,7 +392,7 @@ class ensemble_manager(lfu.mobject):
 
     def _save_ensemble(self):
         select = self._selected_ensemble()
-        if select: select.on_save()
+        if select: select._save()
 
     def _load_ensemble(self):
         fidlg = lgd.create_dialog('Choose File','File?','file')
@@ -373,17 +408,17 @@ class ensemble_manager(lfu.mobject):
     def _select_mcfg(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            current_ensem.on_choose_mcfg()
+            current_ensem._select_mcfg()
 
     def _read_mcfg(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            current_ensem.on_parse_mcfg()
+            current_ensem._parse_mcfg()
 
     def _write_mcfg(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            current_ensem.on_write_mcfg()
+            current_ensem._write_mcfg()
 
     def _cycle_current_tab(self):
         self.current_tab_index += 1
@@ -404,14 +439,14 @@ class ensemble_manager(lfu.mobject):
     def _expand_tree(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            if not current_ensem.tree_reference: self.refresh_()
-            current_ensem.tree_reference[0].children()[0].expand_all()
+            if not current_ensem.module.tree_reference:self.refresh_()
+            current_ensem.module.tree_reference[0].children()[0].expand_all()
 
     def _collapse_tree(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            if not current_ensem.tree_reference: self.refresh_()
-            current_ensem.tree_reference[0].children()[0].collapse_all()
+            if not current_ensem.module.tree_reference:self.refresh_()
+            current_ensem.module.tree_reference[0].children()[0].collapse_all()
 
     def _tab_book_pages(self,*args,**kwargs):
         window = args[0]
@@ -440,24 +475,13 @@ class ensemble_manager(lfu.mobject):
                     lgb.create_reset_widgets_wrapper(window,self._load_ensemble), 
                     lgb.create_reset_widgets_function(window), 
                             ldc.clean_data_pools], [None]]))
-        pages = [('Main', main_templates)]
+        pages = [('Main',main_templates)]
         for ensem in self.ensembles:
-            pages.append((ensem.name, ensem.widg_templates))
+            pages.append((ensem.name,ensem.widg_templates))
         return pages
 
-    def _widget(self,*args,**kwargs):
+    def _toolbars(self,*args,**kwargs):
         window = args[0]
-        self._sanitize(*args,**kwargs)
-
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['tab_book'], 
-                pages = [self._tab_book_pages(*args,**kwargs),None], 
-                initials = [[self.current_tab_index],None], 
-                handles = [(self, 'tab_ref')], 
-                instances = [[self]], 
-                keys = [['current_tab_index']]))
-
         gear_icon = lfu.get_resource_path('gear.png')
         wrench_icon = lfu.get_resource_path('wrench_icon.png')
         save_icon = lfu.get_resource_path('save.png')
@@ -476,19 +500,17 @@ class ensemble_manager(lfu.mobject):
         settings_ = lgb.create_action(parent = window,label = 'Settings', 
             bindings = lgb.create_reset_widgets_wrapper(window,self._settings),
             icon = wrench_icon,shortcut = 'Ctrl+Shift+S',statustip = 'Settings')
-        save_ = lgb.create_action(parent = window, label = 'Save',
-                        bindings = lgb.create_reset_widgets_wrapper(
-                        window, self._save_ensemble), icon = save_icon,
-                    shortcut =  'Ctrl+S', statustip = 'Save')
-        open_file = lgb.create_action(parent = window, label = 'Open', 
-                        bindings = lgb.create_reset_widgets_wrapper(
-                        window, self._load_ensemble), icon = openfile, 
-                    shortcut = 'Ctrl+O', statustip = 'Open New File')
+        save_ = lgb.create_action(parent = window,label = 'Save',
+            bindings = lgb.create_reset_widgets_wrapper(window,self._save_ensemble),
+            icon = save_icon,shortcut =  'Ctrl+S',statustip = 'Save')
+        open_file = lgb.create_action(parent = window,label = 'Open',
+            bindings = lgb.create_reset_widgets_wrapper(window,self._load_ensemble),
+            icon = openfile,shortcut = 'Ctrl+O',statustip = 'Open New File')
         quit_ = lgb.create_action(parent = window,label = 'Quit', 
             icon = quit,shortcut = 'Ctrl+Q',statustip = 'Quit the Application',
             bindings = window.on_close)
         center_ = lgb.create_action(parent = window,label = 'Center', 
-            icon = center_icon, shortcut = 'Ctrl+C',statustip = 'Center Window',
+            icon = center_icon,shortcut = 'Ctrl+C',statustip = 'Center Window',
             bindings = [window.on_resize,window.on_center])
         make_ensem_ = lgb.create_action(parent = window,label = 'Make Ensemble',
             icon = make_ensemble,shortcut = 'Ctrl+E',statustip = 'Make New Ensemble',
@@ -497,8 +519,8 @@ class ensemble_manager(lfu.mobject):
             icon = expand,shortcut = 'Ctrl+T',bindings = self._expand_tree, 
             statustip = 'Expand Run Parameter Tree (Ctrl+T)')
         collapse_ = lgb.create_action(parent = window, 
-            label = 'Collapse Parameter Tree', icon = collapse, 
-            shortcut = 'Ctrl+W', bindings = self._collapse_tree, 
+            label = 'Collapse Parameter Tree',icon = collapse,shortcut = 'Ctrl+W',
+            bindings = self._collapse_tree,
             statustip = 'Collapse Run Parameter Tree (Ctrl+W)')
         find_mcfg_ = lgb.create_action(parent = window, 
             label = 'Find mcfg', icon = find, shortcut = 'Ctrl+M', 
@@ -540,8 +562,23 @@ class ensemble_manager(lfu.mobject):
                         update_gui_, cycle_tabs_, quit_, 
                         expand_, collapse_, cycle_ensem_tabs_, 
                         find_mcfg_, make_mcfg_]))
+
+    def _widget(self,*args,**kwargs):
+        window = args[0]
+        self._sanitize(*args,**kwargs)
+        self.widg_templates.append(
+            lgm.interface_template_gui(
+                widgets = ['tab_book'], 
+                pages = [self._tab_book_pages(*args,**kwargs),None], 
+                initials = [[self.current_tab_index],None], 
+                handles = [(self, 'tab_ref')], 
+                instances = [[self]], 
+                keys = [['current_tab_index']]))
+        self._toolbars(*args,**kwargs)
         lfu.mobject._widget(self,*args,from_sub = True)
 
+###############################################################################
+###############################################################################
 
 
 

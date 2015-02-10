@@ -3,7 +3,7 @@
 	time limit : 800
 
 <capture_criteria>
-	scalar increment : 20 : time
+	increment : 20 : time
 
 <variables>
 	mu : 10.0

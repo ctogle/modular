@@ -464,7 +464,7 @@ class plot_window(lfu.mobject):
         return slice_templates
 
     def _widget(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args,**kwargs)
+        self._sanitize(*args,**kwargs)
         [pg._widget(self,**kwargs) for pg in self.pages]
         self.widg_templates.append(
                 lgm.interface_template_gui(

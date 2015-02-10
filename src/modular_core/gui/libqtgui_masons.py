@@ -78,10 +78,10 @@ class interface_template_gui(lfu.data_container):
             try: side = inst.__dict__[key]
             except KeyError:
                 count = len(inst.widgets)
-                if key == 'widg_spans':
-                    try: count = len(lfu.flatten(inst.labels))
-                    except: pdb.set_trace()
-                side = wrap_none(depth, count)
+                #if key == 'widg_spans':
+                #    try: count = len(lfu.flatten(inst.labels))
+                #    except: pdb.set_trace()
+                side = wrap_none(depth,count)
             return side
 
         dom_keys = self.__dict__.keys()
@@ -960,109 +960,6 @@ class cartographer_mason(standard_mason):
             return [group]
 
         except AttributeError: return widgs
-
-class dictionary_support_mason(standard_mason):
-
-    def __init__(self, parent = None, label = \
-            'another dictionary support mason'):
-        standard_mason.__init__(self, parent = parent, label = label)
-
-    def interpret_template_text_box(self, template, widg_dex):
-
-        def generate_update_wheres_func(widg, inst, 
-                        wheres, template, widg_dex):
-
-            def update_where():
-                new_label = widg.text()
-                initial = template.initials[widg_dex][0]
-                if new_label == initial: return
-                template.initials[widg_dex][0] = new_label
-                for whar in wheres:
-                    if type(whar) is types.ListType:
-                        print 'why update a list?'
-
-                    elif type(whar) is types.DictionaryType:
-                        whar[new_label] = whar[initial]
-                        #if issubclass(whar[initial].__class__, 
-                        #               lfu.modular_object_qt):
-                        #   whar[initial]._destroy_()
-                        del whar[initial]
-                        whar[new_label]._set_label_(new_label)
-
-                    else: print 'could not update where:', whar
-
-                inst.rewidget(True)
-
-            return update_where
-
-        try: icons = template.icons[widg_dex]
-        except AttributeError: icons = None
-        try: bind_events = template.bind_events[widg_dex]
-        except AttributeError: bind_events = None
-        try: bindings = template.bindings[widg_dex]
-        except AttributeError: bindings = None
-        try: placeholder = template.placeholders[widg_dex]
-        except AttributeError: placeholder = None
-        try: max_leng = template.max_lengths[widg_dex][0]
-        except AttributeError: max_leng = None
-        try: read_only = template.read_only[widg_dex]
-        except AttributeError: read_only = False
-        try: multi = template.multiline[widg_dex]
-        except AttributeError: multi = False
-        try: keep_frame = template.keep_frame[widg_dex]
-        except AttributeError: keep_frame = True
-        try: alignment = template.alignments[widg_dex][0]
-        except AttributeError: alignment = 'left'
-        try: instance = template.instances[widg_dex][0]
-        except AttributeError: instance = None
-        try: key = template.keys[widg_dex][0]
-        except AttributeError: key = None
-        try: initial = template.initials[widg_dex][0]
-        except AttributeError:
-            if not (instance is None or key is None):
-                initial = instance.__dict__[key]
-
-            else: initial = ''
-
-        text_widget = [lgb.create_text_box(instance = instance, 
-                            key = key, placeholder = placeholder, 
-                        max_length = max_leng, multiline = multi, 
-                    read_only = read_only, alignment = alignment, 
-                    initial = initial, keep_frame = keep_frame, 
-                bind_events = bind_events, bindings = bindings)]
-
-        if not template.data_links is None:
-            if template.data_links[widg_dex]:
-                '''
-                if widget_type == 'add_rem_drop_list':
-                    [last_widgs_reference[0].Bind(widg_specific_event, 
-                        function) for function in 
-                        lgb.generate_linkage_assertion_funcs(
-                            template.data_links[widg_dex])]
-                    [last_widgs_reference[1].Bind(widg_specific_event, 
-                        function) for function in 
-                        lgb.generate_linkage_assertion_funcs(
-                            template.data_links[widg_dex])]
-                '''
-                #else:
-                [text_widget[0].textChanged.connect(function) for 
-                    function in lgb.generate_linkage_assertion_funcs(
-                                    template.data_links[widg_dex])]
-
-        if not template.wheres[widg_dex] is None:
-            text_widget[0].textChanged.connect(
-                generate_update_wheres_func(text_widget[0], 
-                    instance, template.wheres[widg_dex], 
-                                    template, widg_dex))
-
-        try:
-            title = template.box_labels[widg_dex]
-            group = QtGui.QGroupBox(title = title)
-            layout = lgb.create_vert_box(text_widget)
-            group.setLayout(layout)
-            return [group]
-
-        except AttributeError: return text_widget
 
 def generate_add_remove_select_inspect_box_template(window, key, 
         labels, wheres, parent, selector_handle, memory_handle, 

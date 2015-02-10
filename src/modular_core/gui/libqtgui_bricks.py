@@ -67,7 +67,7 @@ def generate_add_function(base_class, parent = None,
 
             else: 'cant add new', base_class, 'to', whar
 
-        if rewidget and not parent is None: parent.rewidget(True)
+        if rewidget and not parent is None: parent._rewidget(True)
 
     return add_
 
@@ -93,7 +93,7 @@ def generate_remove_function(get_selected, parent = None,
 
                 else: 'cant remove selected', select, 'from', whar
 
-        if rewidget and not parent is None: parent.rewidget(True)
+        if rewidget and not parent is None: parent._rewidget(True)
 
     return remove_
 
@@ -169,7 +169,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
             instance[key] = val
         else: instance.__dict__[key] = val
         if rewidget and issubclass(instance.__class__, 
-            lfu.mobject): instance.rewidget(True)
+            lfu.mobject): instance._rewidget(True)
         #elif rewidget and hasattr(parent, 'rewidget'):
         #    parent.rewidget(True)
 
@@ -229,7 +229,7 @@ def create_radios(parent = None, options = [], title = '',
         def rad_select_func():
             instance.__dict__[key] = options[dex]
             if rewidget and issubclass(instance.__class__, 
-                lfu.mobject): instance.rewidget(True)
+                lfu.mobject): instance._rewidget(True)
 
         return rad_select_func
 
@@ -284,9 +284,9 @@ def create_mobj_rewidget_function(mobj):
     def rewidg():
         if not hasattr(mobj, 'rewidget'):
             if not hasattr(mobj, 'parent'): pass
-            elif mobj.parent: mobj.parent.rewidget(True)
+            elif mobj.parent: mobj.parent._rewidget(True)
 
-        else: mobj.rewidget(True)
+        else: mobj._rewidget(True)
 
     return rewidg
 
@@ -553,7 +553,7 @@ class check_spin_widget(QtGui.QLabel):
 
     def handle_rewidget(self):
         if self.rewidget and issubclass(self.inst.__class__, 
-            lfu.mobject): self.inst.rewidget(True)
+            lfu.mobject): self.inst._rewidget(True)
 
 def create_file_name_box(inst, key, label, initial, exts = '', 
         directory = False, init_dir = None, rewidget = True, 
@@ -909,39 +909,6 @@ def create_slider(instance, key, orientation = 'horizontal',
 def create_check_boxes(append_instead, keys, instances, labels, 
         inst_is_list = None, inst_is_dict = None, rewidget = True, 
                 provide_master = False, callbacks = []):
-    '''
-    def apply_to_inst(*args, **kwargs):
-        dat = args[0]
-        if inst_is_list:
-            pdb.set_trace()
-            inst[key] = dat
-        else: inst.__dict__[key] = dat
-
-    def remove_from_inst(*args, **kwargs):
-        dat = args[0]
-        if inst_is_list:
-            pdb.set_trace()
-            inst[key].remove(dat)
-        else: inst.__dict__[key].remove(dat)
-        return dat
-
-    def append_to_inst(*args, **kwargs):
-        dat = args[0]
-        if inst_is_list:
-            pdb.set_trace()
-            inst[key].append(dat)
-        else: inst.__dict__[key].append(dat)
-        return dat
-
-    def inquire_from_inst(*args, **kwargs):
-        if inst_is_list:
-            pdb.set_trace()
-            dat = inst.__dict__[key]
-        else:
-            try: dat = inst.__dict__[key]
-            except: pdb.set_trace()
-        return dat
-    '''
 
     def generate_check_func_append(check, inst, key, label):
 
@@ -1005,7 +972,6 @@ def create_check_boxes(append_instead, keys, instances, labels,
         else:
             try:
                 if inst.__dict__[key]: state = QtCore.Qt.Checked
-                #if inquire_from_inst(): state = QtCore.Qt.Checked
                 else: state = QtCore.Qt.Unchecked
 
             except KeyError:
@@ -1172,50 +1138,6 @@ def create_qlistview(parent = None, contents = []):
     qlistview.setModel(model)
     return qlistview
 
-def create_qwebview(parent = None):
-    '''
-    # Interact with the HTML page by calling the completeAndReturnName
-    # function; print its return value to the console
-    def complete_name():
-        frame = view.page().mainFrame()
-        print frame.evaluateJavaScript('completeAndReturnName();')
-    '''
-    view = QtGui.QWebView()
-    view.setHtml('''
-        <html>
-            <head>
-                <title>A Demo Page</title>
-                <script language="javascript">
-                    // Completes the full-name control and
-                    // shows the submit button
-                    function completeAndReturnName()
-                    {
-                        var fname = document.getElementById('fname').value;
-                        var lname = document.getElementById('lname').value;
-                        var full = fname + ' ' + lname;
-                        document.getElementById('fullname').value = full;
-                        document.getElementById('submit-btn').style.display = 'block';
-                        return full;
-                    }
-                </script>
-            </head>
-            <body>
-                <form>
-                    <label for="fname">First name:</label>
-                    <input type="text" name="fname" id="fname"></input>
-                    <br />
-                    <label for="lname">Last name:</label>
-                    <input type="text" name="lname" id="lname"></input>
-                    <br />
-                    <label for="fullname">Full name:</label>
-                    <input disabled type="text" name="fullname" id="fullname"></input>
-                    <br />
-                    <input style="display: none;" type="submit" id="submit-btn"></input>
-                </form>
-            </body>
-        </html>
-    ''')
-
 def create_treebook(parent = None, pages = [], mason = None, 
         initial = 0, inst = None, key = None, header = None):
     tree = tree_book(mason, inst, key, header)
@@ -1231,10 +1153,10 @@ def tree_book_panels_from_lookup(panel_template_lookup,
 
     def set_up_sub_panel(mobj, mobj_templates, mobj_labels, ltg):
         if issubclass(mobj.__class__, mobj_class):
-            if mobj.rewidget(infos = infos): mobj.set_settables(*infos)
+            if mobj._rewidget(infos = infos): mobj._widget(*infos)
             mobj_templates.append(ltg(widgets = ['panel'], 
                         templates = [mobj.widg_templates]))
-            mobj_labels.append(mobj.label)
+            mobj_labels.append(mobj.name)
 
     ltg = sys.modules['modular_core.gui.libqtgui_masons'].interface_template_gui
     mobj_class = sys.modules['modular_core.libfundamental'].mobject
@@ -1752,7 +1674,8 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
                 key in mobj.__dict__.keys()
                 if key in mobj.visible_attributes]
         except:
-            lfu.debug_filter('inspector problem', 10); return []
+            print 'inspector problem'
+            return []
         fixed_lap = []
         for pair in lap:            
             if  issubclass(pair[1].__class__, lfu.mobject) or\
