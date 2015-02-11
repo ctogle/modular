@@ -734,7 +734,7 @@ class simulation_plan(lfu.plan):
         self.widg_templates_plot_targets = []
         lfu.plan._sanitize(self,*args,**kwargs)
 
-    def reset_criteria_lists(self):
+    def _reset_criteria_lists(self):
         del self.end_criteria[:]
         del self.capture_criteria[:]
         del self.children[:]

@@ -79,7 +79,7 @@ class ensemble(lfu.mobject):
         self.capture_targets = self.run_params['plot_targets']
 
         self._select_module(**kwargs)
-        self.module._reset_parameters(self)
+        self.module._reset_parameters()
 
         self.data_scheme = None
         self.data_pool = None
@@ -164,12 +164,12 @@ class ensemble(lfu.mobject):
             self.mcfg_text_box_ref[0].setText(self.mcfg_path)
 
     def _parse_mcfg(self,*args,**kwargs):
-        self.module._reset_parameters(self)
+        self.module._reset_parameters()
         try:self.module._parse_mcfg(self.mcfg_path,self)
         except:
             traceback.print_exc(file = sys.stdout)
             lgd.message_dialog(None,'Failed to parse file!','Problem')
-        self._rewidget(True)
+        self.module._rewidget(True)
 
     def _write_mcfg(self,*args,**kwargs):
         self._select_mcfg(self.mcfg_path)
@@ -282,36 +282,13 @@ class ensemble(lfu.mobject):
                 widgets = ['panel'],
                 verbosities = [0],
                 templates = [[config_file_box_template]])
-
-        #self.widg_templates.append(top_half_template)
-        #lfu.mobject._widget(self,*args,from_sub = True)
-        #tree_half_template = self.module.widg_templates[0]
-        '''#
-        temp_gen = self.module._generate_gui_templates
-        main_templates,sub_templates,sub_labels = temp_gen(window,self)
-        run_param_keys = self.module.run_parameter_keys
-        tree_half_template = lgm.interface_template_gui(
-                widgets = ['tree_book'], 
-                verbosities = [1], 
-                handles = [(self, 'tree_reference')], 
-                initials = [[self.treebook_memory]], 
-                instances = [[self]], 
-                keys = [['treebook_memory']], 
-                pages = [[(page_template,template_list,param_key,sub_labels) 
-                    for page_template,template_list,param_key,sub_labels in 
-                        zip(main_templates,sub_templates, 
-                            run_param_keys,sub_labels)]], 
-                headers = [['Ensemble Run Parameters']])
-        '''#
-        #self.module._widget(window,self,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['tab_book'], 
                 verbosities = [0], 
-                handles = [(self, 'tab_ref')], 
+                handles = [(self,'tab_ref')], 
                 pages = [[('Main',[top_half_template]), 
                     ('Run Parameters',self.module.widg_templates)]], 
-                    #('Run Parameters',[tree_half_template])]], 
                 initials = [[self.current_tab_index]], 
                 instances = [[self]], 
                 keys = [['current_tab_index']]))
@@ -351,6 +328,7 @@ class ensemble_manager(lfu.mobject):
 
         self.settings_manager = lset.settings_manager(
             parent = self,filename = 'modular_settings.txt')
+        self.settings_manager.read_settings()
         if lset.get_setting('auto_clear_data_pools'):ldc.clean_data_pools()
 
         self.current_tab_index = 0

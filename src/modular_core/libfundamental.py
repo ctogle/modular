@@ -6,6 +6,7 @@ import pdb,os,sys,types,appdirs,importlib
 ###############################################################################
 ### mobject is the base class of modular_core
 ###############################################################################
+
 mobjects = [0]
 def mobject_id():
     lastid = mobjects[-1]
@@ -46,7 +47,6 @@ class mobject(object):
 
     def _sanitize(self,*args,**kwargs):
         if not ('from_sub' in kwargs.keys() and kwargs['from_sub']):
-            self.pspace_templates = []
             self.widg_templates = []
             self.menu_templates = []
             self.tool_templates = []
@@ -158,6 +158,10 @@ def using_os(os_):
     elif os_ == 'linux' and sys.platform.startswith('linux'): return True
     else: return False
 
+# break an input string by delimiter de and strip results
+def msplit(st,de = ':'):
+    return [l.strip() for l in st.split(de)]
+
 # return a list of all things found in a list of lists of things
 def flatten(unflat_list):
     return [item for sublist in unflat_list for item in sublist]
@@ -262,9 +266,14 @@ def grab_mobj_index_by_name(name,collection):
 class run_parameter(mobject):
 
     def __init__(self,*args,**kwargs):
+        self._default('pspace_axes',[],**kwargs)
         mobject.__init__(self,*args,**kwargs)
 
+    # should be called on each run parameter before running the simulation
     def _initialize(self,*args,**kwargs):pass
+
+    # return a string representing this parameter in an mcfg format
+    def _string(self,*args,**kwargs):return '\n'
 
 # read the list of installed/registered simulation modules
 def list_simulation_modules():

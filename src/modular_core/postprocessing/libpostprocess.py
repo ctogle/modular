@@ -68,7 +68,7 @@ class post_process_plan(lfu.plan):
                         'in:', str(time.time() - check1), 'seconds'])
         return args[1]
 
-    def reset_process_list(self):
+    def _reset_process_list(self):
         del self.post_processes[:]
         del self.children[:]
 

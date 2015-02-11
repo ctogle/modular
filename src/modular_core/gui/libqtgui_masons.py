@@ -118,7 +118,6 @@ class standard_mason(object):
                     'standard mason for pyside'):
         self.label = label
         self.parent = parent
-        #import libs.modular_core.libsettings as lset
         import modular_core.libsettings as lset
         self.lset = lset
 
@@ -867,14 +866,13 @@ class standard_mason(object):
 
 class cartographer_mason(standard_mason):
 
-    def __init__(self, parent = None, label = \
-                'cartographer mason for pyside'):
-        standard_mason.__init__(self, label = label, parent = parent)
+    def __init__(self,*args,**kwargs):
+        standard_mason.__init__(self,*args,**kwargs)
 
-    def interpret_template_p_sp(self, template):
+    def interpret_template_p_sp(self,template):
         try: mason = template.mason
         except AttributeError: mason = self
-        p_sp_panel = lgb.create_panel(template.widg_templates, mason)
+        p_sp_panel = lgb.create_panel(template.widg_templates,mason)
         return p_sp_panel
 
     def interpret_template_text_box(self, template, widg_dex):
@@ -905,7 +903,6 @@ class cartographer_mason(standard_mason):
         except AttributeError:
             if not (instance is None or key is None):
                 initial = instance.__dict__[key]
-
             else: initial = ''
 
         widgs = [lgb.create_text_box(instance = instance, key = key, 
@@ -914,10 +911,10 @@ class cartographer_mason(standard_mason):
                 alignment = alignment, initial = initial, 
                 keep_frame = keep_frame, bind_events = bind_events, 
                                             bindings = bindings)]
-        try: p_sp_template = template.parameter_space_templates[widg_dex]
-        except AttributeError: p_sp_template = None
-        if not p_sp_template is None:
+        try:
+            p_sp_template = template.parameter_space_templates[widg_dex]
             widgs.append(self.interpret_template_p_sp(p_sp_template))
+        except AttributeError:pass
 
         try:
             title = template.box_labels[widg_dex]
@@ -925,7 +922,6 @@ class cartographer_mason(standard_mason):
             layout = lgb.create_vert_box(widgs)
             group.setLayout(layout)
             return [group]
-
         except AttributeError: return widgs
 
     def interpret_template_spin(self, template, widg_dex):

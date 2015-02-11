@@ -15,7 +15,7 @@ if __name__ == 'modular_core.libmodcomponents':
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__': print 'this is a library!'
+if __name__ == '__main__':print 'libmodcomponents of modular_core'
 
 ###############################################################################
 ### a simulation module has hooks for working with an ensemble
@@ -50,13 +50,9 @@ class simulation_module(lfu.mobject):
             ensem.num_trajectories = int(value)
         ensem._rewidget(True)
 
-    def passs(*args,**kwargs):
-        return lfu.mobject()
     parse_types = ['end_criteria','capture_criteria','post_processes','fit_routines', 
         'output_plans','parameter_space','plot_targets','multiprocessing','ensemble']
     parse_funcs = [
-        #passs,
-        #passs,
         lc.parse_criterion_line,
         lc.parse_criterion_line,
         lpp.parse_postproc_line, 
@@ -75,6 +71,7 @@ class simulation_module(lfu.mobject):
         for pt,pf in zip(self.parse_types,self.parse_funcs):
             self.parsers[pt] = pf
 
+    # add one parsed run_parameter mobject to run_params
     def _add_parsed(self,new,parser,params):
         if type(new) is types.TupleType:
             label, item = new[0], new[1]
@@ -83,6 +80,7 @@ class simulation_module(lfu.mobject):
             params[parser].extend(new)
         else:params[parser].append(new)
 
+    # parse an mcfg and set the ensemble to reflect it
     def _parse_mcfg(self,mcfg,ensem):
         params = ensem.run_params
         with open(mcfg,'r') as handle:mlines = handle.readlines()
@@ -132,82 +130,57 @@ class simulation_module(lfu.mobject):
                     new = parsers[parser](li,ensem,parser,procs,routs,targs)
                     if not new is None:self._add_parsed(new,parser,params)
                 else:print 'parsing error', parser, li
-
         parse_p_space()
-        #if p_space_flag and not p_space_parsed_flag:
-        #    lgeo.parse_p_space(p_sub_sps[0],ensem)
 
-        '''#
-        if plot_flag:
-            #params['plot_targets'] = targs[:]
-            targetables = []
-            for param in module_support[0]:
-                group = params[param]
-                if type(group) is types.ListType:
-                    targetables.extend(group)
-                elif type(group) is types.DictionaryType:
-                    targetables.extend(group.values())
-                else: targetables.append(group)
+    # prepend a header to generated mcfgs
+    #  mcfg is a stringIO object
+    def _write_mcfg_header(self,mcfg):
+        mcfg.write('# modular mcfg for ensemble "' + ensem.name)
+        mcfg.write('" using module "' + ensem.module_name + '"\n\n')
+    
+    # write all of one sort of run_parameter, identified with key
+    #  mcfg is a stringIO object
+    def _write_mcfg_run_param_key(params,key,mcfg):
+        def _write_param(param):
+            if hasattr(param,'_string'):mcfg.write('\t'+param._string()+'\n')
+            else:mcfg.write('\t'+str(param)+'\n')
+        mcfg.write('<' + key + '>\n')
+        if type(params[key]) is types.ListType:
+            for subparam in params[key]:
+                _write_param(subparam)
+        elif type(params[key]) is types.DictionaryType:
+            for subkey in params[key].keys():
+                _write_param(params[key][subkey])
+        mcfg.write('\n')
 
-            for targable in targetables:
-                if hasattr(targable, 'brand_new') and\
-                            hasattr(targable, 'label'):
-                    if not targable.label in targs:
-                        targable.brand_new = False
-        '''#
-
-
-
-
-    def _write_mcfg(self,mcfg_path,ensem):
-        # this should use stringIO
-
-        def params_to_lines(run_params, key, lines):
-            lines.append('<' + key + '>')
-            if type(run_params[key]) is types.ListType:params = run_params[key]
-            elif type(run_params[key]) is types.DictionaryType:
-                params = run_params[key].values()
-            if params:
-                if issubclass(params[0].__class__,lfu.mobject):
-                    lines.extend([param._string() for param in params])
-            else: lines.extend(['\t' + str(param) for param in params])
-            lines.append('')
-
-        def p_space_to_lines():
-            lines.append('<parameter_space>')
-            lines.extend(ensem.cartographer_plan._string())
-            lines.append('')
-
-        def mp_plan_to_lines():
-            lines.append('<multiprocessing>')
-            lines.extend(ensem.multiprocess_plan._string())
-            lines.append('')
-
-        lines = []
-        run_params = ensem.run_params
-        params_to_lines(run_params, 'end_criteria', lines)
-        params_to_lines(run_params, 'capture_criteria', lines)
-        params_to_lines(run_params, 'plot_targets', lines)
-        if ensem.cartographer_plan.parameter_space: p_space_to_lines()
+    # write the current ensemble to an mcfg file 
+    def _write_mcfg(self,mcfg_path,ensem,mcfg = None):
+        rparams = ensem.run_params
+        if mcfg is None:mcfg = sio.StringIO()
+        self._write_mcfg_header(mcfg)
+        self._write_mcfg_run_param_key(rparams,'end_criteria',mcfg)
+        self._write_mcfg_run_param_key(rparams,'capture_criteria',mcfg)
+        self._write_mcfg_run_param_key(rparams,'plot_targets',mcfg)
+        if ensem.cartographer_plan.parameter_space:
+            pspace = ensem.cartographer_plan._string()
+            mcfg.write('<parameter_space>\n'+pspace+'\n')
+        mpplan = ensem.multiprocess_plan._string()
+        mcfg.write('<multiprocessing>\n'+mpplan+'\n')
         if ensem.postprocess_plan.post_processes:
-            params_to_lines(run_params, 'post_processes', lines)
-
+            self._write_mcfg_run_param_key(rparams,'post_processes',mcfg)
         if ensem.fitting_plan.routines:
-            params_to_lines(run_params, 'fit_routines', lines)
-
-        mp_plan_to_lines()
-        params_to_lines(run_params, 'output_plans', lines)
-        mcfg = '\n'.join(lines)
-
+            self._write_mcfg_run_param_key(rparams,'fit_routines',mcfg)
+        self._write_mcfg_run_param_key(rparams,'output_plans',mcfg)
+        mcfg = mcfg.getvalue()
         lf.write_text(mcfg_path,mcfg)
 
-
-
-
-    def _set_parameters(self,ensem):
+    # set state that is changed at most once per pspace location
+    def _set_parameters(self):
         print 'run params to location'
 
-    def _reset_parameters(self,ensem):
+    # initialize run parameters of an ensemble
+    def _reset_parameters(self):
+        ensem = self.parent
         ensem.simulation_plan.reset_criteria_lists()
         ensem.postprocess_plan.reset_process_list()
         ensem.run_params['plot_targets'] = ['iteration','time']
@@ -216,16 +189,19 @@ class simulation_module(lfu.mobject):
         output_plan.targeted = def_targeted[:]
         for w in output_plan.writers:w.targeted = def_targeted[:]
 
+    # set state associated with gui
+    def _gui_memory(self):
+        self.module_memory = [lfu.data_container(
+            selected_output_plan = 'Simulation')]
+
     def _sanitize(self,*args,**kwargs):
         self.module_memory = []
         lfu.mobject._sanitize(self,*args,**kwargs)
 
-    def _panel_templates(self,*args,**kwargs):
-        window = args[0]
-        ensem = args[1]
+    def _panel_templates(self,window,ensem,target_labels):
         panel_template_lookup = []
-        #if target_labels: plot_target_labels = target_labels
-        plot_target_labels = ['iteration','time']
+        if target_labels:plot_target_labels = target_labels
+        else:plot_target_labels = ['iteration','time']
         ensem.simulation_plan.plot_targets = plot_target_labels
         ensem.simulation_plan._widget(window,ensem)
         sim_plan = ensem.simulation_plan
@@ -268,22 +244,8 @@ class simulation_module(lfu.mobject):
         window = args[0]
         ensem = self.parent
         self._sanitize(*args,**kwargs)
-
-        #if lookup: panel_template_lookup = lookup
-        #else:
-        #    set_module_memory_(ensem)
-        #    panel_template_lookup = self._panel_templates(*args,**kwargs)
-        def set_module_memory_():
-            self.module_memory = [lfu.data_container(
-                selected_output_plan = 'Simulation')]
-        set_module_memory_()
-
+        self._gui_memory()
         panel_template_lookup = self._panel_templates(window,ensem,**kwargs)
-
-        #should return a list of main templates, 
-        # and a list of lists of sub templates
-        #tree_book_panels_from_lookup looks at 
-        # ensem.run_params to find templates for mobjects
         main_templates,sub_templates,sub_labels =\
             lgb.tree_book_panels_from_lookup(
                 panel_template_lookup,window,ensem)

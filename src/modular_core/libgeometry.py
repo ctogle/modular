@@ -1,32 +1,25 @@
 import modular_core.libfundamental as lfu
-import modular_core.libmath as lm
 import modular_core.libsettings as lset
+import modular_core.libmath as lm
 
 import modular_core.io.libfiler as lf
 import modular_core.data.libdatacontrol as ldc
 
-import itertools as it
-import types
-import random
-import os
-import sys
-import time
-import math
+import pdb,sys,os,traceback,time,math,itertools,types,random
 import numpy as np
-from copy import deepcopy as copy
 from scipy.integrate import simps as integrate
 
-import traceback
-
-import pdb
-
 if __name__ == 'modular_core.libgeometry':
-    #if lfu.gui_pack is None: lfu.find_gui_pack()
+    lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'libgeometry of modular_core'
 
-if __name__ == '__main__': print 'this is a library!'
+###############################################################################
+###############################################################################
+
+
 
 def merge_spaces(subspaces):
     space = parameter_space(subspaces = subspaces)
@@ -474,7 +467,7 @@ class p_space_proxy(object):
 
     def create_product_space_locations(self):
         self.wrap_nones()
-        tuple_table = it.product(*self.variations)
+        tuple_table = itertools.product(*self.variations)
         for tup in tuple_table:
             fixed_tup = []
             for elem, dex in zip(tup, range(len(tup))):
@@ -739,50 +732,26 @@ class parameter_space(lfu.mobject):
 
         return dexes
 
-class interface_template_p_space_axis(lfu.data_container):
+#class interface_template_p_space_axis(lfu.data_container):
+class pspace_axis(lfu.mobject):
 
-    rewidget_ = True
+    def __init__(self,*args,**kwargs):
+        self._default('instance',None,**kwargs)
+        self._default('key',None,**kwargs)
+        self._default('continuous',True,**kwargs)
+        self._default('bounds',[0,1],**kwargs)
+        self._default('permanent_bounds',[0,1],**kwargs)
+        self._default('increment',0.1,**kwargs)
+        self._default('contribute',False,**kwargs)
 
-    def __init__(self, instance = None, key = None, parent = None, 
-            visible_attributes = ['reference', 'linkages'], 
-            contribute_to_p_sp = False, gui_give_p_sp_control = True, 
-            p_sp_continuous = True, p_sp_bounds = [1, 10], 
-            p_sp_perma_bounds = [0, 100], p_sp_increment = 1.0, 
-            gui_give_p_sp_cont_disc_control = False, constraints = None):
-        self.instance = instance
-        self.key = key
-        if constraints: self.constraints = constraints
-        else: self.constraints = []
-        self.contribute_to_p_sp = contribute_to_p_sp
-        self.gui_give_p_sp_control = gui_give_p_sp_control
-        self.p_sp_continuous = p_sp_continuous
-        self.p_sp_bounds = p_sp_bounds
-        self.p_sp_perma_bounds = p_sp_perma_bounds
-        self.p_sp_increment = p_sp_increment
-        self.gui_give_p_sp_cont_disc_control =\
-                gui_give_p_sp_cont_disc_control
-        if lgm: self.mason = lgm.standard_mason(parent = self)
-        lfu.data_container.__init__(self, 
-            parent = parent, visible_attributes = visible_attributes)
+        #if lgm: self.mason = lgm.standard_mason(parent = self)
 
-    def rewidget(self, *args, **kwargs):
-        try:
-            if type(args[0]) is types.BooleanType:
-                self.rewidget_ = args[0]
-                if hasattr(self, 'parent') and self.rewidget_:
-                    if self.parent is not None:
-                        self.parent.rewidget(self.rewidget_)
-
-            else: print 'unrecognized argument for rewidget; ignoring'
-
-        except IndexError:
-            #self.rewidget__children_(**kwargs)
-            return self.rewidget_
+        lfu.mobject.__init__(self,*args,**kwargs)
 
     def _show_dialog_widgets_(self, *args, **kwargs):
         self.dialog_panel = lgb.create_scroll_area(lgb.create_panel(
                             self.widg_dialog_templates, self.mason))
-        gear_icon = os.path.join(os.getcwd(), 'resources', 'gear.png')
+        gear_icon = lfu.get_resource_path('gear.png')
         self.dialog_panel.setWindowIcon(lgb.create_icon(gear_icon))
         for temp in self.widg_dialog_templates:
             if hasattr(temp, 'panel_label'):
@@ -794,9 +763,11 @@ class interface_template_p_space_axis(lfu.data_container):
         self.dialog_panel.setGeometry(150, 120, panel_x, panel_y)
         self.dialog_panel.show()
 
-    def set_settables(self, *args, **kwargs):
-        #self.handle_widget_inheritance(*args, **kwargs)
-        self.widg_templates = []
+    def _widget(self,*args,**kwargs):
+        self._sanitize(*args,**kwargs)
+
+###############################################################################
+
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['check_set', 'button_set'], 
@@ -825,9 +796,9 @@ class interface_template_p_space_axis(lfu.data_container):
                             'Subspace Maximum'], 
                 panel_label = 'Parameter Space'))
 
-        #lfu.modular_object_qt.set_settables(
-        #       self, *args, from_sub = True)
-        self.rewidget(False)
+###############################################################################
+
+        lfu.mobject._widget(self,*args,from_sub = True)
 
 class cartographer_plan(lfu.plan):
 
