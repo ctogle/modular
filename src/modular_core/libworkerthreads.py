@@ -29,7 +29,7 @@ class worker_thread(Thread):
         except EOFError: print 'EOFFFFFFFFFF'
 
         self.fin_ = worker_finished()
-        self.fin_.worker_fin.connect(self.ensem.produce_output)
+        self.fin_.worker_fin.connect(self.ensem._output)
 
     def run(self):
         self.process = multiprocessing.Process(

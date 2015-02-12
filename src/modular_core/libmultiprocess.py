@@ -3,10 +3,6 @@ import modular_core.libsettings as lset
 import modular_core.gpu.lib_gpu as lgpu
 import modular_core.libiteratesystem as lis
 
-if lfu.using_os('windows'):
-    try: from win32com.client import GetObject
-    except ImportError: pass
-
 import multiprocessing as mp
 import numpy as np
 import types
@@ -50,7 +46,7 @@ class multiprocess_plan(lfu.plan):
         #ensem_reference.set_run_params_to_location()
         #pool = mp.Pool(processes = processor_count)
         pool = mp.Pool(processes = processor_count, 
-            initializer = ensem_reference.set_run_params_to_location)
+            initializer = ensem_reference._run_params_to_location)
 
         move_to = target_processes[0]
         run_system = target_processes[1]
@@ -106,7 +102,7 @@ class multiprocess_plan(lfu.plan):
             print 'defaulting to 8 workers...'
             processor_count = 8
         pool = mp.Pool(processes = processor_count, 
-            initializer = ensem_reference.set_run_params_to_location)
+            initializer = ensem_reference._run_params_to_location)
         worker_report = []
         result_pool = []
         dex0 = 0
@@ -185,16 +181,11 @@ def run_with_time_out(*args):
         worker_pool.join()
         return False
 
-def using_hyperthreading():
-    if not lfu.using_os('windows'):
-        print 'cant test hyperthreading when not using windows'
-        return
-    winmgmts_root = GetObject("winmgmts:root\cimv2")
-    cpus = winmgmts_root.ExecQuery("Select * from Win32_Processor")
-    for cpu in cpus:
-        if cpu.NumberOfCores <= cpu.NumberOfLogicalProcessors:
-            return True, cpu.DeviceID
-        else: return False, cpu.DeviceID
+
+
+
+
+
 
 
 

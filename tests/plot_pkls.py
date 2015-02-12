@@ -1,37 +1,37 @@
 #!python
 import modular_core.libfundamental as lfu
-lfu.USING_GUI = True
-import modular_core.liboutput as lo
+
+import modular_core.io.liboutput as lo
+import modular_core.io.libfiler as lf
 import modular_core.libsettings as lset
+
 import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
 lgd = lqg.lgd
 lgb = lqg.lgb
-import modular_core.libfiler as lf
 
-import os, sys
+import pdb,os,sys
 
-import pdb
-
-class pkl_handler(lfu.modular_object_qt):
-    def __init__(self, *args, **kwargs):
+class pkl_handler(lfu.mobject):
+    def __init__(self,*args,**kwargs):
         self.settings_manager = lset.settings_manager(
-            parent = self, filename = 'plot_pkls_settings.txt')
+            parent = self,filename = 'plot_pkls_settings.txt')
         self.settings = self.settings_manager.read_settings()
-        self.impose_default('capture_targets', [], **kwargs)
-        self.impose_default('pkl_files_directory', os.getcwd(), **kwargs)
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        self._default('capture_targets',[],**kwargs)
+        self._default('pkl_files_directory',os.getcwd(),**kwargs)
+        lfu.mobject.__init__(self,*args,**kwargs)
 
     def load_data(self):
-        self.provide_axes_manager_input()
         pkl_files = [p for p in os.listdir(
             self.pkl_files_directory) if p.endswith('.pkl')]
         fronts = lfu.uniqfy([p[:p.find('.')] for p in pkl_files])
         outputs = []
         data_ = []
         for outp in fronts:
-            outputs.append(lo.output_plan(
-                label = outp, parent = self))
+            newoutp = lo.output_plan(name = outp,
+                parent = self,flat_data = False)
+            newoutp.writers[3].use = True
+            outputs.append(newoutp)
             data_.append([])
             self.capture_targets = []
             relev = [p for p in pkl_files if p[:p.find('.')] == outp]
@@ -39,38 +39,32 @@ class pkl_handler(lfu.modular_object_qt):
                 fipath = os.path.join(self.pkl_files_directory, fi)
                 dat = lf.load_pkl_object(fipath)
                 data_[-1].append(dat.data)
-                self.capture_targets.extend([d.label for d in dat.data])
+                self.capture_targets.extend([d.name for d in dat.data])
             targs = lfu.uniqfy(self.capture_targets)
             outputs[-1].targeted = targs
             outputs[-1].save_filename = outp
             self.capture_targets = targs
-            outputs[-1].set_target_settables()
-            outputs[-1].flat_data = False
+            outputs[-1]._target_settables()
+        [outp(lfu.data_container(data = da)) for outp,da in zip(outputs,data_)]
 
-        [outp(lfu.data_container(data = da)) for 
-            outp, da in zip(outputs, data_)]
-
-    def set_settables(self, *args, **kwargs):
+    def _widget(self,*args,**kwargs):
         window = args[0]
-        self.handle_widget_inheritance(*args, **kwargs)
+        self._sanitize(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['directory_name_box'], 
                 layout = 'horizontal', 
                 keys = [['pkl_files_directory']], 
                 instances = [[self]], 
-                initials = [[self.pkl_files_directory, 
-                        None, os.getcwd()]], 
+                initials = [[self.pkl_files_directory,None,os.getcwd()]],
                 labels = [['Choose Directory With .pkl Data']], 
                 box_labels = ['Data Directory']))
-        #self.widg_templates.append(
         self.widg_templates[-1] +=\
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
                 bindings = [[self.load_data]], 
                 labels = [['Load .pkl Data']])
-        lfu.modular_object_qt.set_settables(
-            self, *args, from_sub = True)
+        lfu.mobject._widget(self,*args,from_sub = True)
 
 class pkl_plotter(lqg.application):
     gear_icon = lfu.get_resource_path('gear.png')
@@ -87,10 +81,7 @@ class pkl_plotter(lqg.application):
         lqg._window_.apply_standards(self._standards_)
         lqg.application.setStyle(lgb.create_style('plastique'))
 
-if __name__ == '__main__':
-    params = {}
-    params['application'] = pkl_plotter
-    lfu.initialize_gui(params)
+if __name__ == '__main__':lqg.initialize_app(pkl_plotter)
 
 
 

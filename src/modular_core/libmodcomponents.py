@@ -27,8 +27,7 @@ class simulation_module(lfu.mobject):
         'Post Processes','Parameter Space Map','Multiprocessing','Output Plans']
 
     def _parse_mcfg_plot_targets(li,ensem,parser,procs,routs,targs):
-        #targs.append(li)
-        return li
+        if not li in targs:targs.append(li)
 
     def _parse_mcfg_multiprocessing(li,ensem,parser,procs,routs,targs):
         key,val = li.split(':')
@@ -50,8 +49,16 @@ class simulation_module(lfu.mobject):
             ensem.num_trajectories = int(value)
         ensem._rewidget(True)
 
-    parse_types = ['end_criteria','capture_criteria','post_processes','fit_routines', 
-        'output_plans','parameter_space','plot_targets','multiprocessing','ensemble']
+    parse_types = [
+        'end_criteria',
+        'capture_criteria',
+        'post_processes',
+        'fit_routines', 
+        'output_plans',
+        'parameter_space',
+        'plot_targets',
+        'multiprocessing',
+        'ensemble']
     parse_funcs = [
         lc.parse_criterion_line,
         lc.parse_criterion_line,
@@ -78,16 +85,17 @@ class simulation_module(lfu.mobject):
             params[parser][new[0]] = new[1]
         elif type(new) is types.ListType:
             params[parser].extend(new)
-        else:params[parser].append(new)
+        elif not new is None:params[parser].append(new)
 
     # parse an mcfg and set the ensemble to reflect it
     def _parse_mcfg(self,mcfg,ensem):
         params = ensem.run_params
         with open(mcfg,'r') as handle:mlines = handle.readlines()
 
-        plot_flag = False,targs = params['plot_targets']
+        plot_flag = False;targs = params['plot_targets']
         p_space_flag = False;p_space_parsed_flag = False;p_sub_sps = []
         procs = [];routs = []
+        ensem.capture_targets = targs
 
         parser = ''
         parsers = self.parsers
@@ -156,7 +164,7 @@ class simulation_module(lfu.mobject):
     # write the current ensemble to an mcfg file 
     def _write_mcfg(self,mcfg_path,ensem,mcfg = None):
         rparams = ensem.run_params
-        if mcfg is None:mcfg = sio.StringIO()
+        if mcfg is None:mcfg = StringIO()
         self._write_mcfg_header(mcfg)
         self._write_mcfg_run_param_key(rparams,'end_criteria',mcfg)
         self._write_mcfg_run_param_key(rparams,'capture_criteria',mcfg)
@@ -184,10 +192,15 @@ class simulation_module(lfu.mobject):
         ensem.simulation_plan.reset_criteria_lists()
         ensem.postprocess_plan.reset_process_list()
         ensem.run_params['plot_targets'] = ['iteration','time']
+        ensem.capture_targets = ensem.run_params['plot_targets']
         output_plan = ensem.run_params['output_plans']['Simulation']
         def_targeted = ['iteration','time']
         output_plan.targeted = def_targeted[:]
         for w in output_plan.writers:w.targeted = def_targeted[:]
+
+    # perform one simulation and return the data in the proper format
+    def _simulate(self,*args,**kwargs):
+        print 'simulation'
 
     # set state associated with gui
     def _gui_memory(self):
@@ -203,6 +216,7 @@ class simulation_module(lfu.mobject):
         if target_labels:plot_target_labels = target_labels
         else:plot_target_labels = ['iteration','time']
         ensem.simulation_plan.plot_targets = plot_target_labels
+        ensem.capture_targets = plot_target_labels
         ensem.simulation_plan._widget(window,ensem)
         sim_plan = ensem.simulation_plan
         panel_template_lookup.append(('end_criteria', 
@@ -267,17 +281,6 @@ class simulation_module(lfu.mobject):
 
 ###############################################################################
 ###############################################################################
-
-
-
-
-
-
-
-
-
-
-
 
 
 

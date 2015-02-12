@@ -4,58 +4,42 @@ import modular_core.libsettings as lset
 
 import modular_core.io.libfiler as lf
 
-import itertools as it
-import types
-import fnmatch
-import random
-import os
-import sys
-import time
-import math
+import pdb,traceback,sys,os,time,random,types,math,fnmatch
 import numpy as np
 from copy import deepcopy as copy
 from scipy.integrate import simps as integrate
-
-import traceback
-
-import pdb
                                          
 if __name__ == 'modular_core.libdatacontrol':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+    lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'libdatacontrol of modular_core'
 
-if __name__ == '__main__': print 'this is a library!'
+class scalars(lfu.data_container):
 
-class scalars(object):
+    tag = 'scalar'
 
-    def __init__(self, label = 'some scalar', 
-            scalars = None, domain = None, 
-            subscalars = None, **kwargs):
-        self.label = label
-        self.tag = 'scalar'
-        if not domain is None:
-            if type(domain) is types.ListType:
-                domain = np.array(domain)
-            self.domain = domain
+    def _nparray(self,vals):
+        if type(vals) is types.ListType:return np.array(vals)
+        elif vals is None:return np.array([])
+        else:return vals
 
-        if not scalars is None:
-            if type(scalars) is types.ListType:
-                scalars = np.array(scalars)
-            self.scalars = scalars
+    def _nparrays(self):
+        self.domain = self._nparray(self.domain)
+        self.scalars = self._nparray(self.scalars)
+        self.subscalars = self._nparray(self.subscalars)
 
-        else: self.scalars = []
+    def __init__(self,*args,**kwargs):
+        self._default('name','a scalar',**kwargs)
+        self._default('domain',None,**kwargs)
+        self._default('scalars',None,**kwargs)
+        self._default('subscalars',None,**kwargs)
+        lfu.data_container.__init__(self,*args,**kwargs)
+        self._nparrays()
 
-        if not subscalars is None:
-            subscas = []
-            for subs in subscalars:
-                if type(subs) is types.ListType:
-                    subs = np.array(subs)
-                    subscas.append(subs)
-                else: subscas.append(subs)
-            self.subscalars = subscas
-        for key in kwargs.keys(): self.__dict__[key] = kwargs[key]
+
+
 
     def as_string_list(self):
         return [str(val) for val in self.scalars]
@@ -101,11 +85,11 @@ class batch_scalars(object):
         def _wrap_(values, dex):
             if hasattr(values, 'scalars'):
                 values = values.scalars
-                sca = scalars(label = self.pool_names[dex])
+                sca = scalars(name = self.pool_names[dex])
                 sca.scalars = values
                 return sca               
             else:
-                sca = scalars(label = self.pool_names[dex])
+                sca = scalars(name = self.pool_names[dex])
                 sca.scalars = values
                 return sca
 
@@ -257,7 +241,7 @@ class batch_data_pool(object):
     def _get_trajectory_(self, traj_dex):
 
         def _wrap_(values, dex):
-            sca = scalars(label = self.targets[dex])
+            sca = scalars(name = self.targets[dex])
             sca.scalars = values
             return sca
 
@@ -285,7 +269,7 @@ class bin_vector(object):
         rng = np.arange(bins.shape[0], dtype = float)
         self.axis_labels = ['bin_index']
         self.axis_values = [
-            scalars(label = 'bin_index', scalars = rng)]
+            scalars(name = 'bin_index', scalars = rng)]
         self.axis_defaults = [da.scalars[0] for da in self.axis_values]
 
         self.data = bins
@@ -306,7 +290,7 @@ class voxel_vector(object):
         rng = np.arange(cubes.shape[0], dtype = float)
         self.axis_labels = ['cube_index']
         self.axis_values = [
-            scalars(label = 'cube_index', scalars = rng)]
+            scalars(name = 'cube_index', scalars = rng)]
         self.axis_defaults = [da.scalars[0] for da in self.axis_values]
 
         self.data = cubes
@@ -346,7 +330,7 @@ class surface_vector(object):
         rng = np.arange(surfs.shape[0], dtype = float)
         self.axis_labels = ['surface_index']
         self.axis_values = [
-            scalars(label = 'surface_index', scalars = rng)]
+            scalars(name = 'surface_index', scalars = rng)]
         self.axis_defaults = [da.scalars[0] for da in self.axis_values]
 
         #self.surf_targets = surf_labels
@@ -366,14 +350,14 @@ class surface_vector(object):
 class surface_vector_reducing(object):
 
     def __init__(self, data = [], axes = [], surfs = [], 
-            label = 'another reducing surface vector'):
+            name = 'another reducing surface vector'):
         self.tag = 'surface_reducing'
-        self.label = label
+        self.name = name
         self.data_scalars = [data for data in data if not data is self]
         self.axis_labels = axes
-        self.axis_values = [scalars(label = dat.label, 
+        self.axis_values = [scalars(name = dat.name, 
             scalars = lfu.uniqfy(dat.scalars)) for dat in 
-            self.data_scalars if dat.label in self.axis_labels]
+            self.data_scalars if dat.name in self.axis_labels]
         self.axis_defaults = [da.scalars[0] for da in self.axis_values]
         self.surf_targets = surfs
         self.reduced = None
@@ -428,7 +412,7 @@ class surface_vector_reducing(object):
         return x, y, sf
 
 def scalars_from_labels(targeted):
-    return [scalars(label = target) for target in targeted]
+    return [scalars(name = target) for target in targeted]
 
 def bin_vectors_from_labels(targeted):
     return [bin_vectors(label = target) for target in targeted]

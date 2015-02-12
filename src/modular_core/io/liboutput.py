@@ -16,7 +16,7 @@ if __name__ == 'modular_core.io.liboutput':
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__': print 'this is a library!'
+if __name__ == '__main__':print 'liboutput of modular_core'
 
 ###############################################################################
 ### a writer handles one format of output for an output plan
@@ -107,7 +107,7 @@ class writer_pkl(writer_abstract):
         writer_abstract.__init__(self,*args,**kwargs)
 
     def _write(self,*args):
-        lf.save_pkl_object(*args)
+        lf.save_pkl_object(*args[:2])
 
 class writer_txt(writer_abstract):
 
@@ -159,14 +159,13 @@ class writer_plt(writer_abstract):
                 title = title,plot_types = plot_types,
                 cplot_interpolation = cplot_interp_def)
 
-    def _sanitize(self,*args,**kwargs):
-        self._plt_window = None
-        writer_abstract._sanitize(self,*args,**kwargs)
+    #def _sanitize(self,*args,**kwargs):
+    #    #self._plt_window = None
+    #    writer_abstract._sanitize(self,*args,**kwargs)
 
     def _write(self,*args):
-        if self._plt_window is None:
-            print 'no plot window to post data to\n\ttargets:',specifics
-        else:self._plt_window.set_plot_info(*args)
+        if self._plt_window is None:self._get_plt_window()
+        self._plt_window.set_plot_info(*args)
 
 ###############################################################################
 ###############################################################################
@@ -182,6 +181,7 @@ class output_plan(lfu.plan):
     #any mobj which owns this mobj needs to have .capture_targets
     def __init__(self,*args,**kwargs):
         self._default('name','output plan',**kwargs)
+        self._default('use_plan',True,**kwargs)
         self._default('flat_data',True,**kwargs)
         self._default('save_directory',lfu.get_output_path(),**kwargs)
         self._default('save_filename','',**kwargs)
@@ -196,8 +196,7 @@ class output_plan(lfu.plan):
         if self.label.startswith('Simulation'): numb = '0'
         else:
             # this needs to include fit routines too?
-            procs = lfu.grab_mobj_names(
-                self.parent.parent.post_processes)
+            procs = lfu.grab_mobj_names(self.parent.parent.post_processes)
             numb = str(procs.index(self.parent.label) + 1)
 
         plot_types = [item for item,out in zip(
@@ -231,17 +230,16 @@ class output_plan(lfu.plan):
         output_types = ['vtk','pkl','txt','plt']
         for typ,w in zip(output_types,self.writers):
             if w.default_paths:
-                dfil = self.save_filenames + '.' + typ
+                dfil = self.save_filename + '.' + typ
                 ddir = self.save_directory
             else:
                 ddir = w.save_directory
                 dfil = w.save_filename
             dpath = os.path.join(ddir,dfil)
             propers[typ] = dpath
-        #self._validate_paths(propers)
+        self._validate_paths(propers)
         return propers
 
-    '''#
     # if any paths are not valid, reset to cwd
     def _validate_paths(self,paths):
         for typ,prop in paths.items():
@@ -249,12 +247,8 @@ class output_plan(lfu.plan):
                 fil = prop.split(os.path.sep)[-1]
                 prope = os.getcwd()
                 self.save_directory = prope
+                for w in self.writers:w.save_directory = prope
                 paths[typ] = os.path.join(prope,fil)
-                for key in self.directories.keys():
-                    if key.startswith(typ):self.directories[key] = prope
-                for key in self.filenames.keys():
-                    if key.startswith(typ):self.filenames[key] = fil
-    '''#
 
     # return the proper set of targets for each writer
     #  each writer can inherit the default targets or set its own

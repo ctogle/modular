@@ -57,8 +57,8 @@ class interface_template_gui(lfu.data_container):
         'bind_events' : 2, 
             }
 
-    def __init__(self, *args, **kwargs):
-        lfu.data_container.__init__(self, *args, **kwargs)
+    def __init__(self,*args,**kwargs):
+        lfu.data_container.__init__(self,*args,**kwargs)
         del self.__dict__['args']
 
     def __str__(self):
@@ -78,9 +78,6 @@ class interface_template_gui(lfu.data_container):
             try: side = inst.__dict__[key]
             except KeyError:
                 count = len(inst.widgets)
-                #if key == 'widg_spans':
-                #    try: count = len(lfu.flatten(inst.labels))
-                #    except: pdb.set_trace()
                 side = wrap_none(depth,count)
             return side
 
@@ -265,7 +262,6 @@ class standard_mason(object):
                     inst.__dict__[key] = widg_list
                     if not handle in inst.widg_handles:
                         inst.widg_handles.append(handle)
-
             except AttributeError: pass
             widgs.append(widg_list)
 

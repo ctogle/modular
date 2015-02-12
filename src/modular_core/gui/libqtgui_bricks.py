@@ -61,12 +61,9 @@ def generate_add_function(base_class, parent = None,
     def add_():
         new = base_class(parent = parent)
         for whar in wheres:
-            if type(whar) is types.ListType: whar.append(new)
-            elif type(whar) is types.DictionaryType:
-                whar[new.label] = new
-
-            else: 'cant add new', base_class, 'to', whar
-
+            if type(whar) is types.ListType:whar.append(new)
+            elif type(whar) is types.DictionaryType:whar[new.name] = new
+            else:'cant add new',base_class,'to',whar
         if rewidget and not parent is None: parent._rewidget(True)
 
     return add_
@@ -84,12 +81,12 @@ def generate_remove_function(get_selected, parent = None,
                     select._destroy_()
 
                 elif type(whar) is types.DictionaryType:
-                    #del whar[select.label]
+                    #del whar[select.name]
                     if issubclass(select.__class__, 
                             lfu.mobject):
-                        whar[select.label]._destroy_()
+                        whar[select.name]._destroy_()
 
-                    else: del whar[select.label]
+                    else: del whar[select.name]
 
                 else: 'cant remove selected', select, 'from', whar
 
@@ -180,6 +177,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
         else: top = sys.float_info.max
         if min_val is not None: bottom = min_val
         else: bottom = -sys.float_info.max
+        initial = float(initial)
 
     else:
         spin = QtGui.QSpinBox()
@@ -187,6 +185,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
         else: top = sys.maxint
         if min_val is not None: bottom = min_val
         else: bottom = 0
+        initial = int(initial)
 
     if sing_step is not None: step = sing_step
     else: step = 1
@@ -196,7 +195,7 @@ def create_spin_box(parent = None, double = False, min_val = None,
     except OverflowError: spin.setMaximum(1000000000)
     spin.setSingleStep(step)
 
-    if initial is not None: spin.setValue(initial)
+    if not initial is None: spin.setValue(initial)
     else: spin.setValue(1)
     #if not callback: spin.valueChanged.connect(callback)
     def close_callback(call):
@@ -1426,8 +1425,7 @@ def create_combo_box(labels, icons, datas, bindings = None,
     if initial:
         try: combo.setCurrentIndex(labels.index(initial))
         except ValueError:
-            lfu.debug_filter(''.join(['initial', str(initial), 
-                'not found in labels'] + labels), debug_filter_thresh)
+            print 'combo error', initial, labels
 
     return combo
 
@@ -2075,7 +2073,6 @@ def create_plot_widget(data, callbacks = [], figure = None, canvas = None):
 qp_fig = None
 class quick_plot(QtGui.QWidget):
 
-    #def __init__(self, xs, ys, callbacks = [], 
     def __init__(self, data, callbacks = [], 
             qp_figure = None, canvas = None):
         super(quick_plot, self).__init__()
@@ -2084,8 +2081,6 @@ class quick_plot(QtGui.QWidget):
             if qp_fig is None: qp_fig = plt.figure()
             self.qp_fig = qp_fig
         else: self.qp_fig = qp_figure
-        #if canvas: self.canvas = canvas
-        #else: self.canvas = FigureCanvas(self.qp_fig)
         self.canvas = FigureCanvas(self.qp_fig)
         self.lplot_data_types = ['scalar']
         self.bplot_data_types = ['bin_vector']
@@ -2101,17 +2096,12 @@ class quick_plot(QtGui.QWidget):
         self.max_line_count = 32
         self.colormap = plt.get_cmap('jet')
         self.set_up_widgets()
-        #self.set_geometry()
-        #self.plot(xs, ys)
-        #self.show()
-        #self.repaint()
 
     def set_up_widgets(self):
         self.setBackgroundRole(QtGui.QPalette.Window)
         self.toolbar = plot_window_toolbar(
             self.canvas, self, self.callbacks)
         layout = create_vert_box([self.canvas, self.toolbar])
-        #layout = create_vert_box([self.canvas])
         self.setLayout(layout)
 
     def set_geometry(self):
@@ -2126,21 +2116,6 @@ class quick_plot(QtGui.QWidget):
         xmins,xmaxs = zip(*xminmaxes)
         ymins,ymaxs = zip(*yminmaxes)
         return [min(xmins),max(xmaxs),min(ymins),max(ymaxs)]
-        '''#
-        if type(xs_[0]) is types.ListType:
-            minmax = [
-                min([min(x) for x in xs_]), 
-                max([max(x) for x in xs_]), 
-                min([min(y) for y in ys_]), 
-                max([max(y) for y in ys_])]
-        else:
-            minmax = [
-                min([x.min() for x in xs_]), 
-                max([x.max() for x in xs_]), 
-                min([y.min() for y in ys_]), 
-                max([y.max() for y in ys_])]
-        return minmax
-        '''#
 
     def set_labels(self, xlab = None, ylab = None, 
             zlab = None, title = None):
@@ -2173,16 +2148,16 @@ class quick_plot(QtGui.QWidget):
         elif self.plot_type == 'color':
             crolldatatypes = self.cplot_data_types[:1]
             cdata = [d for d in data.data if d.tag in crolldatatypes 
-                    and d.label in data.active_targs]
+                    and d.name in data.active_targs]
             if len(cdata) == 1: sdata = cdata[0]
             elif len(cdata) > 1:
                 starg = data.zdomain
-                clabs = [d.label for d in cdata]
+                clabs = [d.name for d in cdata]
                 if starg in clabs: sdata = cdata[clabs.index(starg)]
                 else:
                     sdata = cdata[0]
                     print 'multiple surface data objects available'
-                    print '\tdefaulting to first found:', sdata.label
+                    print '\tdefaulting to first found:', sdata.name
             else:
                 print 'no surface data objects which roll are available!'
                 return
@@ -2209,16 +2184,16 @@ class quick_plot(QtGui.QWidget):
             pdb.set_trace()
             vrolldatatypes = self.vplot_data_types
             vdata = [d for d in data.data if d.tag in vrolldatatypes 
-                    and d.label in data.active_targs]
+                    and d.name in data.active_targs]
             if len(vdata) == 1: vdata = vdata[0]
             elif len(vdata) > 1:
                 vtarg = data.zdomain
-                vlabs = [d.label for d in vdata]
+                vlabs = [d.name for d in vdata]
                 if vtarg in vlabs: vdata = vdata[vlabs.index(vtarg)]
                 else:
                     vdata = vdata[0]
                     print 'multiple surface data objects available'
-                    print '\tdefaulting to first found:', vdata.label
+                    print '\tdefaulting to first found:', vdata.name
             else:
                 print 'no surface data objects which roll are available!'
                 return
@@ -2243,16 +2218,16 @@ class quick_plot(QtGui.QWidget):
         elif self.plot_type == 'voxels':
             vrolldatatypes = self.vplot_data_types
             vdata = [d for d in data.data if d.tag in vrolldatatypes 
-                    and d.label in data.active_targs]
+                    and d.name in data.active_targs]
             if len(vdata) == 1: vdata = vdata[0]
             elif len(vdata) > 1:
                 vtarg = data.zdomain
-                vlabs = [d.label for d in vdata]
+                vlabs = [d.name for d in vdata]
                 if vtarg in vlabs: vdata = vdata[vlabs.index(vtarg)]
                 else:
                     vdata = vdata[0]
                     print 'multiple surface data objects available'
-                    print '\tdefaulting to first found:', vdata.label
+                    print '\tdefaulting to first found:', vdata.name
             else:
                 print 'no surface data objects which roll are available!'
                 return
@@ -2301,7 +2276,7 @@ class quick_plot(QtGui.QWidget):
             except ValueError:
                 print 'domain is not in line data'
                 return
-            ys = [d for d in ldata if d.label in data.active_targs] 
+            ys = [d for d in ldata if d.name in data.active_targs] 
             self.plot_lines(xs, ys, xlab, ylab, xlog, ylog)
 
         elif ptype == 'color':
@@ -2311,17 +2286,17 @@ class quick_plot(QtGui.QWidget):
             self.cplot_interpolation = data.cplot_interpolation
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
-                d.label in data.active_targs]
+                d.name in data.active_targs]
             if len(cdata) == 1: sdata = cdata[0]
             elif len(cdata) > 1:
-                clabs = [d.label for d in cdata]
+                clabs = [d.name for d in cdata]
                 if surf_target in clabs:
                     sdata = cdata[clabs.index(surf_target)]
                 else:
                     sdata = cdata[0]
                     if not 'silent' in kwargs.keys() or not kwargs['silent']:
                         print 'multiple surface data objects available'
-                        print '\tdefaulting to first found:', sdata.label
+                        print '\tdefaulting to first found:', sdata.name
             else: print 'no surface data objects available!'; return
             self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
 
@@ -2331,17 +2306,17 @@ class quick_plot(QtGui.QWidget):
             xdom = data.xdomain
             bdata = [d for d in data.data if d.tag 
                 in self.bplot_data_types and 
-                d.label in data.active_targs]
+                d.name in data.active_targs]
             if len(bdata) == 1: bdata = bdata[0]
             elif len(bdata) > 1:
-                blabs = [d.label for d in bdata]
+                blabs = [d.name for d in bdata]
                 if btarget in blabs:
                     bdata = bdata[blabs.index(btarget)]
                 else:
                     bdata = bdata[0]
                     if not 'silent' in kwargs.keys() or not kwargs['silent']:
                         print 'multiple bin data objects available'
-                        print '\tdefaulting to first found:', bdata.label
+                        print '\tdefaulting to first found:', bdata.name
             else: print 'no bin data objects available!'; return
             self.plot_bars(bdata, btarget, xdom, xlab)
 
@@ -2351,17 +2326,17 @@ class quick_plot(QtGui.QWidget):
             ydom = data.ydomain
             vdata = [d for d in data.data if d.tag 
                 in self.vplot_data_types and 
-                d.label in data.active_targs]
+                d.name in data.active_targs]
             if len(vdata) == 1: vdata = vdata[0]
             elif len(vdata) > 1:
-                vlabs = [d.label for d in vdata]
+                vlabs = [d.name for d in vdata]
                 if vox_target in vlabs:
                     vdata = vdata[vlabs.index(vox_target)]
                 else:
                     vdata = vdata[0]
                     if not 'silent' in kwargs.keys() or not kwargs['silent']:
                         print 'multiple voxel data objects available'
-                        print '\tdefaulting to first found:',vdata.label
+                        print '\tdefaulting to first found:',vdata.name
             else: print 'no voxel data objects available!'; return
             self.plot_voxels(vdata, xdom, ydom, vox_target)
         else: print 'invalid plot type!', ptype
@@ -2389,9 +2364,9 @@ class quick_plot(QtGui.QWidget):
 
         ax = self.pre_plot()
 
-        if type(xs) is types.ListType: x_labs = [x.label for x in xs]
-        else: x_labs = [xs.label]*len(ys)
-        y_labs = [y.label for y in ys]
+        if type(xs) is types.ListType: x_labs = [x.name for x in xs]
+        else: x_labs = [xs.name]*len(ys)
+        y_labs = [y.name for y in ys]
         self.set_labels(x_labs[0], y_labs[0])
 
         self.colors = [self.colormap(i) for i in 
@@ -2541,7 +2516,7 @@ class quick_plot(QtGui.QWidget):
         scattered = vdata.make_cube()
         for c, m, coords in scattered:
             ax.scatter(*coords, c = c, marker = m)
-        self.set_labels(xlab, ylab, zlab, vdata.label)
+        self.set_labels(xlab, ylab, zlab, vdata.name)
         self.canvas.draw()
         self.plot_type = 'voxels'
 

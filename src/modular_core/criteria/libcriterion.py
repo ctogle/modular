@@ -53,6 +53,9 @@ class criterion_iteration(criterion_abstract):
         self._default('max_iterations',1000,**kwargs)
         criterion_abstract.__init__(self,*args,**kwargs)
 
+    def _sim_string(self):
+        return 'iteration>=' + str(self.max_iterations)
+
     def _string(self):
         return '\titeration limit : ' + str(self.max_iterations)
 
@@ -84,6 +87,9 @@ class criterion_sim_time(criterion_abstract):
         self._default('name','simulation time criterion',**kwargs)
         self._default('max_time',100.0,**kwargs)
         criterion_abstract.__init__(self,*args,**kwargs)
+
+    def _sim_string(self):
+        return 'time>=' + str(self.max_time)
 
     def _string(self):
         return '\ttime limit : ' + str(self.max_time)
@@ -117,6 +123,9 @@ class criterion_increment(criterion_abstract):
         self._default('target','time',**kwargs)
         self._default('targets',['iteration','time'],**kwargs)
         criterion_abstract.__init__(self,*args,**kwargs)
+
+    def _sim_string(self):
+        return 'increment:' + self.target + ':' + str(self.increment)
 
     def _string(self):
         strr = '\t' + self.target + ' increment : ' + str(self.increment)
@@ -231,58 +240,6 @@ def parse_criterion_line(line,ensem,parser,procs,routs,targs):
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
-def parse_criterion_line_____(*args, **kwargs):
-    data = args[0]
-    ensem = args[1]
-    parser = args[2]
-    split = [item.strip() for item in data.split(':')]
-    for crit_type in valid_criterion_base_classes:
-        if split[0] == crit_type._tag:
-            crit = crit_type._class()
-            if len(split) > 1:
-                if crit_type._tag == 'time limit':
-                    crit.max_time = split[1]
-
-                elif crit_type._tag == 'iteration limit':
-                    crit.max_iterations = split[1]
-
-                elif crit_type._tag == 'capture limit':
-                    crit.max_captures = split[1]
-
-                elif crit_type._tag == 'scalar increment':
-                    crit.increment = split[1]
-                    if len(split) > 2: crit.key = split[2]
-
-                elif crit_type._tag == 'species count':
-                    crit.spec_count_target = split[1]
-                    if len(split) > 2: crit.key = split[2]
-
-                else: pdb.set_trace()
-
-    if parser == 'end_criteria':
-        ensem.simulation_plan.add_end_criteria(crit = crit)
-    elif parser == 'capture_criteria':
-        ensem.simulation_plan.add_capture_criteria(crit = crit)
-
-def read_criteria(crits, start_string):
-        for crit in crits:
-            if issubclass(crit.__class__, criterion_iteration):
-                value = crit.max_iterations
-                start_string += 'iteration>=' + str(value)
-
-            elif issubclass(crit.__class__, criterion_sim_time):
-                value = crit.max_time
-                start_string += 'time>=' + str(value)
-
-            elif issubclass(crit.__class__, criterion_scalar_increment):
-                target = crit.key
-                value = str(crit.increment)
-                start_string += ':'.join(['increment', target, value])
-
-        return start_string
-
-
 
 class criterion_capture_count(criterion_abstract):
 

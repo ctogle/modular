@@ -743,61 +743,38 @@ class pspace_axis(lfu.mobject):
         self._default('permanent_bounds',[0,1],**kwargs)
         self._default('increment',0.1,**kwargs)
         self._default('contribute',False,**kwargs)
-
-        #if lgm: self.mason = lgm.standard_mason(parent = self)
-
+        if lgm: self.mason = lgm.standard_mason(parent = self)
         lfu.mobject.__init__(self,*args,**kwargs)
 
-    def _show_dialog_widgets_(self, *args, **kwargs):
-        self.dialog_panel = lgb.create_scroll_area(lgb.create_panel(
-                            self.widg_dialog_templates, self.mason))
-        gear_icon = lfu.get_resource_path('gear.png')
-        self.dialog_panel.setWindowIcon(lgb.create_icon(gear_icon))
-        for temp in self.widg_dialog_templates:
-            if hasattr(temp, 'panel_label'):
-                self.dialog_panel.setWindowTitle(temp.panel_label)
-
-        panel_x = self.dialog_panel.sizeHint().width()*1.5
-        panel_y = self.dialog_panel.sizeHint().height()*1.25
-        panel_x, panel_y = min([panel_x, 1600]), min([panel_y, 900])
-        self.dialog_panel.setGeometry(150, 120, panel_x, panel_y)
-        self.dialog_panel.show()
+    def _display(self):
+        #panel_x = self.panel.sizeHint().width()*1.5
+        #panel_y = self.panel.sizeHint().height()*1.25
+        #panel_x,panel_y = min([panel_x,1600]),min([panel_y,900])
+        panel_x,panel_y = 256,256
+        lfu.mobject._display(self,self.mason,(150,120,panel_x,panel_y))
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
-
-###############################################################################
-
         self.widg_templates.append(
             lgm.interface_template_gui(
-                widgets = ['check_set', 'button_set'], 
-                instances = [[self], None], 
-                keys = [['contribute_to_p_sp'], None], 
-                labels = [['Contribute to Parameter Space'], 
-                        ['More Settings']], 
-                append_instead = [False, None], 
-                bindings = [None, [self._show_dialog_widgets_]], 
+                widgets = ['check_set','button_set'], 
+                instances = [[self],None], 
+                keys = [['contribute'],None], 
+                labels = [['Contribute to Parameter Space'],['More Settings']],
+                append_instead = [False,None], 
+                bindings = [None,[self._display]], 
                 box_labels = ['Parameter Space']))
-        self.widg_dialog_templates = []
         self.widg_dialog_templates.append(
             lgm.interface_template_gui(
-                widgets = ['spin', 'spin'], 
-                doubles = [[True], [True]], 
-                initials = [[self.p_sp_bounds[0]], 
-                            [self.p_sp_bounds[1]]], 
-                minimum_values = [[-sys.float_info.max], 
-                                [-sys.float_info.max]], 
-                maximum_values = [[sys.float_info.max], 
-                                [sys.float_info.max]], 
-                instances = [[self.p_sp_bounds], 
-                            [self.p_sp_bounds]], 
-                keys = [[0], [1]], 
-                box_labels = ['Subspace Minimum', 
-                            'Subspace Maximum'], 
+                widgets = ['spin','spin'], 
+                doubles = [[True],[True]], 
+                initials = [[self.bounds[0]],[self.bounds[1]]], 
+                minimum_values = [[-sys.float_info.max],[-sys.float_info.max]],
+                maximum_values = [[sys.float_info.max],[sys.float_info.max]], 
+                instances = [[self.bounds],[self.bounds]], 
+                keys = [[0],[1]], 
+                box_labels = ['Subspace Minimum','Subspace Maximum'], 
                 panel_label = 'Parameter Space'))
-
-###############################################################################
-
         lfu.mobject._widget(self,*args,from_sub = True)
 
 class cartographer_plan(lfu.plan):

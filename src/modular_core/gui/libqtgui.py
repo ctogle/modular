@@ -169,11 +169,8 @@ class plot_page(lfu.mobject):
     _inspector_is_mobj_panel_ = True
 
     def __init__(self, parent, pagenum, data, targs, 
-            title, xtitle, ytitle, filename, **kwargs):
-        #self.impose_default('targets', [], **kwargs)
-        #ptypes = ['lines', 'color', 'surface', 'bars']
-        #self.impose_default('plot_type', 'lines', **kwargs)
-        #self.impose_default('plot_types', ptypes, **kwargs)
+            title, xtitle, ytitle, filename,**kwargs):
+        self.parent = parent
         self.pagenum = pagenum
         self.title = title
         self.xtitle = xtitle
@@ -191,19 +188,20 @@ class plot_page(lfu.mobject):
         self.filename = filename.split(os.path.sep)[-1]
         self.targs = targs[:]
         self.active_targs = targs[:]
-        if data.data: self.xdomain = data.data[0].label
+
+        if data.data: self.xdomain = data.data[0].name
         else: self.xdomain = xtitle
-        if data.data: self.ydomain = data.data[0].label
+        if data.data: self.ydomain = data.data[0].name
         else: self.ydomain = ytitle
-        if data.data: self.zdomain = data.data[0].label
+        if data.data: self.zdomain = data.data[0].name
         else: self.zdomain = title
         if hasattr(data, 'plt_callbacks'):
             ucbs = data.plt_callbacks
         else: ucbs = {}
         self.user_callbacks = ucbs
         label = ' : '.join([str(pagenum), self.filename])
-        lfu.mobject.__init__(self, 
-            label = label, data = data, parent = parent)
+        self.data = data
+        lfu.mobject.__init__(self,**kwargs)
 
     def get_targets(self):
         return self.targs
@@ -282,7 +280,7 @@ class plot_page(lfu.mobject):
         window = args[0]
         toolbar_funcs = [window.get_current_page]
         data = self.data
-        self.handle_widget_inheritance(*args, **kwargs)
+        self._sanitize(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['plot'], 
@@ -290,35 +288,30 @@ class plot_page(lfu.mobject):
                 instances = [[
                     self.parent.figure, 
                     self.parent.canvas]], 
-                handles = [(self, 'qplot')], 
+                handles = [(self,'qplot')], 
                 callbacks = [toolbar_funcs], 
                 datas = [data]))
-        lfu.mobject._widget(
-            self, *args, from_sub = True)
+        lfu.mobject._widget(self,*args,from_sub = True)
 
 class plot_window(lfu.mobject):
 
     def __init__(self, *args, **kwargs):
-        self.impose_default('selected_page_label', None, **kwargs)
-        self.impose_default('page_labels', [], **kwargs)
-        self.impose_default('pages', [], **kwargs)
-        self.impose_default('title', 'Plot Window', **kwargs)
-        self.impose_default('targs', [], **kwargs)
-        self.impose_default('slice_widgets', [], **kwargs)
-        self.impose_default('x_log', False, **kwargs)
-        self.impose_default('y_log', False, **kwargs)
-        ptypes = ['lines', 'color', 'surface', 'bars', 'voxels', 'tables']
-        #ptypes = ['lines', 'color', 'surface', 'bars']
-        self.impose_default('cplot_interpolation', 'bicubic', **kwargs)
-        self.impose_default('plot_type', 'lines', **kwargs)
-        self.impose_default('plot_types', ptypes, **kwargs)
-        #self.impose_default('roll_dex', None, **kwargs)
-        #self.impose_default('max_roll_dex', None, **kwargs)
-        self.impose_default('roll_delay', 0.001, **kwargs)
-        self.impose_default('roll_time_span', 1.0, **kwargs)
-        self.impose_default('roll_methods', 
-            ['time_span', 'preset'], **kwargs)
-        self.impose_default('roll_method', 'time_span', **kwargs)
+        self._default('selected_page_label', None, **kwargs)
+        self._default('page_labels', [], **kwargs)
+        self._default('pages', [], **kwargs)
+        self._default('title', 'Plot Window', **kwargs)
+        self._default('targs', [], **kwargs)
+        self._default('slice_widgets', [], **kwargs)
+        self._default('x_log', False, **kwargs)
+        self._default('y_log', False, **kwargs)
+        ptypes = ['lines','color','surface','bars','voxels','tables']
+        self._default('cplot_interpolation', 'bicubic', **kwargs)
+        self._default('plot_type', 'lines', **kwargs)
+        self._default('plot_types', ptypes, **kwargs)
+        self._default('roll_delay', 0.001, **kwargs)
+        self._default('roll_time_span', 1.0, **kwargs)
+        self._default('roll_methods',['time_span','preset'],**kwargs)
+        self._default('roll_method', 'time_span', **kwargs)
         self.bin_data_types = ['bin_vector']
         self.surf_data_types = ['surface_vector', 'surface_reducing']
         self.vox_data_types = ['voxel_vector']
@@ -331,14 +324,16 @@ class plot_window(lfu.mobject):
         self.canvas = figure_canvas(self.figure)
         lfu.mobject.__init__(self, *args, **kwargs)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self,*args,**kwargs):
         page = self.get_current_page()
         self.active_targs = page.active_targs
         self.xdomain = page.xdomain
         self.ydomain = page.ydomain
         self.zdomain = page.zdomain
         self.user_callbacks = page.user_callbacks
-        self._display_interface_(self.mason)
+        self._widget()
+        self._display(self.mason)
+        #self._display_interface_(self.mason)
 
     def get_current_page(self):
         if self.selected_page_label == 'None': return None
@@ -366,13 +361,14 @@ class plot_window(lfu.mobject):
     def set_plot_info(self, dcontainer, filename, specs, title = 'title', 
             x_ax_title = 'xtitle', y_ax_title = 'ytitle'):
         pagenum = len(self.pages) + 1
-        self.pages.append(plot_page(self,pagenum,dcontainer,specs,
-                title,x_ax_title,y_ax_title,filename))
-        self.page_labels.append(self.pages[-1].label)
+        self.pages.append(plot_page(
+            self,pagenum,dcontainer,specs,
+            title,x_ax_title,y_ax_title,filename))
+        self.page_labels.append(self.pages[-1].name)
         self.targs += self.pages[-1].targs
         self.targs = lfu.uniqfy(self.targs)
         if not self.selected_page_label:
-            self.selected_page_label = self.pages[-1].label
+            self.selected_page_label = self.pages[-1].name
 
     def get_roll_delay(self, max_r_dex):
         if self.roll_method == 'time_span':
@@ -411,37 +407,27 @@ class plot_window(lfu.mobject):
     def make_slice_templates(self):
         def generate_slice_func(vals,dex):
             def slice_func(new):
-		new = new.currentIndex()
+                new = new.currentIndex()
                 ax_defs[dex] = float(vals[new])
             return slice_func
 
         page = self.get_current_page()
         data = page.data
         data.sliceselectors = lfu.data_container()
-        #if self.using_surfaces():
-        #    reledata = [d for d in data.data if 
-        #        d.tag in self.surf_data_types and 
-        #        d.label in self.active_targs]
-        #elif self.using_voxels():
-        #    reledata = [d for d in data.data if 
-        #        d.tag in self.vox_data_types and
-        #        d.label in self.active_targs]
-        #else:
         slice_types =\
             self.bin_data_types +\
             self.surf_data_types +\
             self.vox_data_types
         reledata = [d for d in data.data if 
-            d.tag in slice_types and d.label 
+            d.tag in slice_types and d.name 
             in self.active_targs]
         if reledata:
-            dlabs = [d.label for d in reledata]
+            dlabs = [d.name for d in reledata]
             if self.zdomain in dlabs:
                 ddex = dlabs.index(self.zdomain)
             else: ddex = 0
             surf = reledata[ddex]
-        else:
-            return []
+        else:return []
         ax_labs = surf.axis_labels
         ax_vals = surf.axis_values
         ax_defs = surf.axis_defaults
@@ -463,19 +449,21 @@ class plot_window(lfu.mobject):
                     box_labels = [lab]))
         return slice_templates
 
+    def _display(self,mason):
+        lfu.mobject._display(self,mason,templates = self.widg_templates)
+
     def _widget(self, *args, **kwargs):
         self._sanitize(*args,**kwargs)
         [pg._widget(self,**kwargs) for pg in self.pages]
         self.widg_templates.append(
-                lgm.interface_template_gui(
-                    layout = 'grid', 
+            lgm.interface_template_gui(
+                layout = 'grid', 
                 panel_position = (0,3), 
                 widgets = ['mobj_catalog'], 
                 instances = [[self.pages,self]], 
                 keys = [['selected_page_label']], 
                 handles = [(self, '_catalog_')], 
-                callbacks = [[(self.set_up_widgets,), 
-                        self.roll_pages]], 
+                callbacks = [[(self.set_up_widgets,),self.roll_pages]], 
                 minimum_sizes = [[(1024, 768)]], 
                 initials = [[self.selected_page_label]]))
         ucbs = self.user_callbacks
@@ -551,6 +539,16 @@ class plot_window(lfu.mobject):
         slice_templates = self.make_slice_templates()
         if slice_templates: slice_verb = 1
         else: slice_verb = 10
+
+
+        # SLICE PANEL HANDLE DOES NOT GET SET BECAUSE THIS IS IN
+        # WIDG_DIALOG_TEMPLATES AND NOT WIDG_TEMPLATES
+        # SLICE PANEL HANDLE DOES NOT GET SET BECAUSE THIS IS IN
+        # WIDG_DIALOG_TEMPLATES AND NOT WIDG_TEMPLATES
+        # SLICE PANEL HANDLE DOES NOT GET SET BECAUSE THIS IS IN
+        # WIDG_DIALOG_TEMPLATES AND NOT WIDG_TEMPLATES
+
+
         self.widg_templates.append(
             lgm.interface_template_gui(
                 panel_position = (0,2), 
@@ -558,12 +556,13 @@ class plot_window(lfu.mobject):
                 layouts = ['vertical'], 
                 scrollable = [True], 
                 verbosities = [slice_verb], 
-                handles = [(self, 'slice_panel')], 
+                handles = [(self,'slice_panel')], 
                 box_labels = ['Additional Axis Handling'], 
                 templates = [slice_templates]))
+
         lfu.mobject._widget(self,*args,from_sub = True)
 
-if __name__ == '__main__': 'this is a library!'
+if __name__ == '__main__':print 'libqtgui of modular_core'
 
 
 

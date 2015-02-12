@@ -11,12 +11,13 @@ import heapq
 import pdb
 
 #handles one run of a simulation; returns data
-def run_system(*args, **kwargs):
+def run_system(*args,**kwargs):
     ensemble = args[0]
+    return ensemble.module._simulate(*args,**kwargs)
+
+
     libmodule = __import__(ensemble.module)
-    #try:libmodule = __import__(ensemble.module)
-    #except:traceback.print_exc(file=sys.stdout)
-    system = libmodule.main.sim_system(ensemble, params =\
+    system = libmodule.main.sim_system(ensemble,params =\
             ensemble.run_params.partition['system'])
 
     if 'timeout' in kwargs.keys(): system.timeout = kwargs['timeout']

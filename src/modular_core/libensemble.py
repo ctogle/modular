@@ -23,7 +23,7 @@ if __name__ == 'modular_core.libensemble':
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':pass
+if __name__ == '__main__':print 'libensemble of modular_core'
 
 ###############################################################################
 ### an ensemble represents a collection of simulations and their analysis
@@ -48,23 +48,21 @@ class ensemble(lfu.mobject):
         self._default('mcfg_path','',**kwargs)
         self._default('skip_simulation',False,**kwargs)
         self._default('multithread_gui',False,**kwargs)
-
         num_traj = lset.get_setting('trajectory_count')
         self._default('num_trajectories',num_traj,**kwargs)
 
         self.simulation_plan = lsc.simulation_plan(parent = self)
-        self.output_plan = lo.output_plan(parent = self,name = 'Simulation')
+        self.output_plan = lo.output_plan(
+            parent = self,name = 'Simulation',flat_data = False)
         self.fitting_plan = lfr.fit_routine_plan(parent = self)
         self.cartographer_plan = lgeo.cartographer_plan(
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
             name = 'Post Process Plan',_always_sourceable_ = ['simulation'])
         self.multiprocess_plan = lmp.multiprocess_plan(parent = self)
-
         self.children = [
             self.simulation_plan,self.output_plan,self.fitting_plan,
             self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
-
         lfu.mobject.__init__(self,*args,**kwargs)
 
         self.run_params = {}
@@ -81,12 +79,9 @@ class ensemble(lfu.mobject):
         self._select_module(**kwargs)
         self.module._reset_parameters()
 
-        self.data_scheme = None
-        self.data_pool = None
         self.data_pool_descr = ''
         self.data_pool_id = self._new_data_pool_id()
-        self.data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-                '.'.join(['data_pool', self.data_pool_id, 'pkl']))
+        self.data_pool = self._data_scheme()
 
         self.aborted = False
         self.current_tab_index = 0
@@ -132,6 +127,258 @@ class ensemble(lfu.mobject):
         else:self.module = lmc.simulation_module(parent = self)
         self.children.append(self.module)
 
+    # compute any information that changes only when the parameter space
+    #  location changes
+    def _run_params_to_location(self):
+        self.module._set_parameters()
+
+    # run a specific way depending on the settings of the ensemble
+    def _run_specific(self,*args,**kwargs):
+        start_time = time.time()
+        stime = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(start_time))
+        print 'start time:',stime
+
+        pspace = self.cartographer_plan.parameter_space
+        mappspace = self.cartographer_plan.use_plan and pspace
+        mpplan = self.multiprocess_plan.use_plan
+
+        if self.skip_simulation:save,dpool = self._post_processing(load = True)
+        else:
+            save = True
+            if self.fitting_plan.use_plan:dpool = self._run_fitting()
+            elif mpplan and mappspace:dpool = self._run_map_mp()
+            elif not mpplan and mappspace:dpool = self._run_map_nonmp()
+            elif mpplan and not mappspace:dpool = self._run_nonmap_mp()
+            elif not mpplan and not mappspace:dpool = self._run_nonmap_nonmp()
+            print 'duration of simulations:',time.time() - start_time
+            dum,dpool = self._post_processing(load = False,dpool = dpool)
+        if save:self._save_data_pool(dpool)
+
+        print 'finished simulations and analysis:exiting'
+        print 'total run duration:',time.time() - start_time,'seconds'
+        return True
+
+    # use the fitting_plan to perform simulations
+    def _run_fitting(self):
+        if not self.cartographer_plan.parameter_space:
+            print 'fitting requires a parameter space!'
+        dpool = self.fitting_plan(self)
+        return dpool
+
+    #no multiprocessing, no parameter variation, and no fitting
+    def _run_nonmap_nonmp(self):
+        data_pool = self._data_scheme()
+        self._run_params_to_location()
+        trajectory = 1
+        while trajectory <= self.num_trajectories:
+            rundat = lis.run_system(self,identifier = trajectory)
+            data_pool.batch_pool.append(rundat)
+            trajectory += 1
+        return data_pool
+
+    #multiprocessing, no parameter variation, no fitting
+    def _run_nonmap_mp(self):
+        data_pool = self._data_scheme()
+        self._run_params_to_location()
+        data_pool = self.multiprocess_plan.distribute_work_simple_runs(
+            data_pool, run_func = lis.run_system, ensem_reference = self, 
+                                    run_count = self.num_trajectories)
+        return data_pool
+
+    #no multiprocessing, parameter variation, no fitting
+    def _run_map_nonmp(self):
+        data_pool = self._data_scheme()
+        run_func = lis.run_system
+        move_func = self.cartographer_plan.move_to
+        arc_length = len(self.cartographer_plan.trajectory)
+        iteration = self.cartographer_plan.iteration
+        while iteration < arc_length:
+            move_func(iteration)
+            self._run_params_to_location()
+            print 'set those params!'
+            data_pool._prep_pool_(iteration)
+            for dex in range(self.cartographer_plan.trajectory[
+                                iteration][1].trajectory_count):
+                ID = int(str(iteration) + str(dex))
+                data_pool.live_pool.append(
+                    run_func(self, identifier = ID))
+                print 'location dex:', iteration, 'run dex:', dex
+            iteration += 1
+
+        data_pool._rid_pool_(iteration - 1)
+        self.cartographer_plan.iteration = 0
+        return data_pool
+
+    #multiprocessing with parameter variation, no fitting
+    def _run_map_mp(self):
+        data_pool = self._data_scheme()
+        #self.set_run_params_to_location()
+        data_pool = self.multiprocess_plan.distribute_work(
+            data_pool, self, target_processes =\
+                [self.cartographer_plan.move_to, lis.run_system], 
+                target_counts = [len(self.cartographer_plan.trajectory), 
+                    [traj[1].trajectory_count for traj in 
+                    self.cartographer_plan.trajectory], 1], 
+                            args = [('dex'), (), (self,)])
+        return data_pool
+
+    # run post processes on new or pooled data
+    def _post_processing(self,load = False,dpool = None):
+        print 'performing post processing...'
+        stime = time.time()
+        if self.postprocess_plan.use_plan:
+            if load:dpool = self._load_data_pool().data
+            try:dpool = self.postprocess_plan(self,dpool)
+            except:
+                traceback.print_exc(file=sys.stdout)
+                print 'failed to run post processes'
+                return False,dpool
+        print 'duration of post procs:',time.time() - stime
+        return True,dpool
+
+
+
+    def _output_postprocesses(self,pool):
+        if not pool.postproc_data is None:
+            processes = self.postprocess_plan.post_processes
+            for dex,proc in enumerate(processes):
+                if proc.output._must_output():
+                    pdata = pool.postproc_data[dex]
+                    data = lfu.data_container(data = pdata)
+                    proc.determine_regime(self)
+                    proc.output(data)
+
+    def _output_fitroutines(self,pool):
+        if not pool.routine_data is None:
+            routines = self.fitting_plan.routines
+            for dex,rout in enumerate(routines):
+                if rout.output._must_output():
+                    fdata = pool.routine_data[dex]
+                    data = lfu.data_container(data = fdata)
+                    rout.output(data)
+
+    # start a qt application if one is not started already
+    #   this allows api to call for the plot window
+    #   without the rest of the gui initialized
+    def _check_qt_application(self):
+        outputs = [self.output_plan] +\
+            [p.output for p in self.postprocess_plan.post_processes] +\
+            [f.output for f in self.fitting_plan.routines]
+        plt_flag = True in [o.writers[3].use for o in outputs]
+        if plt_flag:
+            app = lgb.QtGui.QApplication.instance()
+            if not lo.qapp_started_flag:
+                app.exec_()
+                lo.qapp_started_flag = True
+
+    # output all data for the ensemble
+    #   simulations,post processes,fit routines
+    def _output(self):
+        print 'producing output...'
+        stime = time.time()
+        pool = self._load_data_pool()
+        data = lfu.data_container(data = pool.data)
+        if self.output_plan._must_output():self.output_plan(data)
+        self._output_postprocesses(pool)
+        self._output_fitroutines(pool)
+        print 'produced output:',time.time() - stime
+        self._check_qt_application()
+
+    # return the correct data_pool_pkl filename based on the data scheme
+    def _data_pool_path(self):
+        if self.data_scheme == 'smart_batch':
+            data_pool.data.live_pool = []
+            data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
+                '.'.join(['data_pool','smart',self.data_pool_id,'pkl']))
+        elif self.data_scheme == 'batch':
+            data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
+                '.'.join(['data_pool',self.data_pool_id,'pkl']))
+        return data_pool_pkl
+
+    # determine the correct data object for the ensemble run
+    def _data_scheme(self):
+        smart = lset.get_setting('use_smart_pool')
+        smart = (smart is None or smart is True)
+        mappspace = self.cartographer_plan.use_plan
+        fitting = self.fitting_plan.use_plan
+        ptargets = self.run_params['plot_targets']
+        if smart and mappspace and not fitting:
+            data_pool = ldc.batch_data_pool(ptargets,self.cartographer_plan)
+            self.data_scheme = 'smart_batch'
+        else:
+            data_pool = ldc.batch_scalars(ptargets)
+            self.data_scheme = 'batch'
+        self.data_pool_pkl = self._data_pool_path()
+        return data_pool
+
+
+    # FIX THIS
+    # FIX THIS
+    # FIX THIS
+    def _describe_data_pool(self,dpool):
+        proc_pool = dpool.postproc_data
+        try: sim_pool = dpool.data.batch_pool
+        except AttributeError: sim_pool = '<couldnt read batch object>'
+        if not dpool: self.data_pool_descr = 'Empty'
+        else:
+            try: sim_pool_count = len(sim_pool)
+            except TypeError: sim_pool_count = 0
+            try: proc_pool_count = len(proc_pool)
+            except TypeError: proc_pool_count = 0
+            self.data_pool_descr = ' '.join(['Data', 'Pool', 'Holds', 
+                    str(sim_pool_count), 'Simulation', 'Trajectories', 
+                        'and', str(proc_pool_count), 'Post', 
+                                'Process', 'Pools'])
+    # FIX THIS
+    # FIX THIS
+    # FIX THIS
+
+
+    def _save_data_pool(self,dpool):
+        print 'saving data pool...'
+        stime = time.time()
+        pplan = self.postprocess_plan
+        if pplan.use_plan:pdata = [proc.data for proc in pplan.post_processes]
+        else:pdata = None
+        fplan = self.fitting_plan
+        if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
+        else:fdata = None
+        data_pool = lfu.data_container(data = dpool, 
+            postproc_data = pdata,routine_data = fdata)
+        self._describe_data_pool(data_pool)
+        self.data_pool_pkl = self._data_pool_path()
+        lf.save_pkl_object(data_pool,self.data_pool_pkl)
+        print 'saved data pool:',time.time() - stime
+
+    def _load_data_pool(self):
+        print 'loading data pool...'
+        stime = time.time()
+        self._data_scheme()
+        dpool = lf.load_pkl_object(self.data_pool_pkl)
+        self._describe_data_pool(dpool)
+        print 'loaded data pool:',time.time() - stime
+        return dpool
+
+    def _run(self,*args,**kwargs):
+        print 'running ensemble:',self.name
+        self.multithread_gui = lset.get_setting('multithread_gui')
+        try:
+            self._sanitize()
+            self._data_scheme()
+
+            if self.multithread_gui:
+                self.parent._run_threaded_ensemble(self,self._run_specific)
+                # self._output() called from a qt event in lwt
+            else:
+                self._run_specific()
+                self._output()
+
+            time.sleep(1)
+        except:
+            traceback.print_exc(file=sys.stdout)
+            lgd.message_dialog(None,'Failed to run ensemble!','Problem')
+            time.sleep(2)
+
     def _save(self,save_dir = None):
         if save_dir is None:
             dirdlg = lgd.create_dialog('Choose File','File?','directory')
@@ -146,13 +393,13 @@ class ensemble(lfu.mobject):
             self.parent = manager
             print 'saved ensemble:',self.name
 
+    # run an mcfg without producing the associated output
     def _run_mcfg(self,mcfg):
         self.mcfg_path = mcfg
         self._parse_mcfg()
-
         self.output_plan.targeted = self.run_params['plot_targets'][:]
-        self.output_plan.set_target_settables()
-        return self.run()
+        self.output_plan._target_settables()
+        return self._run_specific()
 
     def _select_mcfg(self,file_ = None):
         if not file_ and not os.path.isfile(self.mcfg_path):
@@ -334,12 +581,12 @@ class ensemble_manager(lfu.mobject):
         self.current_tab_index = 0
 
     def _run_ensembles(self):
-        [ensem.on_run() for ensem in self.ensembles]
+        [ensem._run() for ensem in self.ensembles]
 
     def _run_current_ensemble(self):
         if self.current_tab_index > 0:
             current_ensem = self.ensembles[self.current_tab_index - 1]
-            current_ensem.on_run()
+            current_ensem._run()
 
     def _run_threaded_ensemble(self,ensem,run_,args = ()):
         self.worker_threads.append(lwt.worker_thread(
@@ -557,14 +804,6 @@ class ensemble_manager(lfu.mobject):
 
 ###############################################################################
 ###############################################################################
-
-
-
-
-
-
-
-
 
 
 

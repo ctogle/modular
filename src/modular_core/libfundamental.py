@@ -1,6 +1,4 @@
-
-__doc__ = '''fundamental functions/classes of modular_core'''
-
+### libfundamental is importable from anywhere in modular
 import pdb,os,sys,types,appdirs,importlib
 
 ###############################################################################
@@ -18,10 +16,13 @@ def mobject_name():
 
 class mobject(object):
 
+    # represent the mobject as a string
     def _string(self):
         info = [self.tag,self.name,str(self._id)]
         return ' : '.join(info)
 
+    # add attribute prop if it is not already an attribute
+    #  use kwargs[prop] if present, defv if not
     def _default(self,prop,defv,**kwargs):
         if not prop in self.__dict__.keys():
             if prop in kwargs.keys():propval = kwargs[prop]
@@ -45,8 +46,27 @@ class mobject(object):
 
         self.widg_handles = []
 
+    # display this mobjects widgets in a separate window
+    def _display(self,mason,geometry = (150,120,384,512),templates = None):
+        if templates is None:templates = self.widg_dialog_templates
+        lgb = gui_pack.lgb
+        gear_icon = get_resource_path('gear.png')
+        self.panel = lgb.create_scroll_area(
+            lgb.create_panel(templates,mason))
+        self.panel.setWindowIcon(lgb.create_icon(gear_icon))
+        self.panel.setGeometry(*geometry)
+        for temp in self.widg_dialog_templates:
+            if hasattr(temp,'panel_label'):
+                self.panel.setWindowTitle(temp.panel_label)
+                break
+        self.panel.show()
+
+    # remove all pkl/mp offenseive object references
+    # this is required for multithreading the gui and saving ensembles
     def _sanitize(self,*args,**kwargs):
         if not ('from_sub' in kwargs.keys() and kwargs['from_sub']):
+            self.panel = None
+            self.widg_dialog_templates = []
             self.widg_templates = []
             self.menu_templates = []
             self.tool_templates = []
@@ -57,6 +77,8 @@ class mobject(object):
             if ('propagate' in kwargs.keys() and kwargs['propagate']):
                 for c in self.children:c._sanitize(*args,**kwargs)
 
+    # set whether this mobject needs its widgets remade
+    # supports the mobject hierarchy
     def _rewidget(self,rw = None,**kwargs):
         if rw is None:
             self._rewidget_children(**kwargs)
@@ -67,11 +89,13 @@ class mobject(object):
                 if not self.parent.rewidget:
                     self.parent._rewidget(self.rewidget)
 
-    def _rewidget_children(self, *args, **kwargs):
+    # helper function for mobject hierarchy support
+    def _rewidget_children(self,*args,**kwargs):
         for child in self.children:
             if child._rewidget(**kwargs):
                 child._widget(*kwargs['infos'])
 
+    # recalculate the mobjects widget related information
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
         self._rewidget(False)
@@ -82,7 +106,7 @@ class plan(mobject):
 
     def __init__(self,*args,**kwargs):
         self._default('name','aplan',**kwargs)
-        self._default('use_plan', False, **kwargs)
+        self._default('use_plan',False,**kwargs)
         mobject.__init__(self,*args,**kwargs)
 
     def _enact(self,*args,**kwargs):pass
@@ -99,6 +123,13 @@ class plan(mobject):
 
 # inspecfic container for any sort of information
 class data_container(object):
+
+    def _default(self,prop,defv,**kwargs):
+        if not prop in self.__dict__.keys():
+            if prop in kwargs.keys():propval = kwargs[prop]
+            else:propval = defv
+            self.__dict__[prop] = propval
+
     def __init__(self, *args, **kwargs):
         self.args = args
         for key in kwargs.keys():
@@ -127,7 +158,7 @@ def get_mcfg_path():
 def get_output_path():
     lset = sys.modules['modular_core.libsettings']
     opath = lset.get_setting('default_output_path')
-    if not opath is None and not os.path.exists(opath):
+    if opath is None or not os.path.exists(opath):
         print 'invalid default output path - using working directory'
         opath = os.getcwd()
     return opath
@@ -157,6 +188,12 @@ def using_os(os_):
     elif os_ == 'mac' and sys.platform.startswith('darwin'): return True
     elif os_ == 'linux' and sys.platform.startswith('linux'): return True
     else: return False
+
+# keep the value val bounded by bot and top
+def clamp(val,bot,top):
+    if val < bot: return bot
+    elif val > top: return top
+    else: return val
 
 # break an input string by delimiter de and strip results
 def msplit(st,de = ':'):
@@ -272,8 +309,20 @@ class run_parameter(mobject):
     # should be called on each run parameter before running the simulation
     def _initialize(self,*args,**kwargs):pass
 
+    # return a string representing this parameter in a simulation format
+    #  expectation that simulation may require encoding as string
+    #     this is what happens in stringchemical
+    def _sim_string(self,*args,**kwargs):return ''
+
     # return a string representing this parameter in an mcfg format
     def _string(self,*args,**kwargs):return '\n'
+
+    # a run_parameter treats its pspace_axes as children
+    def _rewidget_children(self,*args,**kwargs):
+        for pax in self.pspace_axes:
+            if pax._rewidget(**kwargs):
+                pax._widget(*kwargs['infos'])
+        mobject._rewidget_children(self,*args,**kwargs)
 
 # read the list of installed/registered simulation modules
 def list_simulation_modules():
@@ -396,300 +445,6 @@ if __name__ == '__main__':print 'libfundamental of modular_core'
 
 
 
-
-
-
-
-
-
-###############################################################################
-
-class modular_object_qt________(object):
-    __doc__ = """fundamental class used in modular"""
-    rewidget_ = True
-    _p_sp_bounds_ = []
-    _children_ = []
-    _handles_ = []
-    data = []
-    visible_attributes = []
-
-    def _display_interface_(self, mason):
-        lgb = gui_pack.lgb
-        self.set_settables()
-        self.panel = lgb.create_scroll_area(
-            lgb.create_panel(self.widg_templates, mason))
-        if hasattr(self, '_geometry_'): geometry = self._geometry_
-        else: geometry = (150, 120, 384, 512)
-        self.panel.setGeometry(*geometry)
-        self.panel.show()
-
-    def _examine_(self): pdb.set_trace()
-
-    def _restore_label_pool_(self):
-        for child in self._children_:
-            if hasattr(child, '_children_'):
-                child._restore_label_pool_()
-
-        try:
-            if not self.label is 'mobj__':
-                self._label = unique_label(self.label)
-                label_pool.append(self.label)
-
-        except: pdb.set_trace()
-
-    def _set_label_(self, value):
-        global label_pool
-        if not value == self._label and not value.startswith('mobj__'):
-            try: label_pool.remove(self._label)
-            except ValueError: pass
-            self._label = unique_label(value)
-            label_pool.append(self._label)
-            label_pool = uniqfy(label_pool)
-            return True
-
-        else: return False
-
-    def _get_label_(self): return self._label
-    label = property(_get_label_, _set_label_, 
-        'assumed unique modular object label')
-
-    def _destroy_(self, *args, **kwargs):
-        #print 'destroyed', self
-        global label_pool
-        for child in self._children_:
-            if child is self: pdb.set_trace()
-            child._destroy_()
-        if hasattr(self, '_label') and self._label in label_pool:
-            label_pool.remove(self._label)
-
-        label_pool = uniqfy(label_pool)
-        del self
-
-    def _q_purge_(self):
-        for child in self._children_: child._q_purge_()
-        for item in [type(di) for di in dir(self)]:
-            if repr(item).count('PySide') > 0: pdb.set_trace()
-
-    def change_settings(self):
-        if hasattr(self, 'settings_manager'):
-            self.settings_manager.display()
-
-    def __init__(self, *args, **kwargs):
-        #if 'label' in kwargs.keys(): label = kwargs['label']
-        #else: label = self.label
-        if 'label' in kwargs.keys() and\
-                not kwargs['label'].startswith('mobj__'):
-            self._label = unique_label(kwargs['label'])
-
-        else: self._label = 'mobj__'
-        self.impose_default('parent', None, **kwargs)
-        self.impose_default('data', [], **kwargs)
-        if 'visible_attributes' in kwargs.keys():
-            self.visible_attributes = kwargs['visible_attributes']
-
-        if 'base_class' in kwargs.keys():
-            base_class = kwargs['base_class']
-
-        else: base_class = None
-        if base_class is None:
-            self.base_class = interface_template_class(
-                    self.__class__, '__modu_object__')
-
-        else: self.base_class = base_class
-        self.set_base_class()
-        if 'valid_base_classes' in kwargs.keys():
-            valid_base_classes = kwargs['valid_base_classes']
-
-        else: valid_base_classes = None
-        if valid_base_classes is None:
-            self.valid_base_classes = [self.base_class]
-
-        else: self.valid_base_classes = valid_base_classes
-        self.impose_default('parameter_space_templates', [], **kwargs)
-        self._store_p_sp_temp_data_()   
-        self.rewidget_ = True
-
-    def impose_default(self, *args, **kwargs):
-        key = args[0]; default = args[1]
-        if key in kwargs.keys(): self.__dict__[key] = kwargs[key]
-        else: self.__dict__[key] = default
-
-    def to_string(self):
-        return self.label
-
-    #def update_filenames(self, files):
-    #   for key in files.keys():
-    #       files[key] = increment_filename(files[key])
-
-    def set_base_class(self, new_class = None, even_if = False):
-        if new_class is not None:
-            self.base_class.set_base_class(new_class, even_if)
-
-        else: self.base_class.set_base_class(self.__class__, even_if)
-
-    def recast(self, new_base_class, base_example = None):
-        self.__class__ = new_base_class
-        self.base_class._class = self.__class__
-        if base_example is None:
-            base_example = self.base_class._class(label = 'mobj__')
-            if isinstance(base_example.__dict__, dictionary):
-                dictionary_version = dictionary()
-                for key in self.__dict__:
-                    dictionary_version[key] = self.__dict__[key]
-
-                self.__dict__ = dictionary_version
-                self.__dict__.partition =\
-                    base_example.__dict__.partition
-
-        self.base_class._tag = base_example.base_class._tag
-        for key in base_example.__dict__.keys():
-            if not hasattr(self, key):
-                self.__dict__[key] = base_example.__dict__[key]
-
-    def verify_criteria_list(self, crits, *args):
-        relevant_crits = [crit for crit in crits if crit.bRelevant]
-        passes = [crit.verify_pass(*args) for crit in relevant_crits]
-        return True in passes
-
-    def verify_criteria_list_boolean(self, crits, *args, **kwargs):
-        bool_expression = kwargs['bool_expression']
-        if bool_expression == '' or bool_expression == None:
-            return self.verify_criteria_list(crits, *args)
-
-        expr = bool_expression.split(' ')
-        reserved = ['(', ')', '+', '|', '!']
-        crit_vars = [ex for ex in expr if ex not in reserved]
-        crit_refs = {}
-        for var in crit_vars:
-            crit_refs[var] = grab_mobj_by_name(var, crits)
-
-        for ex, dex in zip(expr, range(len(expr))):
-            if ex not in reserved:
-                expr[dex] = str(crit_refs[ex].verify_pass(*args))
-
-            elif ex == '+': expr[dex] = 'and'
-            elif ex == '|': expr[dex] = 'or'
-            elif ex == '!': expr[dex] = 'not'
-
-        expr = ' '.join(expr)
-        return eval(expr)
-
-    def __setattr__(self, attr, value):
-        if attr is 'label': self._set_label_(value)
-        else: object.__setattr__(self, attr, value)
-
-    def __getattr__(self, name):
-        #try: getattribute = super(modular_object_qt, self).__getattr__
-        #getattribute = super(modular_object_qt, self).__getattr__
-        #except AttributeError: print 'lfu issue...', name, self
-        if not name.startswith('__') or not name.endswith('__'):
-            if name is 'label':
-                try: return self._get_label_()
-                except:
-                    print 'the most unholiest of errors...', self
-                    raise AttributeError(name)
-
-            try: return getattr(self, '__dict__')[name]
-            except KeyError: raise AttributeError(name)
-
-        #return getattribute(name)
-        return super(modular_object_qt, self).__getattr__(name)
-
-    def __getstate__(self): return self.__dict__
-    def __setstate__(self, d):
-        self.__dict__ = dictionary()
-        self.__dict__.update(d)
-
-    def _store_p_sp_temp_data_(self):
-        if self.parameter_space_templates:
-            self._p_sp_bounds_ = [temp.p_sp_bounds for temp in 
-                                self.parameter_space_templates]
-            self._p_sp_increments_ = [temp.p_sp_increment for temp 
-                                in self.parameter_space_templates]
-
-    def initialize(self, *args, **kwargs): pass
-    def sanitize(self, *args, **kwargs):
-        self.widg_dialog_templates = []
-        self._store_p_sp_temp_data_()
-        self.parameter_space_templates = []
-        self.widg_templates = []
-        self.menu_templates = []
-        self.tool_templates = []
-        for handle in self._handles_:
-            handle[0].__dict__[handle[1]] = None
-        self._handles_ = []
-        self.rewidget(True)
-
-    def set_uninheritable_settables(self, *args, **kwargs):
-        '''
-        #add a text box widget for self.label
-        #self.widg_templates.append(
-        #   lgm.interface_template_gui(
-        #       ))
-        '''
-        pass
-
-    #this now handles set_settables for each child mobject
-    #assigning their widg_templates is still the subclass' responsibility
-    def handle_widget_inheritance(self, *args, **kwargs):
-        #tells a superclass if it should clear its templates
-        # based on weather its been subclassed or not
-        #  to prevent the ignorant superclass from 
-        #   clearing the subclasses templates
-        def should_sanitize(**kwargs):
-            try: return not kwargs['from_sub']
-            except KeyError: return True
-
-        if should_sanitize(**kwargs):
-            self.sanitize(*args, **kwargs)
-            self.set_uninheritable_settables(*args, **kwargs)
-
-    def rewidget(self, *args, **kwargs):
-        #pass a boolean to set, pass nothing to get
-        try:
-            if type(args[0]) is types.BooleanType:
-                self.rewidget_ = args[0]
-                if hasattr(self, 'parent') and self.rewidget_:
-                    if self.parent is not None:
-                        if not self.parent.rewidget_:
-                            self.parent.rewidget(self.rewidget_)
-
-            else: print 'unrecognized argument for rewidget; ignoring'
-
-        except IndexError:
-            self.rewidget__children_(**kwargs)
-            return self.rewidget_
-
-    def rewidget__children_(self, *args, **kwargs):
-        for child in self._children_:
-            #if self is child:
-            #   print 'be concerned about this'; pdb.set_trace()
-            #   return self.rewidget_
-            if child.rewidget(**kwargs):
-                child.set_settables(*kwargs['infos'])
-
-    def provide_axes_manager_input(self, 
-            lp = True, cp = True, bp = True, vp = True, 
-            x_title = 'x-title', 
-            y_title = 'y-title', title = 'title'):
-        self.use_line_plot = lp
-        self.use_color_plot = cp
-        self.use_bar_plot = bp
-        self.use_voxel_plot = vp
-        self.x_title = x_title
-        self.y_title = y_title
-        self.title = title
-
-    def set_pspace_settables(self, *args, **kwargs):
-        if using_gui():
-            #this should probably turn on more than one axis...
-            self.parameter_space_templates[0].set_settables(
-                                            *args, **kwargs)
-
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, **kwargs)
-        self.rewidget(False)
-        self.widg_templates.reverse()
 
 
 
