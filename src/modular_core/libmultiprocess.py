@@ -5,31 +5,65 @@ import modular_core.libiteratesystem as lis
 
 import multiprocessing as mp
 import numpy as np
-import types
-import time
-
-import pdb
+import pdb,sys,time,types
 
 if __name__ == 'modular_core.libmultiprocess':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
+    lfu.check_gui_pack()
+    lgb = lfu.gui_pack.lgb
     lgm = lfu.gui_pack.lgm
-
-if __name__ == '__main__':
-    print 'this is a library!'
+    lgd = lfu.gui_pack.lgd
+if __name__ == '__main__':print 'libmultiprocess of modular_core'
 
 class multiprocess_plan(lfu.plan):
 
-    def __init__(self, parent = None, label = 'multiprocess plan'):
+    def _string(self):
+        return '\tworkers : ' + str(self.worker_count)
+
+    def __init__(self,*args,**kwargs):
+        self._default('name','multiprocessing plan',**kwargs)
+        use_plan = lset.get_setting('multiprocessing')
+        self._default('use_plan',use_plan,**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.worker_report = []
-        if lgpu.gpu_support: self.gpu_worker = lgpu.CL()
-        use_plan = lset.get_setting('multiprocessing')
-        lfu.plan.__init__(self, parent = parent, 
-            label = label, use_plan = use_plan)
 
-    def to_string(self):
-        lines = [' : '.join(['\tworkers', str(self.worker_count)])]
-        return lines
+        if lgpu.gpu_support: self.gpu_worker = lgpu.CL()
+
+        lfu.plan.__init__(self,*args,**kwargs)
+
+    def _runs_this_round(self,pcnt,rmax,r):
+        rleft = rmax - r
+        if rleft >= pcnt:return pcnt
+        else:return rleft % pcnt
+
+    def _run_flat(self,data_pool,ensem):
+        pcnt = int(self.worker_count)
+        init = ensem._run_params_to_location
+        pool = mp.Pool(processes = pcnt,initializer = init)
+
+        results = []
+        simu = ensem.module.simulation
+        max_run = ensem.num_trajectories
+        run = 0
+        while run < max_run:
+            rtr = self._runs_this_round(pcnt,max_run,run)
+            run += rtr
+            pool._initializer()
+            args = [ensem.module.sim_args]*rtr
+            result = pool.map_async(simu,args,callback = results.extend)
+            result.wait()
+            print 'simulation runs completed:',run
+        pool.close()
+        pool.join()
+
+        data_pool.batch_pool = np.array(results,dtype = np.float)
+        return data_pool
+
+
+
+
+
+
+
 
     #args should start with 2 lists of equal length
     def gpu_1to1_operation(self, *args, **kwargs):
@@ -95,45 +129,13 @@ class multiprocess_plan(lfu.plan):
         self.worker_report = worker_report
         return data_pool
 
-    def distribute_work_simple_runs(self, data_pool, 
-            run_func = None, ensem_reference = None, run_count = 1):
-        try: processor_count = int(self.worker_count)
-        except: 
-            print 'defaulting to 8 workers...'
-            processor_count = 8
-        pool = mp.Pool(processes = processor_count, 
-            initializer = ensem_reference._run_params_to_location)
-        worker_report = []
-        result_pool = []
-        dex0 = 0
 
-        while dex0 < run_count:
-            check_time = time.time()
-            runs_left = run_count - dex0
-            if runs_left >= processor_count: 
-                runs_this_round = processor_count
-            else: runs_this_round = runs_left % processor_count
-            dex0 += runs_this_round
-            pool._initializer()
-            result = pool.map_async(run_func, 
-                (ensem_reference,)*runs_this_round, 
-                    callback = result_pool.extend) 
-            result.wait()
-            report = ' '.join(['location dex:', str(dex0), 
-                'runs this round:', str(runs_this_round), 'in:', 
-                        str(time.time() - check_time), 'seconds'])
-            worker_report.append(report)
-            print 'multicore reported...', ' location: ', dex0
 
-        pool.close()
-        pool.join()
-        self.worker_report = worker_report
-        data_pool.batch_pool = np.array(
-            result_pool, dtype = np.float)
-        return data_pool
 
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, from_sub = False)
+
+        
+    def _widget(self,*args,**kwargs):
+        self._sanitize(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['spin'], 
@@ -145,8 +147,10 @@ class multiprocess_plan(lfu.plan):
                 rewidget = [[True]], 
                 keys = [['worker_count']], 
                 box_labels = ['Number of worker processes']))
-        super(multiprocess_plan, self).set_settables(
-                            *args, from_sub = True)
+        lfu.plan._widget(self,*args,from_sub = True)
+
+
+
 
 #def run_with_time_out(run_func, args, pool, time_out = 10):
 def run_with_time_out(*args):

@@ -14,6 +14,8 @@ import modular_core.fitting.libfitroutine as lfr
 import modular_core.data.libdatacontrol as ldc
 import modular_core.postprocessing.libpostprocess as lpp
 
+import modular_core.postprocessing.meanfields as mfs
+
 import pdb,os,sys,traceback,types,time,imp
 import numpy as np
 import importlib as imp
@@ -58,7 +60,7 @@ class ensemble(lfu.mobject):
         self.cartographer_plan = lgeo.cartographer_plan(
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
-            name = 'Post Process Plan',_always_sourceable_ = ['simulation'])
+            name = 'Post Process Plan',always_sourceable = ['simulation'])
         self.multiprocess_plan = lmp.multiprocess_plan(parent = self)
         self.children = [
             self.simulation_plan,self.output_plan,self.fitting_plan,
@@ -71,7 +73,7 @@ class ensemble(lfu.mobject):
         self.run_params['plot_targets'] = self.simulation_plan.plot_targets
         self.run_params['output_plans'] = {'Simulation' : self.output_plan}
         self.run_params['fit_routines'] = self.fitting_plan.routines
-        self.run_params['post_processes'] = self.postprocess_plan.post_processes
+        self.run_params['post_processes'] = self.postprocess_plan.processes
         self.run_params['p_space_map'] = None
         self.run_params['multiprocessing'] = None
         self.capture_targets = self.run_params['plot_targets']
@@ -158,20 +160,24 @@ class ensemble(lfu.mobject):
         print 'total run duration:',time.time() - start_time,'seconds'
         return True
 
+    # NOT TESTED
     # use the fitting_plan to perform simulations
     def _run_fitting(self):
+        dpool = self._data_scheme()
         if not self.cartographer_plan.parameter_space:
             print 'fitting requires a parameter space!'
-        dpool = self.fitting_plan(self)
+        dpool = self.fitting_plan(self,dpool)
         return dpool
 
     #no multiprocessing, no parameter variation, and no fitting
     def _run_nonmap_nonmp(self):
         data_pool = self._data_scheme()
+        simu = self.module.simulation
         self._run_params_to_location()
+        sim_args = self.module.sim_args
         trajectory = 1
         while trajectory <= self.num_trajectories:
-            rundat = lis.run_system(self,identifier = trajectory)
+            rundat = simu(sim_args)
             data_pool.batch_pool.append(rundat)
             trajectory += 1
         return data_pool
@@ -180,11 +186,10 @@ class ensemble(lfu.mobject):
     def _run_nonmap_mp(self):
         data_pool = self._data_scheme()
         self._run_params_to_location()
-        data_pool = self.multiprocess_plan.distribute_work_simple_runs(
-            data_pool, run_func = lis.run_system, ensem_reference = self, 
-                                    run_count = self.num_trajectories)
+        data_pool = self.multiprocess_plan._run_flat(data_pool,self)
         return data_pool
 
+    # NOT TESTED
     #no multiprocessing, parameter variation, no fitting
     def _run_map_nonmp(self):
         data_pool = self._data_scheme()
@@ -209,6 +214,7 @@ class ensemble(lfu.mobject):
         self.cartographer_plan.iteration = 0
         return data_pool
 
+    # NOT TESTED
     #multiprocessing with parameter variation, no fitting
     def _run_map_mp(self):
         data_pool = self._data_scheme()
@@ -236,18 +242,18 @@ class ensemble(lfu.mobject):
         print 'duration of post procs:',time.time() - stime
         return True,dpool
 
-
-
+    # output data associated with post processes
     def _output_postprocesses(self,pool):
         if not pool.postproc_data is None:
-            processes = self.postprocess_plan.post_processes
+            processes = self.postprocess_plan.processes
             for dex,proc in enumerate(processes):
                 if proc.output._must_output():
                     pdata = pool.postproc_data[dex]
                     data = lfu.data_container(data = pdata)
-                    proc.determine_regime(self)
+                    proc._regime(self)
                     proc.output(data)
 
+    # output data associated with fit routines
     def _output_fitroutines(self,pool):
         if not pool.routine_data is None:
             routines = self.fitting_plan.routines
@@ -262,12 +268,13 @@ class ensemble(lfu.mobject):
     #   without the rest of the gui initialized
     def _check_qt_application(self):
         outputs = [self.output_plan] +\
-            [p.output for p in self.postprocess_plan.post_processes] +\
+            [p.output for p in self.postprocess_plan.processes] +\
             [f.output for f in self.fitting_plan.routines]
         plt_flag = True in [o.writers[3].use for o in outputs]
         if plt_flag:
             app = lgb.QtGui.QApplication.instance()
-            if not lo.qapp_started_flag:
+            if app is None:print 'app was none!!'
+            elif not lo.qapp_started_flag:
                 app.exec_()
                 lo.qapp_started_flag = True
 
@@ -338,7 +345,7 @@ class ensemble(lfu.mobject):
         print 'saving data pool...'
         stime = time.time()
         pplan = self.postprocess_plan
-        if pplan.use_plan:pdata = [proc.data for proc in pplan.post_processes]
+        if pplan.use_plan:pdata = [proc.data for proc in pplan.processes]
         else:pdata = None
         fplan = self.fitting_plan
         if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
@@ -494,7 +501,7 @@ class ensemble(lfu.mobject):
                     self.fitting_plan,self.cartographer_plan, 
                     self.postprocess_plan,self.multiprocess_plan,self]],
                 keys = [['use_plan']*4 + ['skip_simulation']], 
-                labels = [[
+                labels = [['run fitting routines',
                     'map parameter space','use post processing', 
                     'use multiprocessing','skip simulation']])
         top_half_template +=\

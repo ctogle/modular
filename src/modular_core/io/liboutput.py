@@ -150,7 +150,7 @@ class writer_plt(writer_abstract):
 
     def _get_plt_window(self):
         plot_types = ['color','surface','lines','bars','voxels']
-        if lfu.using_gui:
+        if lfu.using_gui and not self._plt_window:
             title = self._window_title()
             cplot_interp_def = lset.get_setting('cplot_interpolation')
             self._check_qt_application()
@@ -290,6 +290,7 @@ class output_plan(lfu.plan):
         types = ['vtk','pkl','txt','plt']
         proper_paths = self._proper_paths()
         proper_targets = self._proper_targets(data)
+        pltflag = False
         for traj in data.data:
             data_container = lfu.data_container(
                 data = traj,plt_callbacks = data.plt_callbacks)
@@ -297,10 +298,12 @@ class output_plan(lfu.plan):
             for dx in range(len(self.writers)):
                 if self.writers[dx].use:
                     plt = types[dx] == 'plt' and lfu.using_gui
-                    if plt:self.writers[dx]._get_plt_window()
+                    if plt:
+                        self.writers[dx]._get_plt_window()
+                        pltflag = True
                     self.writers[dx](data_container,
                         proper_paths[types[dx]],proper_targets[dx])
-                    if plt:self.writers[dx]._plt_window()
+        if pltflag:self.writers[dx]._plt_window()
 
     def _output_flat(self,data):
         types = ['vtk','pkl','txt','plt']

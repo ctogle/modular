@@ -320,7 +320,10 @@ class parameter_space_step(lfu.mobject):
                 self.location[k][1]] = float(self.initial[k])
 
 def parse_p_space(p_sub, ensem):
-
+    
+    print 'parsepspace',p_sub
+    pdb.set_trace()
+  
     def validate(rng):
         valid = []
         for val in rng.split(','):

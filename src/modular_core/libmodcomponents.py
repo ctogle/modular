@@ -21,6 +21,11 @@ if __name__ == '__main__':print 'libmodcomponents of modular_core'
 ### a simulation module has hooks for working with an ensemble
 ###############################################################################
 
+# this must be a single argument function because of map_async
+def simulate(sim_args):
+    print 'dummy simulate function'
+    return np.array([])
+
 class simulation_module(lfu.mobject):
     run_parameter_keys = [  
         'End Criteria','Capture Criteria','Plot Targets','Fit Routines',
@@ -62,7 +67,7 @@ class simulation_module(lfu.mobject):
     parse_funcs = [
         lc.parse_criterion_line,
         lc.parse_criterion_line,
-        lpp.parse_postproc_line, 
+        lpp.parse_process_line, 
         lfr.parse_fitting_line,
         lo.parse_output_plan_line,
         None,
@@ -71,6 +76,10 @@ class simulation_module(lfu.mobject):
         _parse_mcfg_ensemble]
 
     def __init__(self,*args,**kwargs):
+        self._default('timeout',0.0,**kwargs)
+        # simulation is a single argument function that returns
+        # finalized data - single argument will be self.sim_args
+        self._default('simulation',simulate,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
         self.treebook_memory = [0,[],[]]
         self.module_memory = []

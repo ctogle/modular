@@ -44,7 +44,8 @@ class fit_routine_plan(lfu.plan):
         lfu.plan.__init__(self, *args, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        data_pool = self.parent.set_data_scheme()
+        #data_pool = self.parent.set_data_scheme()
+        data_pool = args[1]
         if self.show_progress_plots:
             if self.parent.multithread_gui:
                 try: app = lgb.QtGui.QApplication(sys.argv)
