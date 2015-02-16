@@ -432,7 +432,7 @@ def parse_output_plan_line(*args):
 # CLEAN THIS FUNCTION UP!!!
 # return modified filename to maintain uniqueness
 def increment_filename(fi):
-    print 'increment filename',fi
+    #print 'increment filename',fi
     if fi == '': return fi
     else:
         fi = fi.split('.')

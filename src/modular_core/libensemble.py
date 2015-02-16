@@ -2,10 +2,11 @@ import modular_core as mc
 import modular_core.libfundamental as lfu
 import modular_core.libsimcomponents as lsc
 import modular_core.libmodcomponents as lmc
-import modular_core.libgeometry as lgeo
+import modular_core.parameterspaces as lpsp
 import modular_core.libmultiprocess as lmp
 import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
+import modular_core.libworkerthreads as lwt
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
@@ -15,6 +16,9 @@ import modular_core.data.libdatacontrol as ldc
 import modular_core.postprocessing.libpostprocess as lpp
 
 import modular_core.postprocessing.meanfields as mfs
+import modular_core.postprocessing.statistics as sst
+import modular_core.postprocessing.pspace_reorganize as rog
+import modular_core.postprocessing.conditional as cdl
 
 import pdb,os,sys,traceback,types,time,imp
 import numpy as np
@@ -57,7 +61,7 @@ class ensemble(lfu.mobject):
         self.output_plan = lo.output_plan(
             parent = self,name = 'Simulation',flat_data = False)
         self.fitting_plan = lfr.fit_routine_plan(parent = self)
-        self.cartographer_plan = lgeo.cartographer_plan(
+        self.cartographer_plan = lpsp.cartographer_plan(
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
             name = 'Post Process Plan',always_sourceable = ['simulation'])
@@ -185,47 +189,35 @@ class ensemble(lfu.mobject):
     #multiprocessing, no parameter variation, no fitting
     def _run_nonmap_mp(self):
         data_pool = self._data_scheme()
-        self._run_params_to_location()
         data_pool = self.multiprocess_plan._run_flat(data_pool,self)
         return data_pool
 
-    # NOT TESTED
     #no multiprocessing, parameter variation, no fitting
     def _run_map_nonmp(self):
+        simu = self.module.simulation
+        move_func = self.cartographer_plan._move_to
         data_pool = self._data_scheme()
-        run_func = lis.run_system
-        move_func = self.cartographer_plan.move_to
-        arc_length = len(self.cartographer_plan.trajectory)
-        iteration = self.cartographer_plan.iteration
+        arc = self.cartographer_plan.trajectory
+        arc_length = len(arc)
+        iteration = 0
         while iteration < arc_length:
+            data_pool._prep_pool_(iteration)
             move_func(iteration)
             self._run_params_to_location()
-            print 'set those params!'
-            data_pool._prep_pool_(iteration)
-            for dex in range(self.cartographer_plan.trajectory[
-                                iteration][1].trajectory_count):
-                ID = int(str(iteration) + str(dex))
-                data_pool.live_pool.append(
-                    run_func(self, identifier = ID))
-                print 'location dex:', iteration, 'run dex:', dex
+            sim_args = self.module.sim_args
+            tcount = arc[iteration].trajectory_count
+            for tdx in range(tcount):
+                rundat = simu(sim_args)
+                data_pool.live_pool.append(rundat)
+                print 'location:',iteration,'run:',tdx
             iteration += 1
-
         data_pool._rid_pool_(iteration - 1)
-        self.cartographer_plan.iteration = 0
         return data_pool
 
-    # NOT TESTED
     #multiprocessing with parameter variation, no fitting
     def _run_map_mp(self):
         data_pool = self._data_scheme()
-        #self.set_run_params_to_location()
-        data_pool = self.multiprocess_plan.distribute_work(
-            data_pool, self, target_processes =\
-                [self.cartographer_plan.move_to, lis.run_system], 
-                target_counts = [len(self.cartographer_plan.trajectory), 
-                    [traj[1].trajectory_count for traj in 
-                    self.cartographer_plan.trajectory], 1], 
-                            args = [('dex'), (), (self,)])
+        data_pool = self.multiprocess_plan._run_nonflat(data_pool,self)
         return data_pool
 
     # run post processes on new or pooled data
@@ -294,7 +286,7 @@ class ensemble(lfu.mobject):
     # return the correct data_pool_pkl filename based on the data scheme
     def _data_pool_path(self):
         if self.data_scheme == 'smart_batch':
-            data_pool.data.live_pool = []
+            #data_pool.data.live_pool = []
             data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
                 '.'.join(['data_pool','smart',self.data_pool_id,'pkl']))
         elif self.data_scheme == 'batch':

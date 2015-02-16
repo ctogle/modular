@@ -52,13 +52,19 @@ class post_process_plan(lfu.plan):
     # add new post process; default to meanfields
     def _add_process(self,new = None):
         if new is None:
-            proc_class_def = process_types['meanfields']
+            proc_class_def = process_types['meanfields'][0]
             new = proc_class_def(parent = self)
         new.fitting_aware = self.fitting_aware
         new.always_sourceable = self.always_sourceable
         new.parent = self
+
+        if hasattr(self.parent,'run_params'):
+            ops = self.parent.run_params['output_plans']
+            ops[new.name+' output'] = new.output
+
         self.processes.append(new)
         self.children.append(new)
+        self.parent.module._rewidget(True)
         self._rewidget(True)
 
     # remove selected post process
@@ -106,6 +112,20 @@ class post_process_plan(lfu.plan):
         if dex in range(len(self.processes)):
             return self.processes[dex]
 
+    # must project rewidget state onto module.rewidget...
+    def _rewidget(self,rw = None,**kwargs):
+        lfu.plan._rewidget(self,rw = rw,**kwargs)
+        if not rw is None:
+            if self.rewidget and not self.parent is None:
+                self.parent.module._rewidget(self.rewidget)
+
+    # make sure children can see ensemble...
+    def _rewidget_children(self,*args,**kwargs):
+        infos = (kwargs['infos'],self.parent)
+        for child in self.children:
+            if child._rewidget(**kwargs):
+                child._widget(*infos)
+
     def _tab_book_pages(self,*args,**kwargs):
         pages = []
         for proc in self.processes:
@@ -127,7 +147,7 @@ class post_process_plan(lfu.plan):
             widg_positions = [(0,0),(0,2),(1,2),(2,2),(3,2),(4,2)], 
             widg_spans = [(3,2)]+[None]*5, 
             widgets = ['mobj_catalog','button_set'], 
-            verbosities = [3,1], 
+            verbosities = [1,1], 
             instances = [[self.processes,self],None], 
             keys = [[None,'selected_process'],None], 
             handles = [(self,'process_selector'),None], 
@@ -167,6 +187,7 @@ class post_process_plan(lfu.plan):
 ###############################################################################
 ###############################################################################
 ###############################################################################
+'''#
 def parse_postproc_line(*args):
     data = args[0]
     ensem = args[1]
@@ -183,28 +204,7 @@ def parse_postproc_line(*args):
                     parent = ensem.postprocess_plan, 
                     always_sourceable = _always)
                 procs.append(proc)
-                if len(split) > 2:
-                    if proc_type._tag == 'meanfields':pass
-
-                    elif proc_type._tag == 'standard statistics':
-                        try:
-                            targs = split[3].split(' of ')
-                            proc.mean_of = targs[0]
-                            proc.function_of = targs[1]
-
-                        except IndexError: pass
-                        try: proc.bin_count = int(split[4].strip())
-                        except IndexError: pass
-                        try:
-                            if split[5].strip().count('ordered') > 0:
-                                proc.ordered = True
-
-                        except IndexError: pass
-
-                    elif proc_type._tag == 'counts to concentrations':
-                        print 'counts to concentrations parsing not done'
-
-                    elif proc_type._tag == 'correlation':
+                if proc_type._tag == 'correlation':
                         try:
                             targs = split[3].replace(
                                 ' and ', '||').replace(' of ', '||')
@@ -222,7 +222,7 @@ def parse_postproc_line(*args):
 
                         except IndexError: pass
 
-                    elif proc_type._tag == 'slice from trajectory':
+                    if proc_type._tag == 'slice from trajectory':
                         try:
                             relevant = [item.strip() for item 
                                     in split[3].split(',')]
@@ -273,6 +273,7 @@ def parse_postproc_line(*args):
     ensem.postprocess_plan._add_process(new = proc)
     if lfu.using_gui(): proc._widget(0, ensem)
     else: proc._target_settables(0, ensem)
+'''#
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -338,6 +339,7 @@ class post_process_abstract(lfu.mobject):
         self._default('valid_inputs',always,**kwargs)
         ireg = always[0] if self.single_input else always[:]
         self._default('input_regime',ireg,**kwargs)
+        self._default('capture_targets',[],**kwargs)
         oname = self.name + ' output'
         self.output = lo.output_plan(name = oname,parent = self)
         self.children = [self.output]
@@ -347,7 +349,8 @@ class post_process_abstract(lfu.mobject):
         self._initialize(*args,**kwargs)
         self._process(*args,**kwargs)
 
-    def _initialize(self,*args,**kwargs):pass
+    #def _initialize(self,*args,**kwargs):
+    #    self._target_settables(0,self.parent.parent)
 
     # actually runs the process, setting the result at attribute data
     def _process(self,*args,**kwargs):
@@ -385,15 +388,12 @@ class post_process_abstract(lfu.mobject):
 
     # run the method on each parameter space location batch
     def _by_parameter_space(self,method,pool,pspace):
-        pool_dex = 0
-        result_pool = []
-        for locale in pspace.trajectory:
-            traj_count = locale[1].trajectory_count
-            temp_pool = pool[locale[0]]
-            data = method(temp_pool)
-            result_pool.append(data)
-            pool_dex += traj_count
-        self.data = result_pool
+        results = []
+        for tdx in range(len(pspace.trajectory)):
+            locale = pspace.trajectory[tdx]
+            traj_count = locale.trajectory_count
+            results.append(method(pool[tdx]))
+        self.data = results
 
     # determine how process is run based on ensemble settings
     def _regime(self,*args,**kwargs):
@@ -471,7 +471,9 @@ class post_process_abstract(lfu.mobject):
         # this will work because self.input_regime would be 'simulation' if
         # self._single_input_
         if 'simulation' in self.input_regime:
-            targets.extend(args[1].run_params['plot_targets'][:])
+            #ensem = self.parent.parent
+            ensem = args[1]
+            targets.extend(ensem.run_params['plot_targets'][:])
         for source in self._source_reference(*args,**kwargs):
             targets.extend(source.capture_targets[:])
         if 'always_sources' in kwargs.keys():
@@ -525,6 +527,9 @@ class post_process_abstract(lfu.mobject):
         lfu.mobject._widget(self,*args,from_sub = True)
 
 ###############################################################################
+###############################################################################
+
+###############################################################################
 ### utility functions
 ###############################################################################
 
@@ -553,20 +558,27 @@ def parse_process_line(line,ensem,parser,procs,routs,targs):
     proc_types = process_types.keys()
     spl = lfu.msplit(line)
     variety = spl[1]
-    pargs = process_types[variety][1](*spl)
+    pargs = process_types[variety][1](spl,ensem,procs,routs)
     proc = post_process(**pargs)
     procs.append(proc)
     ensem.postprocess_plan._add_process(new = proc)
     proc._target_settables(0,ensem)
 
 # turn the comma separated int list into an input_regime
-def parse_process_line_inputs(inputs):
+def parse_process_line_inputs(inputs,procs,routs):
     ips = [int(v) for v in lfu.msplit(inputs,',')]
     reg = []
     for inp in ips:
         if inp == 0:reg.append('simulation')
         elif inp < len(procs):reg.append(procs[inp - 1].name)
     return reg
+
+###############################################################################
+###############################################################################
+
+
+
+
 
 # BINNING SECTION NEEDS CLEANUP
 # BINNING SECTION NEEDS CLEANUP

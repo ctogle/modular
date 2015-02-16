@@ -1,14 +1,13 @@
-#import libs.modular_core.libfundamental as lfu
 import modular_core.libfundamental as lfu
 
-import math
+import pdb,types,math
 import numpy as np
-#import cgkit.cgtypes as cgt
 import scipy.interpolate as sp
-from copy import deepcopy as copy
-import types
 
-import pdb
+if __name__ == 'libs.modular_core.libmath':
+    lfu.check_gui_pack()
+    #lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'libmath of modular_core'
 
 #return index where good values end
 def find_infinite_tail(sequence, 
@@ -26,7 +25,7 @@ def find_infinite_tail(sequence,
     if len(complete_deltas) == 0 or len(sequence) < min_seq_length:
         return 0
 
-    deltas = copy(complete_deltas)
+    deltas = complete_deltas[:]
     ratio = max(deltas)/min(delt for delt in deltas if delt > 0.0)
     ratio_threshold = ratio/ratio_res       #magnitude of jump, somehow anticpate
     while ratio > ratio_threshold:
@@ -63,13 +62,10 @@ def minmax(vals):
             elif v > ma: ma = v
         return mi,ma
 
-def linear_interpolation(list_to_x, list_to_y, to_list_x, kind = 5):
-    interpolation = sp.interp1d(list_to_x, list_to_y, 
-                                bounds_error = False, 
-                                kind = kind)
-                                #fill_value = -1.0) #keyword for interp type exists
+def linear_interpolation(list_to_x,list_to_y,to_list_x,kind = 5):
+    interpolation = sp.interp1d(list_to_x,list_to_y,
+                  bounds_error = False,kind = kind)
     to_list_y = interpolation(to_list_x)
-    #pdb.set_trace()
     return to_list_y
 
 def double_numeric_list_density(values, cond = float):
@@ -100,143 +96,16 @@ def normalize_by_magnitude(values):
     magnitude = math.sqrt(sum([val**2.0 for val in values]))
     return [val/magnitude for val in values]
 
-###
-#GEOMETRIC UTILITY FUNCTIONS
-###
-def scalp (vec, scal):
-    vec[0] *= scal
-    vec[1] *= scal
-    vec[2] *= scal
-
-def length(vec):
-    return math.sqrt(dot_product(vec, vec))
-
-def dot_product(v1, v2):
-    return sum((a*b) for a, b in zip(v1, v2))
-
-def cross_product(x_hat, y_hat):
-    return np.cross(x_hat, y_hat)
-
-def angle(v1, v2, unit = None, conv = 1.0):
-    #provide a conversion factor, unit, both, or neither
-    # use the conv factor
-    # determine the conv factor
-    # use units instead of conv
-    # use 1.0 for conv
-    if unit == 'degree': conv = 180.0/np.pi
-    elif unit == 'radian': conv = 1.0
-    return conv*math.acos(dot_product(v1,v2)/(length(v1)*length(v2)))
-
-def in_bbox(bbox1, bbox2, v_):
-    def in_bbox1d(rng, x): return x >= rng[0] and x <= rng[1]
-    in_x = in_bbox1d((bbox1[0], bbox2[0]), v_[0])
-    in_y = in_bbox1d((bbox1[1], bbox2[1]), v_[1])
-    in_z = in_bbox1d((bbox1[2], bbox2[2]), v_[2])
-    return in_x and in_y and in_z
-
-def normalize_angle(angle):
-    while angle < 0: angle += 360
-    while angle > 360: angle -= 360
-    return angle
-
-def normalize_vect(vect):
-    return np.array([ve/length(vect) for ve in vect])
-
-def clamp(val, min_, max_):
-    if val < min_: return min_
-    elif val > max_: return max_
-    else: return val
-
-def clamp_periodic(val, min_, max_):
-    while val < min_: val += (max_ - min_)
-    while val > max_: val -= (max_ - min_)
-    else: return val
-
-def identity_mat(dim = 4):
-    iden = np.zeros((dim, dim), dtype = 'f')
-    for d in range(dim): iden[d][d] = 1
-    return iden
-
-###
-###
-###
-
 def mid(arr):
     leng = len(arr)
     if leng % 2: mid = arr[leng/2]
     else: mid = np.mean(arr[leng/2-1:leng/2+1])
     return mid
 
-###
-###
-###
 
-pwm = []
 
-def pwm_square(*args):
-    t = args[0]
-    t_w = t % pwm[1]
-    if t_w/pwm[1] > pwm[0]: return 0.0
-    else:
-        #print t, t_w, t_w/pwm[1], pwm[0], t_w/pwm[1] > pwm[0]
-        return 1.0
 
-def set_pwm(with_pwm_param, counts, count_targets):
-    global pwm
-    dex0 = with_pwm_param.find('pwm_square(') + len('pwm_square(')
-    dex1 = with_pwm_param[dex0:].find(')') + dex0
-    params_str = with_pwm_param[dex0:dex1].split(':')
-    params_val = []
-    for par in params_str:
-        dex = count_targets.index(par)
-        params_val.append(counts[dex])
 
-    #params = [counts[dex] for dex in [x for x in range(len(counts)) 
-    #                               if count_targets[x] in params]]
-
-    pwm.extend(params_val)
-    new = with_pwm_param.replace(with_pwm_param[dex0:dex1], 'time')
-    return new
-
-def make_range(range_, rng_delim = ':'):
-
-    def strip_separate(stg, delim = ':'):
-        return [item.strip() for item in stg.split(delim)]
-
-    def parse_range(stg):
-        if stg.strip() == '': return ''
-        elif not stg.count('-') > 0 and not stg.count(';') > 0:
-            res = ', '.join([str(float(item)) 
-                for item in stg.split(',')])
-            return res
-
-        elif stg.count('-') > 0 and not stg.count(';') > 0:
-            res = ', '.join([str(item) for item in np.arange(
-                float(stg[:stg.find('-')]), 
-                float(stg[stg.find('-') + 1:]) + 1.0, 1.0)])
-            return res
-
-        elif stg.count('-') > 0 and stg.count(';') > 0:
-            interval = float(stg[stg.rfind(';') + 1:])
-            front = float(stg[:stg.find('-')])
-            back = float(stg[stg.find('-') + 1:stg.find(';')])
-            #values = [float(val) for val in (np.arange(front, 
-            #                   back + interval, interval))]
-            values = [float(val) for val in 
-                np.linspace(front, back, interval)]
-            res = ', '.join([str(item) for item in values])
-            return res
-
-        elif not stg.count('-') > 0 and stg.count(';') > 0:
-            print 'mistake?'
-            res = ', '.join([str(float(item)) for 
-                item in stg[:stg.find(';')].split(',')])
-            return res
-
-    ranges = strip_separate(range_, rng_delim)
-    ranges = [parse_range(stg) for stg in ranges]
-    ranges = ', '.join(ranges)
-    return ranges, True
 
 def differences(*args, **kwargs):
     weights = args[0]
@@ -315,13 +184,6 @@ def deriv_third_differences(*args, **kwargs):
     return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
                                 for weight, k in zip(dom_weights, 
                             range(bounds[0] + 2, bounds[1] - 2))]
-
-if __name__ == 'libs.modular_core.libmath':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
-    #lgm = lfu.gui_pack.lgm
-    #lgb = lfu.gui_pack.lgb
-
-if __name__ == '__main__': print 'this is a library!'
 
 
 

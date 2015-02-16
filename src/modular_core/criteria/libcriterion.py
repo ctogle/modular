@@ -225,9 +225,9 @@ def parse_criterion_line(line,ensem,parser,procs,routs,targs):
 
     crit = criterion(**cargs)
     if parser == 'end_criteria':
-        ensem.simulation_plan.add_end_criteria(crit = crit)
+        ensem.simulation_plan._add_end_criteria(crit = crit)
     elif parser == 'capture_criteria':
-        ensem.simulation_plan.add_capture_criteria(crit = crit)
+        ensem.simulation_plan._add_capture_criteria(crit = crit)
 
 ###############################################################################
 

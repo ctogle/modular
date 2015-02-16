@@ -45,7 +45,7 @@
 	means : meanfields : 0 : x1, x2 of time : 20 : ordered
 
 <multiprocessing>
-	workers : 8
+	workers : 16
 
 <output_plans>
 #	3 : - : reorg_output : pkl : all
@@ -56,7 +56,7 @@
 
 <ensemble>
 	multiprocessing : on
-	mapparameterspace : off
+	mapparameterspace : on
 	fitting : off
 	postprocessing : on
 	trajectory_count : 100

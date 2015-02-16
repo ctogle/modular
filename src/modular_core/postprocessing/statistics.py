@@ -1,83 +1,63 @@
+import modular_core.libfundamental as lfu
 
-class post_process_standard_statistics(post_process):
+import modular_core.data.libdatacontrol as ldc
+import modular_core.postprocessing.libpostprocess as lpp
 
-    def __init__(self, *args, **kwargs):
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                object, 'standard statistics')
+import pdb,sys
+import numpy as np
 
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'standard statistics'
+###############################################################################
+### meanfields calculates means for a set of targets as a function of one target
+###############################################################################
 
-        if not 'valid_regimes' in kwargs.keys():
-            kwargs['valid_regimes'] = ['all trajectories', 
-                                'by parameter space']
+class statistics(lpp.post_process_abstract):
 
-        if not 'regime' in kwargs.keys():
-            kwargs['regime'] = 'all trajectories'
-
-        self._default('function_of', None, **kwargs)
-        self._default('mean_of', None, **kwargs)
-        self._default('bin_count', 100, **kwargs)
-        self._default('ordered', True, **kwargs)
-        post_process.__init__(self, *args, **kwargs)
-
-    def to_string(self):
-        #x stats : standard statistics : 0 : x of time : 10 : ordered
+    def _string(self):
         inps = self._string_inputs()
-        phrase = ' of '.join([self.mean_of, self.function_of])
+        phrase = self.mean_of + ' of ' + self.function_of
         bins = str(self.bin_count)
-        if self.ordered: ordered = 'ordered'
-        else: ordered = 'unordered'
-        return '\t' + ' : '.join([self.label, 'standard statistics', 
-                                inps, phrase, bins, ordered])
+        ordered = 'ordered' if self.ordered else 'unordered'
+        strs = [self.name,'standard statistics',inps,phrase,bins,ordered]
+        return '\t' + ' : '.join(strs)
 
-    def postproc(self, *args, **kwargs):
-        kwargs['method'] = self.meanfield
-        post_process.postproc(self, *args, **kwargs)
+    def __init__(self,*args,**kwargs):
+        self._default('name','statistics',**kwargs)
+        regs = ['all trajectories','by parameter space']
+        self._default('valid_regimes',regs,**kwargs)
+        self._default('regime','all trajectories',**kwargs)
 
-    def meanfield(self, *args, **kwargs):
-        bin_axes, mean_axes = select_for_binning(
-            args[0], self.function_of, self.mean_of)
-        bins, vals = bin_scalars(bin_axes, mean_axes, 
-                        self.bin_count, self.ordered)
+        self._default('function_of',None,**kwargs)
+        self._default('mean_of',None,**kwargs)
+        self._default('bin_count',100,**kwargs)
+        self._default('ordered',True,**kwargs)
+        self.method = self.statistics
+        lpp.post_process_abstract.__init__(self,*args,**kwargs)
+
+    def statistics(self,*args,**kwargs):
+        fof,mof = self.function_of,self.mean_of
+        bct,orr,pool = self.bin_count,self.ordered,args[0]
+
+        bin_axes,mean_axes = select_for_binning(pool,fof,mof)
+        bins,vals = bin_scalars(bin_axes,mean_axes,bct,orr)
+
         means = [np.mean(val) for val in vals]
         medians = [np.median(val) for val in vals]
         stddevs = [np.stddev(val) for val in vals]
-        if 0.0 in means or 0.0 in stddevs: coeff_var_dont_flag = True
-        else: coeff_var_dont_flag = False
-        if coeff_var_dont_flag:
-            print 'COEFFICIENT OF VARIATIONS WAS SET TO ZERO TO SAVE THE DATA'
-            coeff_variations = [0.0 for stddev_, mean_ 
-                                in zip(stddevs, means)]
-
-        else:
-            coeff_variations = [stddev_ / mean_ for 
-                stddev_, mean_ in zip(stddevs, means)]
-
-        #variances = [mean(val) for val in vals]
+        coeff_variations = [stddev_/mean_ if not mean == 0.0 else None 
+                            for stddev_,mean_ in zip(stddevs,means)]
         variances = [variance(val) for val in vals]
-        #data = lgeo.scalars_from_labels(self.target_list)
+        ddexes = range(len(means))
+
         data = ldc.scalars_from_labels(self.target_list)
         data[0].scalars = bins
         data[1].scalars = means
         data[2].scalars = medians
         data[3].scalars = variances
         data[4].scalars = stddevs
-        data[5].scalars = [means[k] + stddevs[k] 
-                    for k in range(len(means))]
-        data[6].scalars = [means[k] - stddevs[k] 
-                    for k in range(len(means))]
+        data[5].scalars = [means[k] + stddevs[k] for k in ddexes]
+        data[6].scalars = [means[k] - stddevs[k] for k in ddexes]
         data[7].scalars = coeff_variations
         return data
-
-    #this is a stupid hack!
-    def provide_axes_manager_input(self):
-        self.use_line_plot = True
-        self.use_color_plot = False
-        self.use_bar_plot = False
-        self.use_voxel_plot = False
-        self.x_title = self.function_of
 
     def _target_settables(self, *args, **kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
@@ -85,10 +65,8 @@ class post_process_standard_statistics(post_process):
         capture_targetable = self._targetables(*args, **kwargs)
         if self.mean_of is None and capture_targetable:
             self.mean_of = capture_targetable[0]
-
         if self.function_of is None and capture_targetable:
             self.function_of = capture_targetable[0]
-
         self.target_list = [self.function_of, 
             self.mean_of + ' mean', self.mean_of + ' median', 
             self.mean_of + ' variance', '1 stddev of ' + self.mean_of, 
@@ -97,16 +75,15 @@ class post_process_standard_statistics(post_process):
         self.capture_targets = self.target_list
         post_process._target_settables(self, *args, **kwargs)
 
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, from_sub = False)
-        capture_targetable = self._targetables(*args, **kwargs)
+    def _widget(self,*args,**kwargs):
+        self._sanitize(*args,**kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 panel_position = (1, 3), 
                 widgets = ['check_set'], 
                 append_instead = [False], 
                 instances = [[self]], 
-                #rewidget = [[True]], 
                 keys = [['ordered']], 
                 labels = [['Domain is Ordered']], 
                 box_labels = ['Ordered Domain']))
@@ -117,7 +94,6 @@ class post_process_standard_statistics(post_process):
                 minimum_values = [[1]], 
                 maximum_values = [[100000]], 
                 instances = [[self]], 
-                #rewidget = [[True]], 
                 keys = [['bin_count']], 
                 box_labels = ['Number of Bins']))
         self.widg_templates.append(
@@ -136,5 +112,46 @@ class post_process_standard_statistics(post_process):
                 instances = [[self]], 
                 keys = [['mean_of']], 
                 box_labels = ['Statistics of']))
-        super(post_process_standard_statistics, self).set_settables(
-                                    *args, from_sub = True)
+        lpp.post_process_abstract._widget(self,*args,from_sub = True)
+
+###############################################################################
+###############################################################################
+
+# return valid **kwargs for meanfields based on msplit(line)
+def parse_line(split,ensem,procs,routs):
+    targs = split[3].split(' of ')
+    means_of = targs[0]
+    function_of = targs[1]
+    relevant = lfu.msplit(means_of,',')
+    inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
+    pargs = {
+        'name':split[0],
+        'variety':split[1],
+        'input_regime':inputs,
+        'means_of':relevant,
+        'function_of':function_of,
+        'bin_count':int(split[4]),
+        'ordered':split[5].count('unordered') < 1,
+            }
+    return pargs
+
+###############################################################################
+
+if __name__ == 'modular_core.postprocessing.statistics':
+    lfu.check_gui_pack()
+    lgb = lfu.gui_pack.lgb
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lpp.process_types['statistics'] = (statistics,parse_line)
+
+###############################################################################
+
+
+
+
+
+
+
+
+
+

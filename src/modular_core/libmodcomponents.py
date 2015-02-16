@@ -1,5 +1,5 @@
 import modular_core.libfundamental as lfu
-import modular_core.libgeometry as lgeo
+import modular_core.parameterspaces as lpsp
 
 import modular_core.fitting.libfitroutine as lfr
 import modular_core.postprocessing.libpostprocess as lpp
@@ -102,7 +102,7 @@ class simulation_module(lfu.mobject):
         with open(mcfg,'r') as handle:mlines = handle.readlines()
 
         plot_flag = False;targs = params['plot_targets']
-        p_space_flag = False;p_space_parsed_flag = False;p_sub_sps = []
+        pspace_flag = False;pspace_parsed_flag = False;p_sub_sps = []
         procs = [];routs = []
         ensem.capture_targets = targs
 
@@ -110,12 +110,12 @@ class simulation_module(lfu.mobject):
         parsers = self.parsers
         pkeys = parsers.keys()
                 
-        def parse_p_space():
+        def parse_pspace():
             if len(p_sub_sps) > 1:print 'only parsing first p-scan space'
-            if p_space_flag and not p_space_parsed_flag:
-                lgeo.parse_p_space(p_sub_sps[0],ensem)
+            if pspace_flag and not pspace_parsed_flag:
+                lpsp.parse_pspace(p_sub_sps[0],ensem)
 
-        def parse_p_space_line(li):
+        def parse_pspace_line(li):
             if li.startswith('<product_space>'):
                 cnt_per_loc = int(li[li.find('>') + 1:])
                 p_sub_sps.append([('<product_space>', cnt_per_loc)])
@@ -137,17 +137,17 @@ class simulation_module(lfu.mobject):
             elif isparser:
                 parser = li[1:-1]
                 if parser == 'plot_targets':plot_flag = True
-                elif parser == 'parameter_space':p_space_flag = True
+                elif parser == 'parameter_space':pspace_flag = True
                 elif parser == 'post_processes' or parser == 'fit_routines':
-                    parse_p_space()
-                    p_space_parsed_flag = True
+                    parse_pspace()
+                    pspace_parsed_flag = True
             else:
-                if parser == 'parameter_space':parse_p_space_line(li)
+                if parser == 'parameter_space':parse_pspace_line(li)
                 elif parser in pkeys:
                     new = parsers[parser](li,ensem,parser,procs,routs,targs)
                     if not new is None:self._add_parsed(new,parser,params)
                 else:print 'parsing error', parser, li
-        parse_p_space()
+        parse_pspace()
 
     # prepend a header to generated mcfgs
     #  mcfg is a stringIO object
@@ -198,8 +198,8 @@ class simulation_module(lfu.mobject):
     # initialize run parameters of an ensemble
     def _reset_parameters(self):
         ensem = self.parent
-        ensem.simulation_plan.reset_criteria_lists()
-        ensem.postprocess_plan.reset_process_list()
+        ensem.simulation_plan._reset_criteria_lists()
+        ensem.postprocess_plan._reset_process_list()
         ensem.run_params['plot_targets'] = ['iteration','time']
         ensem.capture_targets = ensem.run_params['plot_targets']
         output_plan = ensem.run_params['output_plans']['Simulation']
@@ -226,8 +226,9 @@ class simulation_module(lfu.mobject):
         else:plot_target_labels = ['iteration','time']
         ensem.simulation_plan.plot_targets = plot_target_labels
         ensem.capture_targets = plot_target_labels
-        ensem.simulation_plan._widget(window,ensem)
         sim_plan = ensem.simulation_plan
+        sim_plan._widget(window,ensem)
+        
         panel_template_lookup.append(('end_criteria', 
             lgm.interface_template_gui(widgets = ['panel'], 
                 templates = [sim_plan.widg_templates_end_criteria]))), 

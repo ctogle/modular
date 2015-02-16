@@ -1,35 +1,7 @@
-import modular_core as mc
 import modular_core.libfundamental as lfu
-import modular_core.libmodcomponents as lmc
-import modular_core.libgeometry as lgeo
-import modular_core.libmultiprocess as lmp
-import modular_core.libsettings as lset
-
-try: import modular_core.libworkerthreads as lwt
-except ImportError:
-    print 'multithreaded ensembles are disabled without QtCore...'
-    lwt = None
-
-import modular_core.io.liboutput as lo
-import modular_core.io.libfiler as lf
 import modular_core.criteria.libcriterion as lc
-import modular_core.fitting.libfitroutine as lfr
-import modular_core.data.libdatacontrol as ldc
-import modular_core.postprocessing.libpostprocess as lpp
 
-import pstats, cProfile, StringIO
-
-from copy import deepcopy as copy
-import os
-import sys
-import traceback
-import types
-import time
-from math import sqrt as sqrt
-import numpy as np
-import importlib as imp
-
-import pdb
+import pdb,sys,os,traceback,time,types
 
 if __name__ == 'modular_core.libsimcomponents':
     lfu.check_gui_pack()
@@ -56,9 +28,10 @@ class simulation_plan(lfu.plan):
         lfu.plan.__init__(self,*args,**kwargs)
 
     def _sanitize(self,*args,**kwargs):
-        self.widg_templates_end_criteria = []
-        self.widg_templates_capture_criteria = []
-        self.widg_templates_plot_targets = []
+        if not ('from_sub' in kwargs.keys() and kwargs['from_sub']):
+            self.widg_templates_end_criteria = []
+            self.widg_templates_capture_criteria = []
+            self.widg_templates_plot_targets = []
         lfu.plan._sanitize(self,*args,**kwargs)
 
     def _reset_criteria_lists(self):
@@ -67,26 +40,20 @@ class simulation_plan(lfu.plan):
         del self.children[:]
         self._rewidget(True)
 
-    def add_end_criteria(self,crit = None):
-        if crit is None:
-            new = lc.criterion_sim_time(parent = self)
-        else:
-            new = crit
-            new.parent = self
-
-        self.end_criteria.append(new)
-        self.children.append(new)
+    def _add_end_criteria(self,crit = None):
+        if crit is None:crit = lc.criterion_sim_time(parent = self)
+        else:crit.parent = self
+        self.end_criteria.append(crit)
+        self.children.append(crit)
+        crit._rewidget(True)
         self._rewidget(True)
 
-    def add_capture_criteria(self,crit = None):
-        if crit is None:
-            new = lc.criterion_increment(parent = self)
-        else:
-            new = crit
-            new.parent = self
-
-        self.capture_criteria.append(new)
-        self.children.append(new)
+    def _add_capture_criteria(self,crit = None):
+        if crit is None:crit = lc.criterion_increment(parent = self)
+        else:crit.parent = self
+        self.capture_criteria.append(crit)
+        self.children.append(crit)
+        crit._rewidget(True)
         self._rewidget(True)
 
     def clear_criteria(self):
@@ -147,12 +114,11 @@ class simulation_plan(lfu.plan):
     def _widget(self,*args,**kwargs):
         window = args[0]
         ensem = self.parent
-        #ensem = args[1]
         self._sanitize(*args,**kwargs)
+
         const_targs = self._always_targetable_
         targs = ensem.run_params['plot_targets']
         self.plot_targets = ensem.run_params['plot_targets']
-        #all_targets = list(set(targs) | set(const_targs))
         all_targets = lfu.uniqfy(const_targs + targs)
         plot_target_labels = all_targets
         self.verify_plot_targets(plot_target_labels)
@@ -167,7 +133,7 @@ class simulation_plan(lfu.plan):
                 widg_spans = [(3, 2), None, None], 
                 grid_spacing = 10, 
                 widgets = ['mobj_catalog', 'button_set'], 
-                verbosities = [3, 1], 
+                verbosities = [1,1], 
                 instances = [[self.end_criteria, self], None], 
                 keys = [[None, 'selected_end_crit_label'], None], 
                 handles = [(self, 'end_crit_selector'), None], 
@@ -175,7 +141,7 @@ class simulation_plan(lfu.plan):
                             'Remove End Criterion']], 
                 initials = [[self.selected_end_crit_label], None], 
                 bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                    window, self.add_end_criteria), 
+                                    window, self._add_end_criteria), 
                     lgb.create_reset_widgets_wrapper(window, 
                         self.remove_end_criteria)]]))
         self.widg_templates_capture_criteria.append(
@@ -185,7 +151,7 @@ class simulation_plan(lfu.plan):
                 widg_spans = [(3, 2), None, None], 
                 grid_spacing = 10, 
                 widgets = ['mobj_catalog', 'button_set'], 
-                verbosities = [3, 1], 
+                verbosities = [1,1], 
                 instances = [[self.capture_criteria, self], None], 
                 keys = [[None, 'selected_capt_crit_label'], None], 
                 handles = [(self, 'capt_crit_selector'), None], 
@@ -193,7 +159,7 @@ class simulation_plan(lfu.plan):
                             'Remove Capture Criterion']], 
                 initials = [[self.selected_capt_crit_label], None], 
                 bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                window, self.add_capture_criteria), 
+                                window, self._add_capture_criteria), 
                     lgb.create_reset_widgets_wrapper(window, 
                         self.remove_capture_criteria)]]))
         targets_template =\
@@ -205,14 +171,13 @@ class simulation_plan(lfu.plan):
                 instances = [[self.parent.run_params]], 
                 keys = [['plot_targets']], 
                 labels = [plot_target_labels])]
-                #labels = [self.plot_targets])]
         self.widg_templates_plot_targets.append(
             lgm.interface_template_gui(
                 widgets = ['panel'], 
                 box_labels = ['Capture Targets'], 
                 scrollable = [True], 
                 templates = [targets_template]))
-        lfu.plan._widget(self, *args, from_sub = True)
+        lfu.plan._widget(self,*args,from_sub = True)
 
 
 

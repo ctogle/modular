@@ -1,12 +1,7 @@
 import modular_core.libfundamental as lfu
-import modular_core.libgeometry as lgeo
-import modular_core.libsettings as lset
 
 import modular_core.data.libdatacontrol as ldc
-import modular_core.io.libvtkoutput as lvtk
-import modular_core.io.liboutput as lo
 import modular_core.postprocessing.libpostprocess as lpp
-import modular_core.criteria.libcriterion as lc
 
 import pdb,sys
 import numpy as np
@@ -26,7 +21,7 @@ class meanfields(lpp.post_process_abstract):
 
     def __init__(self,*args,**kwargs):
         self._default('name','meanfields',**kwargs)
-        regs = ['all trajectories','by parameter space map']
+        regs = ['all trajectories','by parameter space']
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
 
@@ -49,10 +44,8 @@ class meanfields(lpp.post_process_abstract):
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
-        self.valid_inputs = self._valid_inputs(*args, **kwargs)
-
-        capture_targetable = self._targetables(*args, **kwargs)
-
+        self.valid_inputs = self._valid_inputs(*args,**kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
         if self.means_of is None and capture_targetable:
             self.means_of = capture_targetable
         if self.function_of is None and capture_targetable:
@@ -61,12 +54,11 @@ class meanfields(lpp.post_process_abstract):
         mean_targets = [item+' mean' for item in self.means_of]
         self.target_list = [self.function_of] + mean_targets
         self.capture_targets = self.target_list
-
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
-        capture_targetable = self._targetables(*args, **kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 panel_position = (1, 3), 
@@ -103,28 +95,39 @@ class meanfields(lpp.post_process_abstract):
                 instances = [[self]], 
                 keys = [['means_of']], 
                 box_labels = ['Means of']))
-        lpp.post_process._widget(self,*args,from_sub = True)
+        lpp.post_process_abstract._widget(self,*args,from_sub = True)
+
+###############################################################################
+###############################################################################
 
 # return valid **kwargs for meanfields based on msplit(line)
-def parse_line(*args):
-    targs = args[3].split(' of ')
+def parse_line(split,ensem,procs,routs):
+    targs = split[3].split(' of ')
     means_of = targs[0]
     function_of = targs[1]
     relevant = lfu.msplit(means_of,',')
-    inputs = lpp.parse_process_line_inputs(args[2])
+    inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
     pargs = {
-        'name':args[0],
-        'variety':args[1],
+        'name':split[0],
+        'variety':split[1],
         'input_regime':inputs,
         'means_of':relevant,
         'function_of':function_of,
-        'bin_count':int(args[4]),
-        'ordered':args[5].count('unordered') < 1,
+        'bin_count':int(split[4]),
+        'ordered':split[5].count('unordered') < 1,
             }
     return pargs
 
+###############################################################################
+
 if __name__ == 'modular_core.postprocessing.meanfields':
+    lfu.check_gui_pack()
+    lgb = lfu.gui_pack.lgb
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
     lpp.process_types['meanfields'] = (meanfields,parse_line)
+
+###############################################################################
 
 
 

@@ -1,5 +1,6 @@
 ### libfundamental is importable from anywhere in modular
 import pdb,os,sys,types,appdirs,importlib
+import numpy as np
 
 ###############################################################################
 ### mobject is the base class of modular_core
@@ -195,9 +196,43 @@ def clamp(val,bot,top):
     elif val > top: return top
     else: return val
 
+# keep the value val bounded by bot and top by wrapping around
+def clamp_periodic(val, min_, max_):
+    period = max_ - min_
+    while val < min_: val += period
+    while val > max_: val -= period
+    else: return val
+
 # break an input string by delimiter de and strip results
 def msplit(st,de = ':'):
     return [l.strip() for l in st.split(de)]
+
+def parse_range_di(rng):
+    interval = float(rng[rng.rfind(';')+1:])
+    front = float(rng[:rng.find('-')])
+    back = float(rng[rng.find('-')+1:rng.find(';')])
+    return np.linspace(front,back,interval)
+
+def parse_range_dni(rng):
+    interval = 1.0
+    front = float(rng[:rng.find('-')])
+    back = float(rng[rng.find('-')+1:])+1.0
+    return np.linspace(front,back,interval)
+
+def parse_range_ndni(rng):
+    return [float(v) for v in msplit(rng,',')]
+
+# turn an mcfg string representing a 
+#   set of values into an array of floats
+#   accepts several formats:
+#     x - y ; z       #from x to y with z values
+#     x - y           #from x to y with int(y-x) values
+#     x,y,...,z       #from x to z with all values specified in between
+def parse_range(rng):
+    if '-' in rng and ';' in rng:return parse_range_di(rng)
+    elif '-' in rng and not ';' in rng:return parse_range_dni(rng)
+    elif not '-' in rng and not ';' in rng:return parse_range_ndni(rng)
+    else:print 'unsupported parse_range input format:',rng
 
 # return a list of all things found in a list of lists of things
 def flatten(unflat_list):
