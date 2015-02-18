@@ -3,13 +3,12 @@ import modular_core.libgeometry as lgeo
 import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
 import modular_core.libmath as lm
-import modular_core.libmultiprocess as lmp
 
 import modular_core.io.libvtkoutput as lvtk
 import modular_core.io.libfiler as lf
 import modular_core.io.liboutput as lo
 import modular_core.data.libdatacontrol as ldc
-import modular_core.criteria.libcriterion as lc
+import modular_core.criteria.abstract as cab
 
 from copy import deepcopy as copy
 import multiprocessing as mp
@@ -289,11 +288,10 @@ class fit_routine(lfu.mobject):
         self.metrics[self.prime_metric].is_heaviest = True
 
         self.impose_default('fitted_criteria', [], **kwargs)
-        self.fitted_criteria.append(lc.criterion_iteration(
-                    parent = self, max_iterations = 2500))
-        self.fitted_criteria.append(criterion_impatient(
-                    parent = self, max_timeouts = 50, 
-                            max_last_best = 1000))
+        self.fitted_criteria.append(
+            cab.criterion_iteration(parent = self,max_iterations = 2500))
+        self.fitted_criteria.append(
+            criterion_impatient(parent = self,max_timeouts = 50,max_last_best = 1000))
 
         self.impose_default('fitter_criteria', [], **kwargs)
         self.fitter_criteria.append(
@@ -1024,7 +1022,7 @@ class fit_routine_simulated_annealing(fit_routine):
         self.handle_widget_inheritance(*args, from_sub = False)
         fit_routine._widget(self, *args, from_sub = True)
 
-class criterion_impatient(lc.criterion_abstract):
+class criterion_impatient(cab.criterion_abstract):
 
     def __init__(self, *args, **kwargs):
         if not 'label' in kwargs.keys():
@@ -1036,7 +1034,7 @@ class criterion_impatient(lc.criterion_abstract):
 
         self.impose_default('max_timeouts', 100, **kwargs)
         self.impose_default('max_last_best', 100, **kwargs)
-        lc.criterion_abstract.__init__(self, *args, **kwargs)
+        cab.criterion_abstract.__init__(self, *args, **kwargs)
 
     def to_string(self):
         return '\ttimeout limit : ' + str(self.max_timeouts)
@@ -1077,10 +1075,10 @@ class criterion_impatient(lc.criterion_abstract):
                 box_labels = ['Timeout Limit']))
         criterion._widget(self, *args, from_sub = True)
 
-class criterion_minimize_measures(lc.criterion_abstract):
+class criterion_minimize_measures(cab.criterion_abstract):
 
     def __init__(self, *args, **kwargs):
-        lc.criterion_abstract.__init__(self, *args, **kwargs)
+        cab.criterion_abstract.__init__(self, *args, **kwargs)
         self.rejects = 1
         self.accepts = 1
         self.reject_probability = 0.5

@@ -1,6 +1,7 @@
 import modular_core.libfundamental as lfu
 import modular_core.libsettings as lset
 
+import modular_core.data.batch_target as dba
 import modular_core.io.liboutput as lo
 
 import pdb,types,time,math,os
@@ -52,8 +53,9 @@ class post_process_plan(lfu.plan):
     # add new post process; default to meanfields
     def _add_process(self,new = None):
         if new is None:
-            proc_class_def = process_types['meanfields'][0]
-            new = proc_class_def(parent = self)
+            #proc_class_def = process_types['meanfields'][0]
+            #new = proc_class_def(parent = self)
+            new = post_process(parent = self)
         new.fitting_aware = self.fitting_aware
         new.always_sourceable = self.always_sourceable
         new.parent = self
@@ -111,13 +113,6 @@ class post_process_plan(lfu.plan):
         dex = selector.currentIndex()-1
         if dex in range(len(self.processes)):
             return self.processes[dex]
-
-    # must project rewidget state onto module.rewidget...
-    def _rewidget(self,rw = None,**kwargs):
-        lfu.plan._rewidget(self,rw = rw,**kwargs)
-        if not rw is None:
-            if self.rewidget and not self.parent is None:
-                self.parent.module._rewidget(self.rewidget)
 
     # make sure children can see ensemble...
     def _rewidget_children(self,*args,**kwargs):
@@ -204,49 +199,6 @@ def parse_postproc_line(*args):
                     parent = ensem.postprocess_plan, 
                     always_sourceable = _always)
                 procs.append(proc)
-                if proc_type._tag == 'correlation':
-                        try:
-                            targs = split[3].replace(
-                                ' and ', '||').replace(' of ', '||')
-                            targs = targs.split('||')
-                            proc.target_1 = targs[0]
-                            proc.target_2 = targs[1]
-                            proc.function_of = targs[2]
-
-                        except IndexError: pass
-                        try: proc.bin_count = int(split[4].strip())
-                        except IndexError: pass
-                        try:
-                            if split[5].strip().count('ordered') > 0:
-                                proc.ordered = True
-
-                        except IndexError: pass
-
-                    if proc_type._tag == 'slice from trajectory':
-                        try:
-                            relevant = [item.strip() for item 
-                                    in split[3].split(',')]
-                            proc.slice_dex = split[4].strip()
-
-                        except IndexError: pass
-                        if 'all' in relevant:
-                            proc.dater_ids =\
-                                proc._targetables(0, ensem)
-
-                        else: proc.dater_ids = relevant
-
-                    elif proc_type._tag == 'reorganize data':
-                        try:
-                            relevant = [item.strip() for item 
-                                    in split[3].split(',')]
-
-                        except IndexError: pass
-                        if 'all' in relevant:
-                            proc.dater_ids =\
-                                proc._targetables(0, ensem)
-
-                        else: proc.dater_ids = relevant
-
                     elif proc_type._tag == 'one to one binary operation':
                         ops = ['/', '*', '+', '-']
                         li = split[3]
@@ -259,16 +211,8 @@ def parse_postproc_line(*args):
                         proc.input_1, proc.input_2 = inputs[0], inputs[1]
                         #print 'one to one binary operation parsing not done'
 
-                    elif proc_type._tag == 'probability':
-                        pcrit = proc.probability_criterion
-                        if lfu.using_gui():pcrit.set_settables(0, ensem)
-                        else: pcrit._target_settables(0, ensem)
-                        print 'probability parsing not done'
-
                     elif proc_type._tag == 'period finding':
                         print 'period finding parsing not done'
-
-                    else: pdb.set_trace()
 
     ensem.postprocess_plan._add_process(new = proc)
     if lfu.using_gui(): proc._widget(0, ensem)
@@ -291,7 +235,7 @@ def parse_postproc_line(*args):
 class post_process_abstract(lfu.mobject):
 
     #ABSTRACT
-    '''
+    '''#
     #a post process can:
     #   operate on each trajectory individually, preserving structure
     #   operate on a collection of trajectories
@@ -307,7 +251,7 @@ class post_process_abstract(lfu.mobject):
     #   self.data contains the result for processing by an output_plan
     #           Note: this is not the current implementation but should be
     #           if necessary to support nontrivial post process hierarchies
-    '''
+    '''#
 
     def _string_inputs(self):
         inps = []
@@ -349,8 +293,7 @@ class post_process_abstract(lfu.mobject):
         self._initialize(*args,**kwargs)
         self._process(*args,**kwargs)
 
-    #def _initialize(self,*args,**kwargs):
-    #    self._target_settables(0,self.parent.parent)
+    def _initialize(self,*args,**kwargs):pass
 
     # actually runs the process, setting the result at attribute data
     def _process(self,*args,**kwargs):
@@ -360,13 +303,16 @@ class post_process_abstract(lfu.mobject):
         sources = self._source_reference(1,*args,**kwargs)
 
         def zip_list(target,new_list):
-            if target:
-                target_names = [targ.name for targ in target[0]]
-                for k in range(len(target)):
-                    valid = [dater for dater in new_list[k] 
+            if target.children:
+                target_names = [targ.name for targ in target.children[0].data]
+
+                pdb.set_trace()
+
+                for k in range(len(target.children)):
+                    valid = [dater for dater in new_list.children[k] 
                         if dater.name not in target_names]
-                    target[k].extend(valid)
-            else: target.extend(new_list)
+                    target.children[k].extend(valid)
+            else: target.children.extend(new_list.children)
 
         for src in sources:zip_list(pool,src.data)
         
@@ -380,11 +326,12 @@ class post_process_abstract(lfu.mobject):
 
     # run the method on each trajectory by itself
     def _per_trajectory(self,method,pool,pspace = None):
-        self.data = [method(trajectory) for trajectory in pool]
+        self.data = dba.batch_node(
+            children = [method(trajectory) for trajectory in pool.children])
 
     # run the method on the batch of all trajectories
     def _all_trajectories(self,method,pool,pspace = None):
-        self.data = [method(pool)]
+        self.data = dba.batch_node(children = [method(pool)])
 
     # run the method on each parameter space location batch
     def _by_parameter_space(self,method,pool,pspace):
@@ -392,8 +339,8 @@ class post_process_abstract(lfu.mobject):
         for tdx in range(len(pspace.trajectory)):
             locale = pspace.trajectory[tdx]
             traj_count = locale.trajectory_count
-            results.append(method(pool[tdx]))
-        self.data = results
+            results.append(method(pool.children[tdx]))
+        self.data = dba.batch_node(children = results)
 
     # determine how process is run based on ensemble settings
     def _regime(self,*args,**kwargs):
@@ -410,7 +357,7 @@ class post_process_abstract(lfu.mobject):
     # initialize a data structure based on chosen inputs
     def _start_pool(self,*args,**kwargs):
         if 'simulation' in self.input_regime:return args[1]
-        else:return []
+        else:return dba.batch_node()
 
     # return input sources found in sources based on input_regime
     def _handle_sources(self,sources):
@@ -450,14 +397,16 @@ class post_process_abstract(lfu.mobject):
         post_procs = args[1].postprocess_plan.processes
         self_dex = lfu.grab_mobj_index_by_name(self.name,post_procs)
         processes = lfu.grab_mobj_names(post_procs)[:self_dex]
+        if self.name in processes:processes.remove(self.name)
         return self.always_sourceable + processes
 
     # return the list of possible inputs with fitting routine support
-    def _valid_inputs_fit(self, *args, **kwargs):
+    def _valid_inputs_fit(self,*args,**kwargs):
         post_procs = args[1].postprocess_plan.processes
         self_dex = lfu.grab_mobj_index_by_name(self.name,post_procs)
         processes = lfu.grab_mobj_names(post_procs)[:self_dex]
         routines = lfu.grab_mobj_names(args[1].fitting_plan.routines)
+        if self.name in processes:processes.remove(self.name)
         return self.always_sourceable + processes + routines
 
     # return the list of possible inputs
@@ -513,6 +462,8 @@ class post_process_abstract(lfu.mobject):
                         append_instead = [True], 
                         instances = [[self]], 
                         keys = [['input_regime']], 
+                        refresh = [[True]], 
+                        rewidget = [[True]], 
                         labels = [self.valid_inputs], 
                         box_labels = ['Input Data']))
 
@@ -562,7 +513,8 @@ def parse_process_line(line,ensem,parser,procs,routs,targs):
     proc = post_process(**pargs)
     procs.append(proc)
     ensem.postprocess_plan._add_process(new = proc)
-    proc._target_settables(0,ensem)
+    if lfu.using_gui:proc._widget(0,ensem)
+    else:proc._target_settables(0,ensem)
 
 # turn the comma separated int list into an input_regime
 def parse_process_line_inputs(inputs,procs,routs):
@@ -570,7 +522,7 @@ def parse_process_line_inputs(inputs,procs,routs):
     reg = []
     for inp in ips:
         if inp == 0:reg.append('simulation')
-        elif inp < len(procs):reg.append(procs[inp - 1].name)
+        elif inp <= len(procs):reg.append(procs[inp - 1].name)
     return reg
 
 ###############################################################################
@@ -584,9 +536,20 @@ def parse_process_line_inputs(inputs,procs,routs):
 # BINNING SECTION NEEDS CLEANUP
 # BINNING SECTION NEEDS CLEANUP
 
-def select_for_binning(pool,be_binned,be_meaned):
+def select_for_binning____(pool,be_binned,be_meaned):
     #print 'be meaned', be_meaned
+
+    if hasattr(pool,'_bin_select'):
+        return pool._bin_select(be_binned,be_meaned)
+
+
+
+
     if hasattr(pool,'_flatten_'):flat_pool = pool._flatten_(pool)
+
+    elif hasattr(pool,'_flatten_children'):
+        flat_pool = pool._flatten_children()
+
     else: flat_pool = lfu.flatten(pool)#[item for sublist in pool for item in sublist]
     bin_lookup  = [pool[k][j].name == be_binned for k in range(len(pool)) for j in range(len(pool[k]))]
     mean_lookup = [pool[k][j].name == be_meaned for k in range(len(pool)) for j in range(len(pool[k]))]
@@ -597,8 +560,11 @@ def select_for_binning(pool,be_binned,be_meaned):
     mean_axes = [flat_pool[k] for k in range(len(flat_pool)) if mean_lookup[k] == True]
     return bin_axes,mean_axes
 
-def bin_scalars(axes,ax_vals,bin_res,ordered = True,
+def bin_scalars_______(axes,ax_vals,bin_res,ordered = True,
         bin_basis_override = None,bin_max = None,bin_min = None):
+
+
+
     if bin_basis_override is None: baxes = axes
     else: baxes = bin_basis_override
     if bin_min is None:bin_min = min([min(ax.scalars) for ax in baxes])

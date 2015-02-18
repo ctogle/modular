@@ -1,8 +1,11 @@
 import modular_core.libfundamental as lfu
 
 import modular_core.data.libdatacontrol as ldc
+import modular_core.data.single_target as dst
+import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
 import modular_core.criteria.trajectory_criterion as ltc
+import modular_core.criteria.bistable as bitest
 
 import pdb,sys
 import numpy as np
@@ -25,19 +28,21 @@ class conditional(lpp.post_process_abstract):
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
         self.method = self.conditional_bin
-        self.criterion = ltc.threshold(parent = self)
+
+        self.criterion = bitest.bistable(parent = self)
+
         self.children = [self.criterion]
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def conditional_bin(self,*args,**kwargs):
         pool = args[0]
         passes = 0.0
-        for traj in pool:
-            if self.criterion(traj):
+        for traj in pool.children:
+            if self.criterion(traj.data):
                 passes += 1.0
-        data = ldc.scalars_from_labels(['fraction passing criterion'])
-        data[0].scalars = [passes/len(pool)]
-        return data
+        data = dst.scalars_from_labels(['fraction passing criterion'])
+        data[0].data = np.array([passes/len(pool.children)])
+        return dba.batch_node(data = data)
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
@@ -48,6 +53,7 @@ class conditional(lpp.post_process_abstract):
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
         kwargs['capture_targetable'] = capture_targetable
         self.criterion._widget(*args,**kwargs)

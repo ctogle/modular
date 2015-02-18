@@ -3,7 +3,7 @@
 	time limit : 800
 
 <capture_criteria>
-	scalar increment : 20 : time
+  increment : 20 : time
 
 <variables>
 	mu : 10.0
@@ -40,8 +40,8 @@
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered
-	slices : slice from trajectory : 1 : all : -1
-	reorg : reorganize data : 2 : all
+	slices : trajectory slice : 1 : all : -1
+	reorg : reorganize : 2 : all
 
 <multiprocessing>
 	workers : 8

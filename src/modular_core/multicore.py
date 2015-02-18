@@ -1,4 +1,5 @@
 import modular_core.libfundamental as lfu
+import modular_core.data.batch_target as dba
 import modular_core.libsettings as lset
 
 import pdb,sys,time,types
@@ -53,11 +54,12 @@ class multiprocess_plan(lfu.plan):
             args = [ensem.module.sim_args]*rtr
             result = pool.map_async(simu,args,callback = results.extend)
             result.wait()
-            print 'simulation runs completed:',run
+            print 'simulation runs completed:',run,'/',max_run
 
         pool.close()
         pool.join()
-        data_pool.batch_pool = np.array(results,dtype = np.float)
+        ptargets = ensem.run_params['plot_targets']
+        for rundat in results:data_pool._trajectory(rundat,ptargets)
         return data_pool
 
     # handles the case of any number of parameter space locations with
@@ -70,6 +72,7 @@ class multiprocess_plan(lfu.plan):
         trajectory = ensem.cartographer_plan.trajectory
         move_to = ensem.cartographer_plan._move_to
         simu = ensem.module.simulation
+        ptargets = ensem.run_params['plot_targets']
 
         max_loc = len(trajectory)
         loc = 0
@@ -86,9 +89,11 @@ class multiprocess_plan(lfu.plan):
                 args = [ensem.module.sim_args]*rtr
                 result = pool.map_async(simu,args,callback = subresults.extend)
                 result.wait()
-                print 'simulation runs completed:',run
-            data_pool.live_pool = np.array(subresults,dtype = np.float)
-            data_pool._rid_pool_(loc)
+                print 'simulation runs completed:',run,'/',max_run
+            loc_pool = dba.batch_node()  
+            for subr in subresults:loc_pool._trajectory(subr,ptargets)
+            data_pool._add_child(loc_pool)
+            data_pool._stow_child(-1)
             loc += 1
 
         pool.close()

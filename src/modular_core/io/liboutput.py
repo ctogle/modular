@@ -159,10 +159,6 @@ class writer_plt(writer_abstract):
                 title = title,plot_types = plot_types,
                 cplot_interpolation = cplot_interp_def)
 
-    #def _sanitize(self,*args,**kwargs):
-    #    #self._plt_window = None
-    #    writer_abstract._sanitize(self,*args,**kwargs)
-
     def _write(self,*args):
         if self._plt_window is None:self._get_plt_window()
         self._plt_window.set_plot_info(*args)
@@ -243,12 +239,13 @@ class output_plan(lfu.plan):
     # if any paths are not valid, reset to cwd
     def _validate_paths(self,paths):
         for typ,prop in paths.items():
+            fil = prop.split(os.path.sep)[-1]
+            for w in self.writers:w.save_filename = fil
             if not os.path.exists(prop):
-                fil = prop.split(os.path.sep)[-1]
                 prope = os.getcwd()
                 self.save_directory = prope
                 for w in self.writers:w.save_directory = prope
-                paths[typ] = os.path.join(prope,fil)
+            paths[typ] = os.path.join(prope,fil)
 
     # return the proper set of targets for each writer
     #  each writer can inherit the default targets or set its own
@@ -291,7 +288,8 @@ class output_plan(lfu.plan):
         proper_paths = self._proper_paths()
         proper_targets = self._proper_targets(data)
         pltflag = False
-        for traj in data.data:
+        for dchild in data.data.children:
+            traj = dchild.data
             data_container = lfu.data_container(
                 data = traj,plt_callbacks = data.plt_callbacks)
             self._update_filenames()
@@ -432,7 +430,7 @@ def parse_output_plan_line(*args):
 # CLEAN THIS FUNCTION UP!!!
 # return modified filename to maintain uniqueness
 def increment_filename(fi):
-    #print 'increment filename',fi
+    print 'increment filename',fi
     if fi == '': return fi
     else:
         fi = fi.split('.')

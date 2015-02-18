@@ -1,6 +1,8 @@
 import modular_core.libfundamental as lfu
 
 import modular_core.data.libdatacontrol as ldc
+import modular_core.data.single_target as dst
+import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
 import modular_core.criteria.trajectory_criterion as ltc
 
@@ -13,6 +15,17 @@ import numpy as np
 ###############################################################################
 
 class reorganize(lpp.post_process_abstract):
+
+    def _string(self):
+        #reorg : reorganize data : 2 : all
+        inps = self._string_inputs()
+        strs = [self.name,'reorganize data',inps,'all']
+        return '\t' + ' : '.join(strs)
+
+    def _post_init(self,*args,**kwargs):
+        print 'daters from reorg', self.dater_ids
+        if self.dater_ids == ['all']:
+            self.dater_ids = self._targetables(*args,**kwargs)
 
     #the purpose of this process is to reorganize data
     #so that measurements are taken as a function of p-space index
@@ -30,63 +43,69 @@ class reorganize(lpp.post_process_abstract):
         self.method = self.data_by_trajectory
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
-    #def _initialize(self):
-    #    self._target_settables(0,self.parent.parent)
-    #
-    #    if 'all' in self.dater_ids: pdb.set_trace()
-    #
-    #    lpp.post_process_abstract._initialize()
-
-    def _string(self):
-        #reorg : reorganize data : 2 : all
-        inps = self._string_inputs()
-        strs = [self.name,'reorganize data',inps,'all']
-        return '\t' + ' : '.join(strs)
-
     def _process(self,*args,**kwargs):
         cplan = args[0].cartographer_plan
         fplan = args[0].fitting_plan
 
-        #this is a hack to fix an undiagnosed bug
+        #this is a hack to fix an undiagnosed bug ### IS THIS STILL NECESSARY?
         #self.valid_regimes = ['all trajectories']
 
         if not cplan.use_plan and not fplan.use_plan:
+            self.data = dba.batch_node()
             print 'not mapping p-space\n\treorganize ignored...'
-        else:post_process._process(self,*args,**kwargs)
+        else:lpp.post_process_abstract._process(self,*args,**kwargs)
 
+    # overloaded to pass pspace into method
     def _all_trajectories(self,method,pool,pspace):
-        self.data = [method(pool,pspace)]
+        self.data = dba.batch_node(children = [method(pool,pspace)])
         self.output.flat_data = False
+
+    # overloaded to pass pspace into method
+    def _by_parameter_space(self,method,pool,pspace):
+        self._all_trajectories(method,pool,pspace)
 
     #take a collection of trajectories in 1 - 1 with p_space trajectory
     #create a dater of indices for that trajectory
     #create new daters in 1 - 1 with that dater, 
     #one for each dater in each trajectory of the original collection, 
     #which aggregates the original collection of trajectories
-    def data_by_trajectory(self, *args, **kwargs):
-        trajectory = args[0]
+    def data_by_trajectory(self,*args,**kwargs):
+        trajectory = args[0].children
         pspace_map = args[1]
-
-        data = ldc.scalars_from_labels(['parameter space location index']+\
-                self.axis_labels + [label for label in self.dater_ids])
+        axcnt = len(self.axis_labels)
+        t0lnames = [l.name for l in trajectory[0].data]
+        self.dater_ids = lfu.intersect_lists(self.dater_ids,t0lnames)
+        ptrajdexes = []
+        ptrajaxvals = [[] for x in range(axcnt)]
+        datervals = [[] for x in range(len(self.dater_ids))]
         for dex,locale in enumerate(trajectory):
-            data[0].scalars.append(dex)
+            locale_data = locale.data
+            ptrajdexes.append(dex)
             pspace_locale_values = pspace_map.trajectory[dex].location
-            [dater.scalars.append(float(loc)) for loc,dater in 
-                zip(pspace_locale_values,data[1:len(self.axis_labels) + 1])]
-            for dater in data[len(self.axis_labels) + 1:]:
-                value = lfu.grab_mobj_by_name(dater.name,locale).scalars[-1]
-                dater.scalars.append(value)
+            for tdx in range(axcnt):
+                ptrajaxvals[tdx].append(float(pspace_locale_values[tdx]))
+            for ddx in range(len(self.dater_ids)):
+                dname = self.dater_ids[ddx]
+                value = locale_data[ddx].data[-1]
+                datervals[ddx].append(value)
 
+        data = dst.scalars_from_labels(['parameter space location index']+\
+                self.axis_labels + [label for label in self.dater_ids])
+        data[0].data = np.array(ptrajdexes)
+        for tdx in range(len(self.axis_labels)):
+            data[tdx+1].data = np.array(ptrajaxvals[tdx])
+        for ddx in range(len(self.dater_ids)):
+            data[ddx+axcnt+1].data = np.array(datervals[ddx])
         surf_targets = ['parameter space location index'] + self.dater_ids
-        data.append(ldc.surface_vector_reducing(data, 
-            self.axis_labels,surf_targets,'reorg surface vector'))
-        return data
+        data.append(dst.reducer(
+            data = data,axes = self.axis_labels,
+            surfs = surf_targets,name = 'reducer'))
+        return dba.batch_node(data = data)
 
     def _target_settables(self,*args,**kwargs):
         self.valid_inputs = self._valid_inputs(*args,**kwargs)
-        capture_targetable = self._targetables(*args,**kwargs)
-        if self.dater_ids is None: self.dater_ids = []
+        if self.dater_ids is None or self.dater_ids == ['all']:
+            self.dater_ids = self._targetables(*args,**kwargs)
 
         cplan = args[1].cartographer_plan
         self.axis_labels = []
@@ -95,14 +114,14 @@ class reorganize(lpp.post_process_abstract):
                 ax in cplan.parameter_space.axes]
 
         self.capture_targets = ['parameter space location index'] +\
-            self.axis_labels + [label for label in self.dater_ids] +\
-            ['reorg surface vector']
+            self.axis_labels + self.dater_ids[:] + ['reducer']
         self.output.targeted = lfu.intersect_lists(
             self.output.targeted,self.capture_targets)
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(

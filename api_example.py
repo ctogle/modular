@@ -12,9 +12,9 @@ def run_mcfg(mcfg):
     ensem._output()
 
 if __name__ == '__main__':
-    try:
+    if len(sys.argv) > 0:
 	fi = sys.argv[1]
 	if os.path.isfile(fi): run_mcfg(fi)
 	else: print 'file', fi, 'is not a file!'
-    except IndexError: print 'must provide mcfg file!'
+    else:print 'must provide mcfg file!'
 

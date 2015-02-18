@@ -428,14 +428,13 @@ class plot_window(lfu.mobject):
             else: ddex = 0
             surf = reledata[ddex]
         else:return []
-        ax_labs = surf.axis_labels
+        ax_labs = surf.axes
         ax_vals = surf.axis_values
         ax_defs = surf.axis_defaults
         rng = range(len(ax_defs))
         slice_templates = []      
         for dex, lab, sca, def_ in zip(rng, ax_labs, ax_vals, ax_defs):
-            #pdb.set_trace()
-            scastr = sca.as_string_list()
+            scastr = sca._string_list()
             slice_templates.append(
                 lgm.interface_template_gui(
                     widgets = ['selector'], 

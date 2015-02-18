@@ -955,7 +955,7 @@ class cartographer_mason(standard_mason):
 
 def generate_add_remove_select_inspect_box_template(window, key, 
         labels, wheres, parent, selector_handle, memory_handle, 
-        base_class, function_handles = None, verbosities = [3, 1]):
+        base_class, function_handles = None,verbosities = [1,1]):
     if wheres[0] is wheres[1]: whars = wheres[:-1]
     else: whars = wheres
     _add_func_ = lgb.generate_add_function(base_class, 
@@ -976,12 +976,10 @@ def generate_add_remove_select_inspect_box_template(window, key,
                 keys = [[None, memory_handle[1]], None], 
                 handles = [selector_handle, None], 
                 labels = [None, labels], 
-                initials = [[memory_handle[0].__dict__[
-                            memory_handle[1]]], None], 
-                bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                                window, _add_func_), 
-                                lgb.create_reset_widgets_wrapper(
-                                        window, _rem_func_)]])
+                initials = [[memory_handle[0].__dict__[memory_handle[1]]], None], 
+                bindings = [None,
+                    [lgb.create_reset_widgets_wrapper(window,_add_func_), 
+                    lgb.create_reset_widgets_wrapper(window,_rem_func_)]])
     if function_handles:
         for dex, func in zip(range(3), 
             [_add_func_, _sel_func_, _rem_func_]):

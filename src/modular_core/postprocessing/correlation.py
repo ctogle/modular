@@ -1,115 +1,87 @@
+import modular_core.libfundamental as lfu
 
+import modular_core.data.libdatacontrol as ldc
+import modular_core.data.single_target as dst
+import modular_core.data.batch_target as dba
+import modular_core.postprocessing.libpostprocess as lpp
 
-class post_process_correlation_values(post_process):
+import pdb,sys,math
+import numpy as np
+from scipy.stats import pearsonr as correl
 
-    def __init__(self, *args, **kwargs):
-    #def __init__(self, label = 'another correlation', ordered = True, 
-    #       target_1 = None, target_2 = None, function_of = None, 
-    #       bin_count = 10, fill_value = -100.0, 
-    #       regime = 'all trajectories', base_class = None, 
-    #       capture_targets = [], input_regime = ['simulation'], 
-    #       valid_inputs = ['simulation'], 
-    #       valid_regimes = ['all trajectories', 
-    #                       'by parameter space']):
-                            #'by parameter space', 
-                            #   'manual grouping']):
+###############################################################################
+### correlate measures the pearson correlation coefficient of two targets as
+### a function of a third target
+###############################################################################
 
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                        object, 'correlation')
+class correlate(lpp.post_process_abstract):
 
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'correlation'
-
-        if not 'valid_regimes' in kwargs.keys():
-            kwargs['valid_regimes'] = ['all trajectories', 
-                                'by parameter space']
-
-        if not 'regime' in kwargs.keys():
-            kwargs['regime'] = 'all trajectories'
-
-        self._default('target_1', None, **kwargs)
-        self._default('target_2', None, **kwargs)
-        self._default('function_of', None, **kwargs)
-        self._default('bin_count', 100, **kwargs)
-        self._default('ordered', True, **kwargs)
-        self._default('fill_value', -100.0, **kwargs)
-        #post_process.__init__(self, label = label, regime = regime, 
-        #   base_class = base_class, valid_regimes = valid_regimes, 
-        #   input_regime = input_regime, valid_inputs = valid_inputs, 
-        #   capture_targets = capture_targets)
-        post_process.__init__(self, *args, **kwargs)
-
-    def to_string(self):
+    def _string(self):
         #x, y correlation : correlation : 0 : x and y of time : 10 : ordered
         inps = self.string_inputs()
-        phrase = ' of '.join([' and '.join(
-            [self.target_1, self.target_2]), 
-                self.function_of])
+        phrase = self.target_1+' and '+self.target_2+' of '+self.function_of
         bins = str(self.bin_count)
-        if self.ordered: ordered = 'ordered'
-        else: ordered = 'unordered'
-        return '\t' + ' : '.join([self.label, 'correlation', 
-                        inps, phrase, bins, ordered])
+        ordered = 'ordered' if self.ordered else 'unordered'
+        strs = [self.name,'correlation',inps,phrase,bins,ordered]
+        return '\t' + ' : '.join(strs)
 
-    def provide_axes_manager_input(self):
-        self.use_line_plot = True
-        self.use_color_plot = False
-        self.use_voxel_plot = False
-        self.use_bar_plot = False
+    def __init__(self,*args,**kwargs):
+        self._default('name','correlation',**kwargs)
+        regs = ['all trajectories','by parameter space']
+        self._default('valid_regimes',regs,**kwargs)
+        self._default('regime','all trajectories',**kwargs)
 
-    def postproc(self, *args, **kwargs):
-        kwargs['method'] = self.correlate
-        post_process.postproc(self, *args, **kwargs)
+        self._default('target_1',None,**kwargs)
+        self._default('target_2',None,**kwargs)
+        self._default('function_of',None,**kwargs)
+        self._default('bin_count',100,**kwargs)
+        self._default('ordered',True,**kwargs)
+        self._default('fill_value',-100.0,**kwargs)
+        self.method = self.correlate
+        lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
-    def correlate(self, *args, **kwargs):
-
+    def correlate(self,*args,**kwargs):
         def verify(val):
             if math.isnan(val): return self.fill_value
             else: return val
+        bcnt,orr = self.bin_count,self.ordered
 
-        bin_axes, targ_1_axes = select_for_binning(
-            args[0], self.function_of, self.target_1)
-        bin_axes, targ_2_axes = select_for_binning(
-            args[0], self.function_of, self.target_2)
-        bins, vals_1 = bin_scalars(bin_axes, targ_1_axes, 
-                            self.bin_count, self.ordered)
-        bins, vals_2 = bin_scalars(bin_axes, targ_2_axes, 
-                            self.bin_count, self.ordered)
-        correlations, p_values = zip(*[correl_coeff(val_1, val_2) 
-                        for val_1, val_2 in zip(vals_1, vals_2)])
-        #data = lgeo.scalars_from_labels([self.function_of, 
-        data = ldc.scalars_from_labels([self.function_of, 
-            'correlation coefficients', 'correlation p-value'])
-        data[0].scalars = bins
-        data[1].scalars = [verify(val) for val in correlations]
-        data[2].scalars = [verify(val) for val in p_values]
-        return data
+        #bin_axes, targ_1_axes = lpp.select_for_binning(
+        #        args[0],self.function_of,self.target_1)
+        #bin_axes, targ_2_axes = lpp.select_for_binning(
+        #        args[0],self.function_of,self.target_2)
+        #bins,vs1 = lpp.bin_scalars(bin_axes,targ_1_axes,bcnt,orr)
+        #bins,vs2 = lpp.bin_scalars(bin_axes,targ_2_axes,bcnt,orr)
+
+        bins,vs1 = args[0]._bin_data(self.function_of,self.target_1,bcnt,orr)
+        bins,vs2 = args[0]._bin_data(self.function_of,self.target_2,bcnt,orr)
+
+        correlations,p_values = zip(
+            *[correl(v1,v2) for v1,v2 in zip(vs1,vs2)])
+        data = dst.scalars_from_labels([self.function_of, 
+            'correlation coefficients','correlation p-value'])
+        data[0].data = np.array(bins)
+        data[1].data = np.array([verify(val) for val in correlations])
+        data[2].data = np.array([verify(val) for val in p_values])
+        return dba.batch_node(data = data)
 
     def _target_settables(self, *args, **kwargs):
-        self.valid_regimes = ['all trajectories', 
-            #'by parameter space', 'manual grouping']
-            'by parameter space']
+        self.valid_regimes = ['all trajectories','by parameter space']
         self.valid_inputs = self._valid_inputs(*args, **kwargs)
         capture_targetable = self._targetables(*args, **kwargs)
-        if self.target_1 is None:
-            if capture_targetable:
+        if self.target_1 is None and capture_targetable:
                 self.target_1 = capture_targetable[0]
-
-        if self.target_2 is None:
-            if capture_targetable:
+        if self.target_2 is None and capture_targetable:
                 self.target_2 = capture_targetable[0]
-
-        if self.function_of is None:
-            if capture_targetable:
+        if self.function_of is None and capture_targetable:
                 self.function_of = capture_targetable[0]
-
         self.capture_targets = [self.function_of, 
-            'correlation coefficients', 'correlation p-value']
-        post_process._target_settables(self, *args, **kwargs)
+            'correlation coefficients','correlation p-value']
+        lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
@@ -140,13 +112,55 @@ class post_process_correlation_values(post_process):
         self.widg_templates.append(
             lgm.interface_template_gui(
                 layout = 'horizontal', 
-                keys = [['target_1'], ['target_2']], 
-                instances = [[self], [self]], 
-                widgets = ['radio', 'radio'], 
+                keys = [['target_1'],['target_2']], 
+                instances = [[self],[self]], 
+                widgets = ['radio','radio'], 
                 panel_label = 'Correlation of', 
-                initials = [[self.target_1], [self.target_2]], 
-                labels = [capture_targetable, capture_targetable], 
-                box_labels = ['Target 1', 'Target 2']))
-        super(post_process_correlation_values, self).set_settables(
-                                            *args, from_sub = True)
+                initials = [[self.target_1],[self.target_2]], 
+                labels = [capture_targetable,capture_targetable], 
+                box_labels = ['Target 1','Target 2']))
+        lpp.post_process_abstract._widget(self,*args,from_sub = True)
+
+###############################################################################
+###############################################################################
+
+# return valid **kwargs for correlation based on msplit(line)
+def parse_line(split,ensem,procs,routs):
+    targs = split[3].replace(' and ', '||').replace(' of ', '||')
+    targs = targs.split('||')
+    target_1,target_2,func_of = targs
+    bcnt = int(split[4])
+    ordr = True if 'ordered' == split[5] else False
+    inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
+    pargs = {
+        'name':split[0],
+        'variety':split[1],
+        'input_regime':inputs,
+        'target_1':target_1,
+        'target_2':target_2,
+        'function_of':func_of,
+        'bin_count':bcnt,
+        'ordered':ordr,
+            }
+    return pargs
+
+###############################################################################
+
+if __name__ == 'modular_core.postprocessing.correlation':
+    lfu.check_gui_pack()
+    lgb = lfu.gui_pack.lgb
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lpp.process_types['correlation'] = (correlate,parse_line)
+
+###############################################################################
+
+
+
+
+
+
+
+
+
 

@@ -1,6 +1,8 @@
 import modular_core.libfundamental as lfu
 
 import modular_core.data.libdatacontrol as ldc
+import modular_core.data.single_target as dst
+import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
 
 import pdb,sys
@@ -33,14 +35,15 @@ class meanfields(lpp.post_process_abstract):
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def meanfields(self,*args,**kwargs):
-        data = ldc.scalars_from_labels(self.target_list)
+        data = dst.scalars_from_labels(self.target_list)
         for dex,mean_of in enumerate(self.means_of):
-            bins,vals = lpp.select_for_binning(args[0],self.function_of,mean_of)
-            bins,vals = lpp.bin_scalars(bins,vals,self.bin_count,self.ordered)
+            bins,vals = args[0]._bin_data(
+                self.function_of,mean_of,
+                self.bin_count,self.ordered)
             means = [np.mean(val) for val in vals]
-            data[dex + 1].scalars = means
-        data[0].scalars = bins
-        return data
+            data[dex + 1].data = means
+        data[0].data = bins
+        return dba.batch_node(data = data)
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
@@ -58,6 +61,7 @@ class meanfields(lpp.post_process_abstract):
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(

@@ -3,7 +3,7 @@
 	time limit : 0.005
 
 <capture_criteria>
-	scalar increment : 0.00005 : time
+  increment : 0.00005 : time
 
 <reactions>
 	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation

@@ -18,8 +18,7 @@ if __name__ == 'libs.modular_core.libvtkoutput':
 if __name__ == '__main__': print 'this is a library!'
 
 def write_image(system, vtk_filename, specifics = []):
-    #plot_targets = lgeo.sort_data_by_type(system.data, specifics)
-    plot_targets = ldc.sort_data_by_type(system.data, specifics)
+    plot_targets = sort_data_by_type(system.data, specifics)
     doc = xml.dom.minidom.Document()
     
     pdb.set_trace()
@@ -58,8 +57,7 @@ def write_image(system, vtk_filename, specifics = []):
     point_coords.setAttribute("NumberOfComponents", "3")
     points.appendChild(point_coords)
 
-    #point_coords_string = lgeo.coords_to_string(data['time'], \
-    point_coords_string = ldc.coords_to_string(data['time'], \
+    point_coords_string = coords_to_string(data['time'], \
         data['time'], [0.0]*len(data['time']))
     point_coords_data = doc.createTextNode(point_coords_string)
     point_coords.appendChild(point_coords_data)
@@ -133,8 +131,7 @@ def write_image(system, vtk_filename, specifics = []):
     outFile.close()
 
 def write_unstructured(system, vtk_filename, specifics = []):
-    #plot_targets = lgeo.sort_data_by_type(system.data, specifics)
-    plot_targets = ldc.sort_data_by_type(system.data, specifics)
+    plot_targets = sort_data_by_type(system.data, specifics)
     doc = xml.dom.minidom.Document()
 
     root_element = setup_element(doc, 'VTKFile', 
@@ -171,8 +168,7 @@ def write_unstructured(system, vtk_filename, specifics = []):
         point_data.appendChild(node)
         keydex = plot_targets['coords'].keys()[0]
         keydexes = plot_targets['coords'][keydex].keys()
-        #point_coords_string = lgeo.coords_to_string(
-        point_coords_string = ldc.coords_to_string(
+        point_coords_string = coords_to_string(
             plot_targets['coords'][keydex][keydexes[0]],
             plot_targets['coords'][keydex][keydexes[1]],
             plot_targets['coords'][keydex][keydexes[2]])
@@ -186,8 +182,7 @@ def write_unstructured(system, vtk_filename, specifics = []):
             'format' : 'ascii'})
         point_data.appendChild(node)
         keydex = plot_targets['scalars'].keys()[0]
-        #point_coords_string = lgeo.coords_to_string(
-        point_coords_string = ldc.coords_to_string(
+        point_coords_string = coords_to_string(
             plot_targets['scalars'][keydex],
             plot_targets['scalars'][keydex],
             plot_targets['scalars'][keydex])
@@ -247,6 +242,57 @@ def setup_element(doc, vtk_type = 'DataArray', attributes = {}):
         node.setAttribute(att, attributes[att])
 
     return node
+
+# SHOULD USE STRINGIO
+def array_to_string(arr):
+    string = ' '
+    string = string.join([str(value) for value in arr])
+    string += ' '
+    return string
+
+def coords_to_string(x, y, z):
+    #concat = x + y + z
+    concat = np.concatenate((x, y, z))
+    array = [[concat[k], concat[k + len(x)], concat[k + 2*len(x)]] \
+                                        for k in range(len(x))]
+    array = [item for sublist in array for item in sublist]
+    return array_to_string(array)
+
+def quality_coords_to_string(x, y, z, Q, dims):
+    string = str()
+    xdim = int(dims[0]) + 1
+    ydim = int(dims[1]) + 1
+    zdim = int(dims[2]) + 1
+    npts = xdim*ydim*zdim
+    flat = ['0']*npts
+    for j in range(len(Q)):
+        try:
+            flat[int(z[j])*xdim*ydim + int(y[j])*xdim + int(x[j])]=str(Q[j])
+
+        except IndexError:
+            print 'Youve got an indexing problem'
+            pdb.set_trace()
+
+    string = array_to_string(flat)
+    return string
+
+def sort_data_by_type(data, specifics = []):
+    if not specifics: specifics = [dater.name for dater in data]
+    sorted_data = {'scalars': {}, 'coords': {}}
+    for dater in [dater for dater in data if dater.name in specifics]:
+        if dater.tag == 'scalar':
+            sorted_data['scalars'][dater.name] = dater.scalars
+
+        elif dater.tag == 'coordinates':
+            sorted_data['coords']['_'.join(dater.coords.keys())] = dater.coords
+
+    return sorted_data
+
+
+
+
+
+
 
 
 

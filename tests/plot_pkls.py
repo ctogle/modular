@@ -4,6 +4,7 @@ import modular_core.libfundamental as lfu
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
 import modular_core.libsettings as lset
+import modular_core.data.batch_target as dba
 
 import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
@@ -28,18 +29,18 @@ class pkl_handler(lfu.mobject):
         outputs = []
         data_ = []
         for outp in fronts:
-            newoutp = lo.output_plan(name = outp,
-                parent = self,flat_data = False)
+            newoutp = lo.output_plan(name = outp,parent = self,flat_data = False)
             newoutp.writers[3].use = True
             outputs.append(newoutp)
-            data_.append([])
+            data_.append(dba.batch_node())
             self.capture_targets = []
             relev = [p for p in pkl_files if p[:p.find('.')] == outp]
             for fi in relev:
                 fipath = os.path.join(self.pkl_files_directory, fi)
                 dat = lf.load_pkl_object(fipath)
-                data_[-1].append(dat.data)
-                self.capture_targets.extend([d.name for d in dat.data])
+                ptargets = [d.name for d in dat.data]
+                data_[-1]._add_child(dba.batch_node(data = dat.data))
+                self.capture_targets.extend(ptargets)
             targs = lfu.uniqfy(self.capture_targets)
             outputs[-1].targeted = targs
             outputs[-1].save_filename = outp

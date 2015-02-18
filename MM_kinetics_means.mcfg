@@ -24,7 +24,7 @@
 	Enzyme
 
 <post_processes>
-	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 100 : ordered
+	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 50 : ordered
 
 <multiprocessing>
 	workers : 16
@@ -34,7 +34,7 @@
 	0 : - : ensemble_output : plt : all
 
 <ensemble>
-	multiprocessing : on
+	multiprocessing : off
 	mapparameterspace : off
 	fitting : off
 	postprocessing : on

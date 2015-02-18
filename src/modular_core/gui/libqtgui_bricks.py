@@ -78,15 +78,9 @@ def generate_remove_function(get_selected, parent = None,
                 if type(whar) is types.ListType:
                     try: whar.remove(select)
                     except ValueError: pass
-                    select._destroy_()
 
                 elif type(whar) is types.DictionaryType:
-                    #del whar[select.name]
-                    if issubclass(select.__class__, 
-                            lfu.mobject):
-                        whar[select.name]._destroy_()
-
-                    else: del whar[select.name]
+                    del whar[select.name]
 
                 else: 'cant remove selected', select, 'from', whar
 
@@ -1672,7 +1666,7 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
                 key in mobj.__dict__.keys()
                 if key in mobj.visible_attributes]
         except:
-            print 'inspector problem'
+            #print 'inspector problem'
             return []
         fixed_lap = []
         for pair in lap:            
@@ -2084,7 +2078,7 @@ class quick_plot(QtGui.QWidget):
         self.canvas = FigureCanvas(self.qp_fig)
         self.lplot_data_types = ['scalar']
         self.bplot_data_types = ['bin_vector']
-        self.cplot_data_types = ['surface_vector', 'surface_reducing']
+        self.cplot_data_types = ['surface_vector','surface_reducing']
         self.vplot_data_types = ['voxel_vector']
         self.cplot_interpolation = 'bicubic'
         self.plot_type = None
@@ -2287,6 +2281,7 @@ class quick_plot(QtGui.QWidget):
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
                 d.name in data.active_targs]
+
             if len(cdata) == 1: sdata = cdata[0]
             elif len(cdata) > 1:
                 clabs = [d.name for d in cdata]
@@ -2375,14 +2370,10 @@ class quick_plot(QtGui.QWidget):
         widths = [1.0]*len(self.colors)
         marks = [None]*len(self.colors)
         for d, da in enumerate(ys):
-            if hasattr(da, 'linewidth'):
-                widths[d] = da.linewidth
-            if hasattr(da, 'linestyle'):
-                styles[d] = da.linestyle
-            if hasattr(da, 'color'):
-                self.colors[d] = da.color
-            if hasattr(da, 'marker'):
-                marks[d] = da.marker
+            if hasattr(da, 'linewidth'):widths[d] = da.linewidth
+            if hasattr(da, 'linestyle'):styles[d] = da.linestyle
+            if hasattr(da, 'color'):self.colors[d] = da.color
+            if hasattr(da, 'marker'):marks[d] = da.marker
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
         #if type(xs) is types.ListType:xs_ = [x.scalars for x in xs]
         #else: xs_ = [xs.scalars]*len(ys)
@@ -2396,7 +2387,7 @@ class quick_plot(QtGui.QWidget):
             if hasattr(y,'override_domain') and y.override_domain:
                 xs_.append(y.domain)
             else:
-                xs_.append(x.scalars)
+                xs_.append(x.data)
                 use_xdom = True
             if hasattr(y,'subscalars'):
                 subs = y.subscalars
@@ -2413,7 +2404,7 @@ class quick_plot(QtGui.QWidget):
                     ioffset += 1
                 xs_.extend([lx for dx in range(len(subs))])
                 ys_.extend(subs)
-            ys_.append(y.scalars)
+            ys_.append(y.data)
         [plot_(x, y, lab, col, ls, lw, ma) for 
             x, y, lab, col, ls, lw, ma
                 in zip(xs_, ys_, y_labs, 
@@ -2431,7 +2422,7 @@ class quick_plot(QtGui.QWidget):
             xlab = None, ylab = None):
         ax = self.pre_plot()
         made_surf =\
-            surf.make_surface(
+            surf._surface(
                 x_ax = xdom, y_ax = ydom, 
                 surf_target = starget)
         if not made_surf:

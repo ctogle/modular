@@ -3,22 +3,28 @@ import modular_core.libfundamental as lfu
 import modular_core.libsimcomponents as lsc
 import modular_core.libmodcomponents as lmc
 import modular_core.parameterspaces as lpsp
-import modular_core.libmultiprocess as lmp
+import modular_core.multicore as multicore
 import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
 import modular_core.libworkerthreads as lwt
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
-import modular_core.criteria.libcriterion as lc
 import modular_core.fitting.libfitroutine as lfr
 import modular_core.data.libdatacontrol as ldc
+import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
+
+import modular_core.criteria.iterationlimit as lcit
+import modular_core.criteria.timelimit as lcti
+import modular_core.criteria.increment as lcin
 
 import modular_core.postprocessing.meanfields as mfs
 import modular_core.postprocessing.statistics as sst
 import modular_core.postprocessing.pspace_reorganize as rog
 import modular_core.postprocessing.conditional as cdl
+import modular_core.postprocessing.correlation as crl
+import modular_core.postprocessing.slices as slc
 
 import pdb,os,sys,traceback,types,time,imp
 import numpy as np
@@ -65,7 +71,7 @@ class ensemble(lfu.mobject):
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
             name = 'Post Process Plan',always_sourceable = ['simulation'])
-        self.multiprocess_plan = lmp.multiprocess_plan(parent = self)
+        self.multiprocess_plan = multicore.multiprocess_plan(parent = self)
         self.children = [
             self.simulation_plan,self.output_plan,self.fitting_plan,
             self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
@@ -176,14 +182,18 @@ class ensemble(lfu.mobject):
     #no multiprocessing, no parameter variation, and no fitting
     def _run_nonmap_nonmp(self):
         data_pool = self._data_scheme()
+        ptargets = self.run_params['plot_targets']
+
         simu = self.module.simulation
         self._run_params_to_location()
         sim_args = self.module.sim_args
+        max_trajectory = self.num_trajectories
         trajectory = 1
-        while trajectory <= self.num_trajectories:
+        while trajectory <= max_trajectory:
             rundat = simu(sim_args)
-            data_pool.batch_pool.append(rundat)
+            data_pool._trajectory(rundat,ptargets)
             trajectory += 1
+            print 'simulated trajectory',trajectory,'/',max_trajectory
         return data_pool
 
     #multiprocessing, no parameter variation, no fitting
@@ -196,22 +206,26 @@ class ensemble(lfu.mobject):
     def _run_map_nonmp(self):
         simu = self.module.simulation
         move_func = self.cartographer_plan._move_to
+
         data_pool = self._data_scheme()
+        ptargets = self.run_params['plot_targets']
+
         arc = self.cartographer_plan.trajectory
         arc_length = len(arc)
         iteration = 0
         while iteration < arc_length:
-            data_pool._prep_pool_(iteration)
+            loc_pool = dba.batch_node()  
             move_func(iteration)
             self._run_params_to_location()
             sim_args = self.module.sim_args
             tcount = arc[iteration].trajectory_count
             for tdx in range(tcount):
                 rundat = simu(sim_args)
-                data_pool.live_pool.append(rundat)
-                print 'location:',iteration,'run:',tdx
+                loc_pool._trajectory(rundat,ptargets)
+                print 'location:',iteration,'run:',tdx,'/',tcount
+            data_pool._add_child(loc_pool)
+            data_pool._stow_child(-1)
             iteration += 1
-        data_pool._rid_pool_(iteration - 1)
         return data_pool
 
     #multiprocessing with parameter variation, no fitting
@@ -282,11 +296,11 @@ class ensemble(lfu.mobject):
         self._output_fitroutines(pool)
         print 'produced output:',time.time() - stime
         self._check_qt_application()
+        return True
 
     # return the correct data_pool_pkl filename based on the data scheme
     def _data_pool_path(self):
         if self.data_scheme == 'smart_batch':
-            #data_pool.data.live_pool = []
             data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
                 '.'.join(['data_pool','smart',self.data_pool_id,'pkl']))
         elif self.data_scheme == 'batch':
@@ -300,13 +314,11 @@ class ensemble(lfu.mobject):
         smart = (smart is None or smart is True)
         mappspace = self.cartographer_plan.use_plan
         fitting = self.fitting_plan.use_plan
-        ptargets = self.run_params['plot_targets']
-        if smart and mappspace and not fitting:
-            data_pool = ldc.batch_data_pool(ptargets,self.cartographer_plan)
-            self.data_scheme = 'smart_batch'
-        else:
-            data_pool = ldc.batch_scalars(ptargets)
-            self.data_scheme = 'batch'
+
+        if smart and mappspace and not fitting:self.data_scheme = 'smart_batch'
+        else:self.data_scheme = 'batch'
+
+        data_pool = dba.batch_node()
         self.data_pool_pkl = self._data_pool_path()
         return data_pool
 
@@ -315,11 +327,11 @@ class ensemble(lfu.mobject):
     # FIX THIS
     # FIX THIS
     def _describe_data_pool(self,dpool):
-        proc_pool = dpool.postproc_data
-        try: sim_pool = dpool.data.batch_pool
-        except AttributeError: sim_pool = '<couldnt read batch object>'
         if not dpool: self.data_pool_descr = 'Empty'
         else:
+            proc_pool = dpool.postproc_data
+            try: sim_pool = dpool.data.batch_pool
+            except AttributeError: sim_pool = '<couldnt read batch object>'
             try: sim_pool_count = len(sim_pool)
             except TypeError: sim_pool_count = 0
             try: proc_pool_count = len(proc_pool)
@@ -449,6 +461,11 @@ class ensemble(lfu.mobject):
                 lgb.create_reset_widgets_wrapper(window,self._write_mcfg)]], 
             labels = [['Parse mcfg File','Generate mcfg File']])
         return config_text + config_buttons
+
+    # must project rewidget state onto module.rewidget...
+    def _rewidget(self,*args,**kwargs):
+        lfu.mobject._rewidget(self,*args,**kwargs)
+        self.module._rewidget(self.rewidget)
 
     def _sanitize(self,*args,**kwargs):
         self.data_pool = None
@@ -701,6 +718,7 @@ class ensemble_manager(lfu.mobject):
                             ldc.clean_data_pools], [None]]))
         pages = [('Main',main_templates)]
         for ensem in self.ensembles:
+            if ensem.rewidget:ensem._widget(*args,**kwargs)
             pages.append((ensem.name,ensem.widg_templates))
         return pages
 

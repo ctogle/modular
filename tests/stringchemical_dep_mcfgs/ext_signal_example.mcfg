@@ -3,14 +3,13 @@
 	time limit : 2900.0
 
 <capture_criteria>
-	scalar increment : 10.0 : time
+	increment : 10.0 : time
 
 <reactions>
   1 A ext_signal -> 2 A : A production
   1 A 1.0 -> nothing : A decay
 
 <functions>
-#  ext_signal : external_signal(/home/cogle/dev/modular/tests/stringchemical_dep_mcfgs/input_signals/072314_Signal_Bshort.txt,time) + 1.0
   ext_signal : external_signal(/home/cogle/dev/modular/tests/stringchemical_dep_mcfgs/input_signals/072314_Signal_B.txt,time) + 1.0
 
 <species>
@@ -21,15 +20,8 @@
   A
   ext_signal
 
-#<post_processes>
-#	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 20 : ordered
-
-#<multiprocessing>
-#	workers : 8
-
 <output_plans>
-#	1 : - : mm_means : pkl : all
-	0 : - : ensemble_output : plt : all
+	0 : - : ensemble_output : pkl : all
 
 <ensemble>
 	multiprocessing : off

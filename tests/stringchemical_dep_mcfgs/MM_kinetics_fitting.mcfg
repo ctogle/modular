@@ -3,7 +3,7 @@
 	time limit : 0.005
 
 <capture_criteria>
-	scalar increment : 0.00005 : time
+  increment : 0.00005 : time
 
 <reactions>
 	#k_f = 0.1 (1/#*s) <-> k_r = 0.01 (1/s)
@@ -46,10 +46,6 @@
 			Substrate : initial_count : 1-50000;50000
 			ES_Complex : initial_count : 1-100;100
 			Product : initial_count : 1-2000;2000
-		#<constraints>
-		#	1 < 2
-		#	0 > 1
-		#	4 > 3
 
 <fit_routines>
 	sim-anneal-fine : simulated annealing : fine : mm_fit_input.0.pkl : aliases{time:time,ES_Complex mean:ES_Complex,Product mean:Product,Substrate mean:Substrate,Enzyme mean:Enzyme}

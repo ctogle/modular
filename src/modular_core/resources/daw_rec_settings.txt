@@ -1,7 +1,0 @@
-
-
-<interface>
-interface_verbosity = 2
-
-<udp>
-default_IP = 128.173.154.60

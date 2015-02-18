@@ -1,5 +1,5 @@
 import modular_core.libfundamental as lfu
-import modular_core.criteria.libcriterion as lc
+import modular_core.criteria.abstract as cab
 
 import pdb,sys,os,traceback,time,types
 
@@ -41,7 +41,8 @@ class simulation_plan(lfu.plan):
         self._rewidget(True)
 
     def _add_end_criteria(self,crit = None):
-        if crit is None:crit = lc.criterion_sim_time(parent = self)
+        #if crit is None:crit = lc.criterion_sim_time(parent = self)
+        if crit is None:crit = cab.criterion(parent = self)
         else:crit.parent = self
         self.end_criteria.append(crit)
         self.children.append(crit)
@@ -49,7 +50,8 @@ class simulation_plan(lfu.plan):
         self._rewidget(True)
 
     def _add_capture_criteria(self,crit = None):
-        if crit is None:crit = lc.criterion_increment(parent = self)
+        #if crit is None:crit = lc.criterion_increment(parent = self)
+        if crit is None:crit = cab.criterion(parent = self)
         else:crit.parent = self
         self.capture_criteria.append(crit)
         self.children.append(crit)

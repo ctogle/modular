@@ -3,7 +3,7 @@ import modular_core.parameterspaces as lpsp
 
 import modular_core.fitting.libfitroutine as lfr
 import modular_core.postprocessing.libpostprocess as lpp
-import modular_core.criteria.libcriterion as lc
+import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
 
@@ -65,8 +65,8 @@ class simulation_module(lfu.mobject):
         'multiprocessing',
         'ensemble']
     parse_funcs = [
-        lc.parse_criterion_line,
-        lc.parse_criterion_line,
+        cab.parse_criterion_line,
+        cab.parse_criterion_line,
         lpp.parse_process_line, 
         lfr.parse_fitting_line,
         lo.parse_output_plan_line,
@@ -257,7 +257,7 @@ class simulation_module(lfu.mobject):
         panel_template_lookup.append(('output_plans', 
             lgm.interface_template_gui(
                 widgets = ['mobj_catalog'], 
-                verbosities = [3], 
+                verbosities = [1], 
                 instances = [[
                     ensem.run_params['output_plans'],self.module_memory[0]]], 
                 keys = [[None,'selected_output_plan']], 
@@ -271,8 +271,7 @@ class simulation_module(lfu.mobject):
         self._gui_memory()
         panel_template_lookup = self._panel_templates(window,ensem,**kwargs)
         main_templates,sub_templates,sub_labels =\
-            lgb.tree_book_panels_from_lookup(
-                panel_template_lookup,window,ensem)
+            lgb.tree_book_panels_from_lookup(panel_template_lookup,window,ensem)
         run_param_keys = self.run_parameter_keys
         self.widg_templates.append(
             lgm.interface_template_gui(
