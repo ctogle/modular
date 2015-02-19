@@ -1,13 +1,11 @@
 
-// "2" can be number of captures, and need one argument per plot target
-// "id" will correspond to the number in the ensemble batch
+//__kernel void simulate(__global float* results)
+//{
+//    unsigned int id = get_global_id(0);
+//}
 
-// a capture consists of inserting the next value into each results array
-
-__kernel void simulate(__global float2* results)
+__kernel void part1(__global float* a, __global float* b, __global float* c)
 {
-    unsigned int id = get_global_id(0);
-
-    results[id] = 1.0;
+    unsigned int i = get_global_id(0);
+    c[i] = a[i] + b[i];
 }
-
