@@ -14,7 +14,7 @@ class bistable(tab.trajectory_abstract):
     def __init__(self,*args,**kwargs):
         self._default('name','threshold criterion',**kwargs)
         #self._default('threshold',0,**kwargs)
-        self._default('threshold',10.0,**kwargs)
+        self._default('threshold',2.0,**kwargs)
         #self._default('target',None,**kwargs)
         self._default('target','T',**kwargs)
         self._default('targets',['T','A'],**kwargs)

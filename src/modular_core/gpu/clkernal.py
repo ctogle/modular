@@ -61,7 +61,8 @@ class kernal(lfu.mobject):
         global_size = (self.num,)
         local_size = None
 
-        result = np.array()
+        result = np.array((tcnt,ccnt),dtype = np.float)
+
         kargs = (  self.pos_cl, self.col_cl, self.vel_cl,
                     self.pos_gen_cl, self.vel_gen_cl, dt)
         self.program.simulate(self.queue,global_size,local_size,*(kargs))
