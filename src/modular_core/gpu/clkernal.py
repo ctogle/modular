@@ -6,27 +6,23 @@ import numpy as np
 
 class kernal(lfu.mobject):
 
-    def __call__(self,*args,**kwargs):
-        print 'enact kernal!'
-        pdb.set_trace()
+    def _get_platform(self):
+        plats = cl.get_platforms()
+        return plats[0]
 
     def __init__(self,*args,**kwargs):
-        self.kernal = lfu.get_resource_path('gillespie.cl')
+        gillespiek = lfu.get_resource_path('gillespie.cl')
+        self._default('kernal',gillespiek,**kwargs)
+        self._default('num_trajectories',100,**kwargs)
+        self._default('num_targets',1,**kwargs)
+        self._default('num_captures',200,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
-
-
-        plats = cl.get_platforms()
-        card_dex = len(plats) - 1
-
-        pdb.set_trace()
-
-        props = [(cl.context_properties.PLATFORM,plats[card_dex])]
+        plat = self._get_platform()
+        props = [(cl.context_properties.PLATFORM,plat)]
 
         self.ctx = cl.Context(properties = props)
         self.queue = cl.CommandQueue(self.ctx)
-
-
 
         self._load_kernal()
 
@@ -34,43 +30,48 @@ class kernal(lfu.mobject):
         with open(self.kernal,'r') as keh:fstr = keh.read()
         self.program = cl.Program(self.ctx,fstr).build()
 
+        pdb.set_trace()
 
-    def load_data(self, pos_vbo, col_vbo, vel):
+    def _bufferize(self):
         mf = cl.mem_flags
-        self.pos_vbo = pos_vbo
-        self.col_vbo = col_vbo
-        self.pos = pos_vbo.data
-        self.col = col_vbo.data
-        self.vel = vel
+        bf = mf.READ_ONLY | mf.COPY_HOST_PTR
 
-        #Setup vertex buffer objects and share them with OpenCL as GLBuffers
-        self.pos_vbo.bind()
-        self.pos_cl = cl.GLBuffer(self.ctx,mf.READ_WRITE, int(self.pos_vbo.buffers[0]))
-
-        self.col_vbo.bind()
-        self.col_cl = cl.GLBuffer(self.ctx,mf.READ_WRITE, int(self.col_vbo.buffers[0]))
-
-        #pure OpenCL arrays
-        self.vel_cl     = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = vel)
-        self.pos_gen_cl = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = self.pos)
-        self.vel_gen_cl = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = self.vel)
+        self.result_buffers = []
+        for rarr in self.results:
+            buff = cl.Buffer(self.ctx,bf,hostbuf = rarr)
+            self.result_buffers.append(buff)
 
         self.queue.finish()
 
-    def execute(self):
-        global_size = (self.num,)
+    def _initialize(self):
+        ntraj = self.num_trajectories
+        ntarg = self.num_targets
+        ncapt = self.num_captures
+        results = []
+        for n in range(ntarg):
+            results.append(np.zeros((ntraj,ncapt),dtype = np.float32))
+        self.results = results
+        self._bufferize()
+
+    def _execute(self):
+        self._initialize()
+        kargs = self.result_buffers
+        global_size = (self.num_trajectories,)
         local_size = None
 
-        result = np.array()
-        kargs = (  self.pos_cl, self.col_cl, self.vel_cl,
-                    self.pos_gen_cl, self.vel_gen_cl, dt)
-        self.program.simulate(self.queue,global_size,local_size,*(kargs))
+        pdb.set_trace()
+
+        self.program.simulate(self.queue,global_size,local_size,*kargs)
+        #self.program.simulate(self.queue,global_size,local_size,*(kargs))
 
         self.queue.finish()
+        return self.results
 
 
 def test():
     ke = kernal()
+    results = ke._execute()
+    pdb.set_trace()
 
 test()
 
