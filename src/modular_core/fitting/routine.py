@@ -1,192 +1,3 @@
-import modular_core.libfundamental as lfu
-import modular_core.libgeometry as lgeo
-import modular_core.libiteratesystem as lis
-import modular_core.libsettings as lset
-import modular_core.libmath as lm
-
-import modular_core.io.libvtkoutput as lvtk
-import modular_core.io.libfiler as lf
-import modular_core.io.liboutput as lo
-import modular_core.data.libdatacontrol as ldc
-import modular_core.criteria.abstract as cab
-
-from copy import deepcopy as copy
-import multiprocessing as mp
-import traceback
-import numpy as np
-import time
-import heapq
-import math
-import types
-import os
-import random
-import sys
-
-import pdb
-
-if __name__ == 'modular_core.fitting.libfitroutine':
-    lfu.check_gui_pack()
-    lgm = lfu.gui_pack.lgm
-    lgd = lfu.gui_pack.lgd
-    lgb = lfu.gui_pack.lgb
-if __name__ == '__main__': print 'this is a library!'
-
-class fit_routine_plan(lfu.plan):
-
-    def __init__(self, *args, **kwargs):
-        self._default('label', 'fit routine plan', **kwargs)
-        self._default('routines', [], **kwargs)
-        self._default('selected_routine', None, **kwargs)
-        self._default('selected_routine_label', None, **kwargs)
-        self._default('show_progress_plots', True, **kwargs)
-        kwargs['use_plan'] = lset.get_setting('fitting')
-        lfu.plan.__init__(self, *args, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        #data_pool = self.parent.set_data_scheme()
-        data_pool = args[1]
-        if self.show_progress_plots:
-            if self.parent.multithread_gui:
-                try: app = lgb.QtGui.QApplication(sys.argv)
-                except RuntimeError: pass#  this should not be so silent!
-            else: self.show_progress_plots = False
-        return self.enact_plan(*args, dpool = data_pool, **kwargs)
-
-    def enact_plan(self, *args, **kwargs):
-        for routine in self.routines:
-            check1 = time.time()
-            routine(*args, **kwargs)
-            print ' '.join(['completed fit routine:', routine.label, 
-                        'in:', str(time.time() - check1), 'seconds'])
-        return kwargs['dpool']
-
-    def add_routine(self, new = None):
-        if not new: new = fit_routine_simulated_annealing(parent = self)
-        self.routines.append(new)
-        self._children_.append(new)
-        self.rewidget(True)
-
-    def remove_routine(self, selected = None):
-        if selected: select = selected
-        else: select = self.get_selected()
-        if select:
-            self.routines.remove(select)
-            self._children_.remove(select)
-            del self.parent.run_params['output_plans'][
-                            select.label + ' output']
-            select._destroy_()
-        self.rewidget(True)
-
-    def remove_routine(self):
-        select = self.get_selected()
-        if select:
-            self.routines.remove(select)
-            self._children_.remove(select)
-        self.rewidget(True)
-
-    def move_routine_up(self, *args, **kwargs):
-        select = self.get_selected()
-        if select:
-            select_dex = lfu.grab_mobj_dex_by_name(
-                        select.label, self.routines)
-            self.routines.pop(select_dex)
-            self.routines.insert(select_dex - 1, select)
-            #self._widget(select_dex - 1)
-            self.rewidget_routines()
-
-    def move_routine_down(self, *args, **kwargs):
-        select = self.get_selected()
-        if select:
-            select_dex = lfu.grab_mobj_dex_by_name(
-                        select.label, self.routines)
-            self.routines.pop(select_dex)
-            self.routines.insert(select_dex + 1, select)
-            #self._widget(select_dex + 1)
-            self.rewidget_routines()
-
-    def rewidget_routines(self, rewidg = True):
-        [rout.rewidget(rewidg) for rout in self.routines]
-
-    def get_selected(self):
-        key = 'routine_selector'
-        if not hasattr(self, key):
-            print 'no selector'; return
-
-        try:
-            select = self.__dict__[key][
-                self.__dict__[key][0].currentIndex()]
-            return select
-
-        except IndexError:
-            print 'no routine selected'; return
-
-    def _widget(self,*args,**kwargs):
-        window = args[0]
-        self._sanitize(*args,**kwargs)
-
-        try: select_label = self.selected_routine.label
-        except AttributeError: select_label = None
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                layout = 'grid', 
-                widg_positions = [(0, 0), (0, 2), (1, 2), 
-                                (2, 2), (3, 2), (4, 2)], 
-                widg_spans = [(3, 2), None, None, None, None, None], 
-                grid_spacing = 10, 
-                widgets = ['mobj_catalog', 'button_set'], 
-                verbosities = [1,1], 
-                instances = [[self.routines, self], None], 
-                keys = [[None, 'selected_routine_label'], None], 
-                handles = [(self, 'routine_selector'), None], 
-                labels = [None, ['Add Fit Routine', 
-                                'Remove Fit Routine', 
-                                'Move Up In Hierarchy', 
-                                'Move Down In Hierarchy']], 
-                initials = [[select_label], None], 
-                bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                        window, self.add_routine), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self.remove_routine), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self.move_routine_up), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self.move_routine_down)]]))
-        lfu.plan._widget(self, *args, from_sub = True)
-
-def parse_fitting_line(*args):
-    data = args[0]
-    ensem = args[1]
-    parser = args[2]
-    procs = args[3]
-    routs = args[4]
-    split = [item.strip() for item in data.split(' : ')]
-    for fit_type in valid_fit_routine_base_classes:
-        if split: name = split[0]
-        if len(split) > 1:
-            if split[1].strip() == fit_type._tag:
-                rout = fit_type._class(label = name, 
-                    parent = ensem.fitting_plan)
-                routs.append(rout)
-            if len(split) > 2: rout.regime = split[2].strip()
-            if len(split) > 3:
-                input_data_path = split[3].strip()
-                rout.input_data_file = input_data_path
-                try: rout.get_input_data()
-                except: traceback.print_exc(file=sys.stdout)
-            if len(split) > 4:
-                alias = split[4]
-                l = alias.find('{') + 1
-                r = alias.rfind('}')
-                sub_alias = alias[l:r].split(',')
-                aliases = {}
-                for alias in sub_alias:
-                    spl = alias.split(':')
-                    al, ias = spl[0], spl[1]
-                    aliases[al] = ias
-                rout.input_data_aliases = aliases
-
-    ensem.fitting_plan.add_routine(new = rout)
-    if lfu.using_gui(): rout._widget(0, ensem)
 
 class fit_routine(lfu.mobject):
 
@@ -328,7 +139,7 @@ class fit_routine(lfu.mobject):
         run_func = lis.run_system_measurement
         #data_pool = self.ensemble.data_pool.batch_pool
         #data_pool = self.ensemble.set_data_scheme().batch_pool#data_pool.batch_pool
-        data_pool = kwargs['dpool'].batch_pool
+        data_pool = args[1].batch_pool
         worker_pool = None
         if self.use_mean_fitting or self.use_genetics:
             ensem_to_loc = self.ensemble.set_run_params_to_location
@@ -722,10 +533,9 @@ class fit_routine(lfu.mobject):
         #self.output.targeted = self.capture_targets[:]
         #self.output.set_target_settables()
         #pdb.set_trace()
-        kwargs['dpool'].pool_names =\
-            [dat.label for dat in best_data]
-        kwargs['dpool'].batch_pool.append(best_data)
-        kwargs['dpool'].override_targets = True
+        args[1].pool_names = [dat.label for dat in best_data]
+        args[1].batch_pool.append(best_data)
+        args[1].override_targets = True
         #self.ensemble.data_pool.pool_names =\
         #   [dat.label for dat in best_data]
         #self.ensemble.data_pool.batch_pool.append(best_data)
@@ -945,181 +755,45 @@ class fit_routine(lfu.mobject):
         lfu.mobject._widget(
                 self, *args, from_sub = True)
 
-class fit_routine_simulated_annealing(fit_routine):
 
-    def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'simulated annealing routine'
+        
+        
+        
+        
+def parse_fitting_line(*args):
+    data = args[0]
+    ensem = args[1]
+    parser = args[2]
+    procs = args[3]
+    routs = args[4]
+    split = [item.strip() for item in data.split(' : ')]
+    for fit_type in valid_fit_routine_base_classes:
+        if split: name = split[0]
+        if len(split) > 1:
+            if split[1].strip() == fit_type._tag:
+                rout = fit_type._class(label = name, 
+                    parent = ensem.fitting_plan)
+                routs.append(rout)
+            if len(split) > 2: rout.regime = split[2].strip()
+            if len(split) > 3:
+                input_data_path = split[3].strip()
+                rout.input_data_file = input_data_path
+                try: rout.get_input_data()
+                except: traceback.print_exc(file=sys.stdout)
+            if len(split) > 4:
+                alias = split[4]
+                l = alias.find('{') + 1
+                r = alias.rfind('}')
+                sub_alias = alias[l:r].split(',')
+                aliases = {}
+                for alias in sub_alias:
+                    spl = alias.split(':')
+                    al, ias = spl[0], spl[1]
+                    aliases[al] = ias
+                rout.input_data_aliases = aliases
 
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                object, 'simulated annealing')
-
-        self.impose_default('cooling_curve', None, **kwargs)
-        self.impose_default('max_temperature', 1000, **kwargs)
-        self.impose_default('temperature', None, **kwargs)
-        fit_routine.__init__(self, *args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        if not self.cooling_curve:
-            self.final_iteration =\
-                self.fitted_criteria[0].max_iterations
-            lam = -1.0 * np.log(self.max_temperature)/\
-                                self.final_iteration
-            cooling_domain = np.array(range(self.final_iteration))
-            cooling_codomain = self.max_temperature*np.exp(
-                                        lam*cooling_domain)
-            self.cooling_curve = ldc.scalars(
-                label = 'cooling curve', scalars = cooling_codomain)
-
-        fit_routine.initialize(self, *args, **kwargs)
-        self.data.extend(ldc.scalars_from_labels(
-                        ['annealing temperature']))
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        self.parameter_space.initial_factor = self.temperature
-
-    def iterate_genetic(self, *args, **kwargs):
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        rev_iter =\
-            len(self.cooling_curve.scalars) - 1  - self.iteration
-        self.proginy_count =\
-            int(self.cooling_curve.scalars[rev_iter]) +\
-                                        self.worker_count
-        self.p_sp_step_factor = self.temperature
-        fit_routine.iterate_genetic(self, *args, **kwargs)
-
-    def iterate(self, *args, **kwargs):
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        rev_iter =\
-            len(self.cooling_curve.scalars) - 1  - self.iteration
-        self.proginy_count =\
-            int(self.cooling_curve.scalars[rev_iter]) +\
-                                        self.worker_count
-        self.p_sp_step_factor = self.temperature
-        fit_routine.iterate(self, *args, **kwargs)
-
-    '''#
-    def move_in_parameter_space(self, *args, **kwargs):
-        self.temperature = self.cooling_curve.scalars[self.iteration]
-        self.p_sp_step_factor = self.temperature
-        initial_factor = self.parameter_space.initial_factor
-        dims = self.parameter_space.dimensions
-        self.many_steps = int(max([1, abs(random.gauss(1, 
-            dims))*(self.p_sp_step_factor/initial_factor)]))
-        fit_routine.move_in_parameter_space(self, *args, **kwargs)
-    '''#
-
-    def capture_plot_data(self, *args, **kwargs):
-        fit_routine.capture_plot_data(self, *args, **kwargs)
-        self.data[-1].scalars.append(self.temperature)
-
-    def _widget(self, *args, **kwargs):
-        self.capture_targets =\
-                ['fitting iteration'] +\
-                [met.label + ' measurement' 
-                    for met in self.metrics] +\
-                    ['annealing temperature']
-        self.handle_widget_inheritance(*args, from_sub = False)
-        fit_routine._widget(self, *args, from_sub = True)
-
-class criterion_impatient(cab.criterion_abstract):
-
-    def __init__(self, *args, **kwargs):
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'timeout criterion'
-
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                            criterion_impatient, 'timeout limit')
-
-        self.impose_default('max_timeouts', 100, **kwargs)
-        self.impose_default('max_last_best', 100, **kwargs)
-        cab.criterion_abstract.__init__(self, *args, **kwargs)
-
-    def to_string(self):
-        return '\ttimeout limit : ' + str(self.max_timeouts)
-
-    def initialize(self, *args, **kwargs):
-        self.max_timeouts = float(self.max_timeouts)
-
-    def verify_pass(self, *args):
-        obj = args[0]
-        try:
-            #print 'TIMEOUTS', obj.timeouts, self.max_timeouts
-            too_many_timeouts = obj.timeouts >= self.max_timeouts
-            no_longer_better = obj.last_best >= self.max_last_best
-            if too_many_timeouts or no_longer_better: return True
-
-        except AttributeError:
-            print   'timeout criterion applied \
-                    \n to object without .timeouts'
-            return True
-
-        return False
-
-    def set_uninheritable_settables(self, *args, **kwargs):
-        self.visible_attributes = ['label', 'base_class', 
-                            'bRelevant', 'max_timeouts']
-
-    def _widget(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, from_sub = False)
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['spin'], 
-                doubles = [[False]], 
-                initials = [[int(self.max_timeouts)]], 
-                minimum_values = [[0]], 
-                maximum_values = [[sys.maxint]], 
-                instances = [[self]], 
-                keys = [['max_timeouts']], 
-                box_labels = ['Timeout Limit']))
-        criterion._widget(self, *args, from_sub = True)
-
-class criterion_minimize_measures(cab.criterion_abstract):
-
-    def __init__(self, *args, **kwargs):
-        cab.criterion_abstract.__init__(self, *args, **kwargs)
-        self.rejects = 1
-        self.accepts = 1
-        self.reject_probability = 0.5
-        self.use_window = False
-
-    def verify_pass(self, *args):
-        metrics = args[0]
-        #ratio = float(self.accepts)/\
-        #   (float(self.accepts) + float(self.rejects))
-        #print 'crit accept ratio: ', ratio
-        improves = []
-        for met in metrics:
-            sca = met.data[0].scalars
-            if len(sca) <= 100 or not self.use_window:
-                improves.append(sca[-1] - min(sca) <=\
-                        #   (np.mean(sca) - min(sca)))
-                        (np.mean(sca) - min(sca))/25.0)
-
-            else:
-                improves.append(sca[-1] - min(sca) <=\
-                    (np.mean(sca[-100:]) - min(sca))/20.0)
-
-        weights = [met.acceptance_weight for met in metrics]
-        weights = [we/sum(weights) for we, imp in 
-                    zip(weights, improves) if imp]
-        weight = sum(weights)
-        if weight >= self.reject_probability:
-        #if improves.count(True) > int(len(improves)/2):
-        #if improves.count(True) == len(improves):
-            self.accepts += 1
-            return True
-
-        self.rejects += 1
-        return False
+    ensem.fitting_plan.add_routine(new = rout)
+    if lfu.using_gui(): rout._widget(0, ensem)
 
 
-
-
-
-
-
-
-
-
+ 

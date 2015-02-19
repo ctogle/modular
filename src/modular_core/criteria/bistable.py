@@ -13,10 +13,8 @@ class bistable(tab.trajectory_abstract):
 
     def __init__(self,*args,**kwargs):
         self._default('name','threshold criterion',**kwargs)
-        self._default('below',False,**kwargs)
-        self._default('above',False,**kwargs)
         #self._default('threshold',0,**kwargs)
-        self._default('threshold',25,**kwargs)
+        self._default('threshold',10.0,**kwargs)
         #self._default('target',None,**kwargs)
         self._default('target','T',**kwargs)
         self._default('targets',['T','A'],**kwargs)
@@ -29,14 +27,10 @@ class bistable(tab.trajectory_abstract):
     def _string(self):
         return ''
 
-    def _initialize(self,*args,**kwargs):
-        self.below = False
-        self.above = False
-
     def _verify_pass(self,*args):
         traj = args[0]
         which = lfu.grab_mobj_by_name(self.target,traj)
-        bistable = max(which.data) >= 10.0*np.mean(which.data)
+        bistable = max(which.data) >= self.threshold*np.mean(which.data)
         return bistable
 
     def _widget(self,*args,**kwargs):

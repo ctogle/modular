@@ -6,11 +6,11 @@ import modular_core.parameterspaces as lpsp
 import modular_core.multicore as multicore
 import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
-import modular_core.libworkerthreads as lwt
+import modular_core.threadwork as wt
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
-import modular_core.fitting.libfitroutine as lfr
+import modular_core.fitting.fitplan as fpl
 import modular_core.data.libdatacontrol as ldc
 import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
@@ -30,12 +30,12 @@ import pdb,os,sys,traceback,types,time,imp
 import numpy as np
 import importlib as imp
 
-if __name__ == 'modular_core.libensemble':
+if __name__ == 'modular_core.ensemble':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':print 'libensemble of modular_core'
+if __name__ == '__main__':print 'ensemble of modular_core'
 
 ###############################################################################
 ### an ensemble represents a collection of simulations and their analysis
@@ -66,7 +66,7 @@ class ensemble(lfu.mobject):
         self.simulation_plan = lsc.simulation_plan(parent = self)
         self.output_plan = lo.output_plan(
             parent = self,name = 'Simulation',flat_data = False)
-        self.fitting_plan = lfr.fit_routine_plan(parent = self)
+        self.fitting_plan = fpl.fit_routine_plan(parent = self)
         self.cartographer_plan = lpsp.cartographer_plan(
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
@@ -183,17 +183,20 @@ class ensemble(lfu.mobject):
     def _run_nonmap_nonmp(self):
         data_pool = self._data_scheme()
         ptargets = self.run_params['plot_targets']
+        pcnt = self.multiprocess_plan.worker_count
 
         simu = self.module.simulation
         self._run_params_to_location()
         sim_args = self.module.sim_args
-        max_trajectory = self.num_trajectories
-        trajectory = 1
-        while trajectory <= max_trajectory:
+
+        max_run = self.num_trajectories
+        run = 1
+        while run <= max_run:
             rundat = simu(sim_args)
             data_pool._trajectory(rundat,ptargets)
-            trajectory += 1
-            print 'simulated trajectory',trajectory,'/',max_trajectory
+            run += 1
+            prt = pcnt % run == 0
+            if prt:print 'simulated trajectory:',run,'/',max_run
         return data_pool
 
     #multiprocessing, no parameter variation, no fitting
@@ -206,6 +209,7 @@ class ensemble(lfu.mobject):
     def _run_map_nonmp(self):
         simu = self.module.simulation
         move_func = self.cartographer_plan._move_to
+        pcnt = self.multiprocess_plan.worker_count
 
         data_pool = self._data_scheme()
         ptargets = self.run_params['plot_targets']
@@ -222,7 +226,8 @@ class ensemble(lfu.mobject):
             for tdx in range(tcount):
                 rundat = simu(sim_args)
                 loc_pool._trajectory(rundat,ptargets)
-                print 'location:',iteration,'run:',tdx,'/',tcount
+                prt = pcnt % tdx == 0
+                if prt:print 'location:',iteration,'run:',tdx,'/',tcount
             data_pool._add_child(loc_pool)
             data_pool._stow_child(-1)
             iteration += 1
@@ -379,7 +384,7 @@ class ensemble(lfu.mobject):
 
             if self.multithread_gui:
                 self.parent._run_threaded_ensemble(self,self._run_specific)
-                # self._output() called from a qt event in lwt
+                # self._output() called from a qt event in wt
             else:
                 self._run_specific()
                 self._output()
@@ -605,7 +610,7 @@ class ensemble_manager(lfu.mobject):
             current_ensem._run()
 
     def _run_threaded_ensemble(self,ensem,run_,args = ()):
-        self.worker_threads.append(lwt.worker_thread(
+        self.worker_threads.append(wt.worker_thread(
             ensem,run_,len(self.worker_threads),args = args))
 
     def _abort_ensembles(self):

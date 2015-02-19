@@ -6,12 +6,12 @@ import pdb,sys,time,types
 import numpy as np
 import multiprocessing as mp
 
-if __name__ == 'modular_core.libmultiprocess':
+if __name__ == 'modular_core.multicore':
     lfu.check_gui_pack()
     lgb = lfu.gui_pack.lgb
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
-if __name__ == '__main__':print 'libmultiprocess of modular_core'
+if __name__ == '__main__':print 'multicore of modular_core'
 
 ###############################################################################
 ### a multiprocess_plan provides multiprocessing support to an ensemble
@@ -54,7 +54,7 @@ class multiprocess_plan(lfu.plan):
             args = [ensem.module.sim_args]*rtr
             result = pool.map_async(simu,args,callback = results.extend)
             result.wait()
-            print 'simulation runs completed:',run,'/',max_run
+            print 'simulated trajectory:',run,'/',max_run
 
         pool.close()
         pool.join()
@@ -89,7 +89,7 @@ class multiprocess_plan(lfu.plan):
                 args = [ensem.module.sim_args]*rtr
                 result = pool.map_async(simu,args,callback = subresults.extend)
                 result.wait()
-                print 'simulation runs completed:',run,'/',max_run
+                print 'location:',loc,'run:',run,'/',max_run
             loc_pool = dba.batch_node()  
             for subr in subresults:loc_pool._trajectory(subr,ptargets)
             data_pool._add_child(loc_pool)

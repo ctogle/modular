@@ -3,7 +3,7 @@ import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
 lgd = lqg.lgd
 lgb = lqg.lgb
-import modular_core.libensemble as lensem
+import modular_core.ensemble as lensem
 
 import os
 import sys

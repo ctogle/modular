@@ -1,12 +1,10 @@
 import modular_core.libfundamental as lfu
-import modular_core.libgeometry as lgeo
 import modular_core.libsettings as lset
 
 import modular_core.io.libfiler as lf
 import modular_core.io.libvtkoutput as lvtk
 import modular_core.io.libtxtoutput as ltxt
 
-#from cStringIO import StringIO
 import pdb,os,sys,time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -283,9 +281,9 @@ class output_plan(lfu.plan):
         if not self.save_filename:
             self.save_filename = self.parent.name + '.output'
 
+    # when data.data is a batch_node with no data but with children nodes
     def _output_nonflat(self,data):
         types = ['vtk','pkl','txt','plt']
-        proper_paths = self._proper_paths()
         proper_targets = self._proper_targets(data)
         pltflag = False
         for dchild in data.data.children:
@@ -293,6 +291,7 @@ class output_plan(lfu.plan):
             data_container = lfu.data_container(
                 data = traj,plt_callbacks = data.plt_callbacks)
             self._update_filenames()
+            proper_paths = self._proper_paths()
             for dx in range(len(self.writers)):
                 if self.writers[dx].use:
                     plt = types[dx] == 'plt' and lfu.using_gui
@@ -303,11 +302,13 @@ class output_plan(lfu.plan):
                         proper_paths[types[dx]],proper_targets[dx])
         if pltflag:self.writers[dx]._plt_window()
 
+    # when data.data is a batch_node with data but without children nodes
+    # IS THIS TESTED??
     def _output_flat(self,data):
         types = ['vtk','pkl','txt','plt']
-        proper_paths = self._proper_paths()
         proper_targets = self._proper_targets(data)
         self._update_filenames()
+        proper_paths = self._proper_paths()
         for dx in range(len(self.writers)):
             if self.writers[dx].use:
                 plt = types[dx] == 'plt' and lfu.using_gui
@@ -355,7 +356,7 @@ class output_plan(lfu.plan):
                 keys = [['save_filename']], 
                 instances = [[self]], 
                 initials = [[self.save_filename, 
-                    'Possible Outputs (*.vtk *.csv)']], 
+                    'Possible Outputs (*.vtk *.pkl *.txt)']], 
                 labels = [['Choose Filename']], 
                 box_labels = ['Default Base Filename']))
         self._default_save_directory()
@@ -378,7 +379,7 @@ class output_plan(lfu.plan):
                 keys = [['use']*4],
                 labels = [[
                     'Output .vtk files','Output .pkl files', 
-                    'Output .csv files','Output .plt files']], 
+                    'Output .txt files','Output .plt files']], 
                 box_labels = ['Output Types']))
         top_template = lgm.interface_template_gui(
                 widgets = ['panel'], 
@@ -393,6 +394,10 @@ class output_plan(lfu.plan):
         lfu.mobject._widget(self,*args,from_sub = True)
 
 ###############################################################################
+###############################################################################
+
+###############################################################################
+### utility functions
 ###############################################################################
 
 # parse the output_plan specified on one line of an mcfg
@@ -423,38 +428,22 @@ def parse_output_plan_line(*args):
         output.targeted = output._target_labels()
     else: output.targeted = relevant
 
-# CLEAN THIS FUNCTION UP!!!
-# CLEAN THIS FUNCTION UP!!!
-# CLEAN THIS FUNCTION UP!!!
-# CLEAN THIS FUNCTION UP!!!
-# CLEAN THIS FUNCTION UP!!!
 # return modified filename to maintain uniqueness
 def increment_filename(fi):
-    print 'increment filename',fi
-    if fi == '': return fi
-    else:
-        fi = fi.split('.')
-        if len(fi) == 1:    #non-indexed filename without extension
-            return '.'.join(fi + ['0'])
-
-        else:
-            try:    #no file extension but an index to increment
-                dex = int(fi[-1])
-                dex = str(dex + 1)
-                return '.'.join(fi[:-1] + [dex])
-
-            except ValueError:  #assume a file extension
-                try:
-                    dex = int(fi[-2])
-                    dex = str(dex + 1)
-                    return '.'.join(fi[:-1] + [dex] + fi[-1:])
-
-                except ValueError:  #had file extension but no index
-                    return '.'.join(fi[:-1] + ['0'] + fi[-1:])
-                except TypeError: pdb.set_trace()
+    extensions = ['vtk','pkl','txt','plt']
+    if fi.count('.') == 0:return fi + '.0'
+    elif fi.count('.') == 1:
+        front = fi[:fi.rfind('.')]
+        end = fi[fi.rfind('.')+1:]
+        if end in extensions:return '.'.join([front,'0',end])
+        else:return '.'.join([front,str(int(end)+1)])
+    elif fi.count('.') == 2:
+        front,num,end = fi.split('.')
+        return '.'.join([front,str(int(num)+1),end])
 
 ###############################################################################
 ###############################################################################
+
 
 
 

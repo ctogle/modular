@@ -10,6 +10,8 @@ import pdb
 
 from PySide import QtCore
 
+if __name__ == '__main__': print 'threadwork of modular_core'
+
 class worker_finished(QtCore.QObject):
     worker_fin = QtCore.Signal()
 
@@ -53,7 +55,6 @@ class worker_thread(Thread):
         self.aborted = True
         self.process.terminate()
 
-if __name__ == '__main__': print 'this is a library!'
 
 
 

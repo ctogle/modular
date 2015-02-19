@@ -240,89 +240,6 @@ class parameter_space_step(lfu.mobject):
                 self.location[k][1]] = float(self.initial[k])
 
 
-class p_space_proxy(object):
-    def __init__(self, *args, **kwargs):
-        self.base_object = kwargs['base_object']
-        self.p_space = kwargs['p_space']
-
-        self.result_string = None
-        self.result = None
-        self.constructed = []
-        self.max_locations = 10000
-        #variations is a list (in 1-1 with subspaces)
-        #   of lists of values
-        self.variations = [None]*len(self.p_space.subspaces)
-        if not self.variations: self.NO_AXES_FLAG = True
-        else: self.NO_AXES_FLAG = False
-        self.comp_methods = ['Product Space', '1 - 1 Zip']
-        self.axis_labels = [subsp.name for subsp in 
-                            self.p_space.subspaces]
-        if 'composition_method' in kwargs.keys():
-            self.composition_method = kwargs['composition_method']
-        else: self.composition_method = 'Product Space'
-
-    def wrap_nones(self):
-        for dex in range(len(self.variations)):
-            if not self.variations[dex]:
-                self.variations[dex] = [None]
-
-    def create_product_space_locations(self):
-        self.wrap_nones()
-        tuple_table = itertools.product(*self.variations)
-        for tup in tuple_table:
-            fixed_tup = []
-            for elem, dex in zip(tup, range(len(tup))):
-                if elem is None:
-                    fixed_tup.append(self.base_object[0][dex])
-
-                else: fixed_tup.append(tup[dex])
-
-            if len(self.constructed) > self.max_locations:
-                print ''.join(['WILL NOT MAKE', str(len(
-                    self.constructed)-1), '+LOCATIONS!'])
-                break
-
-            self.constructed.append(parameter_space_location(
-                                location = list(fixed_tup)))
-
-        vari_string = '\n\t\t'.join([' : '.join([ax, ', '.join(
-                [str(var) for var in vari])]) for ax, vari in 
-            zip(self.axis_labels, self.variations) if vari])
-        self.result_string = '\t<product_space> #\n\t\t' + vari_string
-
-    def create_one_to_one_locations(self):
-        self.wrap_nones()
-        max_leng = max([len(variant) for variant in self.variations])
-        if max_leng > self.max_locations:
-            print ''.join(['WILL NOT MAKE', str(len(
-                    self.constructed)-1), '+LOCATIONS!'])
-            return
-
-        for dex in range(len(self.variations)):
-            if self.variations[dex][0] is None:
-                self.variations[dex] =\
-                    [self.base_object[0][dex]]*max_leng
-
-            elif len(self.variations[dex]) < max_leng:
-                leng_diff = max_leng - len(self.variations[dex])
-                last_value = self.variations[dex][-1]
-                [self.variations[dex].append(last_value) for k in
-                                                range(leng_diff)]
-
-        for dex in range(max_leng):
-            locale = [var[dex] for var in self.variations] 
-            self.constructed.append(parameter_space_location(
-                                        location = locale))
-
-        self.result_string = '<zip>\n\t'
-        pdb.set_trace()
-
-    def on_make(self):
-        if self.composition_method == 'Product Space':
-            self.create_product_space_locations()
-        elif self.composition_method == '1 - 1 Zip':
-            self.create_one_to_one_locations()
-        self.result = self.constructed
 
 class parameter_space(lfu.mobject):
 
@@ -332,27 +249,6 @@ class parameter_space(lfu.mobject):
             subsp.initialize()
             rele_val = subsp.current_location()
             print 'starting position of', subsp.name, ':', rele_val, ':', subsp.bounds
-
-    def get_start_position(self):
-        location = [sp.inst.__dict__[sp.key] 
-                    for sp in self.subspaces]
-        return parameter_space_location(location = location)
-
-    def get_current_position(self):
-        return [(axis.inst.name, axis.key, 
-            str(axis.current_location())) 
-            for axis in self.subspaces]
-
-    def set_current_position(self, position):
-        for pos, axis in zip(position, self.subspaces):
-            axis.move_to(pos[-1])
-
-        self.validate_position()
-
-    def validate_position(self):
-        for axis in self.subspaces:
-            if axis.constraints:
-                axis.honor_constraints()
 
     #bias_axis is the index of the subspace in subspaces
     #bias is the number of times more likely that axis is than the rest
