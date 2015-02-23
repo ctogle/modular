@@ -1,5 +1,4 @@
 import modular_core.libfundamental as lfu
-import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
 
 import modular_core.io.libfiler as lf

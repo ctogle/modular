@@ -382,6 +382,9 @@ def is_module_valid(mod):
     if not hasattr(mo,'main'):
         print 'module',mod,'is missing "main" namespace'
         return False
+    if not hasattr(mo.main,'module_name'):
+        print 'module',mod,'is missing "module_name" attribute'
+        return False
     return True
 
 # add a simulation module to the module registry

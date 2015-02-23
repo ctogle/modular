@@ -19,6 +19,17 @@ res_files = [res_dir + f for f in res_fis]
 
 data_pools_files = ['modular_core/data_pools/__init__.py']
 
+pkgs = [
+    'modular_core',
+    'modular_core.gui', 
+    'modular_core.gpu',
+    'modular_core.modules',
+    'modular_core.io',
+    'modular_core.fitting', 
+    'modular_core.criteria',
+    'modular_core.data', 
+    'modular_core.postprocessing',
+    'modular_core.cython']
 setup(
     name="modular_core-pkg",
     version = '1.0',
@@ -29,11 +40,7 @@ setup(
     license = "MIT License",
     long_description = '''this is the core package of modular''',
     scripts = ['../modular.py'], 
-    packages = ['modular_core', 'modular_core.gui', 
-            'modular_core.gpu', 'modular_core.modules',
-            'modular_core.io',  'modular_core.fitting', 
-            'modular_core.criteria','modular_core.data', 
-            'modular_core.postprocessing'], 
+    packages = pkgs, 
     py_modules = core_modules, 
     zip_safe = False,
     data_files=[(os.path.join(appdirs.user_config_dir(), 

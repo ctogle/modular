@@ -1,10 +1,9 @@
 import modular_core as mc
 import modular_core.libfundamental as lfu
 import modular_core.libsimcomponents as lsc
-import modular_core.libmodcomponents as lmc
+import modular_core.simulationmodule as smd
 import modular_core.parameterspaces as lpsp
 import modular_core.multicore as multicore
-import modular_core.libiteratesystem as lis
 import modular_core.libsettings as lset
 import modular_core.threadwork as wt
 
@@ -109,40 +108,39 @@ class ensemble(lfu.mobject):
             return
         elif len(opts) == 1: module = opts[0]
         else:
-            if lfu.using_gui:
-                module = lgd.create_dialog(
-                    title = 'Choose Ensemble Module', 
-                    options = opts, 
-                    variety = 'radioinput')
-                if not module: 
-                    self.cancel_make = True
-                    return
+            if 'module' in kwargs.keys() and kwargs['module']:
+                module = kwargs['module']
             else:
-                if not 'module' in kwargs.keys():
+                if lfu.using_gui:
+                    module = lgd.create_dialog(
+                        title = 'Choose Ensemble Module', 
+                        options = opts, 
+                        variety = 'radioinput')
+                    if not module: 
+                        self.cancel_make = True
+                        return
+                else:
                     mod_request = 'enter a module:\n\t'
                     for op in opts:mod_request += op + '\n\t'
                     mod_request += '\n'
                     module = raw_input(mod_request)
-                else: module = None
-        if not 'module' in kwargs.keys():
-            print 'Problem! : No modules detected!'
-            self.cancel_make = True
-            return
-        else: module = kwargs['module']
-        self.module_name = module
 
-        # if module has a simulation_module subclass use that
-        # otherwise use the baseclass from lmc
+        self.module_name = module
         module = mc.modules.__dict__[self.module_name]
+        # if module has a simulation_module subclass use that
+        # otherwise use the baseclass from smd
         if hasattr(module,'simulation_module'):
             self.module = module.simulation_module(parent = self)
-        else:self.module = lmc.simulation_module(parent = self)
+        else:self.module = smd.simulation_module(parent = self)
         self.children.append(self.module)
 
     # compute any information that changes only when the parameter space
     #  location changes
     def _run_params_to_location(self):
         self.module._set_parameters()
+    
+    def _run_params_to_location_prepoolinit(self):
+        self.module._set_parameters_prepoolinit()
 
     # run a specific way depending on the settings of the ensemble
     def _run_specific(self,*args,**kwargs):
@@ -195,7 +193,7 @@ class ensemble(lfu.mobject):
             rundat = simu(sim_args)
             data_pool._trajectory(rundat,ptargets)
             run += 1
-            prt = pcnt % run == 0
+            prt = run % pcnt == 0
             if prt:print 'simulated trajectory:',run,'/',max_run
         return data_pool
 
@@ -220,13 +218,14 @@ class ensemble(lfu.mobject):
         while iteration < arc_length:
             loc_pool = dba.batch_node()  
             move_func(iteration)
+            self._run_params_to_location_prepoolinit()
             self._run_params_to_location()
             sim_args = self.module.sim_args
             tcount = arc[iteration].trajectory_count
             for tdx in range(tcount):
                 rundat = simu(sim_args)
                 loc_pool._trajectory(rundat,ptargets)
-                prt = pcnt % tdx == 0
+                prt = tdx % pcnt == 0
                 if prt:print 'location:',iteration,'run:',tdx,'/',tcount
             data_pool._add_child(loc_pool)
             data_pool._stow_child(-1)
@@ -617,7 +616,7 @@ class ensemble_manager(lfu.mobject):
         [thread.abort() for thread in self.worker_threads]
         self.worker_threads = []
 
-    def _add_ensemble(self, module = 'chemical'):
+    def _add_ensemble(self,module = None):
         modopts = self._module_options()
         new = ensemble(parent = self,
             module_options = modopts,module = module)

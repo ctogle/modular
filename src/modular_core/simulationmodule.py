@@ -1,7 +1,7 @@
 import modular_core.libfundamental as lfu
 import modular_core.parameterspaces as lpsp
 
-import modular_core.fitting.libfitroutine as lfr
+import modular_core.fitting.routine as lfr
 import modular_core.postprocessing.libpostprocess as lpp
 import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
@@ -10,12 +10,12 @@ import modular_core.io.libfiler as lf
 import pdb,types
 from cStringIO import StringIO
 
-if __name__ == 'modular_core.libmodcomponents':
+if __name__ == 'modular_core.simulationmodule':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':print 'libmodcomponents of modular_core'
+if __name__ == '__main__':print 'simulationmodule of modular_core'
 
 ###############################################################################
 ### a simulation module has hooks for working with an ensemble
@@ -194,6 +194,7 @@ class simulation_module(lfu.mobject):
     # set state that is changed at most once per pspace location
     def _set_parameters(self):
         print 'run params to location'
+        self.sim_args = ()
 
     # initialize run parameters of an ensemble
     def _reset_parameters(self):
@@ -220,7 +221,7 @@ class simulation_module(lfu.mobject):
         self.module_memory = []
         lfu.mobject._sanitize(self,*args,**kwargs)
 
-    def _panel_templates(self,window,ensem,target_labels):
+    def _panel_templates(self,window,ensem,target_labels = None):
         panel_template_lookup = []
         if target_labels:plot_target_labels = target_labels
         else:plot_target_labels = ['iteration','time']

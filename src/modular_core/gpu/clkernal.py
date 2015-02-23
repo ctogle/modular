@@ -59,18 +59,13 @@ class kernal(lfu.mobject):
         global_size = (self.num_trajectories,)
         local_size = None
 
-<<<<<<< HEAD
-        result = np.array((tcnt,ccnt),dtype = np.float)
-
-        kargs = (  self.pos_cl, self.col_cl, self.vel_cl,
-                    self.pos_gen_cl, self.vel_gen_cl, dt)
+        kargs = self.results
         self.program.simulate(self.queue,global_size,local_size,*(kargs))
-=======
+
         pdb.set_trace()
 
         self.program.simulate(self.queue,global_size,local_size,*kargs)
         #self.program.simulate(self.queue,global_size,local_size,*(kargs))
->>>>>>> 45bed50165a778156d092c4bbed49e1b0d060de3
 
         self.queue.finish()
         return self.results

@@ -4,7 +4,6 @@ import modular_core.data.libdatacontrol as ldc
 import modular_core.data.single_target as dst
 import modular_core.data.batch_target as dba
 import modular_core.postprocessing.libpostprocess as lpp
-import modular_core.criteria.trajectory_criterion as ltc
 import modular_core.criteria.bistable as bitest
 
 import pdb,sys

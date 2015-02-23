@@ -41,6 +41,8 @@ class multiprocess_plan(lfu.plan):
     def _run_flat(self,data_pool,ensem):
         pcnt = int(self.worker_count)
         init = ensem._run_params_to_location
+        ensem._run_params_to_location_prepoolinit()
+        ensem._run_params_to_location()
         pool = mp.Pool(processes = pcnt,initializer = init)
 
         results = []
@@ -50,6 +52,7 @@ class multiprocess_plan(lfu.plan):
         while run < max_run:
             rtr = self._runs_this_round(pcnt,max_run,run)
             run += rtr
+            ensem._run_params_to_location_prepoolinit()
             pool._initializer()
             args = [ensem.module.sim_args]*rtr
             result = pool.map_async(simu,args,callback = results.extend)
