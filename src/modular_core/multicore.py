@@ -43,7 +43,7 @@ class multiprocess_plan(lfu.plan):
         init = ensem._run_params_to_location
         ensem._run_params_to_location_prepoolinit()
         ensem._run_params_to_location()
-        pool = mp.Pool(processes = pcnt,initializer = init)
+        pool = mp.Pool(processes = pcnt)#,initializer = init)
 
         results = []
         simu = ensem.module.simulation
@@ -52,8 +52,8 @@ class multiprocess_plan(lfu.plan):
         while run < max_run:
             rtr = self._runs_this_round(pcnt,max_run,run)
             run += rtr
-            ensem._run_params_to_location_prepoolinit()
-            pool._initializer()
+            #ensem._run_params_to_location_prepoolinit()
+            #pool._initializer()
             args = [ensem.module.sim_args]*rtr
             result = pool.map_async(simu,args,callback = results.extend)
             result.wait()
@@ -81,6 +81,7 @@ class multiprocess_plan(lfu.plan):
         loc = 0
         while loc < max_loc:
             move_to(loc)
+            ensem._run_params_to_location_prepoolinit()
             pool._initializer()
             max_run = trajectory[loc].trajectory_count
             run = 0

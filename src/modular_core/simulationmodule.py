@@ -192,6 +192,11 @@ class simulation_module(lfu.mobject):
         lf.write_text(mcfg_path,mcfg)
 
     # set state that is changed at most once per pspace location
+    # called outside of Pool processes and before self._set_parameters
+    def _set_parameters_prepoolinit(self):
+        print 'run params prepoolinit...'
+
+    # set state that is changed at most once per pspace location
     def _set_parameters(self):
         print 'run params to location'
         self.sim_args = ()

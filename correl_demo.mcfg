@@ -34,8 +34,8 @@
 
 <parameter_space>
 	<product_space> 1000
-		lambda1 : value : 1.0-10.0;10.0
-		lambda2 : value : 1.0-10.0;10.0
+		lambda1 : value : 2.0-8.0;4.0
+		lambda2 : value : 2.0-8.0;4.0
 		#mu : value : 8.0-12.0;2.0
 
 <post_processes>
@@ -47,8 +47,8 @@
 	workers : 8
 
 <output_plans>
-	3 : - : reorg_output : pkl : all
-	1 : - : correlation_output : pkl : all
+	3 : - : reorg_output : plt : all
+	1 : - : correlation_output : plt : all
 	2 : - : slices_output : none : all
 	0 : - : ensemble_output : none : all
 
