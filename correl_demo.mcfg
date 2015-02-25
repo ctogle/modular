@@ -54,7 +54,7 @@
 
 <ensemble>
 	multiprocessing : on
-	mapparameterspace : off
+	mapparameterspace : on
 	fitting : off
 	postprocessing : on
 	trajectory_count : 100000

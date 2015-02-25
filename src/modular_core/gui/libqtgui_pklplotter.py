@@ -1,4 +1,4 @@
-#!python
+ #!python
 import modular_core.libfundamental as lfu
 
 import modular_core.io.liboutput as lo
@@ -82,7 +82,9 @@ class pkl_plotter(lqg.application):
         lqg._window_.apply_standards(self._standards_)
         lqg.application.setStyle(lgb.create_style('plastique'))
 
-if __name__ == '__main__':lqg.initialize_app(pkl_plotter)
+def initialize():lqg.initialize_app(pkl_plotter)
+
+if __name__ == '__main__':initialize()
 
 
 
@@ -92,4 +94,4 @@ if __name__ == '__main__':lqg.initialize_app(pkl_plotter)
 
 
 
-
+ 

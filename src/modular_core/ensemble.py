@@ -184,6 +184,7 @@ class ensemble(lfu.mobject):
         pcnt = self.multiprocess_plan.worker_count
 
         simu = self.module.simulation
+        self._run_params_to_location_prepoolinit()
         self._run_params_to_location()
         sim_args = self.module.sim_args
 
