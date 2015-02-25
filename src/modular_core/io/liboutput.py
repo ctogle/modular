@@ -441,6 +441,19 @@ def increment_filename(fi):
         front,num,end = fi.split('.')
         return '.'.join([front,str(int(num)+1),end])
 
+# undo whatever the above function would do to a filename
+def decrement_filename(fi):
+    extensions = ['vtk','pkl','txt','plt']
+    if fi.count('.') == 0:return fi + '.0'
+    elif fi.count('.') == 1:
+        front = fi[:fi.rfind('.')]
+        end = fi[fi.rfind('.')+1:]
+        if end in extensions:return '.'.join([front,'0',end])
+        else:return '.'.join([front,str(int(end)-1)])
+    elif fi.count('.') == 2:
+        front,num,end = fi.split('.')
+        return '.'.join([front,str(int(num)-1),end])
+
 ###############################################################################
 ###############################################################################
 

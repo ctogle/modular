@@ -1,4 +1,5 @@
 import modular_core.libfundamental as lfu
+import modular_core.io.liboutput as lo
 
 from distutils.core import setup
 from distutils.extension import Extension
@@ -71,18 +72,24 @@ import random,numpy
             #            print 'remoooove',pa
         #    shutil.rmtree(builddir)
         
+        lastname = self.name.replace('_','.',1)
+        lastname = lo.decrement_filename(lastname)
+        lastname = lastname.replace('.','_',1)
+        print 'LASTNAME',lastname
 
-        extname = self.name+'.so'
+        extname = lastname+'.so'
         extinplace = os.path.join(os.getcwd(),extname)
         if os.path.isfile(extinplace):os.remove(extinplace)
 
-        extname = self.name+'.c'
+        pdb.set_trace()
+
+        extname = lastname+'.c'
         extinresrc = lfu.get_resource_path(extname)
         if os.path.isfile(extinresrc):os.remove(extinresrc)
 
-        if self.name in sys.modules.keys():
-            print 'rcnt',sys.getrefcount(sys.modules[self.name])
-            del sys.modules[self.name]
+        #if self.name in sys.modules.keys():
+        #    print 'rcnt',sys.getrefcount(sys.modules[self.name])
+        #    del sys.modules[self.name]
         #pdb.set_trace()
 
     def _install(self):
