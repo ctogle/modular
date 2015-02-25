@@ -101,6 +101,11 @@ class simulation_module(smd.simulation_module):
         self._write_mcfg_run_param_key(rparams,'species',mcfg)
         lmc.simulation_module._write_mcfg(mcfg_path,ensem,mcfg)
 
+    def _ext_special_funcs(self):
+        heavi = heaviside()
+        gnoise = gauss_noise()
+        return [heavi,gnoise]
+
     def _ext_funcs_run(self):
         ptargs = self.parent.run_params['plot_targets']
         end = self.parent.run_params['end_criteria'][0]
@@ -138,7 +143,8 @@ class simulation_module(smd.simulation_module):
         rxnprops = [rx._cython_propensity(x) for x,rx in enumerate(rxns)]
         rxnrates = [funcs[fu]._cython(x) for x,fu in enumerate(funcs.keys())]
         funcs = [runfunc]
-        return rxnvalds + rxnprops + rxnrates + rxnfuncs + funcs
+        specials = self._ext_special_funcs()
+        return specials + rxnvalds + rxnprops + rxnrates + rxnfuncs + funcs
 
     # these are the keywords for the eventual cython module
     def _ext_kwargs(self):
@@ -232,6 +238,35 @@ def simulate(args):
     result = runfunc()
     #result = run()
     return result
+
+############################################################################### 
+
+class gauss_noise(cwr.function):
+
+    def _code_body(self,coder):
+        coder.write('\n\tcdef double gn = numpy.random.normal(0.0,1.0)')
+        coder.write('\n\treturn value + value*(gn*'+str(self.SNR)+')\n')
+
+    def __init__(self,*args,**kwargs):
+        self._default('name','gauss_noise',**kwargs)
+        self._default('argstring','double value',**kwargs)
+        self._default('cytype','cdef double',**kwargs)
+        self._default('SNR',1.0,**kwargs)
+        cwr.function.__init__(self,*args,**kwargs)
+
+############################################################################### 
+
+class heaviside(cwr.function):
+
+    def _code_body(self,coder):
+        coder.write('\n\tif value > 0.0:return 1.0')
+        coder.write('\n\telse:return 0.0\n')
+
+    def __init__(self,*args,**kwargs):
+        self._default('name','heaviside',**kwargs)
+        self._default('argstring','double value',**kwargs)
+        self._default('cytype','cdef double',**kwargs)
+        cwr.function.__init__(self,*args,**kwargs)
 
 ############################################################################### 
 
