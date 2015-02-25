@@ -2,8 +2,9 @@ import modular_core.libfundamental as lfu
 import modular_core.simulationmodule as smd
 import modular_core.parameterspaces as lpsp
 import modular_core.cython.writer as cwr
+import modular_core.io.liboutput as lo
 
-import pdb,sys,time,re
+import pdb,os,sys,time,re
 
 if __name__ == 'gillespiem.gillespiem':
     lfu.check_gui_pack()
@@ -88,7 +89,7 @@ class simulation_module(smd.simulation_module):
             [self._parse_variable,self._parse_function, 
             self._parse_reaction,self._parse_species])
         self.simulation = simulate
-        self.extensionname = 'gillespiem_ext'
+        self.extensionname = 'gillespiemext'
         smd.simulation_module.__init__(self,*args,**kwargs)
 
     def _write_mcfg(self,mcfg_path,ensem):
@@ -149,24 +150,19 @@ class simulation_module(smd.simulation_module):
 
     def _set_parameters_prepoolinit(self):
         insttime = time.time()
+        print 'creating temporary extension:',self.extensionname
+        self.extensionname = self.extensionname.replace('_','.',1)
+        self.extensionname = lo.increment_filename(self.extensionname)
+        self.extensionname = self.extensionname.replace('.','_',1)
         ext_kwargs = self._ext_kwargs()
         writer = cwr.extension(**ext_kwargs)
         writer._write()
         writer._install()
-        module = writer._import()
-        self.cython_module = module.__name__
-        print 'the code!\n',writer.code
+        #print 'the code!\n',writer.code
         print '\ninstallation took:',time.time() - insttime,'seconds\n'
 
     def _set_parameters(self):
-        #insttime = time.time()
-        #ext_kwargs = self._ext_kwargs()
-        #writer = cwr.extension(**ext_kwargs)
-        #writer._write()
-        #writer._install()
-        #module = writer._import()
-        #module = sys.modules[self.cython_module]
-        module = __import__(self.cython_module)
+        module = __import__(self.extensionname)
         self.sim_args = (module.run,)
 
     def _reset_parameters(self):
@@ -229,8 +225,12 @@ class simulation_module(smd.simulation_module):
 
 # this must be a single argument function because of map_async
 def simulate(args):
+    #import pyximport; pyximport.install(reload_support = True)
+    #from gillespiemext import run as runfunc
+    #from gillespiemext import *
     runfunc = args[0]
     result = runfunc()
+    #result = run()
     return result
 
 ############################################################################### 
@@ -249,7 +249,7 @@ class run(cwr.function):
         vcnt = len(self.constants)
         fcnt = len(self.functions)
 
-        coder.write('\n\truniform = random.random')
+        #coder.write('\n\truniform = random.random')
         coder.write('\n\tzeros = numpy.zeros')
 
         dshape = (self.target_count,self.capture_count)
@@ -284,6 +284,7 @@ class run(cwr.function):
         coder.write('\n\tcdef double realtime = 0.0')
         coder.write('\n\tcdef double del_t = 0.0')
         coder.write('\n\tcdef double randr')
+        coder.write('\n\tcdef float imax = float(INT_MAX)')
 
         coder.write('\n\tcdef int whichrxn = 0')
         coder.write('\n\tcdef int rxncount = '+str(rcnt))
@@ -299,25 +300,42 @@ class run(cwr.function):
             statedex = self.statetargets.index(self.targets[tdx])
             coder.write('\n\ttdexes['+str(tdx)+'] = '+str(statedex))
         
-    '''#
-    cdef PropensityUpdater [:] wrap_propensities(propensity_table, propensities,
-                    reagents, products, rate_call_group):
-        alwayses = [dex for dex in range(len(rate_call_group)) 
-                                    if rate_call_group[dex]]
-        propensity_lookups = [[] for prop in propensities]
-        for dex in range(len(reagents)):
-            changed = species_changed(dex, products, reagents)
-            for dex2 in range(len(reagents)):
-                reactants2 = set([agent[1] for agent in reagents[dex2]])
-                shared_vals = reactants2 & changed
-                if (len(shared_vals)>0):
-                    propensity_lookups[dex].append(dex2)
-            propensity_lookups[dex].extend(alwayses)
-        propensity_lookups = [uniq(lookup) for lookup in propensity_lookups]
-        propensity_lookups.append(range(len(propensity_table)))
-        return np.array([wrap_propensity(lookup, propensity_table, propensities)
-            for lookup in propensity_lookups])
-    '''#
+    # THIS SHOULD PROBABLY BE ACID TESTED
+    def _gibson_lookup(self,rxns):
+        rcnt = len(rxns)
+        alwayses = [d for d in range(rcnt) if rxns[d].rate_is_function]
+        lookups = [[] for r in rxns]
+        for rdx in range(rcnt):
+            # enumerate the species affected by rxns[rdx]
+            r = rxns[rdx]
+            r.affected_species = []
+            for p in r.produced:
+                found = False
+                for u in r.used:
+                    if u[0] == p[0]:
+                        found = True
+                        if not u[1] == p[1] and not p[0] in r.affected_species:
+                            r.affected_species.append(p[0])
+                if not found and not p[0] in r.affected_species:
+                    r.affected_species.append(p[0])
+            for u in r.used:
+                found = False
+                for p in r.produced:
+                    if p[0] == u[0]:
+                        found = True
+                        if not p[1] == u[1] and not u[0] in r.affected_species:
+                            r.affected_species.append(u[0])
+                if not found and not u[0] in r.affected_species:
+                    r.affected_species.append(u[0])
+            #print 'rxn',r.name,r.affected_species
+            lookups[rdx].extend(alwayses)
+            for rdx2 in range(rcnt):
+                r2 = rxns[rdx2]
+                for u2 in r2.used:
+                    if u2[0] in r.affected_species:
+                        if not rdx2 in lookups[rdx]:
+                            lookups[rdx].append(rdx2)
+        return lookups
 
     def _code_body_loop(self,coder):
         scnt = len(self.species)
@@ -338,9 +356,12 @@ class run(cwr.function):
         coder.write('\n\t\t\ttpinv = 1.0/totalpropensity')
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
-        coder.write('\n\t\t\tdel_t = -1.0*log(<float>runiform())*tpinv')
+        #coder.write('\n\t\t\tdel_t = -1.0*log(<float>runiform())*tpinv')
+        #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/float(INT_MAX))*tpinv')
+        coder.write('\n\t\t\tdel_t = -1.0*log(rand()/imax)*tpinv')
 
-        coder.write('\n\t\t\trandr = runiform()')
+        #coder.write('\n\t\t\trandr = runiform()')
+        coder.write('\n\t\t\trandr = rand()/float(INT_MAX)')
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
         coder.write('\n\t\t\t\t\twhichrxn = rtabledex')
@@ -357,26 +378,32 @@ class run(cwr.function):
         coder.write('\n\t\t\tstate[0] = lasttime')
         coder.write('\n\t\t\tlasttime += '+str(self.capture_increment))
 
-        #coder.write('\n\t\t\tupdate_functions()')
+        coder.write('\n')
         for fdex in range(fcnt):
             fu = self.statetargets[fdex+vcnt+scnt+1]
             funame = self.functions[fu].name
             coder.write('\n\t\t\t'+funame+'(state)')
 
-        coder.write('\n\t\t\tfor cdex in range('+str(self.target_count)+'):')
+        coder.write('\n\n\t\t\tfor cdex in range('+str(self.target_count)+'):')
         coder.write('\n\t\t\t\tdata[cdex,capturecount] = state[tdexes[cdex]]')
         coder.write('\n\t\t\tcapturecount += 1')
         coder.write('\n\t\tstate[0] = realtime')
 
+        lookup = self._gibson_lookup(self.reactions)
         rcnt = len(self.reactions)
-        coder.write('\n\n\t\tif whichrxn == -1:pass')
-        for rdex in range(rcnt):
-            coder.write('\n\t\telif whichrxn == '+str(rdex)+':')
-            coder.write('rxn'+str(rdex)+'(state)')
-
+        # the lookup for the null reaction is every reaction!!!
+        coder.write('\n\n\t\tif whichrxn == -1:')
         for rdex in range(rcnt):
             rname = 'rxnpropensity'+str(rdex)
-            coder.write('\n\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
+            coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
+
+        for rdex in range(rcnt):
+            coder.write('\n\t\telif whichrxn == '+str(rdex)+':')
+            coder.write('\n\t\t\trxn'+str(rdex)+'(state)')
+            for look in lookup[rdex]:
+                rname = 'rxnpropensity'+str(look)
+                coder.write('\n\t\t\tpropensities['+str(look)+']')
+                coder.write(' = '+rname+'(state)')
 
     def _code_body_finalize(self,coder):
         coder.write('\n\n\treturn numpy.array(data,dtype = numpy.float)\n')
@@ -502,7 +529,9 @@ class reaction(lfu.run_parameter):
             if ucnt > 1:coder.write('\n\tpopulation /= '+str(ucnt))
         try: ratestring = str(float(self.rate))
         except ValueError:
-            if self.rate in self.functionnames:ratestring = self.rate+'(state)'
+            if self.rate in self.functionnames:
+                ratestring = self.rate+'(state)'
+                self.rate_is_function = True
             else:ratestring = str(self.variables[self.rate].value)
         coder.write('\n\treturn population * '+ratestring+'\n')
         # do i need to round down if extremely small??
@@ -518,6 +547,7 @@ class reaction(lfu.run_parameter):
     def __init__(self,*args,**kwargs):
         self._default('name','a reaction',**kwargs)
         self._default('rate',float(10.0),**kwargs)
+        self._default('rate_is_function',False,**kwargs)
         self._default('used',[],**kwargs)
         self._default('produced',[],**kwargs)
         pspace_axes =\
