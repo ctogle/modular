@@ -21,7 +21,7 @@
 	1 x1 gamma -> nothing : dilution of x1 (rate is gamma)
 	1 x2 gamma -> nothing : dilution of x2 (rate is gamma)
 	1 x1 g -> nothing : degradation of x1 (rate is g1)
-	1 x2 g -> nothing : degradation of x1 (rate is g2)
+	1 x2 g -> nothing : degradation of x2 (rate is g2)
 
 <species>
 	x2 : 10

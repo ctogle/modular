@@ -21,7 +21,7 @@
 	1 x1 gamma -> nothing : dilution of x1 (rate is gamma)
 	1 x2 gamma -> nothing : dilution of x2 (rate is gamma)
 	1 x1 g -> nothing : degradation of x1 (rate is g1)
-	1 x2 g -> nothing : degradation of x1 (rate is g2)
+	1 x2 g -> nothing : degradation of x2 (rate is g2)
 
 <species>
 	x2 : 10
@@ -33,7 +33,7 @@
 	x1
 
 <parameter_space>
-	<product_space> 1000
+	<product_space> 10000
 		lambda1 : value : 2.0-8.0;4.0
 		lambda2 : value : 2.0-8.0;4.0
 		#mu : value : 8.0-12.0;2.0
@@ -44,7 +44,7 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
-	workers : 8
+	workers : 100
 
 <output_plans>
 	3 : - : reorg_output : plt : all
@@ -53,11 +53,11 @@
 	0 : - : ensemble_output : none : all
 
 <ensemble>
-	multiprocessing : off
-	mapparameterspace : on
+	multiprocessing : on
+	mapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 100
+	trajectory_count : 100000
 
 
 

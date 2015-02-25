@@ -40,7 +40,7 @@ class multiprocess_plan(lfu.plan):
     # space location with any number of runs
     def _run_flat(self,data_pool,ensem):
         pcnt = int(self.worker_count)
-        init = ensem._run_params_to_location
+        #init = ensem._run_params_to_location
         ensem._run_params_to_location_prepoolinit()
         ensem._run_params_to_location()
         pool = mp.Pool(processes = pcnt)#,initializer = init)
@@ -69,6 +69,7 @@ class multiprocess_plan(lfu.plan):
     # any number of trajectories associated with each
     def _run_nonflat(self,data_pool,ensem):
         pcnt = int(self.worker_count)
+        ensem._run_params_to_location_prepoolinit()
         init = ensem._run_params_to_location
         pool = mp.Pool(processes = pcnt,initializer = init)
 

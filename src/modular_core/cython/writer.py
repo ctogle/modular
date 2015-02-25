@@ -45,70 +45,55 @@ class extension(lfu.mobject):
 from libc.math cimport log
 from libc.math cimport sin
 from libc.math cimport cos
+from libc.stdlib cimport rand
+cdef extern from "limits.h":
+\tint INT_MAX
 import random,numpy
 '''
 
     def _import(self):
-        #pyximport.install(reload_support = True)
-        #import gillespiem as gm
-        #from gillespiemext import run
-        #return gm
         return __import__(self.name)
-        '''#
-        if self.name in sys.modules.keys():
-            reload(sys.modules[self.name])
-            return sys.modules[self.name]
-        else:return __import__(self.name)
-        '''#
 
     def _uninstall(self):
-        builddir = os.path.join(os.getcwd(),'build')
-        if os.path.isdir(builddir):pass
-            #for ptup in os.walk(builddir):
-            #    if ptup[2]:
-            #        for fx in range(len(ptup[2])):
-            #            pa = os.path.join(ptup[0],ptup[2][fx])
-            #            os.remove(pa)
-            #            print 'remoooove',pa
-        #    shutil.rmtree(builddir)
+        #builddir = os.path.join(os.getcwd(),'build')
+        #if os.path.isdir(builddir):pass
         
         lastname = self.name.replace('_','.',1)
         lastname = lo.decrement_filename(lastname)
         lastname = lastname.replace('.','_',1)
-        print 'LASTNAME',lastname
 
         extname = lastname+'.so'
         extinplace = os.path.join(os.getcwd(),extname)
         if os.path.isfile(extinplace):os.remove(extinplace)
 
-        pdb.set_trace()
-
         extname = lastname+'.c'
+        extinresrc = lfu.get_resource_path(extname)
+        if os.path.isfile(extinresrc):os.remove(extinresrc)
+
+        extname = lastname+'.pyx'
         extinresrc = lfu.get_resource_path(extname)
         if os.path.isfile(extinresrc):os.remove(extinresrc)
 
         #if self.name in sys.modules.keys():
         #    print 'rcnt',sys.getrefcount(sys.modules[self.name])
         #    del sys.modules[self.name]
-        #pdb.set_trace()
 
     def _install(self):
         self._uninstall()
         srcs = [self.filepath]
         exts = cythonize([Extension(self.name,srcs)])
 
-        #import pyximport; pyximport.install(reload_support = True)
-        #__import__(self.name)
-
         #args = ['clean','--all','build_ext','--inplace','install','--user']
         #args = ['clean','--all','build_ext','install','--user']
         #args = ['build_ext','install','--user']
+
+        # clean everything
         args = ['clean']
         setup(script_args = args,ext_modules = exts,
             include_dirs = [numpy.get_include()])
-
+        # ensure '/build' exists to prevent bug...
         os.makedirs(os.path.join(os.getcwd(),'build'))
-
+        # actually build the extension in place
         args = ['build_ext','--inplace']
         setup(script_args = args,ext_modules = exts,
             include_dirs = [numpy.get_include()])
