@@ -1,10 +1,11 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.simulationmodule as smd
 import modular_core.parameterspaces as lpsp
 import modular_core.cython.writer as cwr
 import modular_core.io.liboutput as lo
 
 import pdb,os,sys,time,re
+from cStringIO import StringIO
 
 if __name__ == 'gillespiem.gillespiem':
     lfu.check_gui_pack()
@@ -81,6 +82,7 @@ class simulation_module(smd.simulation_module):
         return spec, new
 
     def __init__(self,*args,**kwargs):
+        self._default('optimize_reaction_order',False,**kwargs)
         self.run_parameter_keys.extend(
             ['Variables','Functions','Reactions','Species'])
         self.parse_types.extend(
@@ -99,14 +101,28 @@ class simulation_module(smd.simulation_module):
         self._write_mcfg_run_param_key(rparams,'functions',mcfg)
         self._write_mcfg_run_param_key(rparams,'reactions',mcfg)
         self._write_mcfg_run_param_key(rparams,'species',mcfg)
-        lmc.simulation_module._write_mcfg(mcfg_path,ensem,mcfg)
+        smd.simulation_module._write_mcfg(mcfg_path,ensem,mcfg)
 
     def _ext_special_funcs(self):
         heavi = heaviside()
         gnoise = gauss_noise()
         return [heavi,gnoise]
 
-    def _ext_funcs_run(self):
+    def _ext_external_signal_funcs(self):
+        rcnt = len(self.parent.run_params['reactions'])
+        sigfuncs = []
+        for spath in signalpaths.keys():
+            sargs = {
+                'signalpath':spath,
+                'name':signalpaths[spath][0],
+                'domain':signalpaths[spath][1],
+                'rxncount':rcnt,
+                    }
+            sigfunc = external_signal_function(**sargs)
+            sigfuncs.append(sigfunc)
+        return sigfuncs
+
+    def _ext_funcs_run(self,rxnorder = None):
         ptargs = self.parent.run_params['plot_targets']
         end = self.parent.run_params['end_criteria'][0]
         cap = self.parent.run_params['capture_criteria'][0]
@@ -119,52 +135,80 @@ class simulation_module(smd.simulation_module):
             'reactions':self.parent.run_params['reactions'],
             'constants':self.parent.run_params['variables'],
             'functions':self.parent.run_params['functions'],
+            'rwhichrxnmap':rxnorder,
+            'countreactions':self.countreactions,
                 }
         return run(**rargs)
 
     # this returns functions for the extension
     # NOT TO BE CONFUSED WITH RXN RATE FUNCTIONS
-    def _ext_funcs(self):
-        runfunc = self._ext_funcs_run()
+    def _ext_funcs(self,rxnorder = None):
+        runfunc = self._ext_funcs_run(rxnorder)
         rxns = self.parent.run_params['reactions']
         funcs = self.parent.run_params['functions']
         varis = self.parent.run_params['variables']
         funcnames = funcs.keys()
+        rcnt = len(rxns)
         for r in rxns:
             r.statetargets = runfunc.statetargets
             r.functionnames = funcnames
             r.variables = varis
+            r.rxncount = rcnt
         for f in funcnames:
             funcs[f].statetargets = runfunc.statetargets
             funcs[f].functionnames = funcnames
             funcs[f].variables = varis
+            funcs[f].rxncount = rcnt
         rxnfuncs = [rx._cython_react(x) for x,rx in enumerate(rxns)]
         rxnvalds = [rx._cython_valid(x) for x,rx in enumerate(rxns)]
         rxnprops = [rx._cython_propensity(x) for x,rx in enumerate(rxns)]
         rxnrates = [funcs[fu]._cython(x) for x,fu in enumerate(funcs.keys())]
         funcs = [runfunc]
         specials = self._ext_special_funcs()
-        return specials + rxnvalds + rxnprops + rxnrates + rxnfuncs + funcs
+        extsignals = self._ext_external_signal_funcs()
+        for es in extsignals:es.statetargets = runfunc.statetargets
+        return specials+extsignals+rxnvalds+rxnprops+rxnrates+rxnfuncs+funcs
 
     # these are the keywords for the eventual cython module
-    def _ext_kwargs(self):
+    def _ext_kwargs(self,rxnorder = None):
         ext_kwargs = {
             'name':self.extensionname,
-            'functions':self._ext_funcs(),
+            'functions':self._ext_funcs(rxnorder),
                 }
         return ext_kwargs
 
     def _set_parameters_prepoolinit(self):
         insttime = time.time()
+        
+        if self.optimize_reaction_order:
+            print 'creating temporary extension:',self.extensionname
+            self.extensionname = self.extensionname.replace('_','.',1)
+            self.extensionname = lo.increment_filename(self.extensionname)
+            self.extensionname = self.extensionname.replace('.','_',1)
+            self.countreactions = True
+            ext_kwargs = self._ext_kwargs()
+            writer = cwr.extension(**ext_kwargs)
+            writer._write()
+            writer._install()
+            mod = writer._import()
+            rcounts = mod.run()
+            #print 'the code!\n',writer.code
+            rcountmap = list(zip(*sorted(zip(rcounts,range(len(rcounts)))))[1])
+            rcountmap.reverse()
+            print 'rcountmap',rcountmap
+        else:rcountmap = None
+
         print 'creating temporary extension:',self.extensionname
         self.extensionname = self.extensionname.replace('_','.',1)
         self.extensionname = lo.increment_filename(self.extensionname)
         self.extensionname = self.extensionname.replace('.','_',1)
-        ext_kwargs = self._ext_kwargs()
+        self.countreactions = False
+        ext_kwargs = self._ext_kwargs(rcountmap)
         writer = cwr.extension(**ext_kwargs)
         writer._write()
         writer._install()
         #print 'the code!\n',writer.code
+
         print '\ninstallation took:',time.time() - insttime,'seconds\n'
 
     def _set_parameters(self):
@@ -211,7 +255,7 @@ class simulation_module(smd.simulation_module):
             ensem.run_params['variables'].keys() +\
             ensem.run_params['functions'].keys()
         panel_template_lookup =\
-            lmc.simulation_module._panel_templates(
+            smd.simulation_module._panel_templates(
                 self,window,ensem,plot_target_labels)
         vargs = (window,ensem,variable,
             'Variable','variables','variable_selector','selected_variable')
@@ -231,13 +275,67 @@ class simulation_module(smd.simulation_module):
 
 # this must be a single argument function because of map_async
 def simulate(args):
-    #import pyximport; pyximport.install(reload_support = True)
-    #from gillespiemext import run as runfunc
-    #from gillespiemext import *
     runfunc = args[0]
     result = runfunc()
-    #result = run()
     return result
+
+###############################################################################
+
+class external_signal_function(cwr.function):
+
+    def _code_header(self,coder):
+        cshape = (self.valuecount,)
+        self._carray(coder,self.name+'_domain',cshape,spacer = '\n')
+        self._carray(coder,self.name+'_codomain',cshape,spacer = '\n')
+        coder.write('\n')
+        for dx,x in enumerate(self.extstrx):
+            coder.write(self.name+'_domain['+str(dx)+'] = '+x+';')
+            if dx % 5 == 0 and dx > 0:coder.write('\n')
+        coder.write('\n')
+        for dy,y in enumerate(self.extstry):
+            coder.write(self.name+'_codomain['+str(dy)+'] = '+y+';')
+            if dy % 5 == 0 and dy > 0:coder.write('\n')
+        coder.write('\ncdef int '+self.name+'lastindex = 0')
+        coder.write('\n'+self.cytype+' '+self.name+'('+self.argstring+')')
+        coder.write(self.cyoptions+':')
+
+    def _code_body(self,coder):
+        coder.write('\n\tglobal '+self.name+'_domain')
+        coder.write('\n\tglobal '+self.name+'_codomain')
+        coder.write('\n\tglobal '+self.name+'lastindex')
+        sdx = self.statetargets.index(self.domain)
+        coder.write('\n\tcdef double xcurrent = state['+str(sdx)+']')
+        coder.write('\n\tcdef double domvalue = '+self.name+'_domain')
+        coder.write('['+self.name+'lastindex]')
+        coder.write('\n\tcdef double codomvalue')
+        coder.write('\n\twhile xcurrent > domvalue:')
+        coder.write('\n\t\t'+self.name+'lastindex'+' += 1')
+        coder.write('\n\t\tdomvalue = '+self.name+'_domain')
+        coder.write('['+self.name+'lastindex]')
+        coder.write('\n\tcodomvalue = '+self.name+'_codomain')
+        coder.write('['+self.name+'lastindex-1]')
+        coder.write('\n\treturn codomvalue\n')
+
+    def __init__(self,*args,**kwargs):
+        self._default('name','extsignal',**kwargs)
+        self._default('domain','time',**kwargs)
+        self._default('signalpath','',**kwargs)
+        self._default('rxncount',0,**kwargs)
+        argstring = 'double['+str(self.rxncount)+'] state'
+        self._default('argstring',argstring,**kwargs)
+        self._default('cytype','cdef double',**kwargs)
+        self._default('cyoptions',' nogil',**kwargs)
+        cwr.function.__init__(self,*args,**kwargs)
+        with open(self.signalpath,'r') as handle:
+            signal = handle.readlines()
+            self.valuecount = len(signal)
+            self.extstrx = []
+            self.extstry = []
+            for sigdex in range(len(signal)):
+                sigp = signal[sigdex].strip()
+                coma = sigp.find(',')
+                self.extstrx.append(sigp[:coma])
+                self.extstry.append(sigp[coma+1:])
 
 ############################################################################### 
 
@@ -251,6 +349,7 @@ class gauss_noise(cwr.function):
         self._default('name','gauss_noise',**kwargs)
         self._default('argstring','double value',**kwargs)
         self._default('cytype','cdef double',**kwargs)
+        #self._default('cyoptions',' nogil',**kwargs)
         self._default('SNR',1.0,**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
 
@@ -266,17 +365,12 @@ class heaviside(cwr.function):
         self._default('name','heaviside',**kwargs)
         self._default('argstring','double value',**kwargs)
         self._default('cytype','cdef double',**kwargs)
+        self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
 
 ############################################################################### 
 
 class run(cwr.function):
-
-    def _nparray(self,coder,name,shape,dtype = 'numpy.double'):
-        predtype = dtype[dtype.find('.')+1:]
-        coder.write('\n\tcdef '+predtype+' [')
-        coder.write(','.join([':']*len(shape))+'] '+name+' = ')
-        coder.write('zeros('+str(shape)+',dtype = '+dtype+')')
 
     def _code_body_initialize(self,coder):
         scnt = len(self.species)
@@ -284,16 +378,12 @@ class run(cwr.function):
         vcnt = len(self.constants)
         fcnt = len(self.functions)
 
-        #coder.write('\n\truniform = random.random')
-        coder.write('\n\tzeros = numpy.zeros')
-
         dshape = (self.target_count,self.capture_count)
         sshape = (1 + scnt + vcnt + fcnt,)
         cshape = (self.target_count,)
-        #coder.write('\n\tdata = zeros('+str(dshape)+',dtype = numpy.float)')
         self._nparray(coder,'data',dshape)
-        self._nparray(coder,'capture',cshape)
-        self._nparray(coder,'state',sshape)
+        self._carray(coder,'capture',cshape)
+        self._carray(coder,'state',sshape)
         for sdex in range(scnt):
             sp = self.statetargets[sdex+1]
             sinit = self.species[sp].initial
@@ -324,13 +414,15 @@ class run(cwr.function):
         coder.write('\n\tcdef int whichrxn = 0')
         coder.write('\n\tcdef int rxncount = '+str(rcnt))
         pshape = (rcnt,)
-        self._nparray(coder,'reactiontable',pshape)
-        self._nparray(coder,'propensities',pshape)
+        if self.countreactions:self._nparray(coder,'reactcounts',pshape)
+        self._carray(coder,'reactiontable',pshape)
+        self._carray(coder,'propensities',pshape)
         for rdex in range(rcnt):
             rname = 'rxnpropensity'+str(rdex)
             coder.write('\n\tpropensities['+str(rdex)+'] = '+rname+'(state)')
 
-        self._nparray(coder,'tdexes',cshape,dtype = 'numpy.long')
+        #self._nparray(coder,'tdexes',cshape,dtype = 'numpy.long')
+        self._carray(coder,'tdexes',cshape,dtype = 'int')
         for tdx in range(self.target_count):
             statedex = self.statetargets.index(self.targets[tdx])
             coder.write('\n\ttdexes['+str(tdx)+'] = '+str(statedex))
@@ -426,22 +518,33 @@ class run(cwr.function):
 
         lookup = self._gibson_lookup(self.reactions)
         rcnt = len(self.reactions)
+
         # the lookup for the null reaction is every reaction!!!
         coder.write('\n\n\t\tif whichrxn == -1:')
         for rdex in range(rcnt):
             rname = 'rxnpropensity'+str(rdex)
             coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
 
-        for rdex in range(rcnt):
+        if not self.rwhichrxnmap:rwhichrxnmap = range(rcnt)
+        else:rwhichrxnmap = self.rwhichrxnmap
+        for rdex in rwhichrxnmap:
             coder.write('\n\t\telif whichrxn == '+str(rdex)+':')
             coder.write('\n\t\t\trxn'+str(rdex)+'(state)')
+            if self.countreactions:
+                coder.write('\n\t\t\treactcounts['+str(rdex)+'] += 1')
             for look in lookup[rdex]:
                 rname = 'rxnpropensity'+str(look)
                 coder.write('\n\t\t\tpropensities['+str(look)+']')
                 coder.write(' = '+rname+'(state)')
 
     def _code_body_finalize(self,coder):
-        coder.write('\n\n\treturn numpy.array(data,dtype = numpy.float)\n')
+        if self.countreactions:
+            coder.write('\n\n\treturn numpy.array')
+            coder.write('(reactcounts,dtype = numpy.float)\n')
+        #coder.write('\n\n\tprint \'reactcounts\',')
+        #[coder.write('reactcounts['+str(k)+'],') for k in range(len(self.reactions))]
+        #coder.write('"!"')
+        else:coder.write('\n\n\treturn numpy.array(data,dtype = numpy.float)\n')
 
     def _code_body(self,coder):
         self._code_body_initialize(coder)
@@ -450,6 +553,8 @@ class run(cwr.function):
         coder.write('\n'+'#'*80+'\n'*10)
 
     def __init__(self,*args,**kwargs):
+        self._default('rwhichrxnmap',None,**kwargs)
+        self._default('countreactions',False,**kwargs)
         self._default('name','run',**kwargs)
         self._default('cytype','cpdef',**kwargs)
         self._default('capture_count',100,**kwargs)
@@ -478,9 +583,6 @@ class species(lfu.run_parameter):
               bounds = [0,10000000000],increment = 1,continuous = False)]
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
-
-    def _sim_string(self):
-        return self.name + ':' + str(lfu.clamp(int(self.initial),0,sys.maxint))
 
     def _string(self):
         return '\t' + self.name + ' : ' + str(self.initial)
@@ -530,8 +632,9 @@ class reaction(lfu.run_parameter):
     def _cython_react(self,dx):
         cy = cwr.function(
             name = 'rxn'+str(dx),
-            argstring = 'double [:] state',
-            cytype = 'cdef void')
+            argstring = 'double['+str(self.rxncount)+'] state',
+            cytype = 'cdef void',
+            cyoptions = ' nogil')
         cy._code_body = self._cython_react_body
         return cy
 
@@ -546,8 +649,9 @@ class reaction(lfu.run_parameter):
     def _cython_valid(self,dx):
         cy = cwr.function(
             name = 'rxnvalid'+str(dx),
-            argstring = 'double [:] state',
-            cytype = 'cdef bint')
+            argstring = 'double['+str(self.rxncount)+'] state',
+            cytype = 'cdef bint',
+            cyoptions = ' nogil')
         cy._code_body = self._cython_valid_body
         return cy
 
@@ -569,13 +673,13 @@ class reaction(lfu.run_parameter):
                 self.rate_is_function = True
             else:ratestring = str(self.variables[self.rate].value)
         coder.write('\n\treturn population * '+ratestring+'\n')
-        # do i need to round down if extremely small??
 
     def _cython_propensity(self,dx):
         cy = cwr.function(
             name = 'rxnpropensity'+str(dx),
-            argstring = 'double [:] state',
-            cytype = 'cdef double')
+            argstring = 'double['+str(self.rxncount)+'] state',
+            cytype = 'cdef double',
+            cyoptions = ' nogil')
         cy._code_body = self._cython_propensity_body
         return cy
 
@@ -591,11 +695,6 @@ class reaction(lfu.run_parameter):
                 continuous = True)]
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
-
-    def _sim_string(self):
-        def spec(agent):return '(' + str(agent[1]) + ')' + agent[0]
-        def side(agents):return '+'.join([spec(a) for a in agents])
-        return side(self.used)+'->'+str(self.rate)+'->'+side(self.produced)
 
     def _string(self):
         def _string_agents(agents):
@@ -654,9 +753,6 @@ class variable(lfu.run_parameter):
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
-    def _sim_string(self):
-        return self.name + ':' + str(self.value)
-
     def _string(self):
         return '\t' + self.name + ' : ' + str(self.value)
 
@@ -687,7 +783,20 @@ class variable(lfu.run_parameter):
 
 ################################################################################
 
+signalnumber = 0
+signalpaths = {}
 class function(lfu.run_parameter):
+
+    def _carray(self,coder,name,shape,dtype = 'double'):
+        coder.write('\n\tcdef '+dtype+' '+name+'[')
+        coder.write(','.join([str(s) for s in shape])+']')
+
+    def _signal_name(self,signalpath,sdomain):
+        global signalnumber
+        sname = 'extsignal'+str(signalnumber)
+        signalpaths[signalpath] = (sname,sdomain)
+        signalnumber += 1
+        return sname
 
     def _cython_body(self,coder):
         def convert(substr):
@@ -709,50 +818,41 @@ class function(lfu.run_parameter):
     def _cython(self,dx):
         cy = cwr.function(
             name = self.name,
-            argstring = 'double [:] state',
-            cytype = 'cdef double')
+            argstring = 'double['+str(self.rxncount)+'] state',
+            cytype = 'cdef double',
+            cyoptions = ' nogil')
         cy._code_body = self._cython_body
+        if self._ext_signal():
+            for esig in range(self.func_statement.count('external_signal')):
+                sigpath,sigdomain = self._extract_signal_path(self.func_statement)
+                if sigpath in signalpaths.keys():
+                    esigname = signalpaths[sigpath][0]
+                else:esigname = self._signal_name(sigpath,sigdomain)
+                self._fix_signal_call(
+                    self.func_statement,sigpath,sigdomain,esigname)
         return cy
+
+    def _fix_signal_call(self,funcst,sigpath,sigdomain,signame):
+        s = 'external_signal'                              
+        funcst = funcst.replace(s,signame,1)
+        funcst = funcst.replace(sigpath+',','',1)
+        self.func_statement = funcst.replace(sigdomain,'state',1)
+
+    def _extract_signal_path(self,func_statement):
+        s = 'external_signal('                              
+        path = func_statement[func_statement.find(s)+len(s):]
+        path = path[:path.find(')')]
+        path,domain = path.split(',')
+        return path,domain
+
+    def _ext_signal(self):
+        if self.func_statement.count('external_signal'):return True
+        else:return False
 
     def __init__(self,*args,**kwargs):
         self._default('name','a function',**kwargs)
         self._default('func_statement','',**kwargs)
         lfu.run_parameter.__init__(self,*args,**kwargs)
-
-    # modifies sim_string for ext_signal support
-    #   THIS NEEDS MORE CLEANUP
-    def _sim_string_ext_signal(self,afunc):
-        extcnt = afunc.count('external_signal')
-        fixed = []
-        for exts in range(extcnt):
-            leads = afunc.find('external_signal(')
-            subfunc = afunc[leads+16:]
-            presig = afunc[:leads+16]
-            postsig = subfunc[subfunc.find('&'):]
-            filename = subfunc[:subfunc.find(postsig)]
-            with open(filename,'r') as handle:
-                extlines = [l.strip() for l in handle.readlines()]
-
-            extstrx = StringIO()
-            extstry = StringIO()
-            for eline in extlines:
-                eline = eline.strip()
-                if not eline.count(',') > 0: continue
-                elx,ely = eline.split(',')
-                extstrx.write(str(elx));extstrx.write('$')
-                extstry.write(str(ely));extstry.write('$')
-
-            fixhash = '%#%'
-            extstrx.write('@')
-            fixval = extstrx.getvalue() + extstry.getvalue()
-            fixed.append((fixhash,fixval))
-            afunc = presig + fixhash + postsig
-            for fix in fixed: afunc = afunc.replace(fix[0],fix[1])
-        return afunc
-
-    def _sim_string(self):
-        sysstr = self.name + '=' + self.func_statement.replace(',','&')
-        return self._sim_string_ext_signal(sysstr)
 
     def _string(self):
         return '\t' + self.name + ' : ' + self.func_statement
