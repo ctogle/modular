@@ -1,4 +1,4 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.gui.libqtgui_bricks as lgb
 
 from PySide import QtGui, QtCore
@@ -115,7 +115,7 @@ class standard_mason(object):
                     'standard mason for pyside'):
         self.label = label
         self.parent = parent
-        import modular_core.libsettings as lset
+        import modular_core.settings as lset
         self.lset = lset
 
     def hide_quiet_widgets(self, widgs, template):

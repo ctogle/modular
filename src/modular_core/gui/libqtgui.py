@@ -1,26 +1,16 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
 import modular_core.gui.libqtgui_masons as lgm
 import modular_core.gui.libqtgui_bricks as lgb
 import modular_core.gui.libqtgui_dialogs as lgd
 
+import matplotlib
+matplotlib.rcParams['backend.qt4'] = 'PySide'
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canvas
+import matplotlib.pyplot as plt
+
 from PySide import QtGui, QtCore
-
-try:
-    import matplotlib
-    matplotlib.rcParams['backend.qt4'] = 'PySide'
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canvas
-    import matplotlib.pyplot as plt
-except ImportError:
-    traceback.print_exc(file=sys.stdout)
-    print 'matplotlib could not be imported! - dialogs'
-
-import types
-import sys
-import os
-import time
-
-import pdb
+import pdb,os,sys,types,time
 
 _window_ = None
 

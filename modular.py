@@ -1,5 +1,5 @@
 #!python
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 lfu.using_gui = True
 
 from modular_core.ensemble import ensemble_manager

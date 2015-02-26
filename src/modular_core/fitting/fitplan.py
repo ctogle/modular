@@ -1,5 +1,5 @@
-import modular_core.libfundamental as lfu
-import modular_core.libsettings as lset
+import modular_core.fundamental as lfu
+import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
 
@@ -12,6 +12,10 @@ if __name__ == 'modular_core.fitting.fitplan':
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
 if __name__ == '__main__':print 'fitplan of modular_core'
+
+###############################################################################
+### fit_routine_plan manages fit routines for an ensemble
+###############################################################################
 
 class fit_routine_plan(lfu.plan):
 
@@ -129,20 +133,8 @@ class fit_routine_plan(lfu.plan):
                                 self.move_routine_down)]]))
         lfu.plan._widget(self, *args, from_sub = True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+###############################################################################
+###############################################################################
 
 
 

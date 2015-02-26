@@ -1,4 +1,4 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
 
 #handles one run of a simulation; returns data
@@ -105,28 +105,28 @@ class fit_routine(lfu.mobject):
         pkl format - scalars objects wrapped in a data_container
     '''
     def __init__(self, *args, **kwargs):
-        self.impose_default('parameter_space', None, **kwargs)
-        self.impose_default('many_steps', 1, **kwargs)
-        self.impose_default('p_sp_trajectory', [], **kwargs)
-        self.impose_default('p_sp_step_factor', 1.0, **kwargs)
-        self.impose_default('capture_targets', [], **kwargs)
-        self.impose_default('bAbort', False, **kwargs)
-        self.impose_default('brand_new', True, **kwargs)
-        self.impose_default('iteration', 0, **kwargs)
-        self.impose_default('auto_overwrite_key', True, **kwargs)
-        self.impose_default('initial_creep_factor', 20, **kwargs)
-        self.impose_default('display_frequency', 500, **kwargs)
-        self.impose_default('max_sim_wait_time', 1.0, **kwargs)
-        self.impose_default('last_best', 0, **kwargs)
-        self.impose_default('timeouts', 0, **kwargs)
-        self.impose_default('use_time_out', True, **kwargs)
-        self.impose_default('use_genetics', False, **kwargs)
-        self.impose_default('use_mean_fitting', False, **kwargs)
-        self.impose_default('regime', 'fine', **kwargs)
-        self.impose_default('valid_regimes', 
+        self._default('parameter_space', None, **kwargs)
+        self._default('many_steps', 1, **kwargs)
+        self._default('p_sp_trajectory', [], **kwargs)
+        self._default('p_sp_step_factor', 1.0, **kwargs)
+        self._default('capture_targets', [], **kwargs)
+        self._default('bAbort', False, **kwargs)
+        self._default('brand_new', True, **kwargs)
+        self._default('iteration', 0, **kwargs)
+        self._default('auto_overwrite_key', True, **kwargs)
+        self._default('initial_creep_factor', 20, **kwargs)
+        self._default('display_frequency', 500, **kwargs)
+        self._default('max_sim_wait_time', 1.0, **kwargs)
+        self._default('last_best', 0, **kwargs)
+        self._default('timeouts', 0, **kwargs)
+        self._default('use_time_out', True, **kwargs)
+        self._default('use_genetics', False, **kwargs)
+        self._default('use_mean_fitting', False, **kwargs)
+        self._default('regime', 'fine', **kwargs)
+        self._default('valid_regimes', 
             ['fine', 'coarse-magnitude', 'coarse-decimate'], **kwargs)
 
-        self.impose_default('metrics', [], **kwargs)
+        self._default('metrics', [], **kwargs)
         self.metrics.append(
             lgeo.metric_avg_ptwise_diff_on_domain(
                 parent = self, acceptance_weight = 1.0))
@@ -139,34 +139,34 @@ class fit_routine(lfu.mobject):
         self.metrics.append(
             lgeo.metric_slope_3rd_derivative(
                 parent = self, acceptance_weight = 0.5))
-        self.impose_default('metric_weights', 
+        self._default('metric_weights', 
                 [met.acceptance_weight for met 
                     in self.metrics], **kwargs)
         self.metric_rulers = [lm.differences, 
                 lm.deriv_first_differences, 
                 lm.deriv_second_differences, 
                 lm.deriv_third_differences]
-        self.impose_default('prime_metric', 0, **kwargs)
+        self._default('prime_metric', 0, **kwargs)
         self.prime_metric =\
             self.metric_weights.index(max(self.metric_weights))
         self.metrics[self.prime_metric].is_heaviest = True
 
-        self.impose_default('fitted_criteria', [], **kwargs)
+        self._default('fitted_criteria', [], **kwargs)
         self.fitted_criteria.append(
             cab.criterion_iteration(parent = self,max_iterations = 2500))
         self.fitted_criteria.append(
             criterion_impatient(parent = self,max_timeouts = 50,max_last_best = 1000))
 
-        self.impose_default('fitter_criteria', [], **kwargs)
+        self._default('fitter_criteria', [], **kwargs)
         self.fitter_criteria.append(
             criterion_minimize_measures(parent = self))
 
-        self.impose_default('data_to_fit_to', None, **kwargs)
-        self.impose_default('input_data_file', '', **kwargs)
-        self.impose_default('input_data_domain', '', **kwargs)
-        self.impose_default('input_data_codomains', [], **kwargs)
-        self.impose_default('input_data_targets', [], **kwargs)
-        self.impose_default('input_data_aliases', {}, **kwargs)
+        self._default('data_to_fit_to', None, **kwargs)
+        self._default('input_data_file', '', **kwargs)
+        self._default('input_data_domain', '', **kwargs)
+        self._default('input_data_codomains', [], **kwargs)
+        self._default('input_data_targets', [], **kwargs)
+        self._default('input_data_aliases', {}, **kwargs)
         self.input_data_file = ''
         if not 'visible_attributes' in kwargs.keys():
             kwargs['visible_attributes'] = None

@@ -1,4 +1,4 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
 import cPickle as pickle
 import pdb,os,sys,traceback

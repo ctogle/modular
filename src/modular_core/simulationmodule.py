@@ -1,8 +1,8 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.parameterspaces as lpsp
 
 import modular_core.fitting.routine as lfr
-import modular_core.postprocessing.libpostprocess as lpp
+import modular_core.postprocessing.process_abstract as lpp
 import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf

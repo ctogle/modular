@@ -9,7 +9,7 @@
 
 <variables>
 	#Sine Specifics
-	#period : 30.0
+	period : 30.0
 	delay : 150
 
 
@@ -51,13 +51,14 @@
 
 <functions>
 	#Sine Wave
-	#sind : kk * ( sin(time*2*pi/period) + 1.1 ) * heaviside( time - delay )
+	sind : kk * ( sin(time*2*pi/period) + 1.1 ) * heaviside( time - delay )
 	
 	#Square Wave
-	#sqwave : kk * ( heaviside( sin(time*2*pi/period) ) + 1 )* heaviside( time - delay )
+	sqwave : kk * ( heaviside( sin(time*2*pi/period) ) + 1 )* heaviside( time - delay )
 	
 	#Signal
-	ext_signal : kk * (external_signal(/home/mlab/Desktop/cAMPE_Stoch/Telegraph_Signal.txt,time) + 1.1) * heaviside( time - delay )
+	ext_signal_base : external_signal(/home/cogle/dev/modular/telegraph.txt,time)
+	ext_signal : kk * (ext_signal_base + 1.1) * heaviside( time - delay )
 	
 
 	#ext_signal : external_signal(/home/plh5012/Desktop/modular/Phil_config/Telegraph_Signal.txt,time) + 1.1
@@ -111,28 +112,27 @@
 	#erk2
 	#rega
 	#campe
-	#sind
+	sind
+	sqwave
+	ext_signal_base
 	ext_signal
 	
 
-<post_processes>
-	#Telegraph correlation : correlation : 0 : car1 and tele of time : 500 : ordered
-	#SqWave correlation : correlation : 0 : car1 and sqwave of time : 500 : ordered
-	#slices : slice from trajectory : 1 : all : -1
-	#reorg : reorganize data : 2 : all
-	mm_means : meanfields : 0 : car1, ext_signal of time : 400 : ordered
+#<post_processes>
+#	mm_means : meanfields : 0 : car1, ext_signal of time : 400 : ordered
 
 <multiprocessing>
-	workers : 4
+	workers : 100
 
-#<output_plans>
-	#1 : - : mm_means : plt : all
-	#1 : - : car1, tele correlation : plt : all
-	#0 : - : ensemble_output : csv : all
+<output_plans>
+	0 : - : ensemble_output : plt : all
 
 <ensemble>
-	multiprocessing : on
+	multiprocessing : off
 	mapparameterspace : off
 	fitting : off
 	postprocessing : on	
-	trajectory_count : 100
+	trajectory_count : 1000
+
+
+

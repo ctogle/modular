@@ -1,18 +1,18 @@
 import modular_core as mc
-import modular_core.libfundamental as lfu
-import modular_core.libsimcomponents as lsc
+import modular_core.fundamental as lfu
+import modular_core.endcaptureplan as lsc
 import modular_core.simulationmodule as smd
 import modular_core.parameterspaces as lpsp
 import modular_core.multicore as multicore
-import modular_core.libsettings as lset
+import modular_core.settings as lset
 import modular_core.threadwork as wt
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
 import modular_core.fitting.fitplan as fpl
-import modular_core.data.libdatacontrol as ldc
+import modular_core.data.datacontrol as ldc
 import modular_core.data.batch_target as dba
-import modular_core.postprocessing.libpostprocess as lpp
+import modular_core.postprocessing.processplan as lpp
 
 import modular_core.criteria.iterationlimit as lcit
 import modular_core.criteria.timelimit as lcti
@@ -62,7 +62,7 @@ class ensemble(lfu.mobject):
         num_traj = lset.get_setting('trajectory_count')
         self._default('num_trajectories',num_traj,**kwargs)
 
-        self.simulation_plan = lsc.simulation_plan(parent = self)
+        self.simulation_plan = lsc.endcapture_plan(parent = self)
         self.output_plan = lo.output_plan(
             parent = self,name = 'Simulation',flat_data = False)
         self.fitting_plan = fpl.fit_routine_plan(parent = self)
@@ -498,7 +498,7 @@ class ensemble(lfu.mobject):
                 widgets = ['button_set'],
                 widg_positions = [(0, 3)],
                 layouts = ['vertical'],
-                verbosities = [[0, 0, 0, 5]], 
+                verbosities = [[0, 0, 0]], 
                 labels = [['Run Ensemble',
                     'Save Ensemble','Update Ensemble']], 
                 bindings = [[self.parent._run_current_ensemble,self._save]])
@@ -529,7 +529,7 @@ class ensemble(lfu.mobject):
                 keys = [['num_trajectories']],
                 initials = [[self.num_trajectories]], 
                 minimum_values = [[1]],
-                maximum_values = [[1000000]])
+                maximum_values = [[1000000000]])
         top_half_template +=\
             lgm.interface_template_gui(
                 widg_positions = [(1, 0)],

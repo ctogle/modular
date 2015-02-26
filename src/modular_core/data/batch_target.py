@@ -1,5 +1,5 @@
-import modular_core.libfundamental as lfu
-import modular_core.data.libdatacontrol as ldc
+import modular_core.fundamental as lfu
+import modular_core.data.datacontrol as ldc
 import modular_core.data.single_target as dst
 import modular_core.io.libfiler as lf
 
@@ -50,6 +50,7 @@ class batch_node(ldc.data_mobject):
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
         if not type(self.data) is types.StringType:self._pkl_data()
+        # can i save the children with the parent instead of splitting up?
         for cdx in range(len(self.children)):self._stow_child(cdx)
         if v:print 'stowed batch node',self.data_pool_id
 

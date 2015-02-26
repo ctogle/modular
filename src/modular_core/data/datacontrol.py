@@ -1,6 +1,5 @@
-import modular_core.libfundamental as lfu
-import modular_core.libmath as lm
-import modular_core.libsettings as lset
+import modular_core.fundamental as lfu
+import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
 
@@ -9,12 +8,12 @@ import numpy as np
 from copy import deepcopy as copy
 from scipy.integrate import simps as integrate
                                          
-if __name__ == 'modular_core.libdatacontrol':
+if __name__ == 'modular_core.datacontrol':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':print 'libdatacontrol of modular_core'
+if __name__ == '__main__':print 'datacontrol of modular_core'
 
 ###############################################################################
 ### utility functions
@@ -39,9 +38,12 @@ def clean_data_pools():
             finame in fnmatch.filter(filenames,'data_pool.*.pkl')]
 
     enpkldir = lset.get_setting('ensempkl_directory')
-    for root,dirnames,filenames in os.walk(enpkldir):
-        [ensem_matches.append(os.path.join(root,finame)) for 
-            finame in fnmatch.filter(filenames,'*.ensempkl')]
+    if not enpkldir is None and not enpkldir == 'none':
+        print 'pdir',enpkldir
+        pdb.set_trace()
+        for root,dirnames,filenames in os.walk(enpkldir):
+            [ensem_matches.append(os.path.join(root,finame)) for 
+                finame in fnmatch.filter(filenames,'*.ensempkl')]
 
     saved_pools = [pool_name(en) for en in ensem_matches]
     del_pools = [item for item in pool_matches if 

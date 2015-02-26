@@ -1,45 +1,22 @@
-import modular_core.libfundamental as lfu
-import modular_core.libmath as lm
+import modular_core.fundamental as lfu
 
-#from Quaternion import Quat
 from OpenGL import GL
-from OpenGL import GLU
 
-#import OpenGLContext.scenegraph.basenodes as glbn
-
-import numpy as np
-import math
-import six
-import types
-import ctypes
-import glob
-import os, sys, traceback
-from math import sqrt as sqrt
-import threading
-import time
-
-from PySide import QtGui, QtCore, QtOpenGL
-
-import pdb
-
-try:
-    import matplotlib
-    matplotlib.rcParams['backend.qt4'] = 'PySide'
-    matplotlib.use('Qt4Agg')
-
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backend_bases import NavigationToolbar2
-
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-    import matplotlib.path as path
-    from mpl_toolkits.mplot3d import Axes3D
-except ImportError:
-    traceback.print_exc(file=sys.stdout)
-    print 'matplotlib could not be imported! - bricks'
-
+from PySide import QtGui,QtCore,QtOpenGL
 QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 20))
 #QWebView: a WebKit based control to render HTML/CSS/XML/XSLT pages
+import pdb,glob,six,os,sys,traceback,threading,time,types,math
+import numpy as np
+
+import matplotlib
+matplotlib.rcParams['backend.qt4'] = 'PySide'
+matplotlib.use('Qt4Agg')
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backend_bases import NavigationToolbar2
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.path as path
+from mpl_toolkits.mplot3d import Axes3D
 
 code_font = QtGui.QFont()
 code_font.setFamily('Sans')
@@ -47,9 +24,6 @@ code_font.setStyleHint(QtGui.QFont.Monospace);
 code_font.setFixedPitch(True);
 code_font.setPointSize(10);
 code_metrics = QtGui.QFontMetrics(code_font);
-
-#for all uses of lfu.debug_filter
-debug_filter_thresh = 5
 
 def screensize():
     _screensize = QtGui.QApplication.desktop().availableGeometry()
@@ -411,7 +385,7 @@ def create_panel(templates, mason, collapses = False, layout = 'grid',
             if not pos in positions: return pos
 
     if layout == 'grid':
-        try: sq = sqrt(len(templates))
+        try: sq = math.sqrt(len(templates))
         except TypeError: return QtGui.QLabel()
         if int(sq) == sq: sq = int(sq)
         else: sq = int(sq + 1.0)
@@ -684,7 +658,7 @@ def create_grid_box(widgets, in_positions = [], spans = [],
     def get_positions():
         if len(in_positions) >= len(widgets): return in_positions
         else:
-            sq = sqrt(len(widgets))
+            sq = math.sqrt(len(widgets))
             if int(sq) == sq: sq = int(sq)
             else: sq = int(sq + 1.0)
             return [(x, y) for x in range(sq) for y in range(sq)]
@@ -1152,7 +1126,7 @@ def tree_book_panels_from_lookup(panel_template_lookup,
             mobj_labels.append(mobj.name)
 
     ltg = sys.modules['modular_core.gui.libqtgui_masons'].interface_template_gui
-    mobj_class = sys.modules['modular_core.libfundamental'].mobject
+    mobj_class = sys.modules['modular_core.fundamental'].mobject
     panel_templates = []
     sub_panel_templates = []
     sub_panel_labels = []
@@ -2105,8 +2079,19 @@ class quick_plot(QtGui.QWidget):
         self.setGeometry(*geometry)
 
     def get_minmaxes(self, xs_, ys_):
-        xminmaxes = [lm.minmax(x) for x in xs_]
-        yminmaxes = [lm.minmax(y) for y in ys_]
+        def minmax(vals):
+            check = [v for v in vals if not v is None]
+            if not check: raise ValueError
+            else:
+                mi = check[0]
+                ma = check[0]
+                for v in check:
+                    #if v is None: pass
+                    if v < mi: mi = v
+                    elif v > ma: ma = v
+            return mi,ma
+        xminmaxes = [minmax(x) for x in xs_]
+        yminmaxes = [minmax(y) for y in ys_]
         xmins,xmaxs = zip(*xminmaxes)
         ymins,ymaxs = zip(*yminmaxes)
         return [min(xmins),max(xmaxs),min(ymins),max(ymaxs)]

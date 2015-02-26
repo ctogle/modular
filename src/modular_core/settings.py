@@ -1,10 +1,10 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
 import types,os,pdb
 
 settings = {}
 
-if __name__ == 'modular_core.libsettings':
+if __name__ == 'modular_core.settings':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd

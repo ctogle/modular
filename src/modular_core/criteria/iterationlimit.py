@@ -1,6 +1,6 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
-import modular_core.data.libdatacontrol as ldc
+import modular_core.data.datacontrol as ldc
 import modular_core.data.single_target as dst
 import modular_core.data.batch_target as dba
 

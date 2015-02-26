@@ -1,9 +1,9 @@
  #!python
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
-import modular_core.libsettings as lset
+import modular_core.settings as lset
 import modular_core.data.batch_target as dba
 
 import modular_core.gui.libqtgui as lqg

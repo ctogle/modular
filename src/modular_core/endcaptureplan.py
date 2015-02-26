@@ -1,21 +1,25 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.criteria.abstract as cab
 
 import pdb,sys,os,traceback,time,types
 
-if __name__ == 'modular_core.libsimcomponents':
+if __name__ == 'modular_core.endcaptureplan':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':print 'libsimcomponents of modular_core'
+if __name__ == '__main__':print 'endcaptureplan of modular_core'
 
-class simulation_plan(lfu.plan):
+###############################################################################
+### endcapture_plan manages capture criteria, end criteria, and plot targets
+###############################################################################
 
-    _always_targetable_ = ['iteration','time']
+class endcapture_plan(lfu.plan):
+
+    _always_targetable_ = ['time']
 
     def __init__(self,*args,**kwargs):
-        self._default('name','simulation plan',**kwargs)
+        self._default('name','end/capture plan',**kwargs)
 
         self.end_criteria = []
         self.selected_end_crit = None
@@ -181,12 +185,15 @@ class simulation_plan(lfu.plan):
                 templates = [targets_template]))
         lfu.plan._widget(self,*args,from_sub = True)
 
+###############################################################################
+###############################################################################
 
 
 
 
 
 
+'''#
 class sim_system_external(object):
 
     # finalize_data_nontrivial will perform necessary handling for
@@ -215,6 +222,7 @@ class sim_system_external(object):
             elif dim == 5:final.append(dataobj)
 
         return tuple(final)
+'''#
 
 
 

@@ -1,7 +1,7 @@
 import unittest
 
-import modular_core.libfundamental as lfu
-from modular_core.libensemble import ensemble_manager
+import modular_core.fundamental as lfu
+from modular_core.ensemble import ensemble_manager
 
 import os, sys, pdb
 
@@ -36,10 +36,6 @@ class mngerTestCase(unittest.TestCase):
         pdb.set_trace()
         sys.stdout = log
 
-    def Atest_can_make_ensemble(self):
-        """ensemble successfully made?"""
-        self.assertFalse(self.ensem == None)
-
     def test_can_run_simple_ensemble(self):
         """ensemble successfully run the simple mcfg?"""
         self.assertTrue(self.ensem._run_mcfg(self.simple_mcfg))
@@ -57,25 +53,16 @@ class mngerTestCase(unittest.TestCase):
 
     def test_can_run_correl_nonmp(self):
         """ensemble successfully run the non mp correl demo mcfg?"""
-        #thread = self.mnger.run_threaded(self.ensem, 
-        #   self.ensem.run_mcfg, args = (self.correl_mcfg,))
-        #self.assertTrue(thread)
         self.assertTrue(self.ensem._run_mcfg(self.correl_mcfg_nonmp))
         self.assertTrue(self.ensem._output())
 
     def test_can_run_correl(self):
         """ensemble successfully run the correl demo mcfg?"""
-        #thread = self.mnger.run_threaded(self.ensem, 
-        #   self.ensem.run_mcfg, args = (self.correl_mcfg,))
-        #self.assertTrue(thread)
         self.assertTrue(self.ensem._run_mcfg(self.correl_mcfg))
         self.assertTrue(self.ensem._output())
 
     def test_can_run_means(self):
         """ensemble successfully run the mm means mcfg?"""
-        #thread = self.mnger.run_threaded(self.ensem, 
-        #   self.ensem.run_mcfg, args = (self.means_mcfg,))     
-        #self.assertTrue(thread)
         self.assertTrue(self.ensem._run_mcfg(self.means_mcfg))
         self.assertTrue(self.ensem._output())
         #self.assertTrue(self.ensem.run_mcfg(self.fitting_mcfg))
@@ -93,27 +80,7 @@ class mngerTestCase(unittest.TestCase):
         self.assertTrue(self.ensem._run_mcfg(self.means_mcfg))
         self.assertTrue(self.ensem._output())
 
-    def Atest_can_output(self):
-        """ensemble successfully made output?"""
-        ensem = self.ensem
-        ensem._run_mcfg(self.simple_mcfg)
-        self.assertTrue(ensem._output())
-        oplan = ensem.output_plan
-        fi = os.path.join(oplan.save_directory, 
-                    oplan.save_filename+'.pkl')
-        self.assertTrue(os.path.exists(fi))
-
-    def atest_can_run_two_ensembles(self):
-        """2 ensembles can successfully run?"""
-        ensem1 = self.mnger.add_ensemble()
-        ensem2 = self.mnger.add_ensemble()
-        ran1 = ensem1._run_mcfg(self.simple_mcfg)
-        ran2 = ensem2._run_mcfg(self.simple_mcfg)
-        self.assertTrue(ran1)
-        self.assertTrue(ran2)
-
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == '__main__':unittest.main()
 
 
 

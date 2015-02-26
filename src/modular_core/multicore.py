@@ -1,6 +1,6 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.data.batch_target as dba
-import modular_core.libsettings as lset
+import modular_core.settings as lset
 
 import pdb,sys,time,types
 import numpy as np
@@ -111,8 +111,8 @@ class multiprocess_plan(lfu.plan):
             lgm.interface_template_gui(
                 widgets = ['spin'], 
                 initials = [[self.worker_count]], 
-                minimum_values = [[2]], 
-                maximum_values = [[32]], single_steps = [[2]], 
+                minimum_values = [[1]], 
+                maximum_values = [[1000]],
                 instances = [[self]], 
                 rewidget = [[True]], 
                 keys = [['worker_count']], 

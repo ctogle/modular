@@ -1,4 +1,4 @@
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
 lgd = lqg.lgd

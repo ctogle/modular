@@ -148,7 +148,7 @@ def get_data_pool_path():
 
 # return default directory for mcfgs
 def get_mcfg_path():
-    lset = sys.modules['modular_core.libsettings']
+    lset = sys.modules['modular_core.settings']
     mpath = lset.get_setting('mcfg_path')
     if not mpath is None and not os.path.exists(mpath):
         print 'invalid default mcfg path - using working directory'
@@ -157,7 +157,7 @@ def get_mcfg_path():
 
 # return default directory for output
 def get_output_path():
-    lset = sys.modules['modular_core.libsettings']
+    lset = sys.modules['modular_core.settings']
     opath = lset.get_setting('default_output_path')
     if opath is None or not os.path.exists(opath):
         print 'invalid default output path - using working directory'
@@ -476,7 +476,7 @@ core_settings_path = get_resource_path('modular_settings.txt')
 mod_registry_path = get_resource_path('module_registry.txt')
 
 ###############################################################################
-if __name__ == 'modular_core.libfundamental':pass
+if __name__ == 'modular_core.fundamental':pass
 if __name__ == '__main__':print 'libfundamental of modular_core'
 ###############################################################################
 

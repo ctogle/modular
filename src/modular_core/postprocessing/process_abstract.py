@@ -1,5 +1,5 @@
-import modular_core.libfundamental as lfu
-import modular_core.libsettings as lset
+import modular_core.fundamental as lfu
+import modular_core.settings as lset
 
 import modular_core.data.batch_target as dba
 import modular_core.io.liboutput as lo
@@ -8,179 +8,15 @@ import pdb,types,time,math,os
 import numpy as np
 #np.seterr(divide = 'raise')
 
-if __name__ == 'modular_core.postprocessing.libpostprocess':
+if __name__ == 'modular_core.postprocessing.process_abstract':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
     lgb = lfu.gui_pack.lgb
-if __name__ == '__main__':print 'libpostprocess of modular_core'
+if __name__ == '__main__':print 'process_abstract of modular_core'
 
 process_types = {}
 
-###############################################################################
-### post_process_plan manages post_processes
-###############################################################################
-
-class post_process_plan(lfu.plan):
-
-    def __init__(self,*args,**kwargs):
-        self._default('name','post process plan',**kwargs)
-        self._default('processes',[],**kwargs)
-        use = lset.get_setting('postprocessing')
-        self._default('use_plan',use,**kwargs)
-        fit = lset.get_setting('fitting_aware')
-        self._default('fitting_aware',fit,**kwargs)
-        self._default('display_children',False,**kwargs)
-        self._default('always_sourceable',[],**kwargs)
-        self._default('selected_process',None,**kwargs)
-        lfu.plan.__init__(self,*args,**kwargs)
-        self.current_tab_index = 0
-
-    # perform processes, measure time, return data pool
-    def _enact(self,*args,**kwargs):
-        for process in self.processes:
-            stime = time.time()
-            process(*args,**kwargs)
-            dura = time.time() - stime
-            print 'completed post process',process.name,'in',dura,'seconds'
-        return args[1]
-
-    # reset children and processes
-    def _reset_process_list(self):
-        del self.processes[:]
-        del self.children[:]
-
-    # add new post process; default to meanfields
-    def _add_process(self,new = None):
-        if new is None:
-            #proc_class_def = process_types['meanfields'][0]
-            #new = proc_class_def(parent = self)
-            new = post_process(parent = self)
-        new.fitting_aware = self.fitting_aware
-        new.always_sourceable = self.always_sourceable
-        new.parent = self
-
-        if hasattr(self.parent,'run_params'):
-            ops = self.parent.run_params['output_plans']
-            ops[new.name+' output'] = new.output
-
-        self.processes.append(new)
-        self.children.append(new)
-        self.parent.module._rewidget(True)
-        self._rewidget(True)
-
-    # remove selected post process
-    def _del_process(self,selected = None):
-        if selected is None:selected = self._selected()
-        if selected:
-            self.processes.remove(selected)
-            self.children.remove(selected)
-
-            if hasattr(self.parent,'run_params'):
-                ops = self.parent.run_params['output_plans']
-                del ops[select.name+' output']
-
-        self._rewidget(True)
-
-    # shift a process up in the post process hierarchy
-    def _process_up(self):
-        select = self._selected()
-        if select:
-            select_dex = lfu.grab_mobj_dex_by_name(
-                select.name,self.processes)
-            self.processes.pop(select_dex)
-            self.processes.insert(select_dex - 1, select)
-            self._rewidget_processes()
-
-    # shift a process down in the post process hierarchy
-    def _process_down(self):
-        select = self._selected()
-        if select:
-            select_dex = lfu.grab_mobj_dex_by_name(
-                select.name,self.processes)
-            self.processes.pop(select_dex)
-            self.processes.insert(select_dex + 1, select)
-            self._rewidget_processes()
-
-    # propagate rewidg to children processes
-    def _rewidget_processes(self,rewidg = True):
-        for p in self.processes:p._rewidget(rewidg)
-
-    # return the currently selected post process if there is one
-    def _selected(self):
-        if not hasattr(self,'process_selector'):print 'no selector'; return
-        selector = self.process_selector[0].layout().itemAt(0).widget()
-        dex = selector.currentIndex()-1
-        if dex in range(len(self.processes)):
-            return self.processes[dex]
-
-    # make sure children can see ensemble...
-    def _rewidget_children(self,*args,**kwargs):
-        infos = (kwargs['infos'],self.parent)
-        for child in self.children:
-            if child._rewidget(**kwargs):
-                child._widget(*infos)
-
-    def _tab_book_pages(self,*args,**kwargs):
-        pages = []
-        for proc in self.processes:
-            proc._widget(*args,**kwargs)
-            pp_page = lgm.interface_template_gui(
-                widgets = ['panel'], 
-                scrollable = [True], 
-                templates = [proc.widg_templates])
-            pages.append((proc.name,[pp_page]))
-        return pages
-
-    def _widget(self,*args,**kwargs):
-        window = args[0]
-        select_label = self.selected_process
-        self._sanitize(*args,**kwargs)
-        primary_template = lgm.interface_template_gui(
-            layout = 'grid', 
-            grid_spacing = 10, 
-            widg_positions = [(0,0),(0,2),(1,2),(2,2),(3,2),(4,2)], 
-            widg_spans = [(3,2)]+[None]*5, 
-            widgets = ['mobj_catalog','button_set'], 
-            verbosities = [1,1], 
-            instances = [[self.processes,self],None], 
-            keys = [[None,'selected_process'],None], 
-            handles = [(self,'process_selector'),None], 
-            labels = [None,
-                ['Add Post Process','Remove Post Process', 
-                'Move Up In Hierarchy','Move Down In Hierarchy']], 
-            initials = [[select_label],None], 
-            bindings = [None,
-                [lgb.create_reset_widgets_wrapper(window,self._add_process),
-                lgb.create_reset_widgets_wrapper(window,self._del_process), 
-                lgb.create_reset_widgets_wrapper(window,self._process_up), 
-                lgb.create_reset_widgets_wrapper(window,self._process_down)]])
-        if self.display_children:
-            childrens_template = lgm.interface_template_gui(
-                widgets = ['tab_book'], 
-                verbosities = [0], 
-                pages = [self._tab_book_pages(*args,**kwargs)], 
-                initials = [[self.current_tab_index]], 
-                handles = [(self, 'tab_ref')], 
-                instances = [[self]], 
-                keys = [['current_tab_index']])
-            split_template = lgm.interface_template_gui(
-                widgets = ['splitter'], 
-                orientations = [['horizontal']], 
-                templates = [[primary_template,childrens_template]])
-            self.widg_templates.append(split_template)
-        else: self.widg_templates.append(primary_template)
-        lfu.plan._widget(self,*args,from_sub = True)
-
-###############################################################################
-###############################################################################
-
-
-
-
-
-###############################################################################
-###############################################################################
 ###############################################################################
 '''#
 def parse_postproc_line(*args):
@@ -361,9 +197,6 @@ class post_process_abstract(lfu.mobject):
 
     # return input sources found in sources based on input_regime
     def _handle_sources(self,sources):
-
-        print 'type input regime',type(self.input_regime)
-
         if type(self.input_regime) is types.ListType:
             inputs = [lfu.grab_mobj_by_name(inp,sources) for inp in 
                 self.input_regime if not inp in self.always_sourceable]
@@ -524,85 +357,6 @@ def parse_process_line_inputs(inputs,procs,routs):
         if inp == 0:reg.append('simulation')
         elif inp <= len(procs):reg.append(procs[inp - 1].name)
     return reg
-
-###############################################################################
-###############################################################################
-
-
-
-
-
-# BINNING SECTION NEEDS CLEANUP
-# BINNING SECTION NEEDS CLEANUP
-# BINNING SECTION NEEDS CLEANUP
-
-def select_for_binning____(pool,be_binned,be_meaned):
-    #print 'be meaned', be_meaned
-
-    if hasattr(pool,'_bin_select'):
-        return pool._bin_select(be_binned,be_meaned)
-
-
-
-
-    if hasattr(pool,'_flatten_'):flat_pool = pool._flatten_(pool)
-
-    elif hasattr(pool,'_flatten_children'):
-        flat_pool = pool._flatten_children()
-
-    else: flat_pool = lfu.flatten(pool)#[item for sublist in pool for item in sublist]
-    bin_lookup  = [pool[k][j].name == be_binned for k in range(len(pool)) for j in range(len(pool[k]))]
-    mean_lookup = [pool[k][j].name == be_meaned for k in range(len(pool)) for j in range(len(pool[k]))]
-
-    if not bin_lookup or not mean_lookup:pdb.set_trace()
-
-    bin_axes = [flat_pool[k] for k in range(len(flat_pool)) if bin_lookup[k] == True]
-    mean_axes = [flat_pool[k] for k in range(len(flat_pool)) if mean_lookup[k] == True]
-    return bin_axes,mean_axes
-
-def bin_scalars_______(axes,ax_vals,bin_res,ordered = True,
-        bin_basis_override = None,bin_max = None,bin_min = None):
-
-
-
-    if bin_basis_override is None: baxes = axes
-    else: baxes = bin_basis_override
-    if bin_min is None:bin_min = min([min(ax.scalars) for ax in baxes])
-    if bin_max is None:bin_max = max([max(ax.scalars) for ax in baxes])
-    orders = 1000000000000000000.0
-    bin_res = (bin_max - bin_min) / bin_res
-    bins = [x / orders for x in range(int(bin_min*orders),int(bin_max*orders),int(bin_res*orders))]
-    vals = [[] for k in range(len(bins))]
-    bin_bump = bin_res/2.0
-
-    if ordered: #for when ordering is monotonically increasing
-        j_last = [0]*len(axes)
-        for i in range(len(bins)):
-            threshold_top = bins[i] + bin_bump
-            for k in range(len(axes)):
-                last_j = j_last[k]
-                for j in range(last_j, len(axes[k].scalars)):
-                    if axes[k].scalars[j] < threshold_top:
-                        vals[i].append(ax_vals[k].scalars[j])
-                    else:
-                        j_last[k] = j
-                        break
-
-    else: #for when no ordering is assumed
-        for i in range(len(bins)):
-            try:threshold_bottom = threshold_top
-            except:threshold_bottom = bins[i]
-            threshold_top = bins[i] + bin_bump
-            for k in range(len(axes)):
-                for j in range(len(axes[k].scalars)):
-                    if axes[k].scalars[j] < threshold_top and axes[k].scalars[j] > threshold_bottom:
-                        vals[i].append(ax_vals[k].scalars[j])       
-
-    return bins, vals
-
-# BINNING SECTION NEEDS CLEANUP
-# BINNING SECTION NEEDS CLEANUP
-# BINNING SECTION NEEDS CLEANUP
 
 ###############################################################################
 ###############################################################################

@@ -1,9 +1,9 @@
 #import libs.modular_core.libfundamental as lfu
 #import libs.modular_core.libgeometry as lgeo
 
-import modular_core.libfundamental as lfu
+import modular_core.fundamental as lfu
 
-import modular_core.data.libdatacontrol as ldc
+import modular_core.data.datacontrol as ldc
 
 import xml.dom.minidom
 from copy import deepcopy as copy

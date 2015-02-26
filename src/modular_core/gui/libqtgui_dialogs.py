@@ -1,37 +1,23 @@
-import modular_core.libfundamental as lfu
-import modular_core.libmath as lm
+import modular_core.fundamental as lfu
+#import modular_core.libmath as lm
 import modular_core.gui.libqtgui_bricks as lgb
 import modular_core.gui.libqtgui_masons as lgm
 from PySide import QtGui, QtCore
 
-import traceback, sys
-import six
+import pdb,traceback,sys,os,types,time
 import numpy as np
 import itertools as it
-from copy import deepcopy as copy
-import types
-import time
-import os
 
-try:
-    import matplotlib
-    matplotlib.rcParams['backend.qt4'] = 'PySide'
-    #matplotlib.use('Qt4Agg')
-
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backend_bases import NavigationToolbar2
-
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-    import matplotlib.path as path
-    from matplotlib import animation
-except ImportError:
-    traceback.print_exc(file=sys.stdout)
-    print 'matplotlib could not be imported! - dialogs'
+import matplotlib
+matplotlib.rcParams['backend.qt4'] = 'PySide'
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backend_bases import NavigationToolbar2
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.path as path
+from matplotlib import animation
 
 from mpl_toolkits.mplot3d import axes3d, Axes3D
-
-import pdb
 
 if __name__ == 'modular_core.gui.libqtgui_dialogs':pass
 if __name__ == '__main__':print 'libqtgui_dialogs of modular_core'
@@ -362,7 +348,8 @@ class trajectory_dialog(create_obj_dialog):
         mason = lgm.standard_mason(parent = self.parent)
         if 'title' in kwargs.keys(): title = kwargs['title']
         else: title = 'Create Trajectory Window'
-        import modular_core.libgeometry as lgeo
+        #import modular_core.libgeometry as lgeo
+        # LGEO AND PSPACEPROXY ARE DEPRECATED
         self.p_sp_proxy = lgeo.p_space_proxy(*args, **kwargs)
         if self.p_sp_proxy.NO_AXES_FLAG and lfu.using_gui():
             lgd.message_dialog(self.parent, 
