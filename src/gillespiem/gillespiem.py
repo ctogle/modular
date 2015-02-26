@@ -127,15 +127,20 @@ class simulation_module(smd.simulation_module):
         end = self.parent.run_params['end_criteria'][0]
         cap = self.parent.run_params['capture_criteria'][0]
         ccnt = int(float(end.max_time)/float(cap.increment))+1
+        if rxnorder is None:orderedrxns = self.parent.run_params['reactions']
+        else:
+            orderedrxns = self.parent.run_params['reactions']
+            orderedrxns = [orderedrxns[rdx] for rdx in rxnorder]
+            #orderedrxns = list(zip(*sorted(zip(rxnorder,orderedrxns)))[1])
+            #orderedrxns.reverse()
         rargs = {
             'capture_count':ccnt,
             'capture_increment':cap.increment,
             'targets':ptargs,
             'species':self.parent.run_params['species'],
-            'reactions':self.parent.run_params['reactions'],
+            'reactions':orderedrxns,
             'constants':self.parent.run_params['variables'],
             'functions':self.parent.run_params['functions'],
-            'rwhichrxnmap':rxnorder,
             'countreactions':self.countreactions,
                 }
         return run(**rargs)
@@ -193,6 +198,7 @@ class simulation_module(smd.simulation_module):
             mod = writer._import()
             rcounts = mod.run()
             #print 'the code!\n',writer.code
+            print 'rcounts',rcounts
             rcountmap = list(zip(*sorted(zip(rcounts,range(len(rcounts)))))[1])
             rcountmap.reverse()
             print 'rcountmap',rcountmap
@@ -208,7 +214,6 @@ class simulation_module(smd.simulation_module):
         writer._write()
         writer._install()
         #print 'the code!\n',writer.code
-
         print '\ninstallation took:',time.time() - insttime,'seconds\n'
 
     def _set_parameters(self):
@@ -525,8 +530,7 @@ class run(cwr.function):
             rname = 'rxnpropensity'+str(rdex)
             coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
 
-        if not self.rwhichrxnmap:rwhichrxnmap = range(rcnt)
-        else:rwhichrxnmap = self.rwhichrxnmap
+        rwhichrxnmap = range(rcnt)
         for rdex in rwhichrxnmap:
             coder.write('\n\t\telif whichrxn == '+str(rdex)+':')
             coder.write('\n\t\t\trxn'+str(rdex)+'(state)')
@@ -553,7 +557,6 @@ class run(cwr.function):
         coder.write('\n'+'#'*80+'\n'*10)
 
     def __init__(self,*args,**kwargs):
-        self._default('rwhichrxnmap',None,**kwargs)
         self._default('countreactions',False,**kwargs)
         self._default('name','run',**kwargs)
         self._default('cytype','cpdef',**kwargs)
