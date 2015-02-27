@@ -83,6 +83,7 @@ class reorganize(lpp.post_process_abstract):
             pspace_locale_values = pspace_map.trajectory[dex].location
             for tdx in range(axcnt):
                 ptrajaxvals[tdx].append(float(pspace_locale_values[tdx]))
+
             for ddx in range(len(self.dater_ids)):
                 dname = self.dater_ids[ddx]
                 value = locale_data[ddx].data[-1]
@@ -91,11 +92,12 @@ class reorganize(lpp.post_process_abstract):
         data = dst.scalars_from_labels(['parameter space location index']+\
                 self.axis_labels + [label for label in self.dater_ids])
         data[0].data = np.array(ptrajdexes)
-        for tdx in range(len(self.axis_labels)):
+        for tdx in range(axcnt):
             data[tdx+1].data = np.array(ptrajaxvals[tdx])
         for ddx in range(len(self.dater_ids)):
             data[ddx+axcnt+1].data = np.array(datervals[ddx])
         surf_targets = ['parameter space location index'] + self.dater_ids
+
         data.append(dst.reducer(
             data = data,axes = self.axis_labels,
             surfs = surf_targets,name = 'reducer'))

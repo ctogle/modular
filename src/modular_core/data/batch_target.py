@@ -36,38 +36,45 @@ class batch_node(ldc.data_mobject):
     def _pkl_data(self,v = False):
         if v:print 'saving batch node',self.data_pool_id,'...'
         pa = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
-        lf.save_pkl_object(self.data,pa)
+        data = lfu.data_container(top = self.data,children = self.children)
+        lf.save_pkl_object(data,pa)
         if v:print 'saved batch node',self.data_pool_id
         self.data = pa
+        self.children = None
 
     def _unpkl_data(self,v = False):
         if v:print 'loading batch node',self.data_pool_id,'...'
         datapath = self.data
-        self.data = lf.load_pkl_object(datapath)
+        data = lf.load_pkl_object(datapath)
+        self.data = data.top
+        self.children = data.children
         if v:print 'loaded batch node',self.data_pool_id
 
+    def _stowed(self):
+        if type(self.data) is types.StringType:return True
+        else:return False
+        
     # compress data and store as pkl file in safe data_pool directory
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
         if not type(self.data) is types.StringType:self._pkl_data()
-        # can i save the children with the parent instead of splitting up?
-        for cdx in range(len(self.children)):self._stow_child(cdx)
-        if v:print 'stowed batch node',self.data_pool_id
+        if v:print 'stowed batch node',self.data_pool_id,'...'
 
     # uncompress data and store as data attribute
-    def _recover(self):
+    def _recover(self,v = True):
+        if v:print 'recovering batch node',self.data_pool_id,'...'
         if type(self.data) is types.StringType:self._unpkl_data()
-        for cdx in range(len(self.children)):self._recover_child(cdx)
+        if v:print 'recovered batch node',self.data_pool_id,'...'
 
     def _stow_child(self,dex):
         which = self.children[dex]
-        which._stow(v = False)
+        which._stow(v = True)
         self.data_pool_ids.append(which.data_pool_id)
 
     def _recover_child(self,dex):
         which = self.children[dex]
         self.data_pool_ids.remove(which.data_pool_id)
-        which._recover()
+        which._recover(v = True)
         return which
 
     def _add_child(self,node):
@@ -80,6 +87,11 @@ class batch_node(ldc.data_mobject):
         self.data_pool_id = pool_id()
         self.data_pool_ids = []
         ldc.data_mobject.__init__(self,*args,**kwargs)
+
+    def __add__(self,other):
+        new = batch_node()
+        pdb.set_trace()
+        return new
 
     def _bin_ordered(self,xs,ys,bins,vals):
         bin_res = bins[1] - bins[0]
@@ -136,9 +148,10 @@ class batch_node(ldc.data_mobject):
     # return an aggregate of all childrens' data
     def _flatten_children(self):
         flat = []
-        for no in self.children:
-            no._recover()
-            flat.extend(no.data)
+        stowed = self._stowed()
+        if stowed:self._recover()
+        for no in self.children:flat.extend(no.data)
+        if stowed:self._stow()
         return flat
 
     # data is a numpy array;axis 0 is 1-1 with targets

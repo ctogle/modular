@@ -421,6 +421,7 @@ class plot_window(lfu.mobject):
         ax_labs = surf.axes
         ax_vals = surf.axis_values
         ax_defs = surf.axis_defaults
+
         rng = range(len(ax_defs))
         slice_templates = []      
         for dex, lab, sca, def_ in zip(rng, ax_labs, ax_vals, ax_defs):

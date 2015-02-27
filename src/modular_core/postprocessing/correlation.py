@@ -46,13 +46,6 @@ class correlate(lpp.post_process_abstract):
             else: return val
         bcnt,orr = self.bin_count,self.ordered
 
-        #bin_axes, targ_1_axes = lpp.select_for_binning(
-        #        args[0],self.function_of,self.target_1)
-        #bin_axes, targ_2_axes = lpp.select_for_binning(
-        #        args[0],self.function_of,self.target_2)
-        #bins,vs1 = lpp.bin_scalars(bin_axes,targ_1_axes,bcnt,orr)
-        #bins,vs2 = lpp.bin_scalars(bin_axes,targ_2_axes,bcnt,orr)
-
         bins,vs1 = args[0]._bin_data(self.function_of,self.target_1,bcnt,orr)
         bins,vs2 = args[0]._bin_data(self.function_of,self.target_2,bcnt,orr)
 

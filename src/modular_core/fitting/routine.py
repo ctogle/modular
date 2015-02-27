@@ -702,11 +702,6 @@ class fit_routine(lfu.mobject):
             lines.append('\n')
             location_to_lines(0, dex)
 
-        if not os.path.exists(self.output.save_directory):
-            self.output.save_directory = os.getcwd()
-        lf.output_lines(lines, self.output.save_directory, 
-            'fitting_key.txt', dont_ask = self.auto_overwrite_key)
-
     def _widget(self, *args, **kwargs):
         window = args[0]
         ensem = args[1]

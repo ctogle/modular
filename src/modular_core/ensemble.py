@@ -23,11 +23,13 @@ import modular_core.postprocessing.statistics as sst
 import modular_core.postprocessing.pspace_reorganize as rog
 import modular_core.postprocessing.conditional as cdl
 import modular_core.postprocessing.correlation as crl
+import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
 
 import pdb,os,sys,traceback,types,time,imp
 import numpy as np
 import importlib as imp
+from cStringIO import StringIO
 
 if __name__ == 'modular_core.ensemble':
     lfu.check_gui_pack()
@@ -163,6 +165,7 @@ class ensemble(lfu.mobject):
             print 'duration of simulations:',time.time() - start_time
             dum,dpool = self._post_processing(load = False,dpool = dpool)
         if save:self._save_data_pool(dpool)
+        self._output_trajectory_key()
 
         print 'finished simulations and analysis:exiting'
         print 'total run duration:',time.time() - start_time,'seconds'
@@ -215,6 +218,9 @@ class ensemble(lfu.mobject):
 
         arc = self.cartographer_plan.trajectory
         arc_length = len(arc)
+        max_run = arc[0].trajectory_count
+        stow_needed = ensem._require_stow(max_run,arc_length)
+
         iteration = 0
         while iteration < arc_length:
             loc_pool = dba.batch_node()  
@@ -229,7 +235,7 @@ class ensemble(lfu.mobject):
                 prt = tdx % pcnt == 0
                 if prt:print 'location:',iteration,'run:',tdx,'/',tcount
             data_pool._add_child(loc_pool)
-            data_pool._stow_child(-1)
+            if stow_needed:data_pool._stow_child(-1)
             iteration += 1
         return data_pool
 
@@ -252,6 +258,31 @@ class ensemble(lfu.mobject):
                 return False,dpool
         print 'duration of post procs:',time.time() - stime
         return True,dpool
+
+    # if either fitting or parameter sweeping is used
+    # output a txt file describing the pspace trajectory
+    def _output_trajectory_key(self):
+        cplan = self.cartographer_plan
+        fplan = self.fitting_plan
+        if cplan.use_plan or fplan.use_plan:
+            tkey = StringIO()
+            traj = cplan.trajectory
+            paxnames = [pax.name for pax in cplan.parameter_space.axes]
+            paxnamelengs = [len(name) for name in paxnames]
+            tkey.write('\n\t||\tTrajectory Key\t||\t\n')
+            tkey.write('\nTrajectory number'.ljust(25))
+            tkey.write('Trajectory Count'.ljust(25))
+            nasnls = zip(paxnames,paxnamelengs)
+            [tkey.write('\t'+na.ljust(nl+5)) for na,nl in nasnls]
+            tkey.write('\n'+'-'*120+'\n')
+            for ldex,loc in enumerate(traj):
+                locline = [str(l).rjust(ln-5)+' '*10 for 
+                    l,ln in zip(loc.location,paxnamelengs)]
+                tkey.write('\n  Index:'+str(ldex).ljust(8)+' '*9)
+                tkey.write(str(loc.trajectory_count).rjust(10)+' '*15)
+                tkey.write('\t'.join(locline))
+        keypath = os.path.join(os.getcwd(),'trajectory_key.txt')
+        with open(keypath,'w') as ha:ha.write(tkey.getvalue())
 
     # output data associated with post processes
     def _output_postprocesses(self,pool):
@@ -312,6 +343,19 @@ class ensemble(lfu.mobject):
             data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
                 '.'.join(['data_pool',self.data_pool_id,'pkl']))
         return data_pool_pkl
+
+    def _require_stow(self,runcount,psplocationcount):
+        dptpertraj = self.simulation_plan._captures_per_trajectory()
+        dptcount = dptpertraj * runcount * psplocationcount
+        print 'data point count:',dptcount
+        if dptcount > 500000000:
+            print 'memory errors may occur; will stow'
+            stow_needed = True
+        else:
+            print 'memory errors not expected; will not stow'
+            stow_needed = False
+        time.sleep(1)
+        return stow_needed
 
     # determine the correct data object for the ensemble run
     def _data_scheme(self):

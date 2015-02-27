@@ -79,10 +79,13 @@ class multiprocess_plan(lfu.plan):
         ptargets = ensem.run_params['plot_targets']
 
         max_loc = len(trajectory)
+        max_run = trajectory[0].trajectory_count
+        stow_needed = True
+        #stow_needed = ensem._require_stow(max_run,max_loc)
+
         loc = 0
         while loc < max_loc:
             move_to(loc)
-            ensem._run_params_to_location_prepoolinit()
             pool._initializer()
             max_run = trajectory[loc].trajectory_count
             run = 0
@@ -98,7 +101,7 @@ class multiprocess_plan(lfu.plan):
             loc_pool = dba.batch_node()  
             for subr in subresults:loc_pool._trajectory(subr,ptargets)
             data_pool._add_child(loc_pool)
-            data_pool._stow_child(-1)
+            if stow_needed:data_pool._stow_child(-1)
             loc += 1
 
         pool.close()

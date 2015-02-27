@@ -33,10 +33,10 @@
 	x1
 
 <parameter_space>
-	<product_space> 10000
+	<product_space> 1000
 		lambda1 : value : 2.0-8.0;4.0
 		lambda2 : value : 2.0-8.0;4.0
-		#mu : value : 8.0-12.0;2.0
+		mu : value : 4.0-16.0;4.0
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered
@@ -44,7 +44,7 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
-	workers : 100
+	workers : 500
 
 <output_plans>
 	3 : - : reorg_output : plt : all

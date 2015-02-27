@@ -59,23 +59,27 @@ class cartographer_plan(lfu.plan):
     # append the apparently relevant pspace_axes to rpaxes
     # batch is a dict
     def _run_parameter_axes_dict(self,axes,attrs,rpaxes,batch):
-        for sub_key in batch.keys():
-            mobj = batch[sub_key]
-            if not issubclass(mobj.__class__,lfu.run_parameter):continue
-            if mobj.name in axes:
-                for pax in mobj.pspace_axes:
-                    if pax.key in attrs:
-                        rpaxes.append(pax)
+        # must retain order defined by axes (as appears in mcfg...)
+        for axname in axes:
+            for sub_key in batch.keys():
+                mobj = batch[sub_key]
+                if not issubclass(mobj.__class__,lfu.run_parameter):continue
+                if mobj.name == axname:
+                    for pax in mobj.pspace_axes:
+                        if pax.key in attrs:
+                            rpaxes.append(pax)
 
     # append the apparently relevant pspace_axes to rpaxes
     # batch is a list
     def _run_parameter_axes_list(self,axes,attrs,rpaxes,batch):
-        for mobj in batch:
-            if not issubclass(mobj.__class__,lfu.run_parameter):continue
-            if mobj.name in axes:
-                for pax in mobj.pspace_axes:
-                    if pax.key in attrs:
-                        rpaxes.append(pax)
+        # must retain order defined by axes (as appears in mcfg...)
+        for axname in axes:
+            for mobj in batch:
+                if not issubclass(mobj.__class__,lfu.run_parameter):continue
+                if mobj.name == axname:
+                    for pax in mobj.pspace_axes:
+                        if pax.key in attrs:
+                            rpaxes.append(pax)
 
     # return list of relevant pspace_axes
     def _run_parameter_axes(self,axes,attrs):
@@ -378,8 +382,6 @@ class parameter_space(lfu.mobject):
         self._default('axes',[],**kwargs)
         self.dimensions = len(self.axes)
         lfu.mobject.__init__(self,*args,**kwargs)
-
-        #pdb.set_trace()
 
         #self.set_simple_space_lookup()
         #self._default('steps',[],**kwargs)

@@ -31,6 +31,22 @@ class endcapture_plan(lfu.plan):
 
         lfu.plan.__init__(self,*args,**kwargs)
 
+    def _captures_per_trajectory(self):
+        tcnt = len(self.plot_targets)
+        ccnt = self._capture_count()
+        cpt = tcnt * ccnt
+        return cpt
+
+    def _capture_count(self):
+        end = self.end_criteria[0]
+        cap = self.capture_criteria[0]
+        ccnt = int(float(end.max_time)/float(cap.increment))+1
+        return ccnt
+
+    def _capture_increment(self):
+        cap = self.capture_criteria[0]
+        return float(cap.increment)
+
     def _sanitize(self,*args,**kwargs):
         if not ('from_sub' in kwargs.keys() and kwargs['from_sub']):
             self.widg_templates_end_criteria = []

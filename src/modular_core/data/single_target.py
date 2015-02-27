@@ -62,8 +62,7 @@ class reducer(base_target):
         self._default('surfs',[],**kwargs)
         base_target.__init__(self,*args,**kwargs)
 
-        #self.data_scalars = [data for data in data if not data is self]
-        self.data_scalars = self.data[:]
+        self.data_scalars = [data for data in self.data if not data is self]
         self.axis_values = [
             scalars(name = dat.name,data = lfu.uniqfy(dat.data)) 
             for dat in self.data_scalars if dat.name in self.axes]

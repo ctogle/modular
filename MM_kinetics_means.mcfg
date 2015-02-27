@@ -32,13 +32,13 @@
 
 <output_plans>
 	1 : - : mm_means : plt : all
-	0 : - : ensemble_output : plt : all
+	0 : - : ensemble_output : none : all
 
 <ensemble>
-	multiprocessing : off
+	multiprocessing : on
 	mapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 1
+	trajectory_count : 10000
 
 
