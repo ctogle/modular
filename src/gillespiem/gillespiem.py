@@ -124,18 +124,26 @@ class simulation_module(smd.simulation_module):
 
     def _ext_funcs_run(self,rxnorder = None):
         ptargs = self.parent.run_params['plot_targets']
-        end = self.parent.run_params['end_criteria'][0]
-        cap = self.parent.run_params['capture_criteria'][0]
-        ccnt = int(float(end.max_time)/float(cap.increment))+1
+        ccnt = self.parent.simulation_plan._capture_count()
+        cinc = self.parent.simulation_plan._capture_increment()
         if rxnorder is None:orderedrxns = self.parent.run_params['reactions']
         else:
             orderedrxns = self.parent.run_params['reactions']
             orderedrxns = [orderedrxns[rdx] for rdx in rxnorder]
-            #orderedrxns = list(zip(*sorted(zip(rxnorder,orderedrxns)))[1])
-            #orderedrxns.reverse()
+        cplan = self.parent.cartographer_plan
+        mappspace = cplan.use_plan
+        runargs = {}
+        if mappspace:
+            paxes = cplan.parameter_space.axes
+            paxnames = [a.instance.name.strip() for a in paxes]
+            astring = ','.join(paxnames)
+            for px,ax in zip(paxnames,paxes):runargs[px] = ax
+        else:astring = ''
         rargs = {
+            'argstring':astring,
+            'runargs':runargs,
             'capture_count':ccnt,
-            'capture_increment':cap.increment,
+            'capture_increment':cinc,
             'targets':ptargs,
             'species':self.parent.run_params['species'],
             'reactions':orderedrxns,
@@ -183,42 +191,49 @@ class simulation_module(smd.simulation_module):
         return ext_kwargs
 
     def _set_parameters_prepoolinit(self):
-        insttime = time.time()
-        
-        if self.optimize_reaction_order:
+        if not self.extensionname in sys.modules.keys():
+            insttime = time.time()
+            if self.optimize_reaction_order:
+                print 'creating temporary extension:',self.extensionname
+                self.extensionname = self.extensionname.replace('_','.',1)
+                self.extensionname = lo.increment_filename(self.extensionname)
+                self.extensionname = self.extensionname.replace('.','_',1)
+                self.countreactions = True
+                ext_kwargs = self._ext_kwargs()
+                writer = cwr.extension(**ext_kwargs)
+                writer._write()
+                writer._install()
+                mod = writer._import()
+                rcounts = mod.run()
+                #print 'the code!\n',writer.code
+                print 'rcounts',rcounts
+                rcountmap = list(zip(*sorted(zip(rcounts,range(len(rcounts)))))[1])
+                rcountmap.reverse()
+                print 'rcountmap',rcountmap
+            else:rcountmap = None
+
             print 'creating temporary extension:',self.extensionname
             self.extensionname = self.extensionname.replace('_','.',1)
             self.extensionname = lo.increment_filename(self.extensionname)
             self.extensionname = self.extensionname.replace('.','_',1)
-            self.countreactions = True
-            ext_kwargs = self._ext_kwargs()
+            self.countreactions = False
+            ext_kwargs = self._ext_kwargs(rcountmap)
             writer = cwr.extension(**ext_kwargs)
             writer._write()
             writer._install()
-            mod = writer._import()
-            rcounts = mod.run()
             #print 'the code!\n',writer.code
-            print 'rcounts',rcounts
-            rcountmap = list(zip(*sorted(zip(rcounts,range(len(rcounts)))))[1])
-            rcountmap.reverse()
-            print 'rcountmap',rcountmap
-        else:rcountmap = None
-
-        print 'creating temporary extension:',self.extensionname
-        self.extensionname = self.extensionname.replace('_','.',1)
-        self.extensionname = lo.increment_filename(self.extensionname)
-        self.extensionname = self.extensionname.replace('.','_',1)
-        self.countreactions = False
-        ext_kwargs = self._ext_kwargs(rcountmap)
-        writer = cwr.extension(**ext_kwargs)
-        writer._write()
-        writer._install()
-        #print 'the code!\n',writer.code
-        print '\ninstallation took:',time.time() - insttime,'seconds\n'
+            print '\ninstallation took:',time.time() - insttime,'seconds\n'
+        else:print '\ninstallion was not needed...\n'
 
     def _set_parameters(self):
         module = __import__(self.extensionname)
-        self.sim_args = (module.run,)
+        cplan = self.parent.cartographer_plan
+        mappspace = cplan.use_plan
+        if mappspace:
+            paxes = cplan.parameter_space.axes
+            pargs = [px.instance.__dict__[px.key] for px in paxes]
+        else:pargs = []
+        self.sim_args = [module.run]+pargs
 
     def _reset_parameters(self):
         ensem = self.parent
@@ -228,7 +243,7 @@ class simulation_module(smd.simulation_module):
         ensem.run_params['species'] = {}
         ensem.run_params['reactions'] = []
         ensem.run_params['functions'] = {}
-        ensem.run_params['plot_targets'] = ['time']
+        ensem.run_params['plot_targets'][:] = ['time']
         ensem.postprocess_plan._reset_process_list()
         output_plan = ensem.run_params['output_plans']['Simulation']
         output_plan.targeted = ['time']
@@ -281,7 +296,8 @@ class simulation_module(smd.simulation_module):
 # this must be a single argument function because of map_async
 def simulate(args):
     runfunc = args[0]
-    result = runfunc()
+    result = runfunc(*args[1:])
+    #result = runfunc()
     return result
 
 ###############################################################################
@@ -326,7 +342,8 @@ class external_signal_function(cwr.function):
         self._default('domain','time',**kwargs)
         self._default('signalpath','',**kwargs)
         self._default('rxncount',0,**kwargs)
-        argstring = 'double['+str(self.rxncount)+'] state'
+        #argstring = 'double['+str(self.rxncount)+'] state'
+        argstring = 'double['+str(len(self.statetargets))+'] state'
         self._default('argstring',argstring,**kwargs)
         self._default('cytype','cdef double',**kwargs)
         self._default('cyoptions',' nogil',**kwargs)
@@ -386,17 +403,29 @@ class run(cwr.function):
         dshape = (self.target_count,self.capture_count)
         sshape = (1 + scnt + vcnt + fcnt,)
         cshape = (self.target_count,)
+
+        #coder.write('\n\tprint ')
+        #for ra in self.runargs:
+        #    coder.write(ra+',')
+        #coder.write('\'!\'\n')
+
         self._nparray(coder,'data',dshape)
         self._carray(coder,'capture',cshape)
         self._carray(coder,'state',sshape)
         for sdex in range(scnt):
             sp = self.statetargets[sdex+1]
-            sinit = self.species[sp].initial
-            coder.write('\n\tstate['+str(sdex+1)+'] = '+str(sinit))
+            spec = self.species[sp]
+            if spec.name in self.runargs:
+                send = spec.name
+            else:send = str(spec.initial)
+            coder.write('\n\tstate['+str(sdex+1)+'] = '+send)
         for vdex in range(vcnt):
             va = self.statetargets[vdex+scnt+1]
-            vval = self.constants[va].value
-            coder.write('\n\tstate['+str(vdex+sdex+1)+'] = '+str(vval))
+            const = self.constants[va]
+            if const.name in self.runargs:
+                vend = const.name
+            else:vend = str(const.value)
+            coder.write('\n\tstate['+str(vdex+scnt+1)+'] = '+vend)
         for fdex in range(fcnt):
             fu = self.statetargets[fdex+vcnt+scnt+1]
             funame = self.functions[fu].name
@@ -558,6 +587,7 @@ class run(cwr.function):
 
     def __init__(self,*args,**kwargs):
         self._default('countreactions',False,**kwargs)
+        self._default('runargs',{},**kwargs)
         self._default('name','run',**kwargs)
         self._default('cytype','cpdef',**kwargs)
         self._default('capture_count',100,**kwargs)
@@ -635,7 +665,8 @@ class reaction(lfu.run_parameter):
     def _cython_react(self,dx):
         cy = cwr.function(
             name = 'rxn'+str(dx),
-            argstring = 'double['+str(self.rxncount)+'] state',
+            #argstring = 'double['+str(self.rxncount)+'] state',
+            argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef void',
             cyoptions = ' nogil')
         cy._code_body = self._cython_react_body
@@ -652,7 +683,8 @@ class reaction(lfu.run_parameter):
     def _cython_valid(self,dx):
         cy = cwr.function(
             name = 'rxnvalid'+str(dx),
-            argstring = 'double['+str(self.rxncount)+'] state',
+            #argstring = 'double['+str(self.rxncount)+'] state',
+            argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef bint',
             cyoptions = ' nogil')
         cy._code_body = self._cython_valid_body
@@ -674,13 +706,17 @@ class reaction(lfu.run_parameter):
             if self.rate in self.functionnames:
                 ratestring = self.rate+'(state)'
                 self.rate_is_function = True
-            else:ratestring = str(self.variables[self.rate].value)
+            #else:ratestring = str(self.variables[self.rate].value)
+            else:
+                vdex = self.statetargets.index(self.rate)
+                ratestring = 'state['+str(vdex)+']'
         coder.write('\n\treturn population * '+ratestring+'\n')
 
     def _cython_propensity(self,dx):
         cy = cwr.function(
             name = 'rxnpropensity'+str(dx),
-            argstring = 'double['+str(self.rxncount)+'] state',
+            #argstring = 'double['+str(self.rxncount)+'] state',
+            argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef double',
             cyoptions = ' nogil')
         cy._code_body = self._cython_propensity_body
@@ -692,11 +728,11 @@ class reaction(lfu.run_parameter):
         self._default('rate_is_function',False,**kwargs)
         self._default('used',[],**kwargs)
         self._default('produced',[],**kwargs)
-        pspace_axes =\
-            [lpsp.pspace_axis(instance = self,key = 'rate',
-                bounds = [0.0000000000001,100000000000.0], 
-                continuous = True)]
-        self.pspace_axes = pspace_axes
+        #pspace_axes =\
+        #    [lpsp.pspace_axis(instance = self,key = 'rate',
+        #        bounds = [0.0000000000001,100000000000.0], 
+        #        continuous = True)]
+        #self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
     def _string(self):
@@ -805,7 +841,9 @@ class function(lfu.run_parameter):
         def convert(substr):
             if substr in self.functionnames:return substr+'(state)'
             elif substr in self.variables:
-                return str(self.variables[substr].value)
+                #return str(self.variables[substr].value)
+                tdx = self.statetargets.index(substr)
+                return 'state['+str(tdx)+']'
             elif substr in self.statetargets:
                 tdx = self.statetargets.index(substr)
                 return 'state['+str(tdx)+']'
@@ -821,7 +859,8 @@ class function(lfu.run_parameter):
     def _cython(self,dx):
         cy = cwr.function(
             name = self.name,
-            argstring = 'double['+str(self.rxncount)+'] state',
+            #argstring = 'double['+str(self.rxncount)+'] state',
+            argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef double',
             cyoptions = ' nogil')
         cy._code_body = self._cython_body
