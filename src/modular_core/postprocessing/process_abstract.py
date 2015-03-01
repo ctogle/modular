@@ -132,7 +132,7 @@ class post_process_abstract(lfu.mobject):
     def _initialize(self,*args,**kwargs):pass
 
     # actually runs the process, setting the result at attribute data
-    def _process(self,*args,**kwargs):
+    def _process_______(self,*args,**kwargs):
         method = self.method
         self._regime(args[0])
         pool = self._start_pool(*args,**kwargs)

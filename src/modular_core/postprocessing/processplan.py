@@ -34,48 +34,88 @@ class post_process_plan(lfu.plan):
         lfu.plan.__init__(self,*args,**kwargs)
         self.current_tab_index = 0
 
+    # reset the data attribute and determine if a process is 0th
     def _init_processes(self,*args,**kwargs):
         zeroth = []
         for process in self.processes:
             process.data = dba.batch_node()
-            pdb.set_trace()
+            if 'simulation' in process.input_regime:
+                zeroth.append(process)
         return zeroth
 
-    def _enact_processes(self,*args,**kwargs):
-        for process in self.processes:
+    # run process proc
+    def _enact_process(self,proc,pool,ptraj):
+        if proc.regime == 'per trajectory':
+            for pchild in pool.children:
+                presult = proc.method(pchild,ptraj)
+                proc.data.children.append(presult)
+        elif proc.regime == 'all trajectories':
+            presult = proc.method(pool,ptraj)
+            proc.data.children.append(presult)
 
-            results.append(method(pool.children[tdx]))
-            
-            process.data.children.append(presult)
+    # for node pool run processes procs and append to each
+    # procs' result
+    def _enact_processes(self,procs,pool,ptraj):
+        stowed = pool._stowed()
+        if stowed:pool._recover()
+        for process in procs:self._enact_process(process,pool,ptraj)
+        if stowed:pool._stow()
+
+    # for each 0th process, recursively call consuming processes
+    def _walk_processes(self,zeroth,ptraj):
+        ran = zeroth[:]
+        toberun = [p for p in self.processes if not p in zeroth]
+        while toberun:
+            rannames = [r.name for r in ran]
+            readytorun = []
+            readypools = []
+            for tbr in toberun:
+                ready = True
+                readypool = dba.batch_node()
+                for inp in tbr.input_regime:
+                    if not inp in rannames:
+                        ready = False
+                        break
+                    else:
+                        which = lfu.grab_mobj_by_name(inp,ran)
+                        readypool.children.extend(which.data.children)
+                if ready:
+                    readytorun.append(tbr)
+                    readypools.append(readypool)
+            for rp,rpool in zip(readytorun,readypools):
+                self._enact_process(rp,rpool,ptraj)
+                ran.append(rp)
+                toberun.remove(rp)
 
     # perform processes, measure time, return data pool
     # for each pspace location, iterate over 0th level processes
     #  each process calls those which consume it
     #
     #  processes form a bethe network...
-    def _enact_(self,*args,**kwargs):
+    def _enact(self,*args,**kwargs):
+        pool = args[1]
         zeroth = self._init_processes(*args,**kwargs)
         cplan = self.parent.cartographer_plan
         if cplan.use_plan:
-            psp_trajectory = cplan.parameter_space.trajectory
-            for psp_location in psp_trajectory:
-                self._enact_processes(*args,**kwargs)
+            psp_trajectory = cplan.trajectory
+            for psp_dex in range(len(psp_trajectory)):
+                childpool = pool.children[psp_dex]
+                self._enact_processes(zeroth,childpool,psp_trajectory)
+        else:
+            psp_trajectory = None
+            self._enact_processes(zeroth,pool,psp_trajectory)
+        self._walk_processes(zeroth,psp_trajectory)
 
-            #results = []
-            for tdx in range(len(pspace.trajectory)):
-                results.append(method(pool.children[tdx]))
-            self.data = dba.batch_node(children = results)
 
-            # open each pspace location individually
-            print '\n\nshould optimize processplan for pspace mapping!!!\n\n'
-
-    def _enact(self,*args,**kwargs):
+    def _enact___OLD(self,*args,**kwargs):
         for process in self.processes:
             stime = time.time()
             process(*args,**kwargs)
             dura = time.time() - stime
             print 'completed post process',process.name,'in',dura,'seconds'
         return args[1]
+
+
 
     def _data(self):
         dpool = dba.batch_node()

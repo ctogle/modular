@@ -33,10 +33,10 @@
 	x1
 
 <parameter_space>
-	<product_space> 1000
-		lambda1 : value : 1.0-10.0;10.0
-		lambda2 : value : 1.0-10.0;10.0
-		mu : value : 4.0-16.0;4.0
+	<product_space> 10000
+		lambda1 : value : 4.0-16.0;4.0
+		lambda2 : value : 4.0-16.0;4.0
+		mu      : value : 4.0-16.0;4.0
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered
@@ -54,10 +54,10 @@
 
 <ensemble>
 	multiprocessing : on
-	mapparameterspace : on
+	mapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 100000
+	trajectory_count : 10000
 
 
 

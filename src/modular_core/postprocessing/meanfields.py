@@ -36,8 +36,6 @@ class meanfields(lpp.post_process_abstract):
 
     def meanfields(self,*args,**kwargs):
         pool = args[0]
-        stowed = pool._stowed()
-        if stowed:pool._recover()
 
         tcount = len(self.target_list)
         dshape = (tcount,self.bin_count)
@@ -50,7 +48,6 @@ class meanfields(lpp.post_process_abstract):
             data[dex + 1] = means
         data[0] = bins
 
-        if stowed:pool._stow()
         bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
         bnode._trajectory(data)
         return bnode

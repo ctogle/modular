@@ -220,7 +220,8 @@ class batch_node(ldc.data_mobject):
             targets = self.targets
             friendly = []
             if len(data.shape) == 2:datamobj = dst.scalars
-            else:pdb.set_trace()
+            else:return friendly
+            #else:pdb.set_trace()
             for dx in range(data.shape[0]):
                 std = datamobj(name = targets[dx],data = data[dx],marker = 'x')
                 friendly.append(std)

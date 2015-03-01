@@ -69,24 +69,24 @@ class reorganize(lpp.post_process_abstract):
     #one for each dater in each trajectory of the original collection, 
     #which aggregates the original collection of trajectories
     def data_by_trajectory(self,*args,**kwargs):
-        #trajectory = args[0].children
         pool = args[0]
-        pspace_map = args[1]
+        pspace_trajectory = args[1]
+        if pspace_trajectory is None:
+            print 'not mapping p-space\n\treorganize ignored...'
+            bnode = dba.batch_node(dshape = ())
+            return bnode
+            
         trajectory = pool.children
-        stowed = pool._stowed()
-        if stowed:pool._recover()
 
         axcnt = len(self.axis_labels)
         t0lnames = trajectory[0].targets
-        #t0lnames = [l.name for l in trajectory[0].data]
-        #self.dater_ids = lfu.intersect_lists(self.dater_ids,t0lnames)
         ptrajdexes = []
         ptrajaxvals = [[] for x in range(axcnt)]
         datervals = [[] for x in range(len(self.dater_ids))]
         for dex,locale in enumerate(trajectory):
             locale_data = locale.data
             ptrajdexes.append(dex)
-            pspace_locale_values = pspace_map.trajectory[dex].location
+            pspace_locale_values = pspace_trajectory[dex].location
             for tdx in range(axcnt):
                 ptrajaxvals[tdx].append(float(pspace_locale_values[tdx]))
 
@@ -98,8 +98,6 @@ class reorganize(lpp.post_process_abstract):
         tcount = len(self.capture_targets)
         dshape = (tcount,len(trajectory))
         data = np.zeros(dshape,dtype = np.float)
-        #data = dst.scalars_from_labels(['parameter space location index']+\
-        #        self.axis_labels + [label for label in self.dater_ids])
         data[0] = np.array(ptrajdexes)
         for tdx in range(axcnt):
             data[tdx+1] = np.array(ptrajaxvals[tdx])
@@ -107,17 +105,11 @@ class reorganize(lpp.post_process_abstract):
             data[ddx+axcnt+1] = np.array(datervals[ddx])
         self.surf_targets = ['parameter space location index'] + self.dater_ids
 
-        if stowed:pool._stow()
         bnode = dba.batch_node(
             dshape = dshape,targets = self.capture_targets,
             pspace_axes = self.axis_labels,surface_targets = self.surf_targets)
         bnode._trajectory(data)
         return bnode
-
-        #data.append(dst.reducer(
-        #    data = data,axes = self.axis_labels,
-        #    surfs = self.surf_targets,name = 'reducer'))
-        #return dba.batch_node(data = data)
 
     def _target_settables(self,*args,**kwargs):
         self.valid_inputs = self._valid_inputs(*args,**kwargs)
