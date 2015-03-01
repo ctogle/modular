@@ -46,17 +46,27 @@ class correlate(lpp.post_process_abstract):
             else: return val
         bcnt,orr = self.bin_count,self.ordered
 
-        bins,vs1 = args[0]._bin_data(self.function_of,self.target_1,bcnt,orr)
-        bins,vs2 = args[0]._bin_data(self.function_of,self.target_2,bcnt,orr)
+        pool = args[0]
+        stowed = pool._stowed()
+        if stowed:pool._recover()
+
+        bins,vs1 = pool._bin_data(self.function_of,self.target_1,bcnt,orr)
+        bins,vs2 = pool._bin_data(self.function_of,self.target_2,bcnt,orr)
 
         correlations,p_values = zip(
             *[correl(v1,v2) for v1,v2 in zip(vs1,vs2)])
-        data = dst.scalars_from_labels([self.function_of, 
-            'correlation coefficients','correlation p-value'])
-        data[0].data = np.array(bins)
-        data[1].data = np.array([verify(val) for val in correlations])
-        data[2].data = np.array([verify(val) for val in p_values])
-        return dba.batch_node(data = data)
+
+        tcount = len(self.target_list)
+        dshape = (tcount,bcnt)
+        data = np.zeros(dshape,dtype = np.float)
+        data[0] = bins
+        data[1] = np.array([verify(val) for val in correlations])
+        data[2] = np.array([verify(val) for val in p_values])
+
+        if stowed:pool._stow()
+        bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        bnode._trajectory(data)
+        return bnode
 
     def _target_settables(self, *args, **kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
@@ -68,8 +78,9 @@ class correlate(lpp.post_process_abstract):
                 self.target_2 = capture_targetable[0]
         if self.function_of is None and capture_targetable:
                 self.function_of = capture_targetable[0]
-        self.capture_targets = [self.function_of, 
+        self.target_list = [self.function_of, 
             'correlation coefficients','correlation p-value']
+        self.capture_targets = self.target_list 
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):

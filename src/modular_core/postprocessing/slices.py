@@ -32,21 +32,37 @@ class trajectory_slice(lpp.post_process_abstract):
         self.method = self.slice_from_trajectory
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
+    def _slice(self):
+        try:
+            slic = int(self.slice_dex)
+            scnt = 1
+        except ValueError:
+            col_dex = self.slice_dex.index(':')
+            slice_1 = int(self.slice_dex[:col_dex])
+            slice_2 = int(self.slice_dex[col_dex:])
+            slic = slice(slice_1,slice_2)
+            scnt = slice_2 - slice_1
+        return slic,scnt
+
     def slice_from_trajectory(self,*args,**kwargs):
-        trajectory = args[0].data
-        tnames = [d.name for d in trajectory]
-        self.dater_ids = lfu.intersect_lists(self.dater_ids,tnames)
-        data = dst.scalars_from_labels([label for label in self.dater_ids])
-        for dater in data:
-            sub_traj = lfu.grab_mobj_by_name(dater.name,trajectory)
-            if self.slice_dex.count(':') == 0:
-                dater.data = [sub_traj.data[int(self.slice_dex)]]
-            else:
-                col_dex = self.slice_dex.index(':')
-                slice_1 = int(self.slice_dex[:col_dex])
-                slice_2 = int(self.slice_dex[col_dex:])
-                dater.data = sub_traj.data[slice_1:slice_2]
-        return dba.batch_node(data = data)
+        pool = args[0]
+        stowed = pool._stowed()
+        if stowed:pool._recover()
+
+        slic,scnt = self._slice()
+        tcount = len(self.dater_ids)
+        dshape = (tcount,scnt)
+        data = np.zeros(dshape,dtype = np.float)
+
+        trajectory = pool.data
+        tnames = pool.targets
+        for px,pt in enumerate(tnames):
+            data[self.dater_ids.index(pt)] = trajectory[px][slic]
+
+        if stowed:pool._stow()
+        bnode = dba.batch_node(dshape = dshape,targets = self.dater_ids)
+        bnode._trajectory(data)
+        return bnode
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['per trajectory']

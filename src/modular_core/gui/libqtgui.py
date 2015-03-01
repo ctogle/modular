@@ -178,7 +178,6 @@ class plot_page(lfu.mobject):
         self.filename = filename.split(os.path.sep)[-1]
         self.targs = targs[:]
         self.active_targs = targs[:]
-
         if data.data: self.xdomain = data.data[0].name
         else: self.xdomain = xtitle
         if data.data: self.ydomain = data.data[0].name

@@ -69,11 +69,17 @@ class reorganize(lpp.post_process_abstract):
     #one for each dater in each trajectory of the original collection, 
     #which aggregates the original collection of trajectories
     def data_by_trajectory(self,*args,**kwargs):
-        trajectory = args[0].children
+        #trajectory = args[0].children
+        pool = args[0]
         pspace_map = args[1]
+        trajectory = pool.children
+        stowed = pool._stowed()
+        if stowed:pool._recover()
+
         axcnt = len(self.axis_labels)
-        t0lnames = [l.name for l in trajectory[0].data]
-        self.dater_ids = lfu.intersect_lists(self.dater_ids,t0lnames)
+        t0lnames = trajectory[0].targets
+        #t0lnames = [l.name for l in trajectory[0].data]
+        #self.dater_ids = lfu.intersect_lists(self.dater_ids,t0lnames)
         ptrajdexes = []
         ptrajaxvals = [[] for x in range(axcnt)]
         datervals = [[] for x in range(len(self.dater_ids))]
@@ -86,22 +92,32 @@ class reorganize(lpp.post_process_abstract):
 
             for ddx in range(len(self.dater_ids)):
                 dname = self.dater_ids[ddx]
-                value = locale_data[ddx].data[-1]
+                value = locale_data[ddx][-1]
                 datervals[ddx].append(value)
 
-        data = dst.scalars_from_labels(['parameter space location index']+\
-                self.axis_labels + [label for label in self.dater_ids])
-        data[0].data = np.array(ptrajdexes)
+        tcount = len(self.capture_targets)
+        dshape = (tcount,len(trajectory))
+        data = np.zeros(dshape,dtype = np.float)
+        #data = dst.scalars_from_labels(['parameter space location index']+\
+        #        self.axis_labels + [label for label in self.dater_ids])
+        data[0] = np.array(ptrajdexes)
         for tdx in range(axcnt):
-            data[tdx+1].data = np.array(ptrajaxvals[tdx])
+            data[tdx+1] = np.array(ptrajaxvals[tdx])
         for ddx in range(len(self.dater_ids)):
-            data[ddx+axcnt+1].data = np.array(datervals[ddx])
-        surf_targets = ['parameter space location index'] + self.dater_ids
+            data[ddx+axcnt+1] = np.array(datervals[ddx])
+        self.surf_targets = ['parameter space location index'] + self.dater_ids
 
-        data.append(dst.reducer(
-            data = data,axes = self.axis_labels,
-            surfs = surf_targets,name = 'reducer'))
-        return dba.batch_node(data = data)
+        if stowed:pool._stow()
+        bnode = dba.batch_node(
+            dshape = dshape,targets = self.capture_targets,
+            pspace_axes = self.axis_labels,surface_targets = self.surf_targets)
+        bnode._trajectory(data)
+        return bnode
+
+        #data.append(dst.reducer(
+        #    data = data,axes = self.axis_labels,
+        #    surfs = self.surf_targets,name = 'reducer'))
+        #return dba.batch_node(data = data)
 
     def _target_settables(self,*args,**kwargs):
         self.valid_inputs = self._valid_inputs(*args,**kwargs)

@@ -3,6 +3,7 @@ import modular_core.fundamental as lfu
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
+import modular_core.io.pkl as pk
 import modular_core.settings as lset
 import modular_core.data.batch_target as dba
 
@@ -37,7 +38,8 @@ class pkl_handler(lfu.mobject):
             relev = [p for p in pkl_files if p[:p.find('.')] == outp]
             for fi in relev:
                 fipath = os.path.join(self.pkl_files_directory, fi)
-                dat = lf.load_pkl_object(fipath)
+                dat = pk.load_pkl_object(fipath)
+                #dat = lf.load_mobject(fipath)
                 ptargets = [d.name for d in dat.data]
                 data_[-1]._add_child(dba.batch_node(data = dat.data))
                 self.capture_targets.extend(ptargets)

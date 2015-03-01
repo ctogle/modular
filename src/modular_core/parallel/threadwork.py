@@ -43,11 +43,6 @@ class worker_thread(Thread):
         except IOError:
             print 'IOError: pipe close hopefully without leaking'
 
-        except pickle.PicklingError:
-            print 'purge!'
-            self.ensem._q_purge_()
-            pdb.set_trace()
-
         print 'process finished by aborting: ' + str(self.aborted)
         if not self.aborted: self.fin_.worker_fin.emit()
 

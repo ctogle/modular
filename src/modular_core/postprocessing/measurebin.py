@@ -37,24 +37,34 @@ class binmeasure(lpp.post_process_abstract):
 
     def measurement_bin(self,*args,**kwargs):
         pool = args[0]
-        measurements = []
         stowed = pool._stowed()
         if stowed:pool._recover()
-        for traj in pool.children:
-            meas = self.measure(traj.data)
+
+        tcount = len(self.target_list)
+        dshape = (tcount,self.bin_count)
+        data = np.zeros(dshape,dtype = np.float)
+
+        measurements = []
+        for traj in pool.data:
+            meas = self.measure(traj,pool.targets)
             measurements.append(meas)
-        if stowed:pool._stow()
+
         bincounts,bins = np.histogram(measurements,bins = self.bin_count)
-        data = dst.scalars_from_labels(['bins','counts'])
-        data[0].data = bins
-        data[1].data = bincounts
-        return dba.batch_node(data = data)
+        # histogram returns bin_edges; ignore the last edge...
+        data[0] = bins[:-1]
+        data[1] = bincounts
+
+        if stowed:pool._stow()
+        bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        bnode._trajectory(data)
+        return bnode
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
         self.valid_inputs = self._valid_inputs(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
-        self.capture_targets = ['bins','counts']
+        self.target_list = ['bins','counts']
+        self.capture_targets = self.target_list
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):
@@ -79,10 +89,10 @@ class measurement_steady_state_count(lfu.mobject):
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def __call__(self,*args,**kwargs):
-        data = args[0]
-        target = lfu.grab_mobj_by_name(self.parent.target,data)
-        dlen = len(target.data)
-        wdata = target.data[dlen-self.window*dlen:dlen]
+        data,targets = args
+        tdata = data[targets.index(self.parent.target)]
+        dlen = len(tdata)
+        wdata = tdata[dlen-self.window*dlen:dlen]
         value = np.mean(wdata)
         return value
 

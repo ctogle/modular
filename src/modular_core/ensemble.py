@@ -3,9 +3,9 @@ import modular_core.fundamental as lfu
 import modular_core.endcaptureplan as lsc
 import modular_core.simulationmodule as smd
 import modular_core.parameterspaces as lpsp
-import modular_core.multicore as multicore
+import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
-import modular_core.threadwork as wt
+import modular_core.parallel.threadwork as wt
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
@@ -72,7 +72,7 @@ class ensemble(lfu.mobject):
             parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
             name = 'Post Process Plan',always_sourceable = ['simulation'])
-        self.multiprocess_plan = multicore.multiprocess_plan(parent = self)
+        self.multiprocess_plan = paral.parallel_plan(parent = self)
         self.children = [
             self.simulation_plan,self.output_plan,self.fitting_plan,
             self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
@@ -94,7 +94,7 @@ class ensemble(lfu.mobject):
 
         self.data_pool_descr = ''
         self.data_pool_id = self._new_data_pool_id()
-        self.data_pool = self._data_scheme()
+        self.data_pool_pkl = self._data_pool_path()
 
         self.aborted = False
         self.current_tab_index = 0
@@ -174,15 +174,21 @@ class ensemble(lfu.mobject):
     # NOT TESTED
     # use the fitting_plan to perform simulations
     def _run_fitting(self):
-        dpool = self._data_scheme()
+        dpool = dba.batch_node()
         if not self.cartographer_plan.parameter_space:
             print 'fitting requires a parameter space!'
         dpool = self.fitting_plan(self,dpool)
         return dpool
 
     #no multiprocessing, no parameter variation, and no fitting
+    # final batch_node data should contain each trajectory 
+    # for the one psplocation
+    # if the data needs to be outputted, it needs to be included
+    # in the data pool downstream
+    # any post processes which consume the simulation only
+    # can be computed immediately and included for downstream
+    #
     def _run_nonmap_nonmp(self):
-        data_pool = self._data_scheme()
         ptargets = self.run_params['plot_targets']
         pcnt = self.multiprocess_plan.worker_count
 
@@ -191,11 +197,16 @@ class ensemble(lfu.mobject):
         self._run_params_to_location()
         sim_args = self.module.sim_args
 
+        tcnt = len(self.simulation_plan.plot_targets)
+        ccnt = self.simulation_plan._capture_count()
         max_run = self.num_trajectories
-        run = 1
-        while run <= max_run:
+        dshape = (max_run,tcnt,ccnt)
+        data_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
+
+        run = 0
+        while run < max_run:
             rundat = simu(sim_args)
-            data_pool._trajectory(rundat,ptargets)
+            data_pool._trajectory(rundat)
             run += 1
             prt = run % pcnt == 0
             if prt:print 'simulated trajectory:',run,'/',max_run
@@ -203,7 +214,12 @@ class ensemble(lfu.mobject):
 
     #multiprocessing, no parameter variation, no fitting
     def _run_nonmap_mp(self):
-        data_pool = self._data_scheme()
+        ptargets = self.simulation_plan.plot_targets
+        tcnt = len(ptargets)
+        ccnt = self.simulation_plan._capture_count()
+        max_run = self.num_trajectories
+        dshape = (max_run,tcnt,ccnt)
+        data_pool = dba.batch_node(dshape = dshape,targets = ptargets)
         data_pool = self.multiprocess_plan._run_flat(data_pool,self)
         return data_pool
 
@@ -213,27 +229,34 @@ class ensemble(lfu.mobject):
         move_func = self.cartographer_plan._move_to
         pcnt = self.multiprocess_plan.worker_count
 
-        data_pool = self._data_scheme()
+        data_pool = dba.batch_node()
         ptargets = self.run_params['plot_targets']
 
         arc = self.cartographer_plan.trajectory
         arc_length = len(arc)
         max_run = arc[0].trajectory_count
-        stow_needed = ensem._require_stow(max_run,arc_length)
+        stow_needed = self._require_stow(max_run,arc_length)
+
+        tcnt = len(self.simulation_plan.plot_targets)
+        ccnt = self.simulation_plan._capture_count()
 
         iteration = 0
         while iteration < arc_length:
-            loc_pool = dba.batch_node()  
             move_func(iteration)
             self._run_params_to_location_prepoolinit()
             self._run_params_to_location()
             sim_args = self.module.sim_args
             tcount = arc[iteration].trajectory_count
+
+            dshape = (tcount,tcnt,ccnt)
+            loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
+
             for tdx in range(tcount):
                 rundat = simu(sim_args)
-                loc_pool._trajectory(rundat,ptargets)
+                loc_pool._trajectory(rundat)
                 prt = tdx % pcnt == 0
                 if prt:print 'location:',iteration,'run:',tdx,'/',tcount
+
             data_pool._add_child(loc_pool)
             if stow_needed:data_pool._stow_child(-1)
             iteration += 1
@@ -241,7 +264,7 @@ class ensemble(lfu.mobject):
 
     #multiprocessing with parameter variation, no fitting
     def _run_map_mp(self):
-        data_pool = self._data_scheme()
+        data_pool = dba.batch_node()
         data_pool = self.multiprocess_plan._run_nonflat(data_pool,self)
         return data_pool
 
@@ -281,8 +304,8 @@ class ensemble(lfu.mobject):
                 tkey.write('\n  Index:'+str(ldex).ljust(8)+' '*9)
                 tkey.write(str(loc.trajectory_count).rjust(10)+' '*15)
                 tkey.write('\t'.join(locline))
-        keypath = os.path.join(os.getcwd(),'trajectory_key.txt')
-        with open(keypath,'w') as ha:ha.write(tkey.getvalue())
+            keypath = os.path.join(os.getcwd(),'trajectory_key.txt')
+            with open(keypath,'w') as ha:ha.write(tkey.getvalue())
 
     # output data associated with post processes
     def _output_postprocesses(self,pool):
@@ -290,7 +313,7 @@ class ensemble(lfu.mobject):
             processes = self.postprocess_plan.processes
             for dex,proc in enumerate(processes):
                 if proc.output._must_output():
-                    pdata = pool.postproc_data[dex]
+                    pdata = pool.postproc_data.children[dex]
                     data = lfu.data_container(data = pdata)
                     proc._regime(self)
                     proc.output(data)
@@ -301,7 +324,7 @@ class ensemble(lfu.mobject):
             routines = self.fitting_plan.routines
             for dex,rout in enumerate(routines):
                 if rout.output._must_output():
-                    fdata = pool.routine_data[dex]
+                    fdata = pool.routine_data.children[dex]
                     data = lfu.data_container(data = fdata)
                     rout.output(data)
 
@@ -336,12 +359,8 @@ class ensemble(lfu.mobject):
 
     # return the correct data_pool_pkl filename based on the data scheme
     def _data_pool_path(self):
-        if self.data_scheme == 'smart_batch':
-            data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-                '.'.join(['data_pool','smart',self.data_pool_id,'pkl']))
-        elif self.data_scheme == 'batch':
-            data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-                '.'.join(['data_pool',self.data_pool_id,'pkl']))
+        data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
+            '.'.join(['data_pool',self.data_pool_id,'pkl']))
         return data_pool_pkl
 
     def _require_stow(self,runcount,psplocationcount):
@@ -357,19 +376,6 @@ class ensemble(lfu.mobject):
         time.sleep(1)
         return stow_needed
 
-    # determine the correct data object for the ensemble run
-    def _data_scheme(self):
-        smart = lset.get_setting('use_smart_pool')
-        smart = (smart is None or smart is True)
-        mappspace = self.cartographer_plan.use_plan
-        fitting = self.fitting_plan.use_plan
-
-        if smart and mappspace and not fitting:self.data_scheme = 'smart_batch'
-        else:self.data_scheme = 'batch'
-
-        data_pool = dba.batch_node()
-        self.data_pool_pkl = self._data_pool_path()
-        return data_pool
 
 
     # FIX THIS
@@ -397,24 +403,27 @@ class ensemble(lfu.mobject):
     def _save_data_pool(self,dpool):
         print 'saving data pool...'
         stime = time.time()
+
         pplan = self.postprocess_plan
-        if pplan.use_plan:pdata = [proc.data for proc in pplan.processes]
+        #if pplan.use_plan:pdata = [proc.data for proc in pplan.processes]
+        if pplan.use_plan:pdata = pplan._data()
         else:pdata = None
+
         fplan = self.fitting_plan
         if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
         else:fdata = None
+        
         data_pool = lfu.data_container(data = dpool, 
             postproc_data = pdata,routine_data = fdata)
         self._describe_data_pool(data_pool)
         self.data_pool_pkl = self._data_pool_path()
-        lf.save_pkl_object(data_pool,self.data_pool_pkl)
+        lf.save_mobject(data_pool,self.data_pool_pkl)
         print 'saved data pool:',time.time() - stime
 
     def _load_data_pool(self):
         print 'loading data pool...'
         stime = time.time()
-        self._data_scheme()
-        dpool = lf.load_pkl_object(self.data_pool_pkl)
+        dpool = lf.load_mobject(self.data_pool_pkl)
         self._describe_data_pool(dpool)
         print 'loaded data pool:',time.time() - stime
         return dpool
@@ -424,7 +433,6 @@ class ensemble(lfu.mobject):
         self.multithread_gui = lset.get_setting('multithread_gui')
         try:
             self._sanitize()
-            self._data_scheme()
 
             if self.multithread_gui:
                 self.parent._run_threaded_ensemble(self,self._run_specific)
@@ -449,7 +457,7 @@ class ensemble(lfu.mobject):
             self.parent = None
             save_file = self.name + '.ensempkl'
             save_path = os.path.join(save_dir,save_file)
-            lf.save_pkl_object(self,save_path)
+            lf.save_mobject(self,save_path)
             self.parent = manager
             print 'saved ensemble:',self.name
 
@@ -688,7 +696,7 @@ class ensemble_manager(lfu.mobject):
         fidlg = lgd.create_dialog('Choose File','File?','file')
         file_ = fidlg()
         if not file_ is None:
-            newensem = lf.load_pkl_object(file_)
+            newensem = lf.load_mobject(file_)
             newensem.parent = self
             newensem._rewidget(True)
             #newensem._widget(newensem,self)

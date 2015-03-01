@@ -35,15 +35,25 @@ class meanfields(lpp.post_process_abstract):
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def meanfields(self,*args,**kwargs):
-        data = dst.scalars_from_labels(self.target_list)
+        pool = args[0]
+        stowed = pool._stowed()
+        if stowed:pool._recover()
+
+        tcount = len(self.target_list)
+        dshape = (tcount,self.bin_count)
+        data = np.zeros(dshape,dtype = np.float)
         for dex,mean_of in enumerate(self.means_of):
-            bins,vals = args[0]._bin_data(
+            bins,vals = pool._bin_data(
                 self.function_of,mean_of,
                 self.bin_count,self.ordered)
-            means = [np.mean(val) for val in vals]
-            data[dex + 1].data = means
-        data[0].data = bins
-        return dba.batch_node(data = data)
+            means = np.array([np.mean(v) for v in vals])
+            data[dex + 1] = means
+        data[0] = bins
+
+        if stowed:pool._stow()
+        bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        bnode._trajectory(data)
+        return bnode
 
     def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']

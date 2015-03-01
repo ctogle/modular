@@ -233,7 +233,7 @@ class fit_routine(lfu.mobject):
                 file_ = raw_input('enter full path to a new default input directory')
                 pdb.set_trace()
             self.input_data_file = file_
-        data = lf.load_pkl_object(self.input_data_file)
+        data = lf.load_mobject(self.input_data_file)
         self.input_data_targets = [dater.label for dater in data.data]
         self.rewidget(True)
         if read:

@@ -173,8 +173,6 @@ class post_process_abstract(lfu.mobject):
     def _by_parameter_space(self,method,pool,pspace):
         results = []
         for tdx in range(len(pspace.trajectory)):
-            locale = pspace.trajectory[tdx]
-            traj_count = locale.trajectory_count
             results.append(method(pool.children[tdx]))
         self.data = dba.batch_node(children = results)
 

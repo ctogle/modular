@@ -34,7 +34,41 @@ class post_process_plan(lfu.plan):
         lfu.plan.__init__(self,*args,**kwargs)
         self.current_tab_index = 0
 
+    def _init_processes(self,*args,**kwargs):
+        zeroth = []
+        for process in self.processes:
+            process.data = dba.batch_node()
+            pdb.set_trace()
+        return zeroth
+
+    def _enact_processes(self,*args,**kwargs):
+        for process in self.processes:
+
+            results.append(method(pool.children[tdx]))
+            
+            process.data.children.append(presult)
+
     # perform processes, measure time, return data pool
+    # for each pspace location, iterate over 0th level processes
+    #  each process calls those which consume it
+    #
+    #  processes form a bethe network...
+    def _enact_(self,*args,**kwargs):
+        zeroth = self._init_processes(*args,**kwargs)
+        cplan = self.parent.cartographer_plan
+        if cplan.use_plan:
+            psp_trajectory = cplan.parameter_space.trajectory
+            for psp_location in psp_trajectory:
+                self._enact_processes(*args,**kwargs)
+
+            #results = []
+            for tdx in range(len(pspace.trajectory)):
+                results.append(method(pool.children[tdx]))
+            self.data = dba.batch_node(children = results)
+
+            # open each pspace location individually
+            print '\n\nshould optimize processplan for pspace mapping!!!\n\n'
+
     def _enact(self,*args,**kwargs):
         for process in self.processes:
             stime = time.time()
@@ -42,6 +76,12 @@ class post_process_plan(lfu.plan):
             dura = time.time() - stime
             print 'completed post process',process.name,'in',dura,'seconds'
         return args[1]
+
+    def _data(self):
+        dpool = dba.batch_node()
+        [dpool._add_child(p.data) for p in self.processes]
+        return dpool
+
 
     # reset children and processes
     def _reset_process_list(self):

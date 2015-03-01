@@ -2,6 +2,7 @@ import modular_core.fundamental as lfu
 import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
+import modular_core.io.pkl as pk
 import modular_core.io.libvtkoutput as lvtk
 import modular_core.io.libtxtoutput as ltxt
 
@@ -105,7 +106,8 @@ class writer_pkl(writer_abstract):
         writer_abstract.__init__(self,*args,**kwargs)
 
     def _write(self,*args):
-        lf.save_pkl_object(*args[:2])
+        #lf.save_mobject(*args[:2])
+        pk.save_pkl_object(*args[:2])
 
 class writer_txt(writer_abstract):
 
@@ -287,7 +289,9 @@ class output_plan(lfu.plan):
         proper_targets = self._proper_targets(data)
         pltflag = False
         for dchild in data.data.children:
-            traj = dchild.data
+            #dchild._open()
+            #traj = dchild.data
+            traj = dchild._plot_friendly()
             data_container = lfu.data_container(
                 data = traj,plt_callbacks = data.plt_callbacks)
             self._update_filenames()
@@ -304,7 +308,10 @@ class output_plan(lfu.plan):
 
     # when data.data is a batch_node with data but without children nodes
     # IS THIS TESTED??
-    def _output_flat(self,data):
+    def _output_flat_____(self,data):
+
+        pdb.set_trace()
+
         types = ['vtk','pkl','txt','plt']
         proper_targets = self._proper_targets(data)
         self._update_filenames()

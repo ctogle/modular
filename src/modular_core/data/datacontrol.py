@@ -93,66 +93,6 @@ class data_mobject(lfu.data_container):
 
 
 
-class bin_vector(object):
-#Note: inheriting from lfu.modular_object here makes things SLOW!
-
-    def __init__(self, bins, name = 'another bin vector'):
-        self.tag = 'bin_vector'
-        self.name = name
-
-        rng = np.arange(bins.shape[0], dtype = float)
-        self.axis_labels = ['bin_index']
-        self.axis_values = [
-            scalars(name = 'bin_index', scalars = rng)]
-        self.axis_defaults = [da.scalars[0] for da in self.axis_values]
-
-        self.data = bins
-
-    def make_bins(self, *args, **kwargs):
-        xleng = self.data.shape[1]
-        x = np.arange(xleng + 1)
-        s_dex = self.axis_defaults[0]
-        bins = self.data[s_dex]
-        return (x, bins)
-
-class voxel_vector(object):
-
-    def __init__(self, cubes, name = 'another voxel vector'):
-        self.tag = 'voxel_vector'
-        self.name = name
-
-        rng = np.arange(cubes.shape[0], dtype = float)
-        self.axis_labels = ['cube_index']
-        self.axis_values = [
-            scalars(name = 'cube_index', scalars = rng)]
-        self.axis_defaults = [da.scalars[0] for da in self.axis_values]
-
-        self.data = cubes
-
-    def make_cube(self, *args, **kwargs):
-        xleng = self.data.shape[1]
-        yleng = self.data.shape[2]
-        zleng = self.data.shape[3]
-        s_dex = self.axis_defaults[0]
-        cube = self.data[s_dex]
-        uniq = np.unique(cube)
-        if len(uniq) > 4:
-            print 'voxel vector is incomplete!!'
-            pdb.set_trace()
-        colors = ['r', 'g', 'b']
-        markers = ['o', 'o', 'o']
-        scatter = []
-        for un in uniq:
-            if un == 0.0: continue
-            locs = np.where(cube == un)
-            #locs = zip(*np.where(cube == un))
-            if locs:
-                c = colors.pop()
-                m = markers.pop()
-                scatter.append((c, m, locs))
-        # return [(color, marker, list_of_coords), ...]
-        return scatter
-
 class surface_vector(object):
 
     def __init__(self, surfs, 

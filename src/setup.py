@@ -29,6 +29,7 @@ pkgs = [
     'modular_core.criteria',
     'modular_core.data', 
     'modular_core.postprocessing',
+    'modular_core.parallel',
     'modular_core.cython']
 setup(
     name="modular_core-pkg",

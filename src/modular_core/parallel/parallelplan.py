@@ -6,24 +6,24 @@ import pdb,sys,time,types
 import numpy as np
 import multiprocessing as mp
 
-if __name__ == 'modular_core.multicore':
+if __name__ == 'modular_core.parallel.parallelplan':
     lfu.check_gui_pack()
     lgb = lfu.gui_pack.lgb
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
-if __name__ == '__main__':print 'multicore of modular_core'
+if __name__ == '__main__':print 'parallelplan of modular_core'
 
 ###############################################################################
-### a multiprocess_plan provides multiprocessing support to an ensemble
+### a parallel_plan provides multiprocessing support to an ensemble
 ###############################################################################
 
-class multiprocess_plan(lfu.plan):
+class parallel_plan(lfu.plan):
 
     def _string(self):
         return '\tworkers : ' + str(self.worker_count)
 
     def __init__(self,*args,**kwargs):
-        self._default('name','multiprocessing plan',**kwargs)
+        self._default('name','parallel plan',**kwargs)
         use_plan = lset.get_setting('multiprocessing')
         self._default('use_plan',use_plan,**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
@@ -40,29 +40,26 @@ class multiprocess_plan(lfu.plan):
     # space location with any number of runs
     def _run_flat(self,data_pool,ensem):
         pcnt = int(self.worker_count)
-        #init = ensem._run_params_to_location
         ensem._run_params_to_location_prepoolinit()
         ensem._run_params_to_location()
-        pool = mp.Pool(processes = pcnt)#,initializer = init)
+        pool = mp.Pool(processes = pcnt)
 
-        results = []
         simu = ensem.module.simulation
         max_run = ensem.num_trajectories
         run = 0
+        def _cb_(*args):
+            for a in args[0]:
+                data_pool._trajectory(a)
         while run < max_run:
             rtr = self._runs_this_round(pcnt,max_run,run)
             run += rtr
-            #ensem._run_params_to_location_prepoolinit()
-            #pool._initializer()
             args = [ensem.module.sim_args]*rtr
-            result = pool.map_async(simu,args,callback = results.extend)
+            result = pool.map_async(simu,args,callback = _cb_)
             result.wait()
             print 'simulated trajectory:',run,'/',max_run
 
         pool.close()
         pool.join()
-        ptargets = ensem.run_params['plot_targets']
-        for rundat in results:data_pool._trajectory(rundat,ptargets)
         return data_pool
 
     # handles the case of any number of parameter space locations with
@@ -81,25 +78,31 @@ class multiprocess_plan(lfu.plan):
         max_loc = len(trajectory)
         max_run = trajectory[0].trajectory_count
         stow_needed = True
-        #stow_needed = ensem._require_stow(max_run,max_loc)
+        stow_needed = ensem._require_stow(max_run,max_loc)
+
+        tcnt = len(self.parent.simulation_plan.plot_targets)
+        ccnt = self.parent.simulation_plan._capture_count()
 
         loc = 0
         while loc < max_loc:
             move_to(loc)
             pool._initializer()
-            max_run = trajectory[loc].trajectory_count
             run = 0
             subresults = []
+            max_run = trajectory[loc].trajectory_count
+            dshape = (max_run,tcnt,ccnt)
+            loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
+            def _cb_(*args):
+                for a in args[0]:
+                    loc_pool._trajectory(a)
             while run < max_run:
                 rtr = self._runs_this_round(pcnt,max_run,run)
                 run += rtr
                 pool._initializer()
                 args = [ensem.module.sim_args]*rtr
-                result = pool.map_async(simu,args,callback = subresults.extend)
+                result = pool.map_async(simu,args,callback = _cb_)
                 result.wait()
                 print 'location:',loc,'run:',run,'/',max_run
-            loc_pool = dba.batch_node()  
-            for subr in subresults:loc_pool._trajectory(subr,ptargets)
             data_pool._add_child(loc_pool)
             if stow_needed:data_pool._stow_child(-1)
             loc += 1
