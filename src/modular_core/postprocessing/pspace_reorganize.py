@@ -70,13 +70,12 @@ class reorganize(lpp.post_process_abstract):
     #which aggregates the original collection of trajectories
     def data_by_trajectory(self,*args,**kwargs):
         pool = args[0]
+        trajectory = pool.children
         pspace_trajectory = args[1]
         if pspace_trajectory is None:
             print 'not mapping p-space\n\treorganize ignored...'
             bnode = dba.batch_node(dshape = ())
             return bnode
-            
-        trajectory = pool.children
 
         axcnt = len(self.axis_labels)
         t0lnames = trajectory[0].targets

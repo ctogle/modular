@@ -5,7 +5,7 @@ import modular_core.data.single_target as dst
 import modular_core.data.batch_target as dba
 import modular_core.postprocessing.process_abstract as lpp
 
-import pdb,sys,math
+import pdb,sys,math,time
 import numpy as np
 from scipy.stats import pearsonr as correl
 
@@ -44,17 +44,15 @@ class correlate(lpp.post_process_abstract):
         def verify(val):
             if math.isnan(val): return self.fill_value
             else: return val
-        bcnt,orr = self.bin_count,self.ordered
-
         pool = args[0]
-        stowed = pool._stowed()
-        if stowed:pool._recover()
 
-        bins,vs1 = pool._bin_data(self.function_of,self.target_1,bcnt,orr)
-        bins,vs2 = pool._bin_data(self.function_of,self.target_2,bcnt,orr)
-
-        correlations,p_values = zip(
-            *[correl(v1,v2) for v1,v2 in zip(vs1,vs2)])
+        bcnt,orr = self.bin_count,self.ordered
+        bins,valss = pool._bin_data(self.function_of,
+            [self.target_1,self.target_2],bcnt,orr)
+        correls_pvals = np.array(
+            [correl(valss[k,0,:],valss[k,1,:]) for k in range(valss.shape[0])])
+        correlations = correls_pvals[:,0]
+        p_values = correls_pvals[:,1]
 
         tcount = len(self.target_list)
         dshape = (tcount,bcnt)
@@ -63,7 +61,6 @@ class correlate(lpp.post_process_abstract):
         data[1] = np.array([verify(val) for val in correlations])
         data[2] = np.array([verify(val) for val in p_values])
 
-        if stowed:pool._stow()
         bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
         bnode._trajectory(data)
         return bnode

@@ -125,57 +125,6 @@ class post_process_abstract(lfu.mobject):
         self.children = [self.output]
         lfu.mobject.__init__(self,*args,**kwargs)
 
-    def __call__(self,*args,**kwargs):
-        self._initialize(*args,**kwargs)
-        self._process(*args,**kwargs)
-
-    def _initialize(self,*args,**kwargs):pass
-
-    # actually runs the process, setting the result at attribute data
-    def _process_______(self,*args,**kwargs):
-        method = self.method
-        self._regime(args[0])
-        pool = self._start_pool(*args,**kwargs)
-        sources = self._source_reference(1,*args,**kwargs)
-
-        def zip_list(target,new_list):
-            if target.children:
-                target_names = [targ.name for targ in target.children[0].data]
-
-                pdb.set_trace()
-
-                for k in range(len(target.children)):
-                    valid = [dater for dater in new_list.children[k] 
-                        if dater.name not in target_names]
-                    target.children[k].extend(valid)
-            else: target.children.extend(new_list.children)
-
-        for src in sources:zip_list(pool,src.data)
-        
-        if 'p_space' in kwargs.keys():pspace = kwargs['p_space']
-        else:pspace = args[0].cartographer_plan
-
-        margs = (method,pool,pspace)
-        if self.regime == 'per trajectory':self._per_trajectory(*margs)
-        elif self.regime == 'all trajectories':self._all_trajectories(*margs)
-        elif self.regime == 'by parameter space':self._by_parameter_space(*margs)
-
-    # run the method on each trajectory by itself
-    def _per_trajectory(self,method,pool,pspace = None):
-        self.data = dba.batch_node(
-            children = [method(trajectory) for trajectory in pool.children])
-
-    # run the method on the batch of all trajectories
-    def _all_trajectories(self,method,pool,pspace = None):
-        self.data = dba.batch_node(children = [method(pool)])
-
-    # run the method on each parameter space location batch
-    def _by_parameter_space(self,method,pool,pspace):
-        results = []
-        for tdx in range(len(pspace.trajectory)):
-            results.append(method(pool.children[tdx]))
-        self.data = dba.batch_node(children = results)
-
     # determine how process is run based on ensemble settings
     def _regime(self,*args,**kwargs):
         self.output.flat_data = False
@@ -187,11 +136,6 @@ class post_process_abstract(lfu.mobject):
             self.regime = 'by parameter space'
         elif 'all trajectories' in self.valid_regimes:
             self.regime = 'all trajectories'
-
-    # initialize a data structure based on chosen inputs
-    def _start_pool(self,*args,**kwargs):
-        if 'simulation' in self.input_regime:return args[1]
-        else:return dba.batch_node()
 
     # return input sources found in sources based on input_regime
     def _handle_sources(self,sources):

@@ -29,7 +29,7 @@ if __name__ == '__main__':
         elif fi == '--plt':run_pklplotter()
         else:
             if agcnt > 2:mo = sys.argv[2]
-            else:mo = 'chemical'
+            else:mo = 'gillespiem'
             if os.path.isfile(fi):run_mcfg(mo,fi)
             else: print 'file',fi,'is not a file!'
     else:run_gui()

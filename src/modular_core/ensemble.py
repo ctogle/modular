@@ -144,6 +144,24 @@ class ensemble(lfu.mobject):
     def _run_params_to_location_prepoolinit(self):
         self.module._set_parameters_prepoolinit()
 
+    # determine if keeping the simulation data is necessary
+    def _require_simulation_data(self):
+        mustout = self.output_plan._must_output()
+        mapping = self.cartographer_plan.use_plan
+        if not mustout:
+            print 'simulation data is not required for output...'
+            print 'skipping simulation data aggregation...'
+            return False
+        elif mapping and mustout:
+            print 'cannot output simulation data while mapping...'
+            print 'skipping simulation data aggregation...'
+            return False
+        elif self.num_trajectories > 10000:
+            print 'unwilling to output 10000+ simulation trajectories...'
+            print 'skipping simulation data aggregation...'
+            return False
+        return True
+
     # run a specific way depending on the settings of the ensemble
     def _run_specific(self,*args,**kwargs):
         start_time = time.time()
@@ -163,7 +181,8 @@ class ensemble(lfu.mobject):
             elif mpplan and not mappspace:dpool = self._run_nonmap_mp()
             elif not mpplan and not mappspace:dpool = self._run_nonmap_nonmp()
             print 'duration of simulations:',time.time() - start_time
-            dum,dpool = self._post_processing(load = False,dpool = dpool)
+            self._post_processing(load = False,dpool = dpool)
+            #dum,dpool = self._post_processing(load = False,dpool = dpool)
         if save:self._save_data_pool(dpool)
         self._output_trajectory_key()
 
@@ -183,16 +202,11 @@ class ensemble(lfu.mobject):
     #no multiprocessing, no parameter variation, and no fitting
     # final batch_node data should contain each trajectory 
     # for the one psplocation
-    # if the data needs to be outputted, it needs to be included
-    # in the data pool downstream
-    # any post processes which consume the simulation only
-    # can be computed immediately and included for downstream
-    #
     def _run_nonmap_nonmp(self):
         ptargets = self.run_params['plot_targets']
         pcnt = self.multiprocess_plan.worker_count
 
-        simu = self.module.simulation
+        simu = self.module.simulation                      
         self._run_params_to_location_prepoolinit()
         self._run_params_to_location()
         sim_args = self.module.sim_args
@@ -203,6 +217,10 @@ class ensemble(lfu.mobject):
         dshape = (max_run,tcnt,ccnt)
         data_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
 
+        requiresimdata = self._require_simulation_data()
+        usepplan = self.postprocess_plan.use_plan
+        if usepplan:zeroth = self.postprocess_plan._init_processes(None)
+
         run = 0
         while run < max_run:
             rundat = simu(sim_args)
@@ -210,6 +228,8 @@ class ensemble(lfu.mobject):
             run += 1
             prt = run % pcnt == 0
             if prt:print 'simulated trajectory:',run,'/',max_run
+
+        if usepplan:self.postprocess_plan._enact_processes(zeroth,data_pool)
         return data_pool
 
     #multiprocessing, no parameter variation, no fitting
@@ -229,6 +249,7 @@ class ensemble(lfu.mobject):
         move_func = self.cartographer_plan._move_to
         pcnt = self.multiprocess_plan.worker_count
 
+        requiresimdata = self._require_simulation_data()
         data_pool = dba.batch_node()
         ptargets = self.run_params['plot_targets']
 
@@ -239,6 +260,9 @@ class ensemble(lfu.mobject):
 
         tcnt = len(self.simulation_plan.plot_targets)
         ccnt = self.simulation_plan._capture_count()
+
+        usepplan = self.postprocess_plan.use_plan
+        if usepplan:zeroth = self.postprocess_plan._init_processes(arc)
 
         iteration = 0
         while iteration < arc_length:
@@ -257,9 +281,12 @@ class ensemble(lfu.mobject):
                 prt = tdx % pcnt == 0
                 if prt:print 'location:',iteration,'run:',tdx,'/',tcount
 
-            data_pool._add_child(loc_pool)
-            if stow_needed:data_pool._stow_child(-1)
+            if usepplan:self.postprocess_plan._enact_processes(zeroth,loc_pool)
+            if requiresimdata:
+                data_pool._add_child(loc_pool)
+                if stow_needed:data_pool._stow_child(-1)
             iteration += 1
+        
         return data_pool
 
     #multiprocessing with parameter variation, no fitting
@@ -270,17 +297,19 @@ class ensemble(lfu.mobject):
 
     # run post processes on new or pooled data
     def _post_processing(self,load = False,dpool = None):
-        print 'performing post processing...'
+        print 'performing non-zeroth post processing...'
         stime = time.time()
         if self.postprocess_plan.use_plan:
-            if load:dpool = self._load_data_pool().data
-            try:dpool = self.postprocess_plan(self,dpool)
-            except:
-                traceback.print_exc(file=sys.stdout)
-                print 'failed to run post processes'
-                return False,dpool
-        print 'duration of post procs:',time.time() - stime
-        return True,dpool
+            self.postprocess_plan._walk_processes()
+
+            #if load:dpool = self._load_data_pool().data
+            #try:dpool = self.postprocess_plan(self,dpool)
+            #except:
+            #    traceback.print_exc(file=sys.stdout)
+            #    print 'failed to run post processes'
+            #    return False,dpool
+        print 'duration of non-zeroth post processes:',time.time() - stime
+        #return True,dpool
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory

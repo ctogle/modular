@@ -36,7 +36,7 @@
 	<product_space> 100
 		lambda1 : value : 2.0-8.0;4.0
 		lambda2 : value : 2.0-8.0;4.0
-		#mu : value : 8.0-12.0;2.0
+		mu : value : 8.0-12.0;2.0
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered

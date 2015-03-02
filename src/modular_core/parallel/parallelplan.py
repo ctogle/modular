@@ -44,6 +44,10 @@ class parallel_plan(lfu.plan):
         ensem._run_params_to_location()
         pool = mp.Pool(processes = pcnt)
 
+        pplan = ensem.postprocess_plan
+        usepplan = pplan.use_plan
+        if usepplan:zeroth = pplan._init_processes(None)
+
         simu = ensem.module.simulation
         max_run = ensem.num_trajectories
         run = 0
@@ -60,6 +64,7 @@ class parallel_plan(lfu.plan):
 
         pool.close()
         pool.join()
+        if usepplan:pplan._enact_processes(zeroth,data_pool)
         return data_pool
 
     # handles the case of any number of parameter space locations with
@@ -70,18 +75,24 @@ class parallel_plan(lfu.plan):
         init = ensem._run_params_to_location
         pool = mp.Pool(processes = pcnt,initializer = init)
 
-        trajectory = ensem.cartographer_plan.trajectory
+        requiresimdata = ensem._require_simulation_data()
+
+        arc = ensem.cartographer_plan.trajectory
         move_to = ensem.cartographer_plan._move_to
         simu = ensem.module.simulation
         ptargets = ensem.run_params['plot_targets']
 
-        max_loc = len(trajectory)
-        max_run = trajectory[0].trajectory_count
+        max_loc = len(arc)
+        max_run = arc[0].trajectory_count
         stow_needed = True
         stow_needed = ensem._require_stow(max_run,max_loc)
 
         tcnt = len(self.parent.simulation_plan.plot_targets)
         ccnt = self.parent.simulation_plan._capture_count()
+
+        pplan = ensem.postprocess_plan
+        usepplan = pplan.use_plan
+        if usepplan:zeroth = pplan._init_processes(arc)
 
         loc = 0
         while loc < max_loc:
@@ -89,7 +100,7 @@ class parallel_plan(lfu.plan):
             pool._initializer()
             run = 0
             subresults = []
-            max_run = trajectory[loc].trajectory_count
+            max_run = arc[loc].trajectory_count
             dshape = (max_run,tcnt,ccnt)
             loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
             def _cb_(*args):
@@ -103,8 +114,14 @@ class parallel_plan(lfu.plan):
                 result = pool.map_async(simu,args,callback = _cb_)
                 result.wait()
                 print 'location:',loc,'run:',run,'/',max_run
-            data_pool._add_child(loc_pool)
-            if stow_needed:data_pool._stow_child(-1)
+
+            if usepplan:pplan._enact_processes(zeroth,loc_pool)
+            if requiresimdata:
+                data_pool._add_child(loc_pool)
+                if stow_needed:data_pool._stow_child(-1)
+
+            #data_pool._add_child(loc_pool)
+            #if stow_needed:data_pool._stow_child(-1)
             loc += 1
 
         pool.close()

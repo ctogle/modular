@@ -289,8 +289,6 @@ class output_plan(lfu.plan):
         proper_targets = self._proper_targets(data)
         pltflag = False
         for dchild in data.data.children:
-            #dchild._open()
-            #traj = dchild.data
             traj = dchild._plot_friendly()
             data_container = lfu.data_container(
                 data = traj,plt_callbacks = data.plt_callbacks)

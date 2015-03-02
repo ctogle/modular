@@ -35,16 +35,19 @@ class post_process_plan(lfu.plan):
         self.current_tab_index = 0
 
     # reset the data attribute and determine if a process is 0th
-    def _init_processes(self,*args,**kwargs):
+    def _init_processes(self,ptraj):
         zeroth = []
         for process in self.processes:
             process.data = dba.batch_node()
             if 'simulation' in process.input_regime:
                 zeroth.append(process)
+        self.zeroth = zeroth
+        self.psp_trajectory = ptraj
         return zeroth
 
     # run process proc
-    def _enact_process(self,proc,pool,ptraj):
+    def _enact_process(self,proc,pool):
+        ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
                 presult = proc.method(pchild,ptraj)
@@ -55,14 +58,17 @@ class post_process_plan(lfu.plan):
 
     # for node pool run processes procs and append to each
     # procs' result
-    def _enact_processes(self,procs,pool,ptraj):
+    def _enact_processes(self,procs,pool):
+        ptraj = self.psp_trajectory
         stowed = pool._stowed()
         if stowed:pool._recover()
-        for process in procs:self._enact_process(process,pool,ptraj)
+        for process in procs:self._enact_process(process,pool)
         if stowed:pool._stow()
 
     # for each 0th process, recursively call consuming processes
-    def _walk_processes(self,zeroth,ptraj):
+    def _walk_processes(self):
+        ptraj = self.psp_trajectory
+        zeroth = self.zeroth
         ran = zeroth[:]
         toberun = [p for p in self.processes if not p in zeroth]
         while toberun:
@@ -83,7 +89,7 @@ class post_process_plan(lfu.plan):
                     readytorun.append(tbr)
                     readypools.append(readypool)
             for rp,rpool in zip(readytorun,readypools):
-                self._enact_process(rp,rpool,ptraj)
+                self._enact_process(rp,rpool)
                 ran.append(rp)
                 toberun.remove(rp)
 
@@ -94,34 +100,22 @@ class post_process_plan(lfu.plan):
     #  processes form a bethe network...
     def _enact(self,*args,**kwargs):
         pool = args[1]
-        zeroth = self._init_processes(*args,**kwargs)
         cplan = self.parent.cartographer_plan
+        if cplan.use_plan:psp_trajectory = cplan.trajectory
+        else:psp_trajectory = None
+        zeroth = self._init_processes(psp_trajectory)
         if cplan.use_plan:
-            psp_trajectory = cplan.trajectory
             for psp_dex in range(len(psp_trajectory)):
                 childpool = pool.children[psp_dex]
-                self._enact_processes(zeroth,childpool,psp_trajectory)
-        else:
-            psp_trajectory = None
-            self._enact_processes(zeroth,pool,psp_trajectory)
-        self._walk_processes(zeroth,psp_trajectory)
-
-
-    def _enact___OLD(self,*args,**kwargs):
-        for process in self.processes:
-            stime = time.time()
-            process(*args,**kwargs)
-            dura = time.time() - stime
-            print 'completed post process',process.name,'in',dura,'seconds'
-        return args[1]
-
-
+                self._enact_processes(zeroth,childpool)
+        else:self._enact_processes(zeroth,pool)
+        self._walk_processes()
+        return pool
 
     def _data(self):
         dpool = dba.batch_node()
         [dpool._add_child(p.data) for p in self.processes]
         return dpool
-
 
     # reset children and processes
     def _reset_process_list(self):
@@ -130,10 +124,7 @@ class post_process_plan(lfu.plan):
 
     # add new post process; default to meanfields
     def _add_process(self,new = None):
-        if new is None:
-            #proc_class_def = process_types['meanfields'][0]
-            #new = proc_class_def(parent = self)
-            new = post_process(parent = self)
+        if new is None:new = post_process(parent = self)
         new.fitting_aware = self.fitting_aware
         new.always_sourceable = self.always_sourceable
         new.parent = self

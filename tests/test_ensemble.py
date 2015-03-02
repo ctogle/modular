@@ -5,9 +5,6 @@ from modular_core.ensemble import ensemble_manager
 
 import os, sys, pdb
 
-log = open(os.path.join(os.getcwd(), 'test_ensemble.log'), 'w')
-#sys.stdout = log
-
 class mngerTestCase(unittest.TestCase):
     """Tests for `libsimcomponents.py`."""
     simple_mcfg = os.path.join(os.getcwd(), 
@@ -29,12 +26,7 @@ class mngerTestCase(unittest.TestCase):
                 'stringchemical_dep_mcfgs', 
                 'MM_kinetics_means.mcfg')
     mnger = ensemble_manager()
-    ensem = mnger._add_ensemble(module = 'chemical')
-
-    def pause(self, *args, **kwargs):
-        sys.stdout = sys.__stdout__
-        pdb.set_trace()
-        sys.stdout = log
+    ensem = mnger._add_ensemble(module = 'gillespiem')
 
     def test_can_run_simple_ensemble(self):
         """ensemble successfully run the simple mcfg?"""

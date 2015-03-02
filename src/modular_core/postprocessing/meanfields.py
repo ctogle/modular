@@ -5,7 +5,7 @@ import modular_core.data.single_target as dst
 import modular_core.data.batch_target as dba
 import modular_core.postprocessing.process_abstract as lpp
 
-import pdb,sys
+import pdb,sys,time
 import numpy as np
 
 ###############################################################################
@@ -40,10 +40,11 @@ class meanfields(lpp.post_process_abstract):
         tcount = len(self.target_list)
         dshape = (tcount,self.bin_count)
         data = np.zeros(dshape,dtype = np.float)
-        for dex,mean_of in enumerate(self.means_of):
-            bins,vals = pool._bin_data(
-                self.function_of,mean_of,
-                self.bin_count,self.ordered)
+        bins,valss = pool._bin_data(
+            self.function_of,self.means_of,
+            self.bin_count,self.ordered)
+        for dex in range(valss.shape[1]):
+            vals = valss[:,dex,:]
             means = np.array([np.mean(v) for v in vals])
             data[dex + 1] = means
         data[0] = bins

@@ -153,42 +153,46 @@ class batch_node(ldc.data_mobject):
 
     # x and y are strings for bins,vals resp.
     # bcnt is the number of bins; if x in monotonic, ordered is True
-    def _bin_data(self,x,y,bcnt,ordered):
-        xs,ys = self._bin_select(x,y)
+    def _bin_data(self,x,ys,bcnt,ordered):
+        xs,yss = self._bin_select(x,ys)
         if ordered and x == 'time':
+            #should probably mean xs
             bins = xs[0].copy()
-            vals = ys.transpose()
-            #vals = ys.copy().transpose()
+            vals = yss.transpose((2,1,0))
             if len(bins) < bcnt:
                 print '\nfewer data entries than bins; reduce bin count!\n'
                 raise ValueError
             elif len(bins) > bcnt:
                 c = len(bins)/bcnt
                 newbins = bins[::c]
-                newbins = [(newbins[k-1]+newbins[k])/2.0 
-                        for k in range(1,len(newbins))]
-                newvlen = c*vals.shape[1]
-                newvals = np.zeros((bcnt,newvlen),dtype = np.float)
+                avg = lambda x:(newbins[x-1]+newbins[x])/2.0
+                newbins = np.array([avg(k) for k in range(1,len(newbins))])
+                newvlen = c*vals.shape[2]
+                newvals = np.empty((bcnt,yss.shape[1],newvlen),dtype = np.float)
                 for b in range(bcnt):
-                    newvals[b] = vals[b*c:(b+1)*c].reshape((1,newvlen))
-                bins = newbins
-                vals = newvals
+                    for t in range(yss.shape[1]):
+                        newvals[b][t] = vals[b*c:(b+1)*c,t].reshape((1,newvlen))
+                return newbins,newvals
         else:
             pdb.set_trace()
-        return bins,vals
+            return bins,vals
 
     # return the single_target data_mobjects held by children
     # associated with both x and y
-    def _bin_select(self,x,y):
+    def _bin_select(self,x,ys):
         dshape = self.data.shape
-        xs = np.zeros(shape = (dshape[0],dshape[2]),dtype = np.float)
-        ys = np.zeros(shape = (dshape[0],dshape[2]),dtype = np.float)
+        #xs = np.zeros(shape = (dshape[0],dshape[2]),dtype = np.float)
+        xs = np.empty(shape = (dshape[0],dshape[2]),dtype = np.float)
+        #yss = np.zeros(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
+        yss = np.empty(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
         for trajdx in range(dshape[0]):
             for targdx in range(dshape[1]):
                 targ = self.targets[targdx]
-                if targ == x:xs[trajdx] = self.data[trajdx][targdx]
-                if targ == y:ys[trajdx] = self.data[trajdx][targdx]
-        return xs,ys
+                if targ == x:xs[trajdx][:] = self.data[trajdx][targdx]
+                if targ in ys:
+                    ydex = ys.index(targ)
+                    yss[trajdx][ydex][:] = self.data[trajdx][targdx]
+        return xs,yss
 
     # data is a numpy array;axis 0 is 1-1 with targets
     # add a batch_node to children containing new data

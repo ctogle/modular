@@ -19,13 +19,12 @@
 <plot_targets>
 	time
 	ES_Complex
-#	Product
+	Product
 	Substrate
-#	Enzyme
+	Enzyme
 
 <post_processes>
-	means : meanfields : 0 : ES_Complex, Substrate of time : 20 : ordered
-#	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 20 : ordered
+	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 100 : ordered
 
 <multiprocessing>
 	workers : 100
