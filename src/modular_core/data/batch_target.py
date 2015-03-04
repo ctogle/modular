@@ -23,7 +23,6 @@ pool_ids = [0]
 def pool_id():
     newid = int(time.time()) + pool_ids[-1] + 1
     pool_ids.append(newid)
-    #return 'data_pool.node.' + str(newid) + '.pkl'
     return 'data_pool.node.' + str(newid) + '.hdf5'
 
 ###############################################################################
@@ -70,41 +69,41 @@ class batch_node(ldc.data_mobject):
         #data = lf.load_mobject(datapath)
         #self.data = data.top
         #self.children = data.children
-        self.children = None
+        self.children = []
         print 'DID I HAVE CHILDREN?!'
 
         if v:print 'loaded batch node',self.data_pool_id
 
     def _stowed(self):
-        if type(self.data) is types.StringType:return True
-        elif type(self.data) is types.UnicodeType:return True
-        else:return False
+        isstr = type(self.data) is types.StringType
+        isuni = type(self.data) is types.UnicodeType
+        haschild = len(self.children) > 0
+        stow = (isstr or isuni) and not haschild
+        return stow
         
     # compress data and store as pkl file in safe data_pool directory
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
-        #if not type(self.data) is types.StringType:self._pkl_data()
         if not type(self.data) is types.StringType:self._hdf5_data()
         if v:print 'stowed batch node',self.data_pool_id,'...'
 
     # uncompress data and store as data attribute
     def _recover(self,v = True):
         if v:print 'recovering batch node',self.data_pool_id,'...'
-        #if type(self.data) is types.StringType:self._unpkl_data()
         recover = type(self.data) is types.StringType or\
                   type(self.data) is types.UnicodeType
         if recover:self._unhdf5_data()
         if v:print 'recovered batch node',self.data_pool_id,'...'
 
-    def _stow_child(self,dex):
+    def _stow_child(self,dex,v = True):
         which = self.children[dex]
-        which._stow(v = True)
+        which._stow(v = v)
         self.data_pool_ids.append(which.data_pool_id)
 
-    def _recover_child(self,dex):
+    def _recover_child(self,dex,v = True):
         which = self.children[dex]
         self.data_pool_ids.remove(which.data_pool_id)
-        which._recover(v = True)
+        which._recover(v = v)
         return which
 
     def _add_child(self,node = None):
@@ -181,9 +180,7 @@ class batch_node(ldc.data_mobject):
     # associated with both x and y
     def _bin_select(self,x,ys):
         dshape = self.data.shape
-        #xs = np.zeros(shape = (dshape[0],dshape[2]),dtype = np.float)
         xs = np.empty(shape = (dshape[0],dshape[2]),dtype = np.float)
-        #yss = np.zeros(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
         yss = np.empty(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
         for trajdx in range(dshape[0]):
             for targdx in range(dshape[1]):
@@ -193,6 +190,26 @@ class batch_node(ldc.data_mobject):
                     ydex = ys.index(targ)
                     yss[trajdx][ydex][:] = self.data[trajdx][targdx]
         return xs,yss
+
+    # reshape the hierarchy so that children[0].data becomes a set
+    # of nodes below the node returned
+    # will this cause cyclic references preventing garbage collection?
+    def _split_child(self):
+        split = batch_node()
+        child = self.children[0]
+        targets = child.targets
+        dshape = child.data.shape[1:]
+        for traj in self.children[0].data:
+            traj_pool = batch_node(
+                dshape = dshape,targets = targets)
+            traj_pool._trajectory(traj)
+            split._add_child(traj_pool)
+            split._stow_child(-1,v = False)
+        return split
+
+    # receive a batch of results, calling _trajectory on each
+    def _trajectorize(self,datas):
+        for dat in datas:self._trajectory(dat)
 
     # data is a numpy array;axis 0 is 1-1 with targets
     # add a batch_node to children containing new data
@@ -225,7 +242,6 @@ class batch_node(ldc.data_mobject):
             friendly = []
             if len(data.shape) == 2:datamobj = dst.scalars
             else:return friendly
-            #else:pdb.set_trace()
             for dx in range(data.shape[0]):
                 std = datamobj(name = targets[dx],data = data[dx],marker = 'x')
                 friendly.append(std)

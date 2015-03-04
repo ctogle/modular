@@ -95,15 +95,16 @@ class cartographer_plan(lfu.plan):
 
     # create a parameter space from a list of pspace_axis objects
     def _parameter_space(self,axes):
-        if axes:self.parameter_space = parameter_space(axes = axes)
-        else:lgd.message_dialog(None,'No parameter space axes!','Problem')
+        self.parameter_space = parameter_space(axes = axes)
+        #if axes:self.parameter_space = parameter_space(axes = axes)
+        #else:lgd.message_dialog(None,'No parameter space axes!','Problem')
         self._initialize_trajectory()
         self._rewidget(True)
         return self.parameter_space
 
     def _initialize_trajectory(self):
         location = [sp._value() for sp in self.parameter_space.axes]
-        self.trajectory = [0,pspace_location(location = location)]
+        self.trajectory = [pspace_location(location = location)]
 
     def _widget(self,*args,**kwargs):
         window = args[0]

@@ -1,6 +1,5 @@
 import modular_core.fundamental as lfu
 
-import modular_core.io.hdf5 as hdf
 import modular_core.io.pkl as pkl
 
 import cPickle as pickle

@@ -58,7 +58,8 @@ class parallel_plan(lfu.plan):
             rtr = self._runs_this_round(pcnt,max_run,run)
             run += rtr
             args = [ensem.module.sim_args]*rtr
-            result = pool.map_async(simu,args,callback = _cb_)
+            #result = pool.map_async(simu,args,callback = _cb_)
+            result = pool.map_async(simu,args,callback = data_pool._trajectory)
             result.wait()
             print 'simulated trajectory:',run,'/',max_run
 
@@ -78,51 +79,50 @@ class parallel_plan(lfu.plan):
         requiresimdata = ensem._require_simulation_data()
 
         arc = ensem.cartographer_plan.trajectory
-        move_to = ensem.cartographer_plan._move_to
-        simu = ensem.module.simulation
-        ptargets = ensem.run_params['plot_targets']
+        arc_length = len(arc)
+        #move_to = ensem.cartographer_plan._move_to
+        #simu = ensem.module.simulation
+        #ptargets = ensem.run_params['plot_targets']
 
-        max_loc = len(arc)
         max_run = arc[0].trajectory_count
-        stow_needed = True
-        stow_needed = ensem._require_stow(max_run,max_loc)
+        stow_needed = ensem._require_stow(max_run,arc_length)
 
         tcnt = len(self.parent.simulation_plan.plot_targets)
         ccnt = self.parent.simulation_plan._capture_count()
 
         pplan = ensem.postprocess_plan
         usepplan = pplan.use_plan
-        if usepplan:zeroth = pplan._init_processes(arc)
+        if usepplan:pplan._init_processes(arc)
 
-        loc = 0
-        while loc < max_loc:
-            move_to(loc)
+        arc_dex = 0
+        while loc < arc_length:
+            #move_to(arc_dex)
             pool._initializer()
-            run = 0
-            subresults = []
+            #run = 0
+            
             max_run = arc[loc].trajectory_count
             dshape = (max_run,tcnt,ccnt)
-            loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
-            def _cb_(*args):
-                for a in args[0]:
-                    loc_pool._trajectory(a)
+            loc_pool = ensem._run_pspace_location(arc_dex)
+            #loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
+            #def _cb_(*args):
+            #    for a in args[0]:
+            #        loc_pool._trajectory(a)
             while run < max_run:
                 rtr = self._runs_this_round(pcnt,max_run,run)
                 run += rtr
                 pool._initializer()
                 args = [ensem.module.sim_args]*rtr
-                result = pool.map_async(simu,args,callback = _cb_)
+                result = pool.map_async(simu,args,callback = loc_pool._trajectory)
                 result.wait()
-                print 'location:',loc,'run:',run,'/',max_run
+                print 'location:',arc_dex,'run:',run,'/',max_run
 
-            if usepplan:pplan._enact_processes(zeroth,loc_pool)
+            arc_dex += 1
+            if usepplan:
+                zeroth = pplan.zeroth
+                pplan._enact_processes(zeroth,loc_pool)
             if requiresimdata:
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
-
-            #data_pool._add_child(loc_pool)
-            #if stow_needed:data_pool._stow_child(-1)
-            loc += 1
 
         pool.close()
         pool.join()

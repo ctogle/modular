@@ -27,6 +27,7 @@ import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
 
 import pdb,os,sys,traceback,types,time,imp
+import multiprocessing as mp
 import numpy as np
 import importlib as imp
 from cStringIO import StringIO
@@ -54,6 +55,76 @@ class ensemble(lfu.mobject):
 
     def _new_data_pool_id(self):
         return str(time.time())
+
+    # return the correct data_pool_pkl filename based on the data scheme
+    def _data_pool_path(self):
+        data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
+            '.'.join(['data_pool',self.data_pool_id,'pkl']))
+        return data_pool_pkl
+
+    def _require_stow(self,runcount,psplocationcount):
+        dptpertraj = self.simulation_plan._captures_per_trajectory()
+        dptcount = dptpertraj * runcount * psplocationcount
+        print 'data point count:',dptcount
+        if dptcount > 500000000:
+            print 'memory errors may occur; will stow'
+            stow_needed = True
+        else:
+            print 'memory errors not expected; will not stow'
+            stow_needed = False
+        time.sleep(1)
+        return stow_needed
+
+
+
+    # FIX THIS
+    # FIX THIS
+    # FIX THIS
+    def _describe_data_pool(self,dpool):
+        if not dpool: self.data_pool_descr = 'Empty'
+        else:
+            proc_pool = dpool.postproc_data
+            try: sim_pool = dpool.data.batch_pool
+            except AttributeError: sim_pool = '<couldnt read batch object>'
+            try: sim_pool_count = len(sim_pool)
+            except TypeError: sim_pool_count = 0
+            try: proc_pool_count = len(proc_pool)
+            except TypeError: proc_pool_count = 0
+            self.data_pool_descr = ' '.join(['Data', 'Pool', 'Holds', 
+                    str(sim_pool_count), 'Simulation', 'Trajectories', 
+                        'and', str(proc_pool_count), 'Post', 
+                                'Process', 'Pools'])
+    # FIX THIS
+    # FIX THIS
+    # FIX THIS
+
+
+    def _save_data_pool(self,dpool):
+        print 'saving data pool...'
+        stime = time.time()
+
+        pplan = self.postprocess_plan
+        if pplan.use_plan:pdata = pplan._data()
+        else:pdata = None
+
+        fplan = self.fitting_plan
+        if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
+        else:fdata = None
+        
+        data_pool = lfu.data_container(data = dpool, 
+            postproc_data = pdata,routine_data = fdata)
+        self._describe_data_pool(data_pool)
+        self.data_pool_pkl = self._data_pool_path()
+        lf.save_mobject(data_pool,self.data_pool_pkl)
+        print 'saved data pool:',time.time() - stime
+
+    def _load_data_pool(self):
+        print 'loading data pool...'
+        stime = time.time()
+        dpool = lf.load_mobject(self.data_pool_pkl)
+        self._describe_data_pool(dpool)
+        print 'loaded data pool:',time.time() - stime
+        return dpool
 
     def __init__(self,*args,**kwargs):
         self._default('name','ensemble',**kwargs)
@@ -164,30 +235,29 @@ class ensemble(lfu.mobject):
 
     # run a specific way depending on the settings of the ensemble
     def _run_specific(self,*args,**kwargs):
-        start_time = time.time()
-        stime = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(start_time))
-        print 'start time:',stime
-
+        fullstime = time.time()
+        stimepretty = time.strftime(
+            '%Y-%m-%d %H:%M:%S',time.localtime(fullstime))
         pspace = self.cartographer_plan.parameter_space
         mappspace = self.cartographer_plan.use_plan and pspace
-        mpplan = self.multiprocess_plan.use_plan
 
-        if self.skip_simulation:save,dpool = self._post_processing(load = True)
-        else:
-            save = True
-            if self.fitting_plan.use_plan:dpool = self._run_fitting()
-            elif mpplan and mappspace:dpool = self._run_map_mp()
-            elif not mpplan and mappspace:dpool = self._run_map_nonmp()
-            elif mpplan and not mappspace:dpool = self._run_nonmap_mp()
-            elif not mpplan and not mappspace:dpool = self._run_nonmap_nonmp()
-            print 'duration of simulations:',time.time() - start_time
-            self._post_processing(load = False,dpool = dpool)
-            #dum,dpool = self._post_processing(load = False,dpool = dpool)
-        if save:self._save_data_pool(dpool)
+        print 'simulation start time:',stimepretty
+        if self.fitting_plan.use_plan:dpool = self._run_fitting()
+        elif mappspace:dpool = self._run_map()
+        else:dpool = self._run_nonmap()
+        print 'duration of simulations:',time.time() - fullstime
+
+        print 'performing non-0th post processing...'
+        procstime = time.time()
+        if self.postprocess_plan.use_plan:
+            self.postprocess_plan._walk_processes()
+        print 'duration of non-0th post processes:',time.time() - procstime
+
+        self._save_data_pool(dpool)
         self._output_trajectory_key()
 
         print 'finished simulations and analysis:exiting'
-        print 'total run duration:',time.time() - start_time,'seconds'
+        print 'total run duration:',time.time() - fullstime,'seconds'
         return True
 
     # NOT TESTED
@@ -199,117 +269,105 @@ class ensemble(lfu.mobject):
         dpool = self.fitting_plan(self,dpool)
         return dpool
 
-    #no multiprocessing, no parameter variation, and no fitting
-    # final batch_node data should contain each trajectory 
-    # for the one psplocation
-    def _run_nonmap_nonmp(self):
-        ptargets = self.run_params['plot_targets']
-        pcnt = self.multiprocess_plan.worker_count
+    # helper function for common run info
+    def _run_init(self,t = None):
+        if t is None:ntraj = self.num_trajectories
+        else:ntraj = self.cartographer_plan.trajectory[t].trajectory_count
+        ptargs = self.run_params['plot_targets']
+        ntarg = len(ptargs)
+        ncapt = self.simulation_plan._capture_count()
+        return (ntraj,ntarg,ncapt,ptargs)
 
-        simu = self.module.simulation                      
-        self._run_params_to_location_prepoolinit()
-        self._run_params_to_location()
-        sim_args = self.module.sim_args
-
-        tcnt = len(self.simulation_plan.plot_targets)
-        ccnt = self.simulation_plan._capture_count()
-        max_run = self.num_trajectories
-        dshape = (max_run,tcnt,ccnt)
-        data_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
-
-        requiresimdata = self._require_simulation_data()
-        usepplan = self.postprocess_plan.use_plan
-        if usepplan:zeroth = self.postprocess_plan._init_processes(None)
-
-        run = 0
-        while run < max_run:
-            rundat = simu(sim_args)
-            data_pool._trajectory(rundat)
-            run += 1
-            prt = run % pcnt == 0
-            if prt:print 'simulated trajectory:',run,'/',max_run
-
-        if usepplan:self.postprocess_plan._enact_processes(zeroth,data_pool)
-        return data_pool
-
-    #multiprocessing, no parameter variation, no fitting
-    def _run_nonmap_mp(self):
-        ptargets = self.simulation_plan.plot_targets
-        tcnt = len(ptargets)
-        ccnt = self.simulation_plan._capture_count()
-        max_run = self.num_trajectories
-        dshape = (max_run,tcnt,ccnt)
-        data_pool = dba.batch_node(dshape = dshape,targets = ptargets)
-        data_pool = self.multiprocess_plan._run_flat(data_pool,self)
-        return data_pool
-
-    #no multiprocessing, parameter variation, no fitting
-    def _run_map_nonmp(self):
+    # run many simulations, adding the data to node pool
+    # print the current trajectory/maxtrajectory at frequency pfreq
+    def _run_batch(self,many,pool,pfreq = 100):
         simu = self.module.simulation
-        move_func = self.cartographer_plan._move_to
-        pcnt = self.multiprocess_plan.worker_count
+        sim_args = self.module.sim_args
+        for m in range(many):
+            rundat = simu(sim_args)
+            pool._trajectory(rundat)
+            if m % pfreq == 0:
+                print 'batch run completed:%d/%d'%(m+pfreq,many)
+
+    # accomplish the same goal as _run_batch but using mp.Pool mppool
+    def _run_mpbatch(self,mppool,many,pool,pfreq = 100):
+        pcnt = int(self.multiprocess_plan.worker_count)
+        simu = self.module.simulation
+        m = 0
+        while m < many:
+            mleft = many - m
+            if mleft >= pcnt:rtr = pcnt
+            else:rtr = mleft % pcnt
+            m += rtr
+
+            mppool._initializer()
+            args = [self.module.sim_args]*rtr
+            result = mppool.map_async(simu,args,callback = pool._trajectorize)
+            result.wait()
+            if m % pfreq == 0:
+                print 'mpbatch run completed:%d/%d'%(m,many)
+
+    # if mapping, ldex is the pspace location index, else ldex is None
+    # if not ldex is None, move to the necessary location in pspace
+    # run all simulations associated with this pspace location
+    def _run_pspace_location(self,ldex = None,mppool = None):
+        traj_cnt,targ_cnt,capt_cnt,ptargets = self._run_init(ldex)
+        dshape = (traj_cnt,targ_cnt,capt_cnt)
+        loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)
+
+        if ldex:self.cartographer_plan._move_to(ldex)
+        if self.multiprocess_plan.use_plan:mppool._initializer()
+        else:self._run_params_to_location()
+        if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
+        else:self._run_batch(traj_cnt,loc_pool)
+
+        if self.postprocess_plan.use_plan:
+            zeroth = self.postprocess_plan.zeroth
+            self.postprocess_plan._enact_processes(zeroth,loc_pool)
+        return loc_pool
+
+    #parameter variation, no fitting
+    def _run_map(self):
+        self._run_params_to_location_prepoolinit()
+        if self.multiprocess_plan.use_plan:
+            pcnt = int(self.multiprocess_plan.worker_count)
+            pinit = self._run_params_to_location
+            mppool = mp.Pool(processes = pcnt,initializer = pinit)
+        else:mppool = None
 
         requiresimdata = self._require_simulation_data()
-        data_pool = dba.batch_node()
-        ptargets = self.run_params['plot_targets']
 
         arc = self.cartographer_plan.trajectory
         arc_length = len(arc)
         max_run = arc[0].trajectory_count
         stow_needed = self._require_stow(max_run,arc_length)
 
-        tcnt = len(self.simulation_plan.plot_targets)
-        ccnt = self.simulation_plan._capture_count()
-
         usepplan = self.postprocess_plan.use_plan
-        if usepplan:zeroth = self.postprocess_plan._init_processes(arc)
+        if usepplan:self.postprocess_plan._init_processes(arc)
 
-        iteration = 0
-        while iteration < arc_length:
-            move_func(iteration)
-            self._run_params_to_location_prepoolinit()
-            self._run_params_to_location()
-            sim_args = self.module.sim_args
-            tcount = arc[iteration].trajectory_count
-
-            dshape = (tcount,tcnt,ccnt)
-            loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)  
-
-            for tdx in range(tcount):
-                rundat = simu(sim_args)
-                loc_pool._trajectory(rundat)
-                prt = tdx % pcnt == 0
-                if prt:print 'location:',iteration,'run:',tdx,'/',tcount
-
-            if usepplan:self.postprocess_plan._enact_processes(zeroth,loc_pool)
+        data_pool = dba.batch_node()
+        arc_dex = 0
+        while arc_dex < arc_length:
+            loc_pool = self._run_pspace_location(arc_dex,mppool)
+            arc_dex += 1
             if requiresimdata:
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
-            iteration += 1
         
+        if self.multiprocess_plan.use_plan:
+            mppool.close()
+            mppool.join()
         return data_pool
 
-    #multiprocessing with parameter variation, no fitting
-    def _run_map_mp(self):
-        data_pool = dba.batch_node()
-        data_pool = self.multiprocess_plan._run_nonflat(data_pool,self)
-        return data_pool
-
-    # run post processes on new or pooled data
-    def _post_processing(self,load = False,dpool = None):
-        print 'performing non-zeroth post processing...'
-        stime = time.time()
-        if self.postprocess_plan.use_plan:
-            self.postprocess_plan._walk_processes()
-
-            #if load:dpool = self._load_data_pool().data
-            #try:dpool = self.postprocess_plan(self,dpool)
-            #except:
-            #    traceback.print_exc(file=sys.stdout)
-            #    print 'failed to run post processes'
-            #    return False,dpool
-        print 'duration of non-zeroth post processes:',time.time() - stime
-        #return True,dpool
+    #no parameter variation, and no fitting
+    def _run_nonmap(self):
+        requiresimdata = self._require_simulation_data()
+        cplan = self.cartographer_plan
+        pspace = cplan._parameter_space([])
+        lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
+        data_pool = self._run_map()
+        if requiresimdata:return data_pool._split_child()
+        else:return dba.batch_node()
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory
@@ -378,6 +436,8 @@ class ensemble(lfu.mobject):
         print 'producing output...'
         stime = time.time()
         pool = self._load_data_pool()
+        requiresimdata = self._require_simulation_data()
+        if requiresimdata and pool.data._stowed():pool.data._recover()
         data = lfu.data_container(data = pool.data)
         if self.output_plan._must_output():self.output_plan(data)
         self._output_postprocesses(pool)
@@ -386,76 +446,6 @@ class ensemble(lfu.mobject):
         self._check_qt_application()
         return True
 
-    # return the correct data_pool_pkl filename based on the data scheme
-    def _data_pool_path(self):
-        data_pool_pkl = os.path.join(lfu.get_data_pool_path(), 
-            '.'.join(['data_pool',self.data_pool_id,'pkl']))
-        return data_pool_pkl
-
-    def _require_stow(self,runcount,psplocationcount):
-        dptpertraj = self.simulation_plan._captures_per_trajectory()
-        dptcount = dptpertraj * runcount * psplocationcount
-        print 'data point count:',dptcount
-        if dptcount > 500000000:
-            print 'memory errors may occur; will stow'
-            stow_needed = True
-        else:
-            print 'memory errors not expected; will not stow'
-            stow_needed = False
-        time.sleep(1)
-        return stow_needed
-
-
-
-    # FIX THIS
-    # FIX THIS
-    # FIX THIS
-    def _describe_data_pool(self,dpool):
-        if not dpool: self.data_pool_descr = 'Empty'
-        else:
-            proc_pool = dpool.postproc_data
-            try: sim_pool = dpool.data.batch_pool
-            except AttributeError: sim_pool = '<couldnt read batch object>'
-            try: sim_pool_count = len(sim_pool)
-            except TypeError: sim_pool_count = 0
-            try: proc_pool_count = len(proc_pool)
-            except TypeError: proc_pool_count = 0
-            self.data_pool_descr = ' '.join(['Data', 'Pool', 'Holds', 
-                    str(sim_pool_count), 'Simulation', 'Trajectories', 
-                        'and', str(proc_pool_count), 'Post', 
-                                'Process', 'Pools'])
-    # FIX THIS
-    # FIX THIS
-    # FIX THIS
-
-
-    def _save_data_pool(self,dpool):
-        print 'saving data pool...'
-        stime = time.time()
-
-        pplan = self.postprocess_plan
-        #if pplan.use_plan:pdata = [proc.data for proc in pplan.processes]
-        if pplan.use_plan:pdata = pplan._data()
-        else:pdata = None
-
-        fplan = self.fitting_plan
-        if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
-        else:fdata = None
-        
-        data_pool = lfu.data_container(data = dpool, 
-            postproc_data = pdata,routine_data = fdata)
-        self._describe_data_pool(data_pool)
-        self.data_pool_pkl = self._data_pool_path()
-        lf.save_mobject(data_pool,self.data_pool_pkl)
-        print 'saved data pool:',time.time() - stime
-
-    def _load_data_pool(self):
-        print 'loading data pool...'
-        stime = time.time()
-        dpool = lf.load_mobject(self.data_pool_pkl)
-        self._describe_data_pool(dpool)
-        print 'loaded data pool:',time.time() - stime
-        return dpool
 
     def _run(self,*args,**kwargs):
         print 'running ensemble:',self.name

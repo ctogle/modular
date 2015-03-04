@@ -34,10 +34,10 @@
 	0 : - : ensemble_output : none : all
 
 <ensemble>
-	multiprocessing : on
+	multiprocessing : off
 	mapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 10000
+	trajectory_count : 1000
 
 

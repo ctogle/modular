@@ -306,19 +306,19 @@ class output_plan(lfu.plan):
 
     # when data.data is a batch_node with data but without children nodes
     # IS THIS TESTED??
-    def _output_flat_____(self,data):
-
-        pdb.set_trace()
-
+    def _output_flat________(self,data):
         types = ['vtk','pkl','txt','plt']
         proper_targets = self._proper_targets(data)
+        traj = data.data._plot_friendly()
+        data_container = lfu.data_container(
+            data = traj,plt_callbacks = data.plt_callbacks)
         self._update_filenames()
         proper_paths = self._proper_paths()
         for dx in range(len(self.writers)):
             if self.writers[dx].use:
                 plt = types[dx] == 'plt' and lfu.using_gui
                 if plt:self.writers[dx]._get_plt_window()
-                self.writers[dx](data,
+                self.writers[dx](data_container,
                     proper_paths[types[dx]],proper_targets[dx])
                 if plt:self.writers[dx]._plt_window()
 

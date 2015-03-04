@@ -47,6 +47,8 @@ class post_process_plan(lfu.plan):
 
     # run process proc
     def _enact_process(self,proc,pool):
+        print 'performing post process:',proc.name
+        stime = time.time()
         ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
@@ -54,7 +56,9 @@ class post_process_plan(lfu.plan):
                 proc.data.children.append(presult)
         elif proc.regime == 'all trajectories':
             presult = proc.method(pool,ptraj)
-            proc.data.children.append(presult)
+            proc.data.children.append(presult)        
+        runtime = time.time() - stime
+        print 'finished post process:',proc.name,'in',runtime
 
     # for node pool run processes procs and append to each
     # procs' result
@@ -112,6 +116,7 @@ class post_process_plan(lfu.plan):
         self._walk_processes()
         return pool
 
+    # aggregate the data of all post processes
     def _data(self):
         dpool = dba.batch_node()
         [dpool._add_child(p.data) for p in self.processes]
