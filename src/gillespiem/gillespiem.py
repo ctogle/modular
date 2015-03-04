@@ -179,7 +179,9 @@ class simulation_module(smd.simulation_module):
         funcs = [runfunc]
         specials = self._ext_special_funcs()
         extsignals = self._ext_external_signal_funcs()
-        for es in extsignals:es.statetargets = runfunc.statetargets
+        for es in extsignals:
+            es.statetargets = runfunc.statetargets
+            es.argstring = 'double['+str(len(runfunc.statetargets))+'] state'
         return specials+extsignals+rxnvalds+rxnprops+rxnrates+rxnfuncs+funcs
 
     # these are the keywords for the eventual cython module
@@ -236,6 +238,8 @@ class simulation_module(smd.simulation_module):
         self.sim_args = [module.run]+pargs
 
     def _reset_parameters(self):
+        if self.extensionname in sys.modules.keys():
+            del sys.modules[self.extensionname]
         ensem = self.parent
         self._gui_memory()
         ensem.simulation_plan._reset_criteria_lists()
@@ -342,9 +346,6 @@ class external_signal_function(cwr.function):
         self._default('domain','time',**kwargs)
         self._default('signalpath','',**kwargs)
         self._default('rxncount',0,**kwargs)
-        #argstring = 'double['+str(self.rxncount)+'] state'
-        argstring = 'double['+str(len(self.statetargets))+'] state'
-        self._default('argstring',argstring,**kwargs)
         self._default('cytype','cdef double',**kwargs)
         self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
@@ -355,6 +356,7 @@ class external_signal_function(cwr.function):
             self.extstry = []
             for sigdex in range(len(signal)):
                 sigp = signal[sigdex].strip()
+                if not ',' in sigp:continue
                 coma = sigp.find(',')
                 self.extstrx.append(sigp[:coma])
                 self.extstry.append(sigp[coma+1:])
@@ -728,11 +730,6 @@ class reaction(lfu.run_parameter):
         self._default('rate_is_function',False,**kwargs)
         self._default('used',[],**kwargs)
         self._default('produced',[],**kwargs)
-        #pspace_axes =\
-        #    [lpsp.pspace_axis(instance = self,key = 'rate',
-        #        bounds = [0.0000000000001,100000000000.0], 
-        #        continuous = True)]
-        #self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
     def _string(self):
@@ -762,8 +759,7 @@ class reaction(lfu.run_parameter):
             widgets = ['text','text'], 
             minimum_sizes = [[(400,100)],[(100,100)]], 
             box_labels = ['Reaction Name','Reaction Rate'], 
-            initials = [[self.name],[self.rate]], 
-            parameter_space_templates = [None,self.pspace_axes[0]])
+            initials = [[self.name],[self.rate]])
         agents_template = lgm.interface_template_gui(
             panel_position = (0, 0), 
             layout = 'horizontal', 
