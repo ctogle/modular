@@ -452,7 +452,7 @@ class run(cwr.function):
         coder.write('\n\tcdef double realtime = 0.0')
         coder.write('\n\tcdef double del_t = 0.0')
         coder.write('\n\tcdef double randr')
-        coder.write('\n\tcdef float imax = float(INT_MAX)')
+        #coder.write('\n\tcdef float imax = float(INT_MAX)')
 
         coder.write('\n\tcdef int whichrxn = 0')
         coder.write('\n\tcdef int rxncount = '+str(rcnt))
@@ -531,7 +531,7 @@ class run(cwr.function):
         #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/float(INT_MAX))*tpinv')
         #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/imax)*tpinv')
 
-        coder.write('\n\t\t\trandr = random.random()')
+        coder.write('\n\t\t\trandr = <float>random.random()')
         #coder.write('\n\t\t\trandr = rand()/float(INT_MAX)')
 
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
