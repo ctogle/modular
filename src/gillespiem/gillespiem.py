@@ -192,14 +192,20 @@ class simulation_module(smd.simulation_module):
                 }
         return ext_kwargs
 
+    def _increment_extensionname(self):
+        self.extensionname = self.extensionname.replace('_','.',1)
+        self.extensionname = lo.increment_filename(self.extensionname)
+        self.extensionname = self.extensionname.replace('.','_',1)
+
     def _set_parameters_prepoolinit(self):
         if not self.extensionname in sys.modules.keys():
             insttime = time.time()
             if self.optimize_reaction_order:
                 print 'creating temporary extension:',self.extensionname
-                self.extensionname = self.extensionname.replace('_','.',1)
-                self.extensionname = lo.increment_filename(self.extensionname)
-                self.extensionname = self.extensionname.replace('.','_',1)
+                self._increment_extensionname()
+                #self.extensionname = self.extensionname.replace('_','.',1)
+                #self.extensionname = lo.increment_filename(self.extensionname)
+                #self.extensionname = self.extensionname.replace('.','_',1)
                 self.countreactions = True
                 ext_kwargs = self._ext_kwargs()
                 writer = cwr.extension(**ext_kwargs)
@@ -215,9 +221,10 @@ class simulation_module(smd.simulation_module):
             else:rcountmap = None
 
             print 'creating temporary extension:',self.extensionname
-            self.extensionname = self.extensionname.replace('_','.',1)
-            self.extensionname = lo.increment_filename(self.extensionname)
-            self.extensionname = self.extensionname.replace('.','_',1)
+            #self.extensionname = self.extensionname.replace('_','.',1)
+            #self.extensionname = lo.increment_filename(self.extensionname)
+            #self.extensionname = self.extensionname.replace('.','_',1)
+            self._increment_extensionname()
             self.countreactions = False
             ext_kwargs = self._ext_kwargs(rcountmap)
             writer = cwr.extension(**ext_kwargs)
@@ -519,12 +526,14 @@ class run(cwr.function):
         coder.write('\n\t\t\ttpinv = 1.0/totalpropensity')
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
-        #coder.write('\n\t\t\tdel_t = -1.0*log(<float>runiform())*tpinv')
+        
+        coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
         #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/float(INT_MAX))*tpinv')
-        coder.write('\n\t\t\tdel_t = -1.0*log(rand()/imax)*tpinv')
+        #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/imax)*tpinv')
 
-        #coder.write('\n\t\t\trandr = runiform()')
-        coder.write('\n\t\t\trandr = rand()/float(INT_MAX)')
+        coder.write('\n\t\t\trandr = random.random()')
+        #coder.write('\n\t\t\trandr = rand()/float(INT_MAX)')
+
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
         coder.write('\n\t\t\t\t\twhichrxn = rtabledex')
