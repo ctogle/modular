@@ -26,12 +26,12 @@ class binmeasure(lpp.post_process_abstract):
         regs = ['all trajectories','by parameter space']
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
-        self._default('target',None,**kwargs)
+        #self._default('target',None,**kwargs)
+        self._default('targets',None,**kwargs)
         self._default('bin_count',10,**kwargs)
         self.method = self.measurement_bin
 
         self.measure = measurement_steady_state_count(parent = self)
-
         self.children = [self.measure]
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
@@ -40,19 +40,35 @@ class binmeasure(lpp.post_process_abstract):
         stowed = pool._stowed()
         if stowed:pool._recover()
 
-        tcount = len(self.target_list)
-        dshape = (tcount,self.bin_count)
-        data = np.zeros(dshape,dtype = np.float)
-
-        measurements = []
+        measurements = [[] for t in self.targets]
         for traj in pool.data:
-            meas = self.measure(traj,pool.targets)
-            measurements.append(meas)
+            for tdx,t in enumerate(self.targets):
+                meas = self.measure(traj,pool.targets,t)
+                measurements[tdx].append(meas)
 
-        bincounts,bins = np.histogram(measurements,bins = self.bin_count)
-        # histogram returns bin_edges; ignore the last edge...
-        data[0] = bins[:-1]
-        data[1] = bincounts
+        #now ignoring self.bin_counts....
+        binlimits = [int(min(measurements[0])),int(max(measurements[0]))]
+        if len(measurements) > 1:
+            for tmeas in measurements[1:]:
+                tmin = min(tmeas)
+                tmax = max(tmeas)
+                if tmin < binlimits[0]:binlimits[0] = int(tmin)
+                if tmax > binlimits[1]:binlimits[1] = int(tmax)
+        bins = [x for x in range(*binlimits)]
+        tcount = len(self.target_list)
+        dshape = (tcount,len(bins))
+        data = np.zeros(dshape,dtype = np.float)
+        bins = [b-0.5 for b in bins]
+        bins.append(max(bins)+bins[-1]-bins[-2])
+        bins = np.array(bins)
+
+        for subdx,submeas in enumerate(measurements):
+            bincounts,bins = np.histogram(submeas,bins = bins)
+            data[subdx+1] = bincounts
+
+        avg = lambda x:(bins[x-1]+bins[x])/2.0
+        bins = [avg(k) for k in range(1,len(bins))]
+        data[0] = bins
 
         if stowed:pool._stow()
         bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
@@ -63,7 +79,7 @@ class binmeasure(lpp.post_process_abstract):
         self.valid_regimes = ['all trajectories','by parameter space']
         self.valid_inputs = self._valid_inputs(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
-        self.target_list = ['bins','counts']
+        self.target_list = ['bins']+[t+' counts' for t in self.targets]
         self.capture_targets = self.target_list
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
@@ -89,11 +105,12 @@ class measurement_steady_state_count(lfu.mobject):
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def __call__(self,*args,**kwargs):
-        data,targets = args
-        tdata = data[targets.index(self.parent.target)]
+        data,targets,target = args
+        tdata = data[targets.index(target)]
         dlen = len(tdata)
         wdata = tdata[dlen-self.window*dlen:dlen]
-        value = np.mean(wdata)
+        value = np.median(wdata)
+        #value = np.mean(wdata)
         return value
 
 ###############################################################################
@@ -101,13 +118,13 @@ class measurement_steady_state_count(lfu.mobject):
 
 # return valid **kwargs for meanfields based on msplit(line)
 def parse_line(split,ensem,procs,routs):
-    target = split[3]
+    targets = lfu.msplit(split[3],',')
     inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
     pargs = {
         'name':split[0],
         'variety':split[1],
         'input_regime':inputs,
-        'target':target,
+        'targets':targets,
         'bin_count':int(split[4]),
             }
     return pargs

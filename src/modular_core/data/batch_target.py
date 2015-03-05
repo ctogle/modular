@@ -5,7 +5,7 @@ import modular_core.io.libfiler as lf
 #import modular_core.io.hdf5 as hdf
 import h5py
 
-import pdb,os,time,types
+import pdb,os,time,types,random
 import numpy as np
 
 if __name__ == 'modular_core.data.batch_target':
@@ -23,7 +23,7 @@ pool_ids = [0]
 def pool_id():
     newid = int(time.time()) + pool_ids[-1] + 1
     pool_ids.append(newid)
-    return 'data_pool.node.' + str(newid) + '.hdf5'
+    return 'data_pool.'+str(random.random())+'.node.' + str(newid) + '.hdf5'
 
 ###############################################################################
 ###############################################################################
@@ -52,28 +52,24 @@ class batch_node(ldc.data_mobject):
         self.children = data.children
         if v:print 'loaded batch node',self.data_pool_id
 
+    # CHILDREN ARE LOST FOREVER
     def _hdf5_data(self,v = False):
         pa = self.hdffile.filename
         self.hdffile.close()
         self.data = pa
         if self.children:pdb.set_trace()
-        self.children = None
+        #self.children = None
+        self.children = []
 
+    # CHILDREN ARE NEVER RECOVERED
     def _unhdf5_data(self,v = False):
         if v:print 'loading batch node',self.data_pool_id,'...'
         dpath = self.data
-
         self.hdffile = h5py.File(dpath,'r',libver = 'latest')
         self.data = self.hdffile['data']
-
-        #data = lf.load_mobject(datapath)
-        #self.data = data.top
-        #self.children = data.children
-        self.children = []
-        print 'DID I HAVE CHILDREN?!'
-
         if v:print 'loaded batch node',self.data_pool_id
 
+    # determine if _recover() is necessary
     def _stowed(self):
         isstr = type(self.data) is types.StringType
         isuni = type(self.data) is types.UnicodeType
@@ -84,15 +80,13 @@ class batch_node(ldc.data_mobject):
     # compress data and store as pkl file in safe data_pool directory
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
-        if not type(self.data) is types.StringType:self._hdf5_data()
+        if not self._stowed():self._hdf5_data()
         if v:print 'stowed batch node',self.data_pool_id,'...'
 
     # uncompress data and store as data attribute
     def _recover(self,v = True):
         if v:print 'recovering batch node',self.data_pool_id,'...'
-        recover = type(self.data) is types.StringType or\
-                  type(self.data) is types.UnicodeType
-        if recover:self._unhdf5_data()
+        if self._stowed():self._unhdf5_data()
         if v:print 'recovered batch node',self.data_pool_id,'...'
 
     def _stow_child(self,dex,v = True):
@@ -160,6 +154,7 @@ class batch_node(ldc.data_mobject):
             vals = yss.transpose((2,1,0))
             if len(bins) < bcnt:
                 print '\nfewer data entries than bins; reduce bin count!\n'
+                #return bins,vals
                 raise ValueError
             elif len(bins) > bcnt:
                 c = len(bins)/bcnt
@@ -229,6 +224,13 @@ class batch_node(ldc.data_mobject):
         if type(self.data) is types.ListType:return True
         else:return False
         
+    def _stow_friendly(self):
+        self._stow()
+        self.friendly = self._plot_friendly()
+
+    def _stow_friendly_child(self,dex):
+        self.children[dex]._stow_friendly()
+
     # return suitable data structures for plotting
     def _plot_friendly(self):
         if self._friendly():

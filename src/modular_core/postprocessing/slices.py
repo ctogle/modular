@@ -46,8 +46,6 @@ class trajectory_slice(lpp.post_process_abstract):
 
     def slice_from_trajectory(self,*args,**kwargs):
         pool = args[0]
-        #stowed = pool._stowed()
-        #if stowed:pool._recover()
 
         slic,scnt = self._slice()
         tcount = len(self.dater_ids)
@@ -59,7 +57,6 @@ class trajectory_slice(lpp.post_process_abstract):
         for px,pt in enumerate(tnames):
             data[self.dater_ids.index(pt)] = trajectory[px][slic]
 
-        #if stowed:pool._stow()
         bnode = dba.batch_node(dshape = dshape,targets = self.dater_ids)
         bnode._trajectory(data)
         return bnode

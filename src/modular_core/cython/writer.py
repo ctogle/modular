@@ -65,9 +65,9 @@ class extension(lfu.mobject):
 from libc.math cimport log
 from libc.math cimport sin
 from libc.math cimport cos
-from libc.stdlib cimport rand
-cdef extern from "limits.h":
-\tint INT_MAX
+#from libc.stdlib cimport rand
+#cdef extern from "limits.h":
+#\tint INT_MAX
 from numpy import cumprod as cumulative_product
 cdef double pi = 3.14159265359
 import random,numpy

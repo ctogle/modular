@@ -52,11 +52,16 @@ class post_process_plan(lfu.plan):
         ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
+                stowed = pchild._stowed()
+                if stowed:pchild._recover()
                 presult = proc.method(pchild,ptraj)
-                proc.data.children.append(presult)
+                if stowed:pchild._stow()
+                proc.data._add_child(presult)
+                #proc.data.children.append(presult)
         elif proc.regime == 'all trajectories':
             presult = proc.method(pool,ptraj)
-            proc.data.children.append(presult)        
+            #proc.data.children.append(presult)        
+            proc.data._add_child(presult)
         runtime = time.time() - stime
         print 'finished post process:',proc.name,'in',runtime
 
@@ -93,7 +98,10 @@ class post_process_plan(lfu.plan):
                     readytorun.append(tbr)
                     readypools.append(readypool)
             for rp,rpool in zip(readytorun,readypools):
+                stowed = rpool._stowed()
+                if stowed:rpool._recover()
                 self._enact_process(rp,rpool)
+                if stowed:rpool._stow()
                 ran.append(rp)
                 toberun.remove(rp)
 

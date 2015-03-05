@@ -250,7 +250,6 @@ def trajectory_set_counts(trajectory,count):
 ###############################################################################
 
 def parse_pspace(plines,ensem):
-
     def read_steps(rng):
         if ';' in rng:return float(rng[rng.rfind(';')+1:])
         else:return 10

@@ -1,5 +1,5 @@
 ### libfundamental is importable from anywhere in modular
-import pdb,os,sys,types,appdirs,importlib
+import pdb,os,sys,traceback,time,types,appdirs,importlib
 import numpy as np
 
 ###############################################################################
@@ -181,6 +181,24 @@ def resolve_filepath(filename, isdir = False):
     for root, dirs, files in os.walk(os.getcwd()):
         found = check(root, dirs, files)
         if found: return found
+
+logfile = get_resource_path('mlog.txt')
+if not os.path.isfile(logfile):
+    with open(logfile,'w') as log:
+        log.write('\n\n\n'+'='*80+'\nmodular log\n'+'='*80+'\n\n\n')
+        stimepretty = time.strftime(
+            '%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+        log.write('\tstarted:'+stimepretty+'\n\n\n')
+
+# log the last traceback or a provided message
+def log(msg = None,trace = True):
+    if msg is None:
+        if trace:
+            with open(logfile,'a') as log:
+                traceback.print_exc(file = log)
+            return
+        else:msg = '\n...null-log...\n'
+    with open(logfile,'a') as log:log.write(msg)
 
 # return whether or not the current os is os_
 def using_os(os_):

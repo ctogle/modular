@@ -6,6 +6,7 @@ import modular_core.parameterspaces as lpsp
 import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
 import modular_core.parallel.threadwork as wt
+import modular_core.parallel.cluster as mcl
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
@@ -199,7 +200,9 @@ class ensemble(lfu.mobject):
                     module = raw_input(mod_request)
 
         self.module_name = module
-        module = mc.modules.__dict__[self.module_name]
+        if module in mc.modules.__dict__.keys():
+            module = mc.modules.__dict__[self.module_name]
+        else:module = __import__(module)
         # if module has a simulation_module subclass use that
         # otherwise use the baseclass from smd
         if hasattr(module,'simulation_module'):
@@ -240,11 +243,14 @@ class ensemble(lfu.mobject):
             '%Y-%m-%d %H:%M:%S',time.localtime(fullstime))
         pspace = self.cartographer_plan.parameter_space
         mappspace = self.cartographer_plan.use_plan and pspace
+        distributed = True
 
         print 'simulation start time:',stimepretty
         if self.fitting_plan.use_plan:dpool = self._run_fitting()
-        elif mappspace:dpool = self._run_map()
-        else:dpool = self._run_nonmap()
+        if distributed:dpool = self._run_distributed()
+        else:
+            if mappspace:dpool = self._run_map()
+            else:dpool = self._run_nonmap()
         print 'duration of simulations:',time.time() - fullstime
 
         print 'performing non-0th post processing...'
@@ -268,6 +274,112 @@ class ensemble(lfu.mobject):
             print 'fitting requires a parameter space!'
         dpool = self.fitting_plan(self,dpool)
         return dpool
+
+    #parameter variation, no fitting
+    def _run_map(self):
+        self._run_params_to_location_prepoolinit()
+        if self.multiprocess_plan.use_plan:
+            pcnt = int(self.multiprocess_plan.worker_count)
+            pinit = self._run_params_to_location
+            mppool = mp.Pool(processes = pcnt,initializer = pinit)
+        else:mppool = None
+
+        requiresimdata = self._require_simulation_data()
+
+        arc = self.cartographer_plan.trajectory
+        arc_length = len(arc)
+        max_run = arc[0].trajectory_count
+        stow_needed = self._require_stow(max_run,arc_length)
+
+        usepplan = self.postprocess_plan.use_plan
+        if usepplan:self.postprocess_plan._init_processes(arc)
+
+        data_pool = dba.batch_node()
+        arc_dex = 0
+        while arc_dex < arc_length:
+            loc_pool = self._run_pspace_location(arc_dex,mppool)
+            arc_dex += 1
+            print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
+            if requiresimdata:
+                data_pool._add_child(loc_pool)
+                if stow_needed:data_pool._stow_child(-1)
+        
+        if self.multiprocess_plan.use_plan:
+            mppool.close()
+            mppool.join()
+        return data_pool
+
+    # use dispy to distribute work across a network
+    def _run_distributed(self):
+        pspace = self.cartographer_plan.parameter_space
+        mappspace = self.cartographer_plan.use_plan and pspace
+        self._run_params_to_location_prepoolinit()
+        if mappspace:
+            arc = self.cartographer_plan.trajectory
+            arc_length = len(arc)
+
+            ###
+            usepplan = self.postprocess_plan.use_plan
+            if usepplan:self.postprocess_plan._init_processes(arc)
+            ###
+            work = _unbound_map_pspace_location
+            mobj = lfu.mobject(name = 'fakeensem')
+            mobj.mcfg_path = self.mcfg_path
+            mobj.module_name = self.module_name
+            wrgs = [(mobj,x) for x in range(arc_length)]
+            deps = [os.path.join(os.getcwd(),'gillespiemext_0.so')]
+
+            print 'CLUSTERIZING...'
+            loc_0th_pools = mcl.clusterize(work,wrgs,deps)
+            print 'CLUSTERIZED...'
+            ###
+            zeroth = self.postprocess_plan.zeroth
+            zcount = len(zeroth)
+            for adx in range(arc_length):
+                l0p = loc_0th_pools[adx]
+                for zdx in range(zcount):
+                    zp = zeroth[zdx]
+                    zpdata = l0p.children[zdx]
+                    # when zpdata comes from a distant node
+                    # the data will be stowed on that node
+                    # but the friendly copy of the zeroth 
+                    # level process data will be on the nodes
+                    print 'last word before traceback!!'
+                    zp.data._add_child(zpdata)
+            ###
+
+            dpool = dba.batch_node()
+        else:dpool = self._run_nonmap()
+        return dpool
+
+    # use current parameters like a single position trajectory
+    def _run_nonmap(self):
+        requiresimdata = self._require_simulation_data()
+        cplan = self.cartographer_plan
+        pspace = cplan._parameter_space([])
+        lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
+        data_pool = self._run_map()
+        if requiresimdata:return data_pool._split_child()
+        else:return dba.batch_node()
+
+    # if mapping, ldex is the pspace location index, else ldex is None
+    # if not ldex is None, move to the necessary location in pspace
+    # run all simulations associated with this pspace location
+    def _run_pspace_location(self,ldex = None,mppool = None):
+        traj_cnt,targ_cnt,capt_cnt,ptargets = self._run_init(ldex)
+        dshape = (traj_cnt,targ_cnt,capt_cnt)
+        loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)
+
+        if ldex:self.cartographer_plan._move_to(ldex)
+        if self.multiprocess_plan.use_plan:mppool._initializer()
+        else:self._run_params_to_location()
+        if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
+        else:self._run_batch(traj_cnt,loc_pool)
+
+        if self.postprocess_plan.use_plan:
+            zeroth = self.postprocess_plan.zeroth
+            self.postprocess_plan._enact_processes(zeroth,loc_pool)
+        return loc_pool
 
     # helper function for common run info
     def _run_init(self,t = None):
@@ -307,67 +419,12 @@ class ensemble(lfu.mobject):
             if m % pfreq == 0:
                 print 'mpbatch run completed:%d/%d'%(m,many)
 
-    # if mapping, ldex is the pspace location index, else ldex is None
-    # if not ldex is None, move to the necessary location in pspace
-    # run all simulations associated with this pspace location
-    def _run_pspace_location(self,ldex = None,mppool = None):
-        traj_cnt,targ_cnt,capt_cnt,ptargets = self._run_init(ldex)
-        dshape = (traj_cnt,targ_cnt,capt_cnt)
-        loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)
-
-        if ldex:self.cartographer_plan._move_to(ldex)
-        if self.multiprocess_plan.use_plan:mppool._initializer()
-        else:self._run_params_to_location()
-        if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
-        else:self._run_batch(traj_cnt,loc_pool)
-
-        if self.postprocess_plan.use_plan:
-            zeroth = self.postprocess_plan.zeroth
-            self.postprocess_plan._enact_processes(zeroth,loc_pool)
-        return loc_pool
-
-    #parameter variation, no fitting
-    def _run_map(self):
-        self._run_params_to_location_prepoolinit()
-        if self.multiprocess_plan.use_plan:
-            pcnt = int(self.multiprocess_plan.worker_count)
-            pinit = self._run_params_to_location
-            mppool = mp.Pool(processes = pcnt,initializer = pinit)
-        else:mppool = None
-
-        requiresimdata = self._require_simulation_data()
-
-        arc = self.cartographer_plan.trajectory
-        arc_length = len(arc)
-        max_run = arc[0].trajectory_count
-        stow_needed = self._require_stow(max_run,arc_length)
-
-        usepplan = self.postprocess_plan.use_plan
-        if usepplan:self.postprocess_plan._init_processes(arc)
-
-        data_pool = dba.batch_node()
-        arc_dex = 0
-        while arc_dex < arc_length:
-            loc_pool = self._run_pspace_location(arc_dex,mppool)
-            arc_dex += 1
-            if requiresimdata:
-                data_pool._add_child(loc_pool)
-                if stow_needed:data_pool._stow_child(-1)
-        
-        if self.multiprocess_plan.use_plan:
-            mppool.close()
-            mppool.join()
-        return data_pool
-
-    #no parameter variation, and no fitting
-    def _run_nonmap(self):
-        requiresimdata = self._require_simulation_data()
+    def _print_pspace_location(self,ldex):
         cplan = self.cartographer_plan
-        pspace = cplan._parameter_space([])
-        lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
-        data_pool = self._run_map()
-        if requiresimdata:return data_pool._split_child()
-        else:return dba.batch_node()
+        traj = cplan.trajectory
+        loc = traj[ldex]
+        locline = [str(l) for l in loc.location]
+        return '\t'.join(locline)
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory
@@ -502,7 +559,9 @@ class ensemble(lfu.mobject):
         try:self.module._parse_mcfg(self.mcfg_path,self)
         except:
             traceback.print_exc(file = sys.stdout)
-            lgd.message_dialog(None,'Failed to parse file!','Problem')
+            lfu.log(trace = True)
+            if lfu.using_gui:
+                lgd.message_dialog(None,'Failed to parse file!','Problem')
         self.module._rewidget(True)
 
     def _write_mcfg(self,*args,**kwargs):
@@ -898,6 +957,41 @@ class ensemble_manager(lfu.mobject):
 ###############################################################################
 ###############################################################################
 
+def _unbound_map_pspace_location(fakeensem,arc_dex):
+    import modular_core.fundamental as lfu
+    lfu.using_gui = False
+    import modular_core.ensemble as mce
+    import modular_core.data.batch_target as dba
+
+    smodu = fakeensem.module_name
+    mnger = mce.ensemble_manager()
+    ensem = mnger._add_ensemble(module = fakeensem.module_name)
+    ensem.mcfg_path = fakeensem.mcfg_path
+    ensem._parse_mcfg()
+    ensem.multiprocess_plan.use_plan = False
+
+    ensem.module._increment_extensionname()
+
+    pplan = ensem.postprocess_plan
+    if pplan.use_plan:pplan._init_processes(None)
+
+    loc_pool = ensem._run_pspace_location(arc_dex)
+    loc_pool._stow()
+
+    if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
+    host = socket.gethostname()
+    pdata = dba.batch_node()
+    for z in zeroth:
+        pdata._add_child(z.data.children[0])
+        pdata._stow_friendly_child(-1)
+        pdata._stow_child(-1)
+    pdata.dispyhost = host
+    pdata.dispyindex = arc_dex
+    psplocstr = ensem._print_pspace_location(arc_dex)
+    lfu.log('\n\ncluster psp-location: %d - %s'%(arc_dex,psplocstr))
+    return pdata
+
+###############################################################################
 
 
 

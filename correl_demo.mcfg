@@ -34,8 +34,8 @@
 
 <parameter_space>
 	<product_space> 1000
-		lambda1 : value : 2.0-8.0;4.0
-		lambda2 : value : 2.0-8.0;4.0
+		lambda1 : value : 2.0-10.0;5.0
+		lambda2 : value : 2.0-10.0;5.0
 		#mu      : value : 4.0-16.0;4.0
 
 <post_processes>
@@ -44,7 +44,7 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
-	workers : 100
+	workers : 200
 
 <output_plans>
 	3 : - : reorg_output : plt : all
@@ -53,7 +53,7 @@
 	0 : - : ensemble_output : none : all
 
 <ensemble>
-	multiprocessing : off
+	multiprocessing : on
 	mapparameterspace : on
 	fitting : off
 	postprocessing : on

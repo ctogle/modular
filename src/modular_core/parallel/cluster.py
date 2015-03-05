@@ -1,24 +1,63 @@
-import dispy,random,time,socket
+import modular_core.fundamental as lfu
 
-def test(n):
-    #time.sleep(n)
-    print 'i would sleep?',n
+import dispy,random,time,socket,pdb
+
+def test(*args):
+    mobj,jobdex = args
+
+    import modular_core.fundamental as lfu
+    data = lfu.mobject(name = 'jobmobj%d'%(jobdex))
+
     host = socket.gethostname()
-    return (host,n)
+    data.dispyhost = host
+    data.dispyindex = jobdex
+    return data
 
-def run():
-    cluster = dispy.JobCluster(test,nodes = ['10.0.0.5','10.0.0.8'])
+cluster_ips = [
+    '10.0.0.5',
+    '10.0.0.8',
+        ]
+
+def start_cluster(cluster,args):
     jobs = []
-    for n in range(10):
-        job = cluster.submit(random.randint(5,20))
-        job.id = n
+    jobcount = len(args)
+    for jobdex in range(jobcount):
+        job = cluster.submit(*args[jobdex])
+        time.sleep(1)
+        job.id = jobdex
         jobs.append(job)
+    return jobs
+
+def _cluster_setup():
+    return 0
+
+def collect_cluster(jobs):
+    results = []
     for job in jobs:
-        host,n = job()
-        print '%s executed job %s at %s with %s'%(host,job.id,job.start_time,n)
+        result = job()
+        if result is None:print 'LIKELY EXCEPTION\n',job.exception
+        else:
+            host = result.dispyhost
+            jobdex = result.dispyindex
+            printargs = (host,job.id,job.start_time,jobdex)
+            results.append(result)
+            print '%s executed job %s at %s with %s'%printargs
+    return results
+
+def clusterize(work,args,deps = []):
+    cluster = dispy.JobCluster(work,
+        nodes = cluster_ips,depends = deps,
+        setup = _cluster_setup,cleanup = False)
+    jobs = start_cluster(cluster,args)
+    results = collect_cluster(jobs)
     cluster.stats()
+    return results
 
+if __name__ == '__main__':
+    inpmobj = lfu.mobject(name = 'ensemble?')
+    inpargs = [(inpmobj,x) for x in range(10)]
+    results = clusterize(test,inpargs)
 
-run()
+    pdb.set_trace()
 
 
