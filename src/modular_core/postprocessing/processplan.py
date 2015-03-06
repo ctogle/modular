@@ -53,9 +53,9 @@ class post_process_plan(lfu.plan):
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
                 stowed = pchild._stowed()
-                if stowed:pchild._recover()
+                if stowed:pchild._recover(v = False)
                 presult = proc.method(pchild,ptraj)
-                if stowed:pchild._stow()
+                if stowed:pchild._stow(v = False)
                 proc.data._add_child(presult)
                 #proc.data.children.append(presult)
         elif proc.regime == 'all trajectories':
@@ -70,9 +70,9 @@ class post_process_plan(lfu.plan):
     def _enact_processes(self,procs,pool):
         ptraj = self.psp_trajectory
         stowed = pool._stowed()
-        if stowed:pool._recover()
+        if stowed:pool._recover(v = False)
         for process in procs:self._enact_process(process,pool)
-        if stowed:pool._stow()
+        if stowed:pool._stow(v = False)
 
     # for each 0th process, recursively call consuming processes
     def _walk_processes(self):
@@ -99,9 +99,9 @@ class post_process_plan(lfu.plan):
                     readypools.append(readypool)
             for rp,rpool in zip(readytorun,readypools):
                 stowed = rpool._stowed()
-                if stowed:rpool._recover()
+                if stowed:rpool._recover(v = False)
                 self._enact_process(rp,rpool)
-                if stowed:rpool._stow()
+                if stowed:rpool._stow(v = False)
                 ran.append(rp)
                 toberun.remove(rp)
 

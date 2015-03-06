@@ -14,8 +14,11 @@ def test(*args):
     return data
 
 cluster_ips = [
-    '10.0.0.5',
-    '10.0.0.8',
+    #'10.0.0.5',
+    #'10.0.0.8',
+    #'127.0.1.1', 
+    '192.168.4.87', 
+    '192.168.4.89',
         ]
 
 def start_cluster(cluster,args):
@@ -48,6 +51,7 @@ def clusterize(work,args,deps = []):
     cluster = dispy.JobCluster(work,
         nodes = cluster_ips,depends = deps,
         setup = _cluster_setup,cleanup = False)
+    print 'node ips',cluster_ips
     jobs = start_cluster(cluster,args)
     results = collect_cluster(jobs)
     cluster.stats()

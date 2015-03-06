@@ -231,6 +231,17 @@ class batch_node(ldc.data_mobject):
     def _stow_friendly_child(self,dex):
         self.children[dex]._stow_friendly()
 
+    # when zpdata comes from a distant node
+    # the data will be stowed on that node
+    # but the friendly copy of the zeroth 
+    # level process data will be on the nodes
+    def _unfriendly(self):
+        self._init_data()
+        friendly = self.friendly
+        for fdx in range(self.dshape[0]):
+            self.data[fdx,:] = friendly[fdx].data[:]
+        self._stow()
+
     # return suitable data structures for plotting
     def _plot_friendly(self):
         if self._friendly():

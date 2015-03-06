@@ -34,8 +34,8 @@
 
 <parameter_space>
 	<product_space> 1000
-		lambda1 : value : 2.0-10.0;5.0
-		lambda2 : value : 2.0-10.0;5.0
+		lambda1 : value : 1.0-10.0;10.0
+		lambda2 : value : 1.0-10.0;10.0
 		#mu      : value : 4.0-16.0;4.0
 
 <post_processes>

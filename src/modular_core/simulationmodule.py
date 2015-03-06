@@ -97,9 +97,14 @@ class simulation_module(lfu.mobject):
         elif not new is None:params[parser].append(new)
 
     # parse an mcfg and set the ensemble to reflect it
-    def _parse_mcfg(self,mcfg,ensem):
+    def _parse_mcfg(self,ensem,mcfgfile = None,mcfgstring = None):
         params = ensem.run_params
-        with open(mcfg,'r') as handle:mlines = handle.readlines()
+        if mcfgfile and not mcfgstring:
+            with open(mcfgfile,'r') as handle:
+                mlines = handle.readlines()
+        elif mcfgstring:
+            mlines = mcfgstring.split('\n')
+        else:print '_parse_mcfg args are invalid...'
 
         plot_flag = False;targs = params['plot_targets']
         pspace_flag = False;pspace_parsed_flag = False;p_sub_sps = []

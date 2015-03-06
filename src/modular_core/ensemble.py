@@ -318,21 +318,24 @@ class ensemble(lfu.mobject):
             arc = self.cartographer_plan.trajectory
             arc_length = len(arc)
 
-            ###
             usepplan = self.postprocess_plan.use_plan
             if usepplan:self.postprocess_plan._init_processes(arc)
-            ###
+
+            #mobj = lfu.mobject(name = 'fakeensem')
+            with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
+            #mobj.mcfg_path = self.mcfg_path
+            #print 'mpath has to be non local...',mobj.mcfg_path
+            modulename = self.module_name
+            #mobj.module_name = self.module_name
+
             work = _unbound_map_pspace_location
-            mobj = lfu.mobject(name = 'fakeensem')
-            mobj.mcfg_path = self.mcfg_path
-            mobj.module_name = self.module_name
-            wrgs = [(mobj,x) for x in range(arc_length)]
+            #wrgs = [(mobj,x) for x in range(arc_length)]
+            wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
             deps = [os.path.join(os.getcwd(),'gillespiemext_0.so')]
 
             print 'CLUSTERIZING...'
             loc_0th_pools = mcl.clusterize(work,wrgs,deps)
             print 'CLUSTERIZED...'
-            ###
             zeroth = self.postprocess_plan.zeroth
             zcount = len(zeroth)
             for adx in range(arc_length):
@@ -340,13 +343,8 @@ class ensemble(lfu.mobject):
                 for zdx in range(zcount):
                     zp = zeroth[zdx]
                     zpdata = l0p.children[zdx]
-                    # when zpdata comes from a distant node
-                    # the data will be stowed on that node
-                    # but the friendly copy of the zeroth 
-                    # level process data will be on the nodes
-                    print 'last word before traceback!!'
+                    zpdata._unfriendly()
                     zp.data._add_child(zpdata)
-            ###
 
             dpool = dba.batch_node()
         else:dpool = self._run_nonmap()
@@ -556,7 +554,7 @@ class ensemble(lfu.mobject):
 
     def _parse_mcfg(self,*args,**kwargs):
         self.module._reset_parameters()
-        try:self.module._parse_mcfg(self.mcfg_path,self)
+        try:self.module._parse_mcfg(self,self.mcfg_path)
         except:
             traceback.print_exc(file = sys.stdout)
             lfu.log(trace = True)
@@ -957,17 +955,17 @@ class ensemble_manager(lfu.mobject):
 ###############################################################################
 ###############################################################################
 
-def _unbound_map_pspace_location(fakeensem,arc_dex):
+def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
     import modular_core.fundamental as lfu
     lfu.using_gui = False
     import modular_core.ensemble as mce
     import modular_core.data.batch_target as dba
 
-    smodu = fakeensem.module_name
     mnger = mce.ensemble_manager()
-    ensem = mnger._add_ensemble(module = fakeensem.module_name)
-    ensem.mcfg_path = fakeensem.mcfg_path
-    ensem._parse_mcfg()
+    ensem = mnger._add_ensemble(module = modulename)
+    #ensem.mcfg_path = fakeensem.mcfg_path
+    ensem._parse_mcfg(mcfgstring = mcfgstring)
+
     ensem.multiprocess_plan.use_plan = False
 
     ensem.module._increment_extensionname()
