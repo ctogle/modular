@@ -259,24 +259,38 @@ class post_process_abstract(lfu.mobject):
 ### utility functions
 ###############################################################################
 
-# prompt user for post_process type if needed and create
-def post_process(variety = None,**pargs):
+# query the user (dialog or command line) for a process type
+def gather_process_type():
     opts = process_types.keys()
-    if variety is None:
-        if lfu.using_gui:
-            variety = lgd.create_dialog(
-                title = 'Choose Post Process Type',
-                options = opts,variety = 'radioinput')
-        else:
-            prequest = 'enter a post process type:\n\t'
-            for op in opts:prequest += op + '\n\t'
-            prequest += '\n'
-            variety = raw_input(prequest)
+    if lfu.using_gui:
+        variety = lgd.create_dialog(
+            title = 'Choose Post Process Type',
+            options = opts,variety = 'radioinput')
+    else:
+        prequest = 'enter a post process type:\n\t'
+        for op in opts:prequest += op + '\n\t'
+        prequest += '\n'
+        variety = raw_input(prequest)
+    return variety
+
+# query the user (dialog or command line) for a process name
+def gather_process_name():
+    namemsg = 'Provide a unique name for this post process:\n\t'
+    name = lfu.gather_string(msg = namemsg,title = 'Name Post Process')
+    return name
+
+# prompt user for post_process type if needed and create
+def post_process(variety = None,name = None,**pargs):
+    opts = process_types.keys()
+    if variety is None:variety = gather_process_type()
     if not variety in opts:
         print 'unrecognized post process type:',variety
         return
-    proc = process_types[variety][0](**pargs)
-    return proc
+    if name is None:name = gather_process_name()
+    if not name is None:
+        proc = process_types[variety][0](name = name,**pargs)
+        return proc
+    print 'post process name was invalid:',str(name)
 
 # parse one mcfg line into a post_process and add to ensems plan
 def parse_process_line(line,ensem,parser,procs,routs,targs):

@@ -13,14 +13,6 @@ def test(*args):
     data.dispyindex = jobdex
     return data
 
-cluster_ips = [
-    #'10.0.0.5',
-    #'10.0.0.8',
-    #'127.0.1.1', 
-    '192.168.4.87', 
-    '192.168.4.89',
-        ]
-
 def start_cluster(cluster,args):
     jobs = []
     jobcount = len(args)
@@ -47,11 +39,10 @@ def collect_cluster(jobs):
             print '%s executed job %s at %s with %s'%printargs
     return results
 
-def clusterize(work,args,deps = []):
-    cluster = dispy.JobCluster(work,
-        nodes = cluster_ips,depends = deps,
-        setup = _cluster_setup,cleanup = False)
-    print 'node ips',cluster_ips
+def clusterize(nodeips,work,args,deps = []):
+    cluster = dispy.JobCluster(work,nodes = nodeips,
+        depends = deps,setup = _cluster_setup,cleanup = False)
+    print 'node ips',nodeips
     jobs = start_cluster(cluster,args)
     results = collect_cluster(jobs)
     cluster.stats()

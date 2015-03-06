@@ -33,7 +33,7 @@
 	x1
 
 <parameter_space>
-	<product_space> 1000
+	<product_space> 10000
 		lambda1 : value : 1.0-10.0;10.0
 		lambda2 : value : 1.0-10.0;10.0
 		#mu      : value : 4.0-16.0;4.0
@@ -45,6 +45,7 @@
 
 <multiprocessing>
 	workers : 200
+  distributed : on
 
 <output_plans>
 	3 : - : reorg_output : plt : all

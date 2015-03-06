@@ -162,6 +162,7 @@ class ensemble(lfu.mobject):
         self.capture_targets = self.run_params['plot_targets']
 
         self._select_module(**kwargs)
+        if not hasattr(self,'module'):return
         self.module._reset_parameters()
 
         self.data_pool_descr = ''
@@ -243,7 +244,7 @@ class ensemble(lfu.mobject):
             '%Y-%m-%d %H:%M:%S',time.localtime(fullstime))
         pspace = self.cartographer_plan.parameter_space
         mappspace = self.cartographer_plan.use_plan and pspace
-        distributed = True
+        distributed = self.multiprocess_plan.distributed
 
         print 'simulation start time:',stimepretty
         if self.fitting_plan.use_plan:dpool = self._run_fitting()
@@ -321,20 +322,17 @@ class ensemble(lfu.mobject):
             usepplan = self.postprocess_plan.use_plan
             if usepplan:self.postprocess_plan._init_processes(arc)
 
-            #mobj = lfu.mobject(name = 'fakeensem')
             with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
-            #mobj.mcfg_path = self.mcfg_path
-            #print 'mpath has to be non local...',mobj.mcfg_path
             modulename = self.module_name
-            #mobj.module_name = self.module_name
 
+            nodes = self.multiprocess_plan.cluster_node_ips
             work = _unbound_map_pspace_location
-            #wrgs = [(mobj,x) for x in range(arc_length)]
             wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
+
             deps = [os.path.join(os.getcwd(),'gillespiemext_0.so')]
 
             print 'CLUSTERIZING...'
-            loc_0th_pools = mcl.clusterize(work,wrgs,deps)
+            loc_0th_pools = mcl.clusterize(nodes,work,wrgs,deps)
             print 'CLUSTERIZED...'
             zeroth = self.postprocess_plan.zeroth
             zcount = len(zeroth)
@@ -554,7 +552,7 @@ class ensemble(lfu.mobject):
 
     def _parse_mcfg(self,*args,**kwargs):
         self.module._reset_parameters()
-        try:self.module._parse_mcfg(self,self.mcfg_path)
+        try:self.module._parse_mcfg(self,self.mcfg_path,**kwargs)
         except:
             traceback.print_exc(file = sys.stdout)
             lfu.log(trace = True)
@@ -963,7 +961,6 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     mnger = mce.ensemble_manager()
     ensem = mnger._add_ensemble(module = modulename)
-    #ensem.mcfg_path = fakeensem.mcfg_path
     ensem._parse_mcfg(mcfgstring = mcfgstring)
 
     ensem.multiprocess_plan.use_plan = False

@@ -42,7 +42,7 @@ def create_dialog(title = 'Dialog', message = '', variety = 'input',
                     templates = None, mason = None, options = None):
 
     def show_dialog_input():
-        text, ok = QtGui.QInputDialog.getText(parent, title, message)
+        text, ok = QtGui.QInputDialog.getText(parent,title,message)
         if ok: return text
 
     def show_dialog_color():

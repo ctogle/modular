@@ -61,18 +61,18 @@ class endcapture_plan(lfu.plan):
         self._rewidget(True)
 
     def _add_end_criteria(self,crit = None):
-        #if crit is None:crit = lc.criterion_sim_time(parent = self)
         if crit is None:crit = cab.criterion(parent = self)
         else:crit.parent = self
+        if crit is None:return
         self.end_criteria.append(crit)
         self.children.append(crit)
         crit._rewidget(True)
         self._rewidget(True)
 
     def _add_capture_criteria(self,crit = None):
-        #if crit is None:crit = lc.criterion_increment(parent = self)
         if crit is None:crit = cab.criterion(parent = self)
         else:crit.parent = self
+        if crit is None:return
         self.capture_criteria.append(crit)
         self.children.append(crit)
         crit._rewidget(True)
@@ -81,7 +81,6 @@ class endcapture_plan(lfu.plan):
     def clear_criteria(self):
         def clear(crits):
             for crit in crits: crits.remove(crit)
-
         clear(self.end_criteria)
         clear(self.capture_criteria)
         self.children = []
@@ -93,9 +92,7 @@ class endcapture_plan(lfu.plan):
         if select:
             self.end_criteria.remove(select)
             self.children.remove(select)
-            select._destroy_()
-
-        self.rewidget(True)
+        self._rewidget(True)
 
     def remove_capture_criteria(self, crit = None):
         if crit: select = crit
@@ -103,9 +100,7 @@ class endcapture_plan(lfu.plan):
         if select:
             self.capture_criteria.remove(select)
             self.children.remove(select)
-            select._destroy_()
-
-        self.rewidget(True)
+        self._rewidget(True)
 
     def get_selected_criteria(self, type_):
         if type_ is 'end': key = 'end_crit_selector'

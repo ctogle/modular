@@ -136,6 +136,14 @@ class data_container(object):
         for key in kwargs.keys():
             self.__dict__[key] = kwargs[key]
 
+def gather_string(msg,title):
+    if using_gui:
+        stringdlg = gui_pack.lgd.create_dialog(
+            title = title,message = msg,variety = 'input')
+        string = stringdlg()
+    else:string = raw_input(msg)
+    return string
+
 # resolve full resource path from resource filename
 def get_resource_path(res = None):
     rpath = os.path.join(appdirs.user_config_dir(),'modular_resources')
@@ -278,6 +286,7 @@ def fill_lists(lists, fill = None):
 def coerce_string_bool(string):
     true_strings = ['true', 'True', 'On', 'on']
     false_strings = ['false', 'False', 'Off', 'off']
+    string = string.strip()
     if string in true_strings: return True
     elif string in false_strings: return False
 

@@ -27,10 +27,10 @@ class meanfields(lpp.post_process_abstract):
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
 
-        self._default('function_of', None, **kwargs)
-        self._default('means_of', None, **kwargs)
-        self._default('bin_count', 100, **kwargs)
-        self._default('ordered', True, **kwargs)
+        self._default('function_of',None,**kwargs)
+        self._default('means_of',[],**kwargs)
+        self._default('bin_count',100,**kwargs)
+        self._default('ordered',True,**kwargs)
         self.method = self.meanfields
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 

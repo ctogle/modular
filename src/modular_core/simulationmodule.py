@@ -38,6 +38,8 @@ class simulation_module(lfu.mobject):
         key,val = li.split(':')
         if key.strip() == 'workers':
             ensem.multiprocess_plan.worker_count = int(val)
+        if key.strip() == 'distributed':
+            ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(val)
 
     def _parse_mcfg_ensemble(li,ensem,parser,procs,routs,targs):
         spl = [l.strip() for l in li.split(':')]
@@ -104,7 +106,9 @@ class simulation_module(lfu.mobject):
                 mlines = handle.readlines()
         elif mcfgstring:
             mlines = mcfgstring.split('\n')
-        else:print '_parse_mcfg args are invalid...'
+        else:
+            print '_parse_mcfg args are invalid...'
+            return
 
         plot_flag = False;targs = params['plot_targets']
         pspace_flag = False;pspace_parsed_flag = False;p_sub_sps = []

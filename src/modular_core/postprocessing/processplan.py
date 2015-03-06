@@ -1,6 +1,7 @@
 import modular_core.fundamental as lfu
 import modular_core.settings as lset
 
+import modular_core.postprocessing.process_abstract as pra
 import modular_core.data.batch_target as dba
 import modular_core.io.liboutput as lo
 
@@ -57,10 +58,8 @@ class post_process_plan(lfu.plan):
                 presult = proc.method(pchild,ptraj)
                 if stowed:pchild._stow(v = False)
                 proc.data._add_child(presult)
-                #proc.data.children.append(presult)
         elif proc.regime == 'all trajectories':
             presult = proc.method(pool,ptraj)
-            #proc.data.children.append(presult)        
             proc.data._add_child(presult)
         runtime = time.time() - stime
         print 'finished post process:',proc.name,'in',runtime
@@ -137,7 +136,8 @@ class post_process_plan(lfu.plan):
 
     # add new post process; default to meanfields
     def _add_process(self,new = None):
-        if new is None:new = post_process(parent = self)
+        if new is None:new = pra.post_process(parent = self)
+        if new is None:return
         new.fitting_aware = self.fitting_aware
         new.always_sourceable = self.always_sourceable
         new.parent = self
@@ -157,11 +157,9 @@ class post_process_plan(lfu.plan):
         if selected:
             self.processes.remove(selected)
             self.children.remove(selected)
-
             if hasattr(self.parent,'run_params'):
                 ops = self.parent.run_params['output_plans']
-                del ops[select.name+' output']
-
+                del ops[selected.name+' output']
         self._rewidget(True)
 
     # shift a process up in the post process hierarchy
