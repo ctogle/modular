@@ -308,7 +308,6 @@ class simulation_module(smd.simulation_module):
 def simulate(args):
     runfunc = args[0]
     result = runfunc(*args[1:])
-    #result = runfunc()
     return result
 
 ###############################################################################
@@ -620,6 +619,10 @@ class run(cwr.function):
 class species(lfu.run_parameter):
 
     def __init__(self,*args,**kwargs):
+        if not 'name' in kwargs.keys():
+            namemsg = 'Provide a unique name for this species:\n\t'
+            nametitle = 'Name Species'
+            kwargs['name'] = lfu.gather_string(namemsg,nametitle)
         self._default('name','aspecies',**kwargs)
         self._default('initial',0,**kwargs)
         pspace_axes =\
@@ -717,7 +720,6 @@ class reaction(lfu.run_parameter):
             if self.rate in self.functionnames:
                 ratestring = self.rate+'(state)'
                 self.rate_is_function = True
-            #else:ratestring = str(self.variables[self.rate].value)
             else:
                 vdex = self.statetargets.index(self.rate)
                 ratestring = 'state['+str(vdex)+']'
@@ -789,6 +791,10 @@ class reaction(lfu.run_parameter):
 class variable(lfu.run_parameter):
   
     def __init__(self,*args,**kwargs):
+        if not 'name' in kwargs.keys():
+            namemsg = 'Provide a unique name for this variable:\n\t'
+            nametitle = 'Name Variable'
+            kwargs['name'] = lfu.gather_string(namemsg,nametitle)
         self._default('name','a variable',**kwargs)
         self._default('value',1.0,**kwargs)
         pspace_axes = [
@@ -897,6 +903,10 @@ class function(lfu.run_parameter):
         else:return False
 
     def __init__(self,*args,**kwargs):
+        if not 'name' in kwargs.keys():
+            namemsg = 'Provide a unique name for this function:\n\t'
+            nametitle = 'Name Function'
+            kwargs['name'] = lfu.gather_string(namemsg,nametitle)
         self._default('name','a function',**kwargs)
         self._default('func_statement','',**kwargs)
         lfu.run_parameter.__init__(self,*args,**kwargs)
