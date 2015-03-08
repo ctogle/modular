@@ -2,6 +2,7 @@ import modular_core.fundamental as lfu
 import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
+import modular_core.fitting.routine_abstract as fab
 
 import pdb,os,sys,types,time,math,random,traceback
 import numpy as np
@@ -45,26 +46,29 @@ class fit_routine_plan(lfu.plan):
     def _enact(self,*args,**kwargs):
         for routine in self.routines:
             stime = time.time()
-            routine(*args,**kwargs)
+            routine._run(*args,**kwargs)
             rtime = str(time.time() - stime)
-            strs = ['completed fit routine',routine.name,'in',rtime,'seconds']
-            print ' '.join(strs)
+            print 'completed fit routine',routine.name,'in',rtime,'seconds'
         return args[1]
 
-    def add_routine(self, new = None):
-        if not new: new = fit_routine_simulated_annealing(parent = self)
+    # add new fitting routine
+    def _add_routine(self,new = None):
+        if new is None:new = fab.routine(parent = self)
+        #if new is None:return
         self.routines.append(new)
-        self._children_.append(new)
+        self.children.append(new)
+        #self._children_.append(new)
         self.rewidget(True)
 
-    def remove_routine(self):
+    def _remove_routine(self):
         select = self.get_selected()
         if select:
             self.routines.remove(select)
-            self._children_.remove(select)
+            self.children.remove(select)
+            #self._children_.remove(select)
         self.rewidget(True)
 
-    def move_routine_up(self, *args, **kwargs):
+    def _move_routine_up(self, *args, **kwargs):
         select = self.get_selected()
         if select:
             select_dex = lfu.grab_mobj_dex_by_name(
@@ -74,7 +78,7 @@ class fit_routine_plan(lfu.plan):
             #self._widget(select_dex - 1)
             self.rewidget_routines()
 
-    def move_routine_down(self, *args, **kwargs):
+    def _move_routine_down(self, *args, **kwargs):
         select = self.get_selected()
         if select:
             select_dex = lfu.grab_mobj_dex_by_name(
@@ -124,13 +128,13 @@ class fit_routine_plan(lfu.plan):
                                 'Move Down In Hierarchy']], 
                 initials = [[select_label], None], 
                 bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                        window, self.add_routine), 
+                                        window, self._add_routine), 
                         lgb.create_reset_widgets_wrapper(window, 
-                                self.remove_routine), 
+                                self._remove_routine), 
                         lgb.create_reset_widgets_wrapper(window, 
-                                self.move_routine_up), 
+                                self._move_routine_up), 
                         lgb.create_reset_widgets_wrapper(window, 
-                                self.move_routine_down)]]))
+                                self._move_routine_down)]]))
         lfu.plan._widget(self, *args, from_sub = True)
 
 ###############################################################################

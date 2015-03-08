@@ -2,7 +2,8 @@ import modular_core as mc
 import modular_core.fundamental as lfu
 import modular_core.endcaptureplan as lsc
 import modular_core.simulationmodule as smd
-import modular_core.parameterspaces as lpsp
+import modular_core.parameterspace.parameterspaces as lpsp
+import modular_core.parameterspace.cartographerplan as cplan
 import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
 import modular_core.parallel.threadwork as wt
@@ -140,14 +141,14 @@ class ensemble(lfu.mobject):
         self.output_plan = lo.output_plan(
             parent = self,name = 'Simulation',flat_data = False)
         self.fitting_plan = fpl.fit_routine_plan(parent = self)
-        self.cartographer_plan = lpsp.cartographer_plan(
-            parent = self,name = 'Parameter Scan')
+        self.cartographer_plan = cplan.cartographer_plan(
+                parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
-            name = 'Post Process Plan',always_sourceable = ['simulation'])
+                name = 'Post Process Plan',always_sourceable = ['simulation'])
         self.multiprocess_plan = paral.parallel_plan(parent = self)
         self.children = [
-            self.simulation_plan,self.output_plan,self.fitting_plan,
-            self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
+                self.simulation_plan,self.output_plan,self.fitting_plan,
+                self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
         lfu.mobject.__init__(self,*args,**kwargs)
 
         self.run_params = {}
@@ -157,13 +158,15 @@ class ensemble(lfu.mobject):
         self.run_params['output_plans'] = {'Simulation' : self.output_plan}
         self.run_params['fit_routines'] = self.fitting_plan.routines
         self.run_params['post_processes'] = self.postprocess_plan.processes
-        self.run_params['p_space_map'] = None
-        self.run_params['multiprocessing'] = None
+        #self.run_params['p_space_map'] = None
+        #self.run_params['multiprocessing'] = None
         self.capture_targets = self.run_params['plot_targets']
 
         self._select_module(**kwargs)
         if not hasattr(self,'module'):return
         self.module._reset_parameters()
+
+        self.cartographer_plan._metamap()
 
         self.data_pool_descr = ''
         self.data_pool_id = self._new_data_pool_id()
@@ -188,17 +191,17 @@ class ensemble(lfu.mobject):
             else:
                 if lfu.using_gui:
                     module = lgd.create_dialog(
-                        title = 'Choose Ensemble Module', 
-                        options = opts, 
-                        variety = 'radioinput')
+                            title = 'Choose Ensemble Module', 
+                            options = opts, 
+                            variety = 'radioinput')
                     if not module: 
                         self.cancel_make = True
                         return
-                else:
-                    mod_request = 'enter a module:\n\t'
-                    for op in opts:mod_request += op + '\n\t'
-                    mod_request += '\n'
-                    module = raw_input(mod_request)
+                    else:
+                        mod_request = 'enter a module:\n\t'
+                        for op in opts:mod_request += op + '\n\t'
+                        mod_request += '\n'
+                        module = raw_input(mod_request)
 
         self.module_name = module
         if module in mc.modules.__dict__.keys():
@@ -215,7 +218,7 @@ class ensemble(lfu.mobject):
     #  location changes
     def _run_params_to_location(self):
         self.module._set_parameters()
-    
+
     def _run_params_to_location_prepoolinit(self):
         self.module._set_parameters_prepoolinit()
 
@@ -241,17 +244,18 @@ class ensemble(lfu.mobject):
     def _run_specific(self,*args,**kwargs):
         fullstime = time.time()
         stimepretty = time.strftime(
-            '%Y-%m-%d %H:%M:%S',time.localtime(fullstime))
+                '%Y-%m-%d %H:%M:%S',time.localtime(fullstime))
         pspace = self.cartographer_plan.parameter_space
         mappspace = self.cartographer_plan.use_plan and pspace
         distributed = self.multiprocess_plan.distributed
 
         print 'simulation start time:',stimepretty
         if self.fitting_plan.use_plan:dpool = self._run_fitting()
-        if distributed:dpool = self._run_distributed()
         else:
-            if mappspace:dpool = self._run_map()
-            else:dpool = self._run_nonmap()
+            if distributed:dpool = self._run_distributed()
+            else:
+                if mappspace:dpool = self._run_map()
+                else:dpool = self._run_nonmap()
         print 'duration of simulations:',time.time() - fullstime
 
         print 'performing non-0th post processing...'
@@ -272,7 +276,7 @@ class ensemble(lfu.mobject):
     def _run_fitting(self):
         dpool = dba.batch_node()
         if not self.cartographer_plan.parameter_space:
-            print 'fitting requires a parameter space!'
+            print '\nfitting requires a parameter space!\n'
         dpool = self.fitting_plan(self,dpool)
         return dpool
 
@@ -304,7 +308,7 @@ class ensemble(lfu.mobject):
             if requiresimdata:
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
-        
+
         if self.multiprocess_plan.use_plan:
             mppool.close()
             mppool.join()
@@ -375,6 +379,9 @@ class ensemble(lfu.mobject):
         if self.postprocess_plan.use_plan:
             zeroth = self.postprocess_plan.zeroth
             self.postprocess_plan._enact_processes(zeroth,loc_pool)
+        if self.cartographer_plan.maintain_pspmap:
+            print 'should record metamap data...'
+            self.cartographer_plan._record_persistent(ldex,zeroth,loc_pool)
         return loc_pool
 
     # helper function for common run info
@@ -416,11 +423,7 @@ class ensemble(lfu.mobject):
                 print 'mpbatch run completed:%d/%d'%(m,many)
 
     def _print_pspace_location(self,ldex):
-        cplan = self.cartographer_plan
-        traj = cplan.trajectory
-        loc = traj[ldex]
-        locline = [str(l) for l in loc.location]
-        return '\t'.join(locline)
+        return self.cartographer_plann._print_pspace_location(ldex)
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory

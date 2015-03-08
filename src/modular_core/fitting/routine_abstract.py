@@ -1,5 +1,120 @@
 import modular_core.fundamental as lfu
 
+###############################################################################
+###
+###############################################################################
+
+class routine_abstract(lfu.mobject):
+
+    def __init__(self,*args,**kwargs):
+        self._default('name','a routine',**kwargs)
+        lfu.mobject.__init__(self,*args,**kwargs)
+
+    def _run(self):
+        pdb.set_trace()
+
+    def _feedback(self):
+        pdb.set_trace()
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+### utility functions
+###############################################################################
+
+# query the user (dialog or command line) for a routine type
+def gather_routine_type():
+    opts = routine_types.keys()
+    if lfu.using_gui:
+        variety = lgd.create_dialog(
+            title = 'Choose Fitting Routine Type',
+            options = opts,variety = 'radioinput')
+    else:
+        rrequest = 'enter a routine type:\n\t'
+        for op in opts:rrequest += op + '\n\t'
+        rrequest += '\n'
+        variety = raw_input(rrequest)
+    return variety
+
+# query the user (dialog or command line) for a routine name
+def gather_routine_name():
+    namemsg = 'Provide a unique name for this fitting routine:\n\t'
+    name = lfu.gather_string(msg = namemsg,title = 'Name Fitting Routine')
+    return name
+
+# prompt user for routine type if needed and create
+def routine(variety = None,name = None,**rargs):
+    opts = routine_types.keys()
+    if variety is None:variety = gather_routine_type()
+    if not variety in opts:
+        print 'unrecognized routine type:',variety
+        return
+    if name is None:name = gather_routine_name()
+    if not name is None:
+        rout = routine_types[variety][0](name = name,**rargs)
+        return rout
+    print 'routine name was invalid:',str(name)
+
+# parse one mcfg line into a fitting routine and add to ensems plan
+def parse_routine_line(line,ensem,parser,procs,routs,targs):
+    print 'parse routine line:\n\t"',line,'"\n'
+    rout_types = routine_types.keys()
+    spl = lfu.msplit(line)
+    variety = spl[1]
+    rargs = routine_types[variety][1](spl,ensem,procs,routs)
+    rout = routine(**pargs)
+    routs.append(rout)
+    ensem.fitting_plan._add_routine(new = rout)
+    if lfu.using_gui:rout._widget(0,ensem)
+    else:rout._target_settables(0,ensem)
+
+# turn the comma separated int list into an input_regime
+def parse_routine_line_inputs(inputs,procs,routs):
+
+    pdb.set_trace()
+    # STILL ORIENTED FOR PROCESSES...
+
+    ips = [int(v) for v in lfu.msplit(inputs,',')]
+    reg = []
+    for inp in ips:
+        if inp == 0:reg.append('simulation')
+        elif inp <= len(procs):reg.append(procs[inp - 1].name)
+    return reg
+
+###############################################################################
+###############################################################################
+
+# a fitting routine is a glorified feedback loop
+# an mcfg specifies a model which implicits a starting location
+# a parameter space should be specified as well
+# this includes the range of every axis
+# this can generate a coarse grained hyper-dimensional lattice
+# covering the whole space with a predictable number of points
+# some work is done for each location resulting in some output
+# this can be one sim, many sims, and any postprocess hierarchy thereof
+# this packet of information can be associated with an pspace location
+# generate a hierarchy of stowed nodes as the lattice is decimated and explored
+# after a batch of locations are explored, a feedback process considers the 
+# currently aggregated stowed data packets to decide what parts of the lattice
+# are worth exploring further
+# this feedback loop should allow for user intervention/selection or automation
+
+# must be able to close modular, reopen or open some explorer app to select
+# lattice nodes and recall the data from them
+# could be able to add more data as well?
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+
+
 
 #handles one run of a simulation; returns data
 def run_system(*args,**kwargs):

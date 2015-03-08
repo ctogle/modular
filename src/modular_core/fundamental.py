@@ -154,6 +154,10 @@ def get_resource_path(res = None):
 def get_data_pool_path():
     return os.path.join(appdirs.user_data_dir(),'modular_data_pools')
 
+# return path to a safe place to store persistent pspace mapping data
+def get_mapdata_pool_path():
+    return os.path.join(get_data_pool_path(),'mapdata')
+
 # return default directory for mcfgs
 def get_mcfg_path():
     lset = sys.modules['modular_core.settings']

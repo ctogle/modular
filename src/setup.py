@@ -1,23 +1,19 @@
 #!/usr/bin/python
-from os.path import isfile, join
-import glob
-import os
-import re
+import pdb,os,appdirs
 
-import appdirs
-
-from setuptools import setup#, Extension
-
-import pdb
-
-core_modules = []
+from setuptools import setup
 
 res_dir = 'modular_core/resources/'
 res_fis = [f for f in os.listdir(os.path.join(
     os.getcwd(),'modular_core','resources'))]
 res_files = [res_dir + f for f in res_fis]
 
-data_pools_files = ['modular_core/data_pools/__init__.py']
+#data_pools_files = ['modular_core/data_pools/__init__.py']
+initfile = ['modular_core/resources/__init__.py']
+
+mdatapooldir = os.path.join(appdirs.user_data_dir(),'modular_data_pools')
+mdatamappooldir = os.path.join(mdatapooldir,'mapdata')
+mresourcesdir = os.path.join(appdirs.user_config_dir(),'modular_resources')
 
 pkgs = [
     'modular_core',
@@ -29,6 +25,7 @@ pkgs = [
     'modular_core.criteria',
     'modular_core.data', 
     'modular_core.postprocessing',
+    'modular_core.parameterspace',
     'modular_core.parallel',
     'modular_core.cython']
 setup(
@@ -42,11 +39,18 @@ setup(
     long_description = '''this is the core package of modular''',
     scripts = ['../modular.py'], 
     packages = pkgs, 
-    py_modules = core_modules, 
+    #py_modules = ['../modular.py'], 
     zip_safe = False,
-    data_files=[(os.path.join(appdirs.user_config_dir(), 
-                        'modular_resources'), res_files), 
-                (os.path.join(appdirs.user_data_dir(), 
-                    'modular_data_pools'), data_pools_files)], 
+    data_files=[(mresourcesdir,res_files), 
+                (mdatapooldir,initfile),
+                (mdatamappooldir,initfile)]
     )
+
+
+
+
+
+
+
+
 

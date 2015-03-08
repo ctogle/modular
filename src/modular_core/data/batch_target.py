@@ -225,7 +225,7 @@ class batch_node(ldc.data_mobject):
         else:return False
         
     def _stow_friendly(self):
-        self._stow()
+        self._stow(v = False)
         self.friendly = self._plot_friendly()
 
     def _stow_friendly_child(self,dex):
@@ -240,7 +240,7 @@ class batch_node(ldc.data_mobject):
         friendly = self.friendly
         for fdx in range(self.dshape[0]):
             self.data[fdx,:] = friendly[fdx].data[:]
-        self._stow()
+        self._stow(v = False)
 
     # return suitable data structures for plotting
     def _plot_friendly(self):

@@ -1,7 +1,7 @@
 import modular_core.fundamental as lfu
-import modular_core.parameterspaces as lpsp
+import modular_core.parameterspace.parameterspaces as lpsp
 
-import modular_core.fitting.routine as lfr
+import modular_core.fitting.routine_abstract as lfr
 import modular_core.postprocessing.process_abstract as lpp
 import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
@@ -88,6 +88,10 @@ class simulation_module(lfu.mobject):
         self.parsers = {}
         for pt,pf in zip(self.parse_types,self.parse_funcs):
             self.parsers[pt] = pf
+
+    def _metamap_uniqueness(self):
+        uniq = '#module must overload _metamap_uniqueness#'
+        return uniq
 
     # add one parsed run_parameter mobject to run_params
     def _add_parsed(self,new,parser,params):
