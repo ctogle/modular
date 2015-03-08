@@ -13,6 +13,17 @@ if __name__ == '__main__':print 'metamap of modular_core'
 ### a metamap helps maintain persistent mapping info for a model
 ###############################################################################
 
+class metalocation(lfu.mobject):
+
+    def __init__(self,location_string,**kwargs):
+        self.location_string = location_string
+        lfu.mobject.__init__(self,**kwargs)
+    
+    def _log_zeroth(self,zeroth):
+        pdb.set_trace()
+    
+    def _log_simulation_data(self,loc_pool):
+        pdb.set_trace()
 
 class metamap(lfu.mobject):
     # metamap needs to know every possible axis for this model
@@ -26,11 +37,18 @@ class metamap(lfu.mobject):
         self._default('uniqueness',None,**kwargs)
         self._default('mapfile','pspmap.mmap',**kwargs)
         self.mappath = os.path.join(lfu.get_mapdata_pool_path(),self.mapfile)
-        lfu.mobject.__init__(self,*args,**kwargs)
+        lfu.mobject.__init__(self,**kwargs)
+        self.entries = {}
+        self.location_strings = []
 
     def _log(self,loc_str,zeroth,loc_pool):
-
-        pdb.set_trace()
+        if not loc_str in self.location_strings:
+            metaloc = metalocation(loc_str)
+            self.entries[loc_str] = metaloc
+            self.location_strings.append(loc_str)
+        else:metaloc = self.entries[loc_str]
+        metaloc._log_zeroth(zeroth)
+        metaloc._log_simulation_data(loc_pool)
 
 ###############################################################################
 ###############################################################################

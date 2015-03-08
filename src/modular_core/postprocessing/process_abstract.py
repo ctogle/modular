@@ -108,6 +108,12 @@ class post_process_abstract(lfu.mobject):
     def _string(self):
         return '\t' + self.label + ' : abstract'
 
+    def _init_data(self,dshape,targets,**kwargs):
+        meta = self.parent.parent.cartographer_plan.maintain_pspmap
+        bnode = dba.batch_node(metapool = meta,
+            dshape = dshape,targets = targets,**kwargs)
+        return bnode
+
     def __init__(self,*args,**kwargs):
         self._default('name','a post process',**kwargs)
         self._default('always_sourceable',[],**kwargs)

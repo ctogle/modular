@@ -116,6 +116,7 @@ class batch_node(ldc.data_mobject):
         return self.__dict__
 
     def __init__(self,*args,**kwargs):
+        self._default('metapool',False,**kwargs)
         self._default('dshape',None,**kwargs)
         self._default('dims',None,**kwargs)
         self._default('parent',None,**kwargs)
@@ -134,7 +135,9 @@ class batch_node(ldc.data_mobject):
         self._init_data(fop = 'r')
 
     def _init_data(self,fop = 'w'):
-        dpath = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
+        if self.metapool:prepath = lfu.get_mapdata_pool_path()
+        else:prepath = lfu.get_data_pool_path()
+        dpath = os.path.join(prepath,self.data_pool_id)
         self.hdffile = h5py.File(dpath,fop,libver = 'latest')
         if fop == 'w':
             zeros = np.zeros(self.dshape,dtype = np.float)

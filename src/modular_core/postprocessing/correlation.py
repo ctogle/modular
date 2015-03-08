@@ -61,7 +61,8 @@ class correlate(lpp.post_process_abstract):
         data[1] = np.array([verify(val) for val in correlations])
         data[2] = np.array([verify(val) for val in p_values])
 
-        bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        #bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        bnode = self._init_data(dshape,self.target_list)
         bnode._trajectory(data)
         return bnode
 

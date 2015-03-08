@@ -1,3 +1,4 @@
+import modular_core.fundamental as lfu
 import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
@@ -56,8 +57,17 @@ class cartographer_plan(lfu.plan):
     # record meta data about zeroth post processes/loc_pool
     #   must be sufficient to recover to reprocess
     def _record_persistent(self,arc_dex,zeroth,loc_pool):
-        location = self._print_pspace_location(arc_dex)
-        self.metamap.log(location,zeroth,loc_pool)
+        location = self._print_friendly_pspace_location(arc_dex)
+        self.metamap._log(location,zeroth,loc_pool)
+
+    def _print_friendly_pspace_location(self,ldex):
+        traj = self.trajectory
+        loc = traj[ldex]
+
+        pdb.set_trace()
+
+        locline = [str(l) for l in loc.location]
+        return '\t'.join(locline)
 
     def _print_pspace_location(self,ldex):
         traj = self.trajectory

@@ -291,18 +291,20 @@ class ensemble(lfu.mobject):
 
         requiresimdata = self._require_simulation_data()
 
-        arc = self.cartographer_plan.trajectory
+        cplan = self.cartographer_plan
+        meta = cplan.maintain_pspmap
+        arc = cplan.trajectory
         arc_length = len(arc)
         max_run = arc[0].trajectory_count
         stow_needed = self._require_stow(max_run,arc_length)
 
         usepplan = self.postprocess_plan.use_plan
-        if usepplan:self.postprocess_plan._init_processes(arc)
+        if usepplan:self.postprocess_plan._init_processes(arc,meta)
 
-        data_pool = dba.batch_node()
+        data_pool = dba.batch_node(metapool = meta)
         arc_dex = 0
         while arc_dex < arc_length:
-            loc_pool = self._run_pspace_location(arc_dex,mppool)
+            loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
             arc_dex += 1
             print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
             if requiresimdata:
@@ -365,10 +367,11 @@ class ensemble(lfu.mobject):
     # if mapping, ldex is the pspace location index, else ldex is None
     # if not ldex is None, move to the necessary location in pspace
     # run all simulations associated with this pspace location
-    def _run_pspace_location(self,ldex = None,mppool = None):
+    def _run_pspace_location(self,ldex = None,mppool = None,meta = False):
         traj_cnt,targ_cnt,capt_cnt,ptargets = self._run_init(ldex)
         dshape = (traj_cnt,targ_cnt,capt_cnt)
-        loc_pool = dba.batch_node(dshape = dshape,targets = ptargets)
+        loc_pool = dba.batch_node(metapool = meta,
+                dshape = dshape,targets = ptargets)
 
         if ldex:self.cartographer_plan._move_to(ldex)
         if self.multiprocess_plan.use_plan:mppool._initializer()
@@ -423,7 +426,7 @@ class ensemble(lfu.mobject):
                 print 'mpbatch run completed:%d/%d'%(m,many)
 
     def _print_pspace_location(self,ldex):
-        return self.cartographer_plann._print_pspace_location(ldex)
+        return self.cartographer_plan._print_pspace_location(ldex)
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory

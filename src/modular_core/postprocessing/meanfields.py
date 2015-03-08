@@ -49,7 +49,8 @@ class meanfields(lpp.post_process_abstract):
             data[dex + 1] = means
         data[0] = bins
 
-        bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        #bnode = dba.batch_node(dshape = dshape,targets = self.target_list)
+        bnode = self._init_data(dshape,self.target_list)
         bnode._trajectory(data)
         return bnode
 

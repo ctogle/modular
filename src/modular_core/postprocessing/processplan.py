@@ -36,10 +36,10 @@ class post_process_plan(lfu.plan):
         self.current_tab_index = 0
 
     # reset the data attribute and determine if a process is 0th
-    def _init_processes(self,ptraj):
+    def _init_processes(self,ptraj,meta = False):
         zeroth = []
         for process in self.processes:
-            process.data = dba.batch_node()
+            process.data = dba.batch_node(metapool = meta)
             if 'simulation' in process.input_regime:
                 zeroth.append(process)
         self.zeroth = zeroth
