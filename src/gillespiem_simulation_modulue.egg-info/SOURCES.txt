@@ -1,7 +1,0 @@
-setup.py
-gillespiem/__init__.py
-gillespiem/gillespiem.py
-gillespiem_simulation_modulue.egg-info/PKG-INFO
-gillespiem_simulation_modulue.egg-info/SOURCES.txt
-gillespiem_simulation_modulue.egg-info/dependency_links.txt
-gillespiem_simulation_modulue.egg-info/top_level.txt

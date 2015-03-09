@@ -1,6 +1,6 @@
 import modular_core.fundamental as lfu
 import modular_core.simulationmodule as smd
-import modular_core.parameterspaces as lpsp
+import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.cython.writer as cwr
 import modular_core.io.liboutput as lo
 
