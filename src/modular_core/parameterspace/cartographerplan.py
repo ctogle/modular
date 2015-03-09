@@ -43,7 +43,8 @@ class cartographer_plan(lfu.plan):
         #self._default('num_trajectories',1,**kwargs)
         self._default('trajectory',[],**kwargs)
 
-        self._default('maintain_pspmap',False,**kwargs)
+        meta = lset.get_setting('metamapparameterspace')
+        self._default('maintain_pspmap',meta,**kwargs)
         self._default('mapfile','pspmap.mmap',**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
@@ -63,11 +64,11 @@ class cartographer_plan(lfu.plan):
     def _print_friendly_pspace_location(self,ldex):
         traj = self.trajectory
         loc = traj[ldex]
-
-        pdb.set_trace()
-
-        locline = [str(l) for l in loc.location]
-        return '\t'.join(locline)
+        axs = self.parameter_space.axes
+        prnt = []
+        for a,l in zip(axs,loc):
+            prnt.append(a.name+' : '+str(l))
+        return ' || '.join(prnt)
 
     def _print_pspace_location(self,ldex):
         traj = self.trajectory

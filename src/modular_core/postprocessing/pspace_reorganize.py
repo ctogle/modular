@@ -104,7 +104,7 @@ class reorganize(lpp.post_process_abstract):
             data[ddx+axcnt+1] = np.array(datervals[ddx])
         self.surf_targets = ['parameter space location index'] + self.dater_ids
 
-        bnode = self._init_data(dshape,self.target_list,
+        bnode = self._init_data(dshape,self.capture_targets,
             pspace_axes = self.axis_labels,surface_targets = self.surf_targets)
         #bnode = dba.batch_node(
         #    dshape = dshape,targets = self.capture_targets,

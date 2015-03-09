@@ -34,8 +34,8 @@
 
 <parameter_space>
 	<product_space> 1000
-		lambda1 : value : 1.0-10.0;10.0
-		lambda2 : value : 1.0-10.0;10.0
+		lambda1 : value : 2.0-10.0;5
+		lambda2 : value : 2.0-10.0;5
 		#mu      : value : 4.0-16.0;4.0
 
 <post_processes>
@@ -45,7 +45,7 @@
 
 <multiprocessing>
 	workers : 200
-  distributed : off
+  distributed : on
 
 <output_plans>
 	3 : - : reorg_output : plt : all
@@ -56,6 +56,7 @@
 <ensemble>
 	multiprocessing : on
 	mapparameterspace : on
+	metamapparameterspace : off
 	fitting : off
 	postprocessing : on
 	trajectory_count : 10000

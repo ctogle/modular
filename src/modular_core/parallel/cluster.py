@@ -23,7 +23,7 @@ def start_cluster(cluster,args):
         jobs.append(job)
     return jobs
 
-def _cluster_setup():
+def cluster_setup():
     return 0
 
 def collect_cluster(jobs):
@@ -40,8 +40,8 @@ def collect_cluster(jobs):
     return results
 
 def clusterize(nodeips,work,args,deps = []):
-    cluster = dispy.JobCluster(work,nodes = nodeips,
-        depends = deps,setup = _cluster_setup,cleanup = False)
+    cluster = dispy.JobCluster(work,nodes = nodeips,depends = deps,
+        setup = cluster_setup,cleanup = False)
     print 'node ips',nodeips
     jobs = start_cluster(cluster,args)
     results = collect_cluster(jobs)

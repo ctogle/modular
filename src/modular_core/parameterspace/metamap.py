@@ -1,4 +1,5 @@
 import modular_core.fundamental as lfu
+import modular_core.data.batch_target as dba
 
 import pdb,os
 
@@ -17,13 +18,19 @@ class metalocation(lfu.mobject):
 
     def __init__(self,location_string,**kwargs):
         self.location_string = location_string
+        self.zeroth_pool = dba.batch_node(metapool = True)
+        self.simulation_pool = dba.batch_node(metapool = True)
         lfu.mobject.__init__(self,**kwargs)
     
     def _log_zeroth(self,zeroth):
-        pdb.set_trace()
+        for z in zeroth:self.zeroth_pool._add_child(z.data.children[-1])
     
     def _log_simulation_data(self,loc_pool):
+
         pdb.set_trace()
+        
+        for lp in loc_pool:loc_pool._add_children(lp.data.children)
+        #for lp in loc_pool:loc_pool.append(lp.data.children[-1])
 
 class metamap(lfu.mobject):
     # metamap needs to know every possible axis for this model

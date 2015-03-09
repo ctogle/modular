@@ -48,6 +48,8 @@ class simulation_module(lfu.mobject):
             ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
         elif spl[0].startswith('mapparameterspace'):
             ensem.cartographer_plan.use_plan = lfu.coerce_string_bool(value)
+        elif spl[0].startswith('metamapparameterspace'):
+            ensem.cartographer_plan.maintain_pspmap = lfu.coerce_string_bool(value)
         elif spl[0].startswith('fitting'):
             ensem.fitting_plan.use_plan = lfu.coerce_string_bool(value)
         elif spl[0].startswith('postprocessing'):

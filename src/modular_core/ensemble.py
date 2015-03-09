@@ -142,13 +142,13 @@ class ensemble(lfu.mobject):
             parent = self,name = 'Simulation',flat_data = False)
         self.fitting_plan = fpl.fit_routine_plan(parent = self)
         self.cartographer_plan = cplan.cartographer_plan(
-                parent = self,name = 'Parameter Scan')
+            parent = self,name = 'Parameter Scan')
         self.postprocess_plan = lpp.post_process_plan(parent = self,
-                name = 'Post Process Plan',always_sourceable = ['simulation'])
+            name = 'Post Process Plan',always_sourceable = ['simulation'])
         self.multiprocess_plan = paral.parallel_plan(parent = self)
         self.children = [
-                self.simulation_plan,self.output_plan,self.fitting_plan,
-                self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
+            self.simulation_plan,self.output_plan,self.fitting_plan,
+            self.cartographer_plan,self.postprocess_plan,self.multiprocess_plan]
         lfu.mobject.__init__(self,*args,**kwargs)
 
         self.run_params = {}
@@ -158,8 +158,8 @@ class ensemble(lfu.mobject):
         self.run_params['output_plans'] = {'Simulation' : self.output_plan}
         self.run_params['fit_routines'] = self.fitting_plan.routines
         self.run_params['post_processes'] = self.postprocess_plan.processes
-        #self.run_params['p_space_map'] = None
-        #self.run_params['multiprocessing'] = None
+        self.run_params['p_space_map'] = None
+        self.run_params['multiprocessing'] = None
         self.capture_targets = self.run_params['plot_targets']
 
         self._select_module(**kwargs)
@@ -401,6 +401,7 @@ class ensemble(lfu.mobject):
     def _run_batch(self,many,pool,pfreq = 100):
         simu = self.module.simulation
         sim_args = self.module.sim_args
+        print 'batch run completed:%d/%d'%(0,many)
         for m in range(many):
             rundat = simu(sim_args)
             pool._trajectory(rundat)
@@ -412,6 +413,7 @@ class ensemble(lfu.mobject):
         pcnt = int(self.multiprocess_plan.worker_count)
         simu = self.module.simulation
         m = 0
+        print 'mpbatch run completed:%d/%d'%(0,many)
         while m < many:
             mleft = many - m
             if mleft >= pcnt:rtr = pcnt
@@ -967,8 +969,8 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     mnger = mce.ensemble_manager()
     ensem = mnger._add_ensemble(module = modulename)
-    ensem._parse_mcfg(mcfgstring = mcfgstring)
 
+    ensem._parse_mcfg(mcfgstring = mcfgstring)
     ensem.multiprocess_plan.use_plan = False
 
     ensem.module._increment_extensionname()

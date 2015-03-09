@@ -2,6 +2,8 @@
 
 <run options>
 profile = False
+distributed = False
+metamapparameterspace = False
 
 <data handling>
 use_smart_pool = True

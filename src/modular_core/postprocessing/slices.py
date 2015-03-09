@@ -58,7 +58,7 @@ class trajectory_slice(lpp.post_process_abstract):
             data[self.dater_ids.index(pt)] = trajectory[px][slic]
 
         #bnode = dba.batch_node(dshape = dshape,targets = self.dater_ids)
-        bnode = self._init_data(dshape,self.target_list)
+        bnode = self._init_data(dshape,self.dater_ids)
         bnode._trajectory(data)
         return bnode
 

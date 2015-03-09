@@ -105,6 +105,11 @@ class batch_node(ldc.data_mobject):
         self.children.append(node)
         return node
 
+    def _add_children(self,nodes):
+        for n in nodes:
+            n.parent = self
+            self.children.append(n)
+
     def _sanitize(self):
         dpath = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
         self.hdffile = None
@@ -132,7 +137,8 @@ class batch_node(ldc.data_mobject):
         ldc.data_mobject.__init__(self,*args,**kwargs)
 
     def _open(self):
-        self._init_data(fop = 'r')
+        try:self._init_data(fop = 'r')
+        except:pdb.set_trace()
 
     def _init_data(self,fop = 'w'):
         if self.metapool:prepath = lfu.get_mapdata_pool_path()
