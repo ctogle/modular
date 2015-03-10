@@ -33,10 +33,16 @@
 	x1
 
 <parameter_space>
-	<product_space> 1000
+	<product_space> 10000
+		mu      : value : 10.0
+		K      : value : 0.000000000000001
+		#lambda1 : value : 5.0
+		#lambda2 : value : 5.0
 		lambda1 : value : 2.0-10.0;5
 		lambda2 : value : 2.0-10.0;5
-		#mu      : value : 4.0-16.0;4.0
+	  gamma : value : 0.01
+    x1 : initial : 10
+    x2 : initial : 10
 
 <post_processes>
 	x1, x2 correlation : correlation : 0 : x1 and x2 of time : 5 : ordered
@@ -45,7 +51,7 @@
 
 <multiprocessing>
 	workers : 200
-  distributed : on
+  distributed : off
 
 <output_plans>
 	3 : - : reorg_output : plt : all
@@ -54,9 +60,10 @@
 	0 : - : ensemble_output : none : all
 
 <ensemble>
+	skipsimulation : off
 	multiprocessing : on
 	mapparameterspace : on
-	metamapparameterspace : off
+	metamapparameterspace : on
 	fitting : off
 	postprocessing : on
 	trajectory_count : 10000

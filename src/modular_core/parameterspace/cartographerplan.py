@@ -55,11 +55,21 @@ class cartographer_plan(lfu.plan):
         self.metamap = mmap.metamap(parent = self,mapfile = self.mapfile,
             uniqueness = self.parent.module._metamap_uniqueness())
 
+    def _save_metamap(self):
+        self.metamap._save()
+
+    def _metamap_remaining(self,arc_dex,goal,dshape):
+        location = self._print_friendly_pspace_location(arc_dex)
+        done = self.metamap._trajectory_count(location,dshape)
+        remain = goal - done
+        if remain < 0:return 0,(0,)+dshape[1:]
+        else:return remain,(remain,)+dshape[1:]
+
     # record meta data about zeroth post processes/loc_pool
     #   must be sufficient to recover to reprocess
-    def _record_persistent(self,arc_dex,zeroth,loc_pool):
+    def _record_persistent(self,arc_dex,loc_pool):
         location = self._print_friendly_pspace_location(arc_dex)
-        self.metamap._log(location,zeroth,loc_pool)
+        self.metamap._log(location,loc_pool)
 
     def _print_friendly_pspace_location(self,ldex):
         traj = self.trajectory

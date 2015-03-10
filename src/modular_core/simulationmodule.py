@@ -46,6 +46,8 @@ class simulation_module(lfu.mobject):
         which,value = spl
         if which.startswith('multiprocessing'):
             ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
+        elif spl[0].startswith('skipsimulation'):
+            ensem.skip_simulation = lfu.coerce_string_bool(value)
         elif spl[0].startswith('mapparameterspace'):
             ensem.cartographer_plan.use_plan = lfu.coerce_string_bool(value)
         elif spl[0].startswith('metamapparameterspace'):

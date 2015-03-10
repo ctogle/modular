@@ -111,7 +111,7 @@ class batch_node(ldc.data_mobject):
             self.children.append(n)
 
     def _sanitize(self):
-        dpath = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
+        dpath = self._get_data_pool_path()
         self.hdffile = None
         self.data = dpath
         self.dims = None
@@ -140,10 +140,14 @@ class batch_node(ldc.data_mobject):
         try:self._init_data(fop = 'r')
         except:pdb.set_trace()
 
-    def _init_data(self,fop = 'w'):
+    def _get_data_pool_path(self):
         if self.metapool:prepath = lfu.get_mapdata_pool_path()
         else:prepath = lfu.get_data_pool_path()
         dpath = os.path.join(prepath,self.data_pool_id)
+        return dpath
+
+    def _init_data(self,fop = 'w'):
+        dpath = self._get_data_pool_path()
         self.hdffile = h5py.File(dpath,fop,libver = 'latest')
         if fop == 'w':
             zeros = np.zeros(self.dshape,dtype = np.float)
@@ -152,6 +156,24 @@ class batch_node(ldc.data_mobject):
                 shape = self.dshape,dtype = np.float,data = zeros)
         elif fop == 'r':
             self.data = self.hdffile['data']
+
+    def _merge_data(self,mpool):
+        self._recover()
+        newshape = (self.dshape[0]+mpool.dshape[0],)+mpool.dshape[1:]
+        newdata = np.empty(newshape,dtype = np.float)
+
+        newdata[:self.dshape[0],:,:] = self.data[:]
+        newdata[self.dshape[0]:newshape[0],:,:] = mpool.data[:]
+            
+        dpath = self._get_data_pool_path()
+        self.hdffile.close()
+        self.hdffile = h5py.File(dpath,'w',libver = 'latest')
+        self.dshape = newshape
+        self.data = self.hdffile.create_dataset('data',
+            shape = self.dshape,dtype = np.float,data = newdata)
+        self._stow()
+        mfilename = mpool._get_data_pool_path()
+        os.remove(mfilename)
 
     # x and y are strings for bins,vals resp.
     # bcnt is the number of bins; if x in monotonic, ordered is True

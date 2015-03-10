@@ -197,11 +197,11 @@ class ensemble(lfu.mobject):
                     if not module: 
                         self.cancel_make = True
                         return
-                    else:
-                        mod_request = 'enter a module:\n\t'
-                        for op in opts:mod_request += op + '\n\t'
-                        mod_request += '\n'
-                        module = raw_input(mod_request)
+                else:
+                    mod_request = 'enter a module:\n\t'
+                    for op in opts:mod_request += op + '\n\t'
+                    mod_request += '\n'
+                    module = raw_input(mod_request)
 
         self.module_name = module
         if module in mc.modules.__dict__.keys():
@@ -249,14 +249,19 @@ class ensemble(lfu.mobject):
         mappspace = self.cartographer_plan.use_plan and pspace
         distributed = self.multiprocess_plan.distributed
 
-        print 'simulation start time:',stimepretty
-        if self.fitting_plan.use_plan:dpool = self._run_fitting()
-        else:
-            if distributed:dpool = self._run_distributed()
+        if not self.skip_simulation:
+            print 'simulation start time:',stimepretty
+            if self.fitting_plan.use_plan:dpool = self._run_fitting()
             else:
-                if mappspace:dpool = self._run_map()
-                else:dpool = self._run_nonmap()
-        print 'duration of simulations:',time.time() - fullstime
+                if distributed:dpool = self._run_distributed()
+                else:
+                    if mappspace:dpool = self._run_map()
+                    else:dpool = self._run_nonmap()
+            print 'duration of simulations:',time.time() - fullstime
+            self.cartographer_plan._save_metamap()
+        else:
+            print 'skipping simulation implies metamap usage...'
+            dpool = self._run_metamap_zeroth()
 
         print 'performing non-0th post processing...'
         procstime = time.time()
@@ -280,6 +285,20 @@ class ensemble(lfu.mobject):
         dpool = self.fitting_plan(self,dpool)
         return dpool
 
+    def _run_metamap_zeroth(self):
+        if not self.postprocess_plan.use_plan:return
+        arc = self.cartographer_plan.trajectory
+        zeroth = self.postprocess_plan._init_processes(arc)
+        mmap = self.cartographer_plan.metamap
+        for lstr in mmap.location_strings:
+            loc_pool = mmap._recover_location(lstr)
+            #mloc = mmap.entries[lstr]
+            #if not len(mloc.simulation_pool.children) == 1:
+            #    print 'metamap incomplete... defaulting to something...'
+            #loc_pool = mloc.simulation_pool.children[0]
+            self.postprocess_plan._enact_processes(zeroth,loc_pool)
+        return dba.batch_node()
+
     #parameter variation, no fitting
     def _run_map(self):
         self._run_params_to_location_prepoolinit()
@@ -299,7 +318,8 @@ class ensemble(lfu.mobject):
         stow_needed = self._require_stow(max_run,arc_length)
 
         usepplan = self.postprocess_plan.use_plan
-        if usepplan:self.postprocess_plan._init_processes(arc,meta)
+        #if usepplan:self.postprocess_plan._init_processes(arc,meta)
+        if usepplan:self.postprocess_plan._init_processes(arc)
 
         data_pool = dba.batch_node(metapool = meta)
         arc_dex = 0
@@ -370,21 +390,34 @@ class ensemble(lfu.mobject):
     def _run_pspace_location(self,ldex = None,mppool = None,meta = False):
         traj_cnt,targ_cnt,capt_cnt,ptargets = self._run_init(ldex)
         dshape = (traj_cnt,targ_cnt,capt_cnt)
-        loc_pool = dba.batch_node(metapool = meta,
-                dshape = dshape,targets = ptargets)
 
-        if ldex:self.cartographer_plan._move_to(ldex)
-        if self.multiprocess_plan.use_plan:mppool._initializer()
-        else:self._run_params_to_location()
-        if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
-        else:self._run_batch(traj_cnt,loc_pool)
+        pplan = self.postprocess_plan
+        cplan = self.cartographer_plan
+        if cplan.maintain_pspmap:
+            print 'should only fill metamap data as required...'
+            traj_cnt,dshape = cplan._metamap_remaining(ldex,traj_cnt,dshape)
+            lstr = cplan._print_friendly_pspace_location(ldex)
+            mmap = cplan.metamap
 
-        if self.postprocess_plan.use_plan:
-            zeroth = self.postprocess_plan.zeroth
-            self.postprocess_plan._enact_processes(zeroth,loc_pool)
-        if self.cartographer_plan.maintain_pspmap:
-            print 'should record metamap data...'
-            self.cartographer_plan._record_persistent(ldex,zeroth,loc_pool)
+        if not traj_cnt == 0:
+            loc_pool = dba.batch_node(metapool = meta,
+                    dshape = dshape,targets = ptargets)
+
+            if ldex:cplan._move_to(ldex)
+            if self.multiprocess_plan.use_plan:mppool._initializer()
+            else:self._run_params_to_location()
+            if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
+            else:self._run_batch(traj_cnt,loc_pool)
+        
+            if cplan.maintain_pspmap:
+                print 'should record metamap data...'
+                cplan._record_persistent(ldex,loc_pool)
+                loc_pool = mmap._recover_location(lstr)
+        else:
+            loc_pool = mmap._recover_location(lstr)
+        if pplan.use_plan:
+            zeroth = pplan.zeroth
+            pplan._enact_processes(zeroth,loc_pool)
         return loc_pool
 
     # helper function for common run info
