@@ -33,14 +33,14 @@
 	x1
 
 <parameter_space>
-	<product_space> 10000
-		mu      : value : 10.0
+	<product_space> 1000
+		mu      : value : 4.0-20.0;5
 		K      : value : 0.000000000000001
 		#lambda1 : value : 5.0
 		#lambda2 : value : 5.0
 		lambda1 : value : 2.0-10.0;5
 		lambda2 : value : 2.0-10.0;5
-	  gamma : value : 0.01
+	  gamma : value : 0.01,0.1,1.0
     x1 : initial : 10
     x2 : initial : 10
 

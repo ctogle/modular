@@ -5,7 +5,7 @@ import modular_core.postprocessing.process_abstract as pra
 import modular_core.data.batch_target as dba
 import modular_core.io.liboutput as lo
 
-import pdb,types,time,math,os
+import pdb,types,time,math,os,sys,traceback
 import numpy as np
 #np.seterr(divide = 'raise')
 
@@ -53,11 +53,18 @@ class post_process_plan(lfu.plan):
         ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
-                stowed = pchild._stowed()
-                if stowed:pchild._recover(v = False)
-                presult = proc.method(pchild,ptraj)
-                if stowed:pchild._stow(v = False)
-                proc.data._add_child(presult)
+                try:
+                  #stowed = pchild._stowed()
+                  #if stowed:pchild._recover(v = False)
+                  pchild._recover(v = False)
+                  presult = proc.method(pchild,ptraj)
+                  time.sleep(0.1)
+                  #if stowed:pchild._stow(v = False)
+                  #pchild._stow(v = False)
+                  proc.data._add_child(presult)
+                except IOError:
+                  traceback.print_exc(file=sys.stdout)
+                  pdb.set_trace()
         elif proc.regime == 'all trajectories':
             presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)

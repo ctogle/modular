@@ -1,7 +1,7 @@
 import modular_core as mc
 import modular_core.fundamental as lfu
-import modular_core.endcaptureplan as lsc
-import modular_core.simulationmodule as smd
+import modular_core.criteria.endcaptureplan as lsc
+import modular_core.modules.simulationmodule as smd
 import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.parameterspace.cartographerplan as cplan
 import modular_core.parallel.parallelplan as paral
@@ -258,7 +258,7 @@ class ensemble(lfu.mobject):
                     if mappspace:dpool = self._run_map()
                     else:dpool = self._run_nonmap()
             print 'duration of simulations:',time.time() - fullstime
-            self.cartographer_plan._save_metamap()
+            #self.cartographer_plan._save_metamap()
         else:
             print 'skipping simulation implies metamap usage...'
             dpool = self._run_metamap_zeroth()
@@ -325,6 +325,7 @@ class ensemble(lfu.mobject):
         arc_dex = 0
         while arc_dex < arc_length:
             loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
+            self.cartographer_plan._save_metamap()
             arc_dex += 1
             print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
             if requiresimdata:
@@ -395,6 +396,7 @@ class ensemble(lfu.mobject):
         cplan = self.cartographer_plan
         if cplan.maintain_pspmap:
             print 'should only fill metamap data as required...'
+            target_traj_cnt = traj_cnt
             traj_cnt,dshape = cplan._metamap_remaining(ldex,traj_cnt,dshape)
             lstr = cplan._print_friendly_pspace_location(ldex)
             mmap = cplan.metamap
@@ -414,7 +416,7 @@ class ensemble(lfu.mobject):
                 cplan._record_persistent(ldex,loc_pool)
                 loc_pool = mmap._recover_location(lstr)
         else:
-            loc_pool = mmap._recover_location(lstr)
+            loc_pool = mmap._recover_location(lstr,target_traj_cnt)
         if pplan.use_plan:
             zeroth = pplan.zeroth
             pplan._enact_processes(zeroth,loc_pool)

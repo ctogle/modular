@@ -22,7 +22,7 @@ class metalocation(object):
         # stow all data pools;output self in a readable format
         metas.write('\n'+'-'*100+'\nmetalocation : \n'+self.location_string)
         for dchild in self.simulation_pool.children:
-            dchild._stow(v = True)
+            dchild._stow(v = False)
         #metas.write('\nsimulation_pool at : ')
         #pdb.set_trace()
         #metas.write('\n'+'='*100+'\n')
@@ -89,11 +89,13 @@ class metamap(lfu.mobject):
         else:metaloc = self.entries[loc_str]
         metaloc._log_simulation_data(loc_pool)
 
-    def _recover_location(self,loc_str):
+    def _recover_location(self,loc_str,num_required = None):
         mloc = self.entries[loc_str]
         if not len(mloc.simulation_pool.children) == 1:
             print 'metamap incomplete... defaulting to something...'
         loc_pool = mloc.simulation_pool.children[0]
+        if not num_required is None and loc_pool.dshape[0] > num_required:
+            loc_pool = loc_pool._subset_pool(num_required)
         return loc_pool
 
     def _trajectory_count(self,loc_str,dshape):

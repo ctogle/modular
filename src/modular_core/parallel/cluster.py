@@ -40,18 +40,25 @@ def collect_cluster(jobs):
     return results
 
 def clusterize(nodeips,work,args,deps = []):
-    cluster = dispy.JobCluster(work,nodes = nodeips,depends = deps,
-        setup = cluster_setup,cleanup = False)
+    cluster = dispy.JobCluster(work,nodes = nodeips,
+        depends = deps,setup = cluster_setup,cleanup = False)
     print 'node ips',nodeips
     jobs = start_cluster(cluster,args)
+    print 'started cluster...'
     results = collect_cluster(jobs)
+    print 'cluster finished...'
     cluster.stats()
     return results
 
 if __name__ == '__main__':
     inpmobj = lfu.mobject(name = 'ensemble?')
     inpargs = [(inpmobj,x) for x in range(10)]
-    results = clusterize(test,inpargs)
+    nodes = ['127.0.0.1']
+    #nodes = ['127.0.0.1','192.168.4.76']
+    #nodes = ['127.0.0.1','hemlock.phys.vt.edu','192.168.4.76']
+    #nodes = ['hemlock.phys.vt.edu','192.168.4.76']
+    #nodes = ['127.0.0.1','192.168.4.76']
+    results = clusterize(nodes,test,inpargs,[])
 
     pdb.set_trace()
 

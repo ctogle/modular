@@ -10,7 +10,7 @@ import modular_core.io.libfiler as lf
 import pdb,types
 from cStringIO import StringIO
 
-if __name__ == 'modular_core.simulationmodule':
+if __name__ == 'modular_core.modules.simulationmodule':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd

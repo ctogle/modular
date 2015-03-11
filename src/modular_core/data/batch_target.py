@@ -157,8 +157,18 @@ class batch_node(ldc.data_mobject):
         elif fop == 'r':
             self.data = self.hdffile['data']
 
+    def _subset_pool(self,count,**kwargs):
+        subshape = (count,)+self.dshape[1:]
+        subtargs = self.targets
+        subpool = batch_node(metapool = self.metapool,
+            dshape = subshape,targets = subtargs,**kwargs)
+        self._recover(v = False)
+        subpool.data[:] = self.data[:count,:,:]
+        self._stow(v = False)
+        return subpool
+
     def _merge_data(self,mpool):
-        self._recover()
+        self._recover(v = False)
         newshape = (self.dshape[0]+mpool.dshape[0],)+mpool.dshape[1:]
         newdata = np.empty(newshape,dtype = np.float)
 
@@ -171,7 +181,7 @@ class batch_node(ldc.data_mobject):
         self.dshape = newshape
         self.data = self.hdffile.create_dataset('data',
             shape = self.dshape,dtype = np.float,data = newdata)
-        self._stow()
+        self._stow(v = False)
         mfilename = mpool._get_data_pool_path()
         os.remove(mfilename)
 

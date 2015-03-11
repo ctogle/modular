@@ -3,7 +3,7 @@ import modular_core.criteria.abstract as cab
 
 import pdb,sys,os,traceback,time,types
 
-if __name__ == 'modular_core.endcaptureplan':
+if __name__ == 'modular_core.criteria.endcaptureplan':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
