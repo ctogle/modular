@@ -1,5 +1,14 @@
 import modular_core.fundamental as lfu
 
+if __name__ == 'modular_core.fitting.routine_abstract':
+    lfu.check_gui_pack()
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'routine_abstract of modular_core'
+
+routine_types = {}
+
 ###############################################################################
 ###
 ###############################################################################
@@ -63,7 +72,7 @@ def parse_routine_line(line,ensem,parser,procs,routs,targs):
     spl = lfu.msplit(line)
     variety = spl[1]
     rargs = routine_types[variety][1](spl,ensem,procs,routs)
-    rout = routine(**pargs)
+    rout = routine(**rargs)
     routs.append(rout)
     ensem.fitting_plan._add_routine(new = rout)
     if lfu.using_gui:rout._widget(0,ensem)

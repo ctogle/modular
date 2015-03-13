@@ -22,6 +22,12 @@ def save_pkl_object(obj,filename):
 
 # load obj at filename
 def load_pkl_object(filename):
+    pkl_file = open(filename,'rb')
+    data = pickle.load(pkl_file)
+    print 'pkldatatype',type(data)
+    pkl_file.close()
+    return data
+
     try:
         pkl_file = open(filename, 'rb')
         data = pickle.load(pkl_file)

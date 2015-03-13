@@ -8,7 +8,7 @@ import modular_core.parameterspace.metamap as mmap
 import pdb,sys,os,traceback,time,math,itertools,types,random
 import numpy as np
 
-if __name__ == 'modular_core.parameterspace.parameterspaces':
+if __name__ == 'modular_core.parameterspace.cartographerplan':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
     lgd = lfu.gui_pack.lgd
@@ -40,7 +40,7 @@ class cartographer_plan(lfu.plan):
         self._default('use_plan',use,**kwargs)
         self._default('parameter_space',None,**kwargs)
         self._default('key_path',None,**kwargs)
-        #self._default('num_trajectories',1,**kwargs)
+        self._default('num_trajectories',1,**kwargs)
         self._default('trajectory',[],**kwargs)
 
         meta = lset.get_setting('metamapparameterspace')
@@ -48,15 +48,25 @@ class cartographer_plan(lfu.plan):
         self._default('mapfile','pspmap.mmap',**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
-        #self.controller_ref = None
+        self.current_tab_index = 0
+        self.psptrajectory_controller_ref = None
         #self.trajectory_string = ''
 
     def _metamap(self):
-        self.metamap = mmap.metamap(parent = self,mapfile = self.mapfile,
+        if not self.parameter_space is None:
+            axes = self.parameter_space.axes
+        else:axes = []
+        self.metamap = mmap.metamap(axes = axes,
+            parent = self,mapfile = self.mapfile,
             uniqueness = self.parent.module._metamap_uniqueness())
+        self.children = [self.metamap]
 
     def _save_metamap(self):
-        self.metamap._save()
+        self.metamap.parent = None
+        try:self.metamap._save()
+        except:
+          pdb.set_trace()
+        self.metamap.parent = self
 
     def _metamap_remaining(self,arc_dex,goal,dshape):
         location = self._print_friendly_pspace_location(arc_dex)
@@ -144,76 +154,101 @@ class cartographer_plan(lfu.plan):
         location = [sp._value() for sp in self.parameter_space.axes]
         self.trajectory = [lpsp.pspace_location(location = location)]
 
-    def _widget(self,*args,**kwargs):
-        window = args[0]
-        self._sanitize(*args,**kwargs)
+    def _new_trajectory(self,window):
+        def _new_traj():
+            print 'make a new trajectory!'
+            return []
+        print 'new trajectory not implemented!!'
+        return _new_traj
 
-        lfu.mobject._widget(self,*args,from_sub = True)
-        return
+    # remove selected pspace locations from the current trajectory
+    def _remove_locations(self):
+        print 'remove locations not implemented!!'
+        pdb.set_trace()
 
+    # output a key representing the current trajectory
+    def _output_key(self):
+        self.parent._output_trajectory_key()
 
+    # update the trajectory to reflect the trajectory_count spin widget
+    def _apply_trajectory_count(self):
+        print 'apply t count not implemented!!'
+        pdb.set_trace()
+
+    # return widget templates associated with pspace/current trajectory
+    def _pspace_widg_templates(self,window):
+        pspacetemplates = []
         right_side = [lgm.interface_template_gui(
-                layout = 'grid', 
-                panel_position = (0, 2), 
-                widg_positions = [(0, 0), (1, 0), (2, 0)], 
-                layouts = ['vertical', 'vertical', 'vertical'], 
-                widgets = ['button_set', 'spin', 'full_path_box'], 
-                initials = [None, [self.traj_count], 
-                    [self.key_path, 'Possible Outputs (*.txt)']], 
-                minimum_values = [None, [1], None], 
-                maximum_values = [None, [100000], None], 
-                instances = [None, [self], [self]], 
-                keys = [None, ['traj_count'], ['key_path']], 
-                bindings = [[lgb.create_reset_widgets_wrapper(
-                        window, self.generate_parameter_space), 
-                    self.generate_traj_diag_function(window, 'blank'), 
-                    self.generate_traj_diag_function(window, 'modify'), 
-                    lgb.create_reset_widgets_wrapper(window, 
-                            self.on_delete_selected_pts), 
-                    self.on_output_trajectory_key, 
-                    lgb.create_reset_widgets_wrapper(window, 
-                        self.on_assert_trajectory_count)], None, None], 
-                labels = [['Generate Parameter Space', 
-                    'Create Trajectory', 'Replace Selected Points', 
-                    'Delete Selected Points', 'Output Trajectory Key', 
-                    'Assert Trajectory Count\n to Selected'], None, 
-                                            ['Choose File Path']], 
-                box_labels = [None, 'Trajectory Count', 
-                        'Trajectory Key File Path'])]
+            layout = 'grid',
+            layouts = ['vertical'], 
+            widgets = ['button_set'],
+            widg_positions = [(0, 0),(1, 0),(2, 0)], 
+            bindings = [[
+                #lgb.create_reset_widgets_wrapper(window,
+                #    self.generate_parameter_space), 
+                self._new_trajectory(window), 
+                lgb.create_reset_widgets_wrapper(
+                    window,self._remove_locations),
+                self._output_key, 
+                lgb.create_reset_widgets_wrapper(
+                    window,self._apply_trajectory_count)]],
+            labels = [[
+                #'Generate Parameter Space', 
+                'Create Trajectory',
+                'Remove Selected Points',
+                'Output Trajectory Key', 
+                'Apply Trajectory Count\n to Selected']])]
+        right_side[-1] += lgm.interface_template_gui(
+            layouts = ['vertical'], 
+            widgets = ['spin'], 
+            instances = [[self]], 
+            keys = [['num_trajectories']], 
+            initials = [[self.num_trajectories]], 
+            minimum_values = [[1]], 
+            maximum_values = [[1000000000]], 
+            box_labels = ['Trajectory Count'])
         split_widg_templates = [
             lgm.interface_template_gui(
                 widgets = ['splitter'], 
                 orientations = [['horizontal']], 
                 templates = [right_side])]
         if not self.parameter_space is None:
-            #a point consists of a list of 2 components
-            #   the first is the index of the location
-            #   the second is the values in 1-1 with 
-            #   p-space subspaces
-            headers = [subsp.name for subsp in 
-                self.parameter_space.subspaces] + ['']
-            #self.widg_templates.append(
+            headers = [ax.name for ax in self.parameter_space.axes]+['']
             left_side = [lgm.interface_template_gui(
-                    widgets = ['list_controller'], 
-                    panel_position = (0, 0), 
-                    panel_span = (3, 2), 
-                    handles = [(self, 'controller_ref')], 
-                    labels = [['Index'.ljust(16), 
-                        'Trajectory Count'] + headers], 
-                    minimum_sizes = [[(500, 300)]], 
-                    entries = [self.trajectory], 
-                    box_labels = ['Trajectory In Parameter Space'])]
-            split_widg_templates[-1].templates =\
-                        [left_side + right_side]
-
-        self.widg_templates.append(
+                widgets = ['list_controller'], 
+                panel_position = (0,0), 
+                panel_span = (3,2), 
+                handles = [(self,'psptrajectory_controller_ref')], 
+                labels = [['Index'.ljust(16),'Trajectory Count']+headers], 
+                minimum_sizes = [[(500,300)]], 
+                entries = [self.trajectory], 
+                box_labels = ['Trajectory In Parameter Space'])]
+            split_widg_templates[-1].templates = [left_side+right_side]
+        pspacetemplates = [
             lgm.interface_template_gui(
                 widgets = ['panel'], 
                 templates = [split_widg_templates], 
                 scrollable = [True], 
-                box_labels = ['Parameter Space']))
+                box_labels = ['Parameter Space'])]
+        return pspacetemplates
 
+    def _widget(self,*args,**kwargs):
+        window = args[0]
+        self._sanitize(*args,**kwargs)
+        psptemplates = self._pspace_widg_templates(window)
+        self.widg_templates.append(
+            lgm.interface_template_gui(
+                widgets = ['tab_book'], 
+                verbosities = [0], 
+                #handles = [(self,'tab_ref')], 
+                pages = [[
+                    ('Parameter Space',psptemplates), 
+                    ('Metamap',self.metamap.widg_templates)]], 
+                initials = [[self.current_tab_index]], 
+                instances = [[self]], 
+                keys = [['current_tab_index']]))
         lfu.mobject._widget(self,*args,from_sub = True)
+        return
 
 ###############################################################################
 ###############################################################################

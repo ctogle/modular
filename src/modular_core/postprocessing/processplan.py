@@ -53,21 +53,20 @@ class post_process_plan(lfu.plan):
         ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
             for pchild in pool.children:
-                try:
-                  #stowed = pchild._stowed()
-                  #if stowed:pchild._recover(v = False)
-                  pchild._recover(v = False)
-                  presult = proc.method(pchild,ptraj)
-                  time.sleep(0.1)
-                  #if stowed:pchild._stow(v = False)
-                  #pchild._stow(v = False)
-                  proc.data._add_child(presult)
-                except IOError:
-                  traceback.print_exc(file=sys.stdout)
-                  pdb.set_trace()
+                #try:
+                pchild._recover(v = False)
+                presult = proc.method(pchild,ptraj)
+                time.sleep(0.1)
+                pchild._stow(v = False)
+                proc.data._add_child(presult)
+                proc.data._stow_child(-1,v = False)
+                #except IOError:
+                #  traceback.print_exc(file=sys.stdout)
+                #  pdb.set_trace()
         elif proc.regime == 'all trajectories':
             presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)
+            proc.data._stow_child(-1,v = False)
         runtime = time.time() - stime
         print 'finished post process:',proc.name,'in',runtime
 

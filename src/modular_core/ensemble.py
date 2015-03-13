@@ -28,6 +28,8 @@ import modular_core.postprocessing.correlation as crl
 import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
 
+import modular_core.fitting.explorer as fex
+
 import pdb,os,sys,traceback,types,time,imp
 import multiprocessing as mp
 import numpy as np
@@ -292,10 +294,6 @@ class ensemble(lfu.mobject):
         mmap = self.cartographer_plan.metamap
         for lstr in mmap.location_strings:
             loc_pool = mmap._recover_location(lstr)
-            #mloc = mmap.entries[lstr]
-            #if not len(mloc.simulation_pool.children) == 1:
-            #    print 'metamap incomplete... defaulting to something...'
-            #loc_pool = mloc.simulation_pool.children[0]
             self.postprocess_plan._enact_processes(zeroth,loc_pool)
         return dba.batch_node()
 
@@ -492,11 +490,11 @@ class ensemble(lfu.mobject):
 
     # output data associated with post processes
     def _output_postprocesses(self,pool):
-        if not pool.postproc_data is None:
+        if not pool is None:
             processes = self.postprocess_plan.processes
             for dex,proc in enumerate(processes):
                 if proc.output._must_output():
-                    pdata = pool.postproc_data.children[dex]
+                    pdata = pool.children[dex]
                     data = lfu.data_container(data = pdata)
                     proc._regime(self)
                     proc.output(data)
@@ -536,12 +534,11 @@ class ensemble(lfu.mobject):
         if requiresimdata and pool.data._stowed():pool.data._recover()
         data = lfu.data_container(data = pool.data)
         if self.output_plan._must_output():self.output_plan(data)
-        self._output_postprocesses(pool)
+        self._output_postprocesses(pool.postproc_data)
         self._output_fitroutines(pool)
         print 'produced output:',time.time() - stime
         self._check_qt_application()
         return True
-
 
     def _run(self,*args,**kwargs):
         print 'running ensemble:',self.name
@@ -588,7 +585,7 @@ class ensemble(lfu.mobject):
         if not file_ and not os.path.isfile(self.mcfg_path):
             fidlg = lgd.create_dialog('Choose File','File?','file', 
                     'Modular config files (*.mcfg)',self.mcfg_dir)
-            file_ = fidlg()
+            file_ = fidlg()                  
         if file_:
             self.mcfg_path = file_
             self.mcfg_text_box_ref[0].setText(self.mcfg_path)
@@ -601,6 +598,7 @@ class ensemble(lfu.mobject):
             lfu.log(trace = True)
             if lfu.using_gui:
                 lgd.message_dialog(None,'Failed to parse file!','Problem')
+        self.cartographer_plan._metamap()
         self.module._rewidget(True)
 
     def _write_mcfg(self,*args,**kwargs):

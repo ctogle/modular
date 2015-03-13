@@ -300,6 +300,7 @@ class batch_node(ldc.data_mobject):
                 std = datamobj(name = targets[dx],data = data[dx],marker = 'x')
                 friendly.append(std)
             self._spruce(friendly)
+            self._stow(v = False)
             return friendly
                                                                      
 ###############################################################################

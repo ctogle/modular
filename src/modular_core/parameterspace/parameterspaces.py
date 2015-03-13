@@ -131,8 +131,9 @@ class pspace_axis(lfu.mobject):
         #panel_x = self.panel.sizeHint().width()*1.5
         #panel_y = self.panel.sizeHint().height()*1.25
         #panel_x,panel_y = min([panel_x,1600]),min([panel_y,900])
+        if lgm:mason = lgm.standard_mason()
         panel_x,panel_y = 256,256
-        lfu.mobject._display(self,self.mason,(150,120,panel_x,panel_y))
+        lfu.mobject._display(self,mason,(150,120,panel_x,panel_y))
 
     def __init__(self,*args,**kwargs):
         self._default('instance',None,**kwargs)
@@ -144,7 +145,6 @@ class pspace_axis(lfu.mobject):
         self._default('permanent_bounds',[0,1],**kwargs)
         self._default('increment',0.1,**kwargs)
         self._default('contribute',False,**kwargs)
-        if lgm:self.mason = lgm.standard_mason(parent = self)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _move_to(self,value):

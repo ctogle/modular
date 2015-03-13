@@ -1782,15 +1782,13 @@ def create_list_controller(headers, entries):
     controller.setHeaderLabels(headers)
     [controller.setColumnWidth(dex, 8*len(head)) 
             for dex, head in enumerate(headers)]
-    for dex, entry in enumerate(entries):
-        row = QtGui.QTreeWidgetItem(None, [''.join(
-            ['Positions ', str(entry[0]).rjust(5)])])
-        row.setText(1, str(entry[1].trajectory_count))
-        for sub_dex, element in enumerate(entry[1]):
-            row.setText(sub_dex + 2, str(element))
-
+    for dex,entry in enumerate(entries):
+        row = QtGui.QTreeWidgetItem(None,
+            [''.join(['Position ',str(dex).rjust(5)])])
+        row.setText(1,str(entry.trajectory_count))
+        for sub_dex,element in enumerate(entry):
+            row.setText(sub_dex+2,str(element))
         controller.addTopLevelItem(row)
-
     return controller
 
 class trajectory_range_maker(QtGui.QTreeWidget):

@@ -54,44 +54,40 @@ class fit_routine_plan(lfu.plan):
     # add new fitting routine
     def _add_routine(self,new = None):
         if new is None:new = fab.routine(parent = self)
-        #if new is None:return
+        if new is None:return
         self.routines.append(new)
         self.children.append(new)
-        #self._children_.append(new)
-        self.rewidget(True)
+        self._rewidget(True)
 
     def _remove_routine(self):
-        select = self.get_selected()
+        select = self._selected()
         if select:
             self.routines.remove(select)
             self.children.remove(select)
-            #self._children_.remove(select)
-        self.rewidget(True)
+        self._rewidget(True)
 
     def _move_routine_up(self, *args, **kwargs):
-        select = self.get_selected()
+        select = self._selected()
         if select:
             select_dex = lfu.grab_mobj_dex_by_name(
                         select.label, self.routines)
             self.routines.pop(select_dex)
             self.routines.insert(select_dex - 1, select)
-            #self._widget(select_dex - 1)
-            self.rewidget_routines()
+            self._rewidget_routines()
 
     def _move_routine_down(self, *args, **kwargs):
-        select = self.get_selected()
+        select = self._selected()
         if select:
             select_dex = lfu.grab_mobj_dex_by_name(
                         select.label, self.routines)
             self.routines.pop(select_dex)
             self.routines.insert(select_dex + 1, select)
-            #self._widget(select_dex + 1)
-            self.rewidget_routines()
+            self._rewidget_routines()
 
-    def rewidget_routines(self, rewidg = True):
-        [rout.rewidget(rewidg) for rout in self.routines]
+    def _rewidget_routines(self,rewidg = True):
+        [rout._rewidget(rewidg) for rout in self.routines]
 
-    def get_selected(self):
+    def _selected(self):
         key = 'routine_selector'
         if not hasattr(self, key):
             print 'no selector'; return
@@ -108,34 +104,34 @@ class fit_routine_plan(lfu.plan):
         window = args[0]
         self._sanitize(*args,**kwargs)
 
-        try: select_label = self.selected_routine.label
-        except AttributeError: select_label = None
+        try:select_label = self.selected_routine.label
+        except AttributeError:select_label = None
+
         self.widg_templates.append(
             lgm.interface_template_gui(
                 layout = 'grid', 
-                widg_positions = [(0, 0), (0, 2), (1, 2), 
-                                (2, 2), (3, 2), (4, 2)], 
-                widg_spans = [(3, 2), None, None, None, None, None], 
+                widg_positions = [(0,0),(0,2),(1,2),(2,2),(3,2),(4,2)], 
+                widg_spans = [(3,2),None,None,None,None,None], 
                 grid_spacing = 10, 
-                widgets = ['mobj_catalog', 'button_set'], 
+                widgets = ['mobj_catalog','button_set'], 
                 verbosities = [1,1], 
-                instances = [[self.routines, self], None], 
-                keys = [[None, 'selected_routine_label'], None], 
-                handles = [(self, 'routine_selector'), None], 
-                labels = [None, ['Add Fit Routine', 
-                                'Remove Fit Routine', 
-                                'Move Up In Hierarchy', 
-                                'Move Down In Hierarchy']], 
-                initials = [[select_label], None], 
-                bindings = [None, [lgb.create_reset_widgets_wrapper(
-                                        window, self._add_routine), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self._remove_routine), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self._move_routine_up), 
-                        lgb.create_reset_widgets_wrapper(window, 
-                                self._move_routine_down)]]))
-        lfu.plan._widget(self, *args, from_sub = True)
+                instances = [[self.routines,self],None], 
+                keys = [[None,'selected_routine_label'],None], 
+                handles = [(self,'routine_selector'),None], 
+                labels = [None,
+                    ['Add Fit Routine','Remove Fit Routine', 
+                    'Move Up In Hierarchy','Move Down In Hierarchy']],
+                initials = [[select_label],None], 
+                bindings = [None,[
+                    lgb.create_reset_widgets_wrapper(
+                        window,self._add_routine),
+                    lgb.create_reset_widgets_wrapper(
+                        window,self._remove_routine),
+                    lgb.create_reset_widgets_wrapper(
+                        window,self._move_routine_up), 
+                    lgb.create_reset_widgets_wrapper(
+                        window,self._move_routine_down)]]))
+        lfu.plan._widget(self,*args,from_sub = True)
 
 ###############################################################################
 ###############################################################################

@@ -1,7 +1,7 @@
 import modular_core.fundamental as lfu
 import modular_core.parameterspace.parameterspaces as lpsp
 
-import modular_core.fitting.routine_abstract as lfr
+import modular_core.fitting.routine_abstract as fab
 import modular_core.postprocessing.process_abstract as lpp
 import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
@@ -29,7 +29,7 @@ def simulate(sim_args):
 class simulation_module(lfu.mobject):
     run_parameter_keys = [  
         'End Criteria','Capture Criteria','Plot Targets','Fit Routines',
-        'Post Processes','Parameter Space Map','Multiprocessing','Output Plans']
+        'Post Processes','Cartographer','Multiprocessing','Output Plans']
 
     def _parse_mcfg_plot_targets(li,ensem,parser,procs,routs,targs):
         if not li in targs:targs.append(li)
@@ -74,7 +74,7 @@ class simulation_module(lfu.mobject):
         cab.parse_criterion_line,
         cab.parse_criterion_line,
         lpp.parse_process_line, 
-        lfr.parse_fitting_line,
+        fab.parse_routine_line,
         lo.parse_output_plan_line,
         None,
         _parse_mcfg_plot_targets,
@@ -134,14 +134,14 @@ class simulation_module(lfu.mobject):
 
         def parse_pspace_line(li):
             if li.startswith('<product_space>'):
-                cnt_per_loc = int(li[li.find('>') + 1:])
-                p_sub_sps.append([('<product_space>', cnt_per_loc)])
+                cnt_per_loc = int(li[li.find('>')+1:])
+                p_sub_sps.append([('<product_space>',cnt_per_loc)])
             elif li.startswith('<zip_space>'):
-                cnt_per_loc = int(li[li.find('>') + 1:])
-                p_sub_sps.append([('<zip_space>', cnt_per_loc)])
+                cnt_per_loc = int(li[li.find('>')+1:])
+                p_sub_sps.append([('<zip_space>',cnt_per_loc)])
             elif li.startswith('<fitting_space>'):
-                p_sub_sps.append([('<fitting_space>', None)])
-            else:p_sub_sps[-1].append([item.strip() for item in li.split(':')])
+                p_sub_sps.append([('<fitting_space>',None)])
+            else:p_sub_sps[-1].append(lfu.msplit(li))
 
         lcnt = 0        
         max_lcnt = len(mlines) - 1
@@ -156,8 +156,9 @@ class simulation_module(lfu.mobject):
                 if parser == 'plot_targets':plot_flag = True
                 elif parser == 'parameter_space':pspace_flag = True
                 elif parser == 'post_processes' or parser == 'fit_routines':
-                    parse_pspace()
-                    pspace_parsed_flag = True
+                    print 'shit'
+                    #parse_pspace()
+                    #pspace_parsed_flag = True
             else:
                 if parser == 'parameter_space':parse_pspace_line(li)
                 elif parser in pkeys:
