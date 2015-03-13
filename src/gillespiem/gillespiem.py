@@ -95,11 +95,38 @@ class simulation_module(smd.simulation_module):
         smd.simulation_module.__init__(self,*args,**kwargs)
 
     def _metamap_uniqueness(self):
-        uniq = '#module must overload _metamap_uniqueness#'
-
-        #pdb.set_trace()
-
-        return uniq
+        rps = self.parent.run_params
+        uniq = StringIO()
+        uniq.write('||gillespiem||rxnrates{')
+        rxns = rps['reactions']
+        if rxns:
+            rnames,rrates = [r.name for r in rxns],[r.rate for r in rxns]
+            rnames,rrates = zip(*sorted(zip(rnames,rrates)))
+            [uniq.write('|'+rn+':'+rr+'|') for rn,rr in zip(rnames,rrates)]
+        uniq.write('}||speciesinitials{')
+        specs = rps['species']
+        if specs:
+            snames = specs.keys()
+            sinits = [specs[s].initial for s in snames]
+            snames,sinits = zip(*sorted(zip(snames,sinits)))
+            [uniq.write('|'+sn+':'+str(si)+'|') for sn,si in zip(snames,sinits)]
+        uniq.write('}||variablesvalues{')
+        varis = rps['variables']
+        if varis:
+            vnames = varis.keys()
+            vvals = [varis[v].value for v in vnames]
+            vnames,vvals = zip(*sorted(zip(vnames,vvals)))
+            [uniq.write('|'+vn+':'+str(vv)+'|') for vn,vv in zip(vnames,vvals)]
+        uniq.write('}||functionstatements{')
+        funcs = rps['functions']
+        if funcs:
+            fnames = funcs.keys()
+            fsts = [funcs[f].func_statement for f in fnames]
+            fnames,fsts = zip(*sorted(zip(fnames,fsts)))
+            [uniq.write('|'+fn+':'+str(fs)+'|') for fn,fs in zip(fnames,fsts)]
+        uniq.write('}||')
+        print 'metamap uniqueness:',uniq.getvalue()
+        return uniq.getvalue()
 
     def _write_mcfg(self,mcfg_path,ensem):
         rparams = ensem.run_params
