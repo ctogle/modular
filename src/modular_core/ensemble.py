@@ -364,20 +364,21 @@ class ensemble(lfu.mobject):
             zcount = len(zeroth)
             for adx in range(arc_length):
 
-                #if cplan.maintain_pspmap:
-                #    print 'should record metamap data...'
-                #    cplan._record_persistent(ldex,loc_pool)
-                #    loc_pool = mmap._recover_location(lstr)
-
                 l0p = loc_0th_pools[adx]
-                pdb.set_trace()
+                if cplan.maintain_pspmap:
+                    mloc = l0p.metalocation
+                    mstr = mloc.location_string
+                    cplan.metamap.entries[mstr] = mloc
+                    cplan.metamap.location_strings.append(mstr)
 
                 for zdx in range(zcount):
                     zp = zeroth[zdx]
                     zpdata = l0p.children[zdx]
                     zpdata._unfriendly()
                     zp.data._add_child(zpdata)
+                    zp.data._stow_child(-1,v = False)
 
+            if cplan.maintain_pspmap:cplan._save_metamap()
             dpool = dba.batch_node()
         else:dpool = self._run_nonmap()
         return dpool
@@ -1015,10 +1016,6 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
     ensem._parse_mcfg(mcfgstring = mcfgstring)
     ensem.multiprocess_plan.use_plan = False
     meta = ensem.cartographer_plan.maintain_pspmap
-### HEREEEEE
-### HEREEEEE
-### HEREEEEE
-### HEREEEEE
 
     ensem.module._increment_extensionname()
 
@@ -1027,7 +1024,7 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     loc_pool = ensem._run_pspace_location(arc_dex,meta = meta)
     loc_pool._stow(v = False)
-    ensem.cartographer_plan._save_metamap()
+    #ensem.cartographer_plan._save_metamap()
 
     if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
     host = socket.gethostname()
@@ -1036,7 +1033,9 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
         pdata._add_child(z.data.children[0])
         pdata._stow_friendly_child(-1)
         pdata._stow_child(-1)
-    pdata.metamap = ensem.cartographer_plan.metamap
+    #pdata.metamap = ensem.cartographer_plan.metamap
+    mmap = ensem.cartographer_plan.metamap
+    pdata.metalocation = mmap.entries[mmap.location_strings[0]]
     pdata.dispyhost = host
     pdata.dispyindex = arc_dex
     psplocstr = ensem._print_pspace_location(arc_dex)

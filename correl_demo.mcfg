@@ -24,13 +24,13 @@
 	1 x2 g -> nothing : degradation of x2 (rate is g2)
 
 <species>
-	x2 : 10
 	x1 : 10
+	x2 : 10
 
 <plot_targets>
 	time
-	x2
 	x1
+	x2
 
 <parameter_space>
 	<product_space> 1000
