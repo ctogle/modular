@@ -40,9 +40,10 @@ class metalocation(object):
             if not sp.dshape[1:] == loc_pool.dshape[1:]:continue
             if not sp.targets == loc_pool.targets:continue
             sp._merge_data(loc_pool)
-            print 'merged some data'
+            print 'merged some data...'
             return
         self.simulation_pool._add_child(loc_pool)
+        self.simulation_pool._stow_child(-1,v = False)
 
 class metamap(lfu.mobject):
     # metamap needs to know every possible axis for this model

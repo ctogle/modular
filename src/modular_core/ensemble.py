@@ -337,11 +337,12 @@ class ensemble(lfu.mobject):
 
     # use dispy to distribute work across a network
     def _run_distributed(self):
-        pspace = self.cartographer_plan.parameter_space
-        mappspace = self.cartographer_plan.use_plan and pspace
+        cplan = self.cartographer_plan
+        pspace = cplan.parameter_space
+        mappspace = cplan.use_plan and pspace
         self._run_params_to_location_prepoolinit()
         if mappspace:
-            arc = self.cartographer_plan.trajectory
+            arc = cplan.trajectory
             arc_length = len(arc)
 
             usepplan = self.postprocess_plan.use_plan
@@ -362,7 +363,15 @@ class ensemble(lfu.mobject):
             zeroth = self.postprocess_plan.zeroth
             zcount = len(zeroth)
             for adx in range(arc_length):
+
+                #if cplan.maintain_pspmap:
+                #    print 'should record metamap data...'
+                #    cplan._record_persistent(ldex,loc_pool)
+                #    loc_pool = mmap._recover_location(lstr)
+
                 l0p = loc_0th_pools[adx]
+                pdb.set_trace()
+
                 for zdx in range(zcount):
                     zp = zeroth[zdx]
                     zpdata = l0p.children[zdx]
@@ -1018,6 +1027,7 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     loc_pool = ensem._run_pspace_location(arc_dex,meta = meta)
     loc_pool._stow(v = False)
+    ensem.cartographer_plan._save_metamap()
 
     if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
     host = socket.gethostname()
@@ -1026,6 +1036,7 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
         pdata._add_child(z.data.children[0])
         pdata._stow_friendly_child(-1)
         pdata._stow_child(-1)
+    pdata.metamap = ensem.cartographer_plan.metamap
     pdata.dispyhost = host
     pdata.dispyindex = arc_dex
     psplocstr = ensem._print_pspace_location(arc_dex)
