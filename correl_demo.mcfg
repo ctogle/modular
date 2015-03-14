@@ -34,13 +34,14 @@
 
 <parameter_space>
 	<product_space> 1000
-		mu      : value : 4.0-20.0;5
+		#mu      : value : 4.0-20.0;5
+    mu     : value : 10.0
 		K      : value : 0.000000000000001
 		#lambda1 : value : 5.0
 		#lambda2 : value : 5.0
 		lambda1 : value : 2.0-10.0;5
 		lambda2 : value : 2.0-10.0;5
-	  gamma : value : 0.01,0.1,1.0
+	  gamma : value : 0.01,0.1
     x1 : initial : 10
     x2 : initial : 10
 
@@ -51,11 +52,12 @@
 
 <multiprocessing>
 	workers : 200
-  distributed : off
+  distributed : on
+  nodes : 192.168.2.173, 192.168.4.76
 
 <output_plans>
 	3 : - : reorg_output : plt : all
-	1 : - : correlation_output : plt : all
+	1 : - : correlation_output : none : all
 	2 : - : slices_output : none : all
 	0 : - : ensemble_output : none : all
 
@@ -64,6 +66,8 @@
 	multiprocessing : on
 	mapparameterspace : on
 	metamapparameterspace : on
+  metamappath : /srv/shared_modular_data/correl_metamap.mmap
+  datapool_directory : /srv/shared_modular_data
 	fitting : off
 	postprocessing : on
 	trajectory_count : 10000

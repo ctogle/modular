@@ -167,6 +167,7 @@ class plot_page(lfu.mobject):
         self.ytitle = ytitle
         self.x_log = parent.x_log
         self.y_log = parent.y_log
+        self.plot_bounds = [[None,None],[None,None],[None,None]]
         self.max_line_count = 20
         self.colors = []
         self.cplot_interpolation = parent.cplot_interpolation
@@ -293,6 +294,8 @@ class plot_window(lfu.mobject):
         self._default('slice_widgets', [], **kwargs)
         self._default('x_log', False, **kwargs)
         self._default('y_log', False, **kwargs)
+        #self._default('plot_bounds',
+        #    [[None,None],[None,None],[None,None]],**kwargs)
         ptypes = ['lines','color','surface','bars','voxels','tables']
         self._default('cplot_interpolation', 'bicubic', **kwargs)
         self._default('plot_type', 'lines', **kwargs)

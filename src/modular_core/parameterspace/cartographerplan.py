@@ -63,9 +63,7 @@ class cartographer_plan(lfu.plan):
 
     def _save_metamap(self):
         self.metamap.parent = None
-        try:self.metamap._save()
-        except:
-          pdb.set_trace()
+        self.metamap._save()
         self.metamap.parent = self
 
     def _metamap_remaining(self,arc_dex,goal,dshape):

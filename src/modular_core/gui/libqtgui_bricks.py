@@ -2401,22 +2401,21 @@ class quick_plot(QtGui.QWidget):
         self.canvas.draw()
         self.plot_type = 'lines'
 
-    def plot_color(self, surf, starget, xdom, ydom,
-            xlab = None, ylab = None):
+    def plot_color(self,surf,starget,xdom,ydom,xlab = None,ylab = None):
         ax = self.pre_plot()
-        made_surf =\
-            surf._surface(
-                x_ax = xdom, y_ax = ydom, 
-                surf_target = starget)
+        made_surf = surf._surface(x_ax = xdom,y_ax = ydom,surf_target = starget)
         if not made_surf:
             print 'surface was not resolved'
             return
         else: x, y, surf = made_surf
-        self.set_labels(xlab, ylab, starget, starget)
+        self.set_labels(xlab,ylab,starget,starget)
         #surf = surf.transpose()
         x_min, x_max = x.min(), x.max()
         y_min, y_max = y.min(), y.max()
         z_min, z_max = surf.min(), surf.max()
+
+        #z_min, z_max = -1.0, 1.0
+
         z_flag = False
         if z_min == z_max:
             z_flag = True
@@ -2429,14 +2428,15 @@ class quick_plot(QtGui.QWidget):
         if len(xdels) == 1 and len(ydels) == 1:
             uneven_flag = False
 
+        cmap = plt.get_cmap('jet')
         if not uneven_flag:
             pc_mesh = ax.imshow(surf, aspect = 'auto', 
                 interpolation = self.cplot_interpolation, 
-                cmap = plt.get_cmap('jet'), vmin = z_min, vmax = z_max, 
+                cmap = cmap, vmin = z_min, vmax = z_max, 
                 origin = 'lower', extent = (x_min, x_max, y_min, y_max))
         else:
             print 'axes values are not evenly spaced; plot will be boxy'
-            pc_mesh = ax.pcolormesh(x,y,surf,cmap = plt.get_cmap('jet'), 
+            pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
                 shading = 'gouraud', vmin = z_min, vmax = z_max)
 
         ax.axis([x_min, x_max, y_min, y_max])

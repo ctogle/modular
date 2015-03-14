@@ -38,8 +38,11 @@ class simulation_module(lfu.mobject):
         key,val = li.split(':')
         if key.strip() == 'workers':
             ensem.multiprocess_plan.worker_count = int(val)
-        if key.strip() == 'distributed':
+        elif key.strip() == 'distributed':
             ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(val)
+        elif key.strip() == 'nodes':
+            ips = lfu.msplit(val,',')
+            ensem.multiprocess_plan.cluster_node_ips = ips
 
     def _parse_mcfg_ensemble(li,ensem,parser,procs,routs,targs):
         spl = [l.strip() for l in li.split(':')]
@@ -52,6 +55,10 @@ class simulation_module(lfu.mobject):
             ensem.cartographer_plan.use_plan = lfu.coerce_string_bool(value)
         elif spl[0].startswith('metamapparameterspace'):
             ensem.cartographer_plan.maintain_pspmap = lfu.coerce_string_bool(value)
+        elif spl[0].startswith('metamappath'):
+            ensem.cartographer_plan.mappath = value
+        elif spl[0].startswith('datapool_directory'):
+            lfu.user_data_pool_path = value
         elif spl[0].startswith('fitting'):
             ensem.fitting_plan.use_plan = lfu.coerce_string_bool(value)
         elif spl[0].startswith('postprocessing'):
@@ -156,9 +163,8 @@ class simulation_module(lfu.mobject):
                 if parser == 'plot_targets':plot_flag = True
                 elif parser == 'parameter_space':pspace_flag = True
                 elif parser == 'post_processes' or parser == 'fit_routines':
-                    print 'shit'
-                    #parse_pspace()
-                    #pspace_parsed_flag = True
+                    parse_pspace()
+                    pspace_parsed_flag = True
             else:
                 if parser == 'parameter_space':parse_pspace_line(li)
                 elif parser in pkeys:

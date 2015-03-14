@@ -1005,18 +1005,23 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     ensem._parse_mcfg(mcfgstring = mcfgstring)
     ensem.multiprocess_plan.use_plan = False
+    meta = ensem.cartographer_plan.maintain_pspmap
+### HEREEEEE
+### HEREEEEE
+### HEREEEEE
+### HEREEEEE
 
     ensem.module._increment_extensionname()
 
     pplan = ensem.postprocess_plan
     if pplan.use_plan:pplan._init_processes(None)
 
-    loc_pool = ensem._run_pspace_location(arc_dex)
-    loc_pool._stow()
+    loc_pool = ensem._run_pspace_location(arc_dex,meta = meta)
+    loc_pool._stow(v = False)
 
     if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
     host = socket.gethostname()
-    pdata = dba.batch_node()
+    pdata = dba.batch_node(meta = meta)
     for z in zeroth:
         pdata._add_child(z.data.children[0])
         pdata._stow_friendly_child(-1)

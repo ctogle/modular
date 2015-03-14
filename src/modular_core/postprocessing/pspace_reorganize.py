@@ -89,6 +89,7 @@ class reorganize(lpp.post_process_abstract):
             pspace_locale_values = pspace_trajectory[dex].location
             for tdx in range(axcnt):
                 ptrajaxvals[tdx].append(float(pspace_locale_values[tdx]))
+
             for ddx in range(len(self.dater_ids)):
                 dname = self.dater_ids[ddx]
                 value = locale_data[ddx][-1]

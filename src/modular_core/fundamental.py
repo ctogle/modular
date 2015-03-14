@@ -150,9 +150,14 @@ def get_resource_path(res = None):
     if res is None: return rpath
     else: return os.path.join(rpath,res)
 
+user_data_pool_path = None
+default_data_pool_path = os.path.join(
+    appdirs.user_data_dir(),'modular_data_pools')
 # return path to a safe place to store temporary data
 def get_data_pool_path():
-    return os.path.join(appdirs.user_data_dir(),'modular_data_pools')
+    if user_data_pool_path is None:dpath = default_data_pool_path
+    else:dpath = user_data_pool_path
+    return dpath
 
 # return path to a safe place to store persistent pspace mapping data
 def get_mapdata_pool_path():

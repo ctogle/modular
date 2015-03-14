@@ -75,6 +75,7 @@ class metamap(lfu.mobject):
                 print 'skipping metamap load...'
                 self.entries = {}
                 self.location_strings = []
+                #pdb.set_trace()
             else:
                 self.entries = proxy.entries
                 self.location_strings = proxy.location_strings
