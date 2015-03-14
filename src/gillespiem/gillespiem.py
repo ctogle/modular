@@ -96,27 +96,43 @@ class simulation_module(smd.simulation_module):
 
     def _metamap_uniqueness(self):
         rps = self.parent.run_params
+        pspace = self.parent.cartographer_plan.parameter_space
+        pspace_instances = []
+        if pspace:
+            pspaxes = pspace.axes
+            [pspace_instances.append(px.instance) for px in pspaxes]
         uniq = StringIO()
+
         uniq.write('||gillespiem||rxnrates{')
         rxns = rps['reactions']
         if rxns:
             rnames,rrates = [r.name for r in rxns],[r.rate for r in rxns]
             rnames,rrates = zip(*sorted(zip(rnames,rrates)))
             [uniq.write('|'+rn+':'+rr+'|') for rn,rr in zip(rnames,rrates)]
+
         uniq.write('}||speciesinitials{')
         specs = rps['species']
         if specs:
             snames = specs.keys()
-            sinits = [specs[s].initial for s in snames]
-            snames,sinits = zip(*sorted(zip(snames,sinits)))
-            [uniq.write('|'+sn+':'+str(si)+'|') for sn,si in zip(snames,sinits)]
+            snames = sorted(snames)
+            sinits = []
+            for sn in snames:
+                spec = specs[sn]
+                if spec in pspace_instances:si = '$'
+                else:si = str(spec.initial)
+                uniq.write('|'+sn+':'+si+'|')
+
         uniq.write('}||variablesvalues{')
         varis = rps['variables']
         if varis:
             vnames = varis.keys()
-            vvals = [varis[v].value for v in vnames]
-            vnames,vvals = zip(*sorted(zip(vnames,vvals)))
-            [uniq.write('|'+vn+':'+str(vv)+'|') for vn,vv in zip(vnames,vvals)]
+            vnames = sorted(vnames)
+            for vn in vnames:
+                varib = varis[vn]
+                if varib in pspace_instances:vv = '$'
+                else:vv = str(varib.value)
+                uniq.write('|'+vn+':'+vv+'|')
+
         uniq.write('}||functionstatements{')
         funcs = rps['functions']
         if funcs:
@@ -124,6 +140,7 @@ class simulation_module(smd.simulation_module):
             fsts = [funcs[f].func_statement for f in fnames]
             fnames,fsts = zip(*sorted(zip(fnames,fsts)))
             [uniq.write('|'+fn+':'+str(fs)+'|') for fn,fs in zip(fnames,fsts)]
+
         uniq.write('}||')
         print 'metamap uniqueness:',uniq.getvalue()
         return uniq.getvalue()
