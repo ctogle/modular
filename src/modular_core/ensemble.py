@@ -1024,7 +1024,6 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     loc_pool = ensem._run_pspace_location(arc_dex,meta = meta)
     loc_pool._stow(v = False)
-    #ensem.cartographer_plan._save_metamap()
 
     if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
     host = socket.gethostname()
@@ -1033,9 +1032,10 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
         pdata._add_child(z.data.children[0])
         pdata._stow_friendly_child(-1)
         pdata._stow_child(-1)
-    #pdata.metamap = ensem.cartographer_plan.metamap
-    mmap = ensem.cartographer_plan.metamap
-    pdata.metalocation = mmap.entries[mmap.location_strings[0]]
+
+    if ensem.cartographer_plan.maintain_pspmap:
+        mmap = ensem.cartographer_plan.metamap
+        pdata.metalocation = mmap.entries[mmap.location_strings[0]]
     pdata.dispyhost = host
     pdata.dispyindex = arc_dex
     psplocstr = ensem._print_pspace_location(arc_dex)

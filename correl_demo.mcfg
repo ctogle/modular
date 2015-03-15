@@ -33,15 +33,12 @@
 	x2
 
 <parameter_space>
-	<product_space> 1000
-		#mu      : value : 4.0-20.0;5
+	<product_space> 10000
     mu     : value : 10.0
 		K      : value : 0.000000000000001
-		#lambda1 : value : 5.0
-		#lambda2 : value : 5.0
-		lambda1 : value : 2.0-10.0;5
-		lambda2 : value : 2.0-10.0;5
-	  gamma : value : 0.01,0.1
+		lambda1 : value : 1.0-10.0;10
+		lambda2 : value : 1.0-10.0;10
+	  gamma : value : 0.01
     x1 : initial : 10
     x2 : initial : 10
 
@@ -53,7 +50,7 @@
 <multiprocessing>
 	workers : 200
   distributed : on
-  nodes : 192.168.2.173, 192.168.4.76
+  nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>
 	3 : - : reorg_output : plt : all

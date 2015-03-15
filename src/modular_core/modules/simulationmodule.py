@@ -7,7 +7,7 @@ import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
 
-import pdb,types
+import pdb,os,types
 from cStringIO import StringIO
 
 if __name__ == 'modular_core.modules.simulationmodule':
@@ -56,7 +56,10 @@ class simulation_module(lfu.mobject):
         elif spl[0].startswith('metamapparameterspace'):
             ensem.cartographer_plan.maintain_pspmap = lfu.coerce_string_bool(value)
         elif spl[0].startswith('metamappath'):
-            ensem.cartographer_plan.mappath = value
+            finame = value[value.rfind(os.path.sep)+1:]
+            drname = value[:value.find(finame)]
+            ensem.cartographer_plan.metamap.mapdir = drname
+            ensem.cartographer_plan.metamap.mapfile = finame
         elif spl[0].startswith('datapool_directory'):
             lfu.user_data_pool_path = value
         elif spl[0].startswith('fitting'):

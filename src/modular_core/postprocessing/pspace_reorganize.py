@@ -83,7 +83,7 @@ class reorganize(lpp.post_process_abstract):
         ptrajaxvals = [[] for x in range(axcnt)]
         datervals = [[] for x in range(len(self.dater_ids))]
         for dex,locale in enumerate(trajectory):
-            locale._recover()
+            locale._recover(v = False)
             locale_data = locale.data
             ptrajdexes.append(dex)
             pspace_locale_values = pspace_trajectory[dex].location
@@ -94,7 +94,7 @@ class reorganize(lpp.post_process_abstract):
                 dname = self.dater_ids[ddx]
                 value = locale_data[ddx][-1]
                 datervals[ddx].append(value)
-            locale._stow()
+            locale._stow(v = False)
 
         tcount = len(self.capture_targets)
         dshape = (tcount,len(trajectory))
