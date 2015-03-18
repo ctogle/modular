@@ -71,6 +71,7 @@ from libc.math cimport cos
 from numpy import cumprod as cumulative_product
 cdef double pi = 3.14159265359
 import random,numpy
+import time as timemodule
 from cython.view cimport array as cvarray
 '''
 

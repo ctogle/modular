@@ -6,25 +6,14 @@ from modular_core.ensemble import ensemble_manager
 import os, sys, pdb
 
 class mngerTestCase(unittest.TestCase):
-    """Tests for `libsimcomponents.py`."""
-    simple_mcfg = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'MM_kinetics_boring.mcfg')
-    ext_signal_mcfg = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'ext_signal_example.mcfg')
-    fitting_mcfg = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'MM_kinetics_fitting.mcfg')
-    correl_mcfg = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'correl_demo.mcfg')
-    correl_mcfg_nonmp = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'correl_demo_nonmp.mcfg')
-    means_mcfg = os.path.join(os.getcwd(), 
-                'stringchemical_dep_mcfgs', 
-                'MM_kinetics_means.mcfg')
+    gillm_mcfgpath = os.path.join(os.getcwd(),'gillespiemmcfgs')
+    simple_mcfg = os.path.join(gillm_mcfgpath,'MM_kinetics_boring.mcfg')
+    ext_signal_mcfg = os.path.join(gillm_mcfgpath,'ext_signal_example.mcfg')
+    fitting_mcfg = os.path.join(gillm_mcfgpath,'MM_kinetics_fitting.mcfg')
+    correl_mcfg = os.path.join(gillm_mcfgpath,'correl_demo.mcfg')
+    correl_mcfg_nonmp = os.path.join(gillm_mcfgpath,'correl_demo_nonmp.mcfg')
+    means_mcfg = os.path.join(gillm_mcfgpath,'MM_kinetics_means.mcfg')
+
     mnger = ensemble_manager()
     ensem = mnger._add_ensemble(module = 'gillespiem')
 

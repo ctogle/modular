@@ -1,3 +1,128 @@
+import modular_core.fundamental as lfu
+
+import numpy as np
+import pdb,math
+
+import matplotlib.pyplot as plt
+
+class measurement(lfu.mobject):
+
+    def __init__(self,*args,**kwargs):
+        lfu.mobject.__init__(self,*args,**kwargs)
+
+    # i,j are data nodes with the same shape?
+    def _measure(self,i,j):
+        return int(i == j)
+
+class ptwise_measurement(measurement):
+
+    def __init__(self,*args,**kwargs):
+        measurement.__init__(self,*args,**kwargs)
+
+    def _unif_weights(self,measurements):
+        return np.ones((len(measurements),),dtype = np.float)
+
+    def _expo_weights(self,measurements):
+        maxweight = 9.0
+        x = np.linspace(maxweight,0,len(measurements))
+        y = np.exp(-1.0*x)
+        y *= maxweight/max(y)
+        y += 1.0
+        return y
+
+    def _para_weights(self,measurements):
+        maxweight = 9.0
+        x = np.linspace(maxweight,0,len(measurements))
+        y = (x-(max(x)/2.0))**2
+        y *= maxweight/max(y)
+        y += 1.0
+        return y
+
+    # should allow exponential, parabolic, affine, etc...
+    def _weight(self,measurements):
+        #weights = self._unif_weights(measurements)
+        #weights = self._expo_weights(measurements)
+        weights = self._para_weights(measurements)
+        zwm = zip(weights,measurements)
+        return [w*m for w,m in zwm if not math.isnan(m)]
+
+    # i,j are batch_nodes with the same dshape and targets
+    # call measurement on i,j[1:] 1-1 for ptwise
+    def _measure(self,i,j):
+        bnds = (0,i.dshape[-1])
+        tmeasures = []
+        x = i.data[0]
+        for t in range(1,i.dshape[-2]):
+            idat = i.data[t]
+            jdat = j.data[t]
+            measures = self._weight(self.measurement(x,idat,jdat,bnds))
+            tmeasures.append(np.mean(measures))
+        meas = np.mean(tmeasures)
+        return meas
+
+class difference(ptwise_measurement):
+
+    def __init__(self,*args,**kwargs):
+        self.measurement = self._difference
+        ptwise_measurement.__init__(self,*args,**kwargs)
+
+    # i,j are arrays of equal length, 1-1
+    def _difference(self,x,i,j,bnds):
+        diffs = [abs(i[k]-j[k]) for k in range(*bnds)]
+        return diffs
+
+class derivative1(ptwise_measurement):
+
+    def __init__(self,*args,**kwargs):
+        self.measurement = self._slope
+        ptwise_measurement.__init__(self,*args,**kwargs)
+
+    def _point_derive(self,x,k,bnds,d):
+        dydx = (k[d] - k[d - 1])/(x[d] - x[d - 1]) 
+        return dydx
+
+    def _derive(self,x,k,bnds):
+        deriv = [self._point_derive(x,k,bnds,d) 
+            for d in range(bnds[0]+1,bnds[1])]
+        return deriv
+        
+    # x,i,j are arrays of equal length, 1-1
+    def _slope(self,x,i,j,bnds):
+        islope = self._derive(x,i,bnds)
+        jslope = self._derive(x,j,bnds)
+        slopes = [abs(islope[k]-jslope[k]) 
+            for k in range(bnds[0],bnds[1]-1)]
+        return slopes
+
+class derivative2(ptwise_measurement):
+
+    def __init__(self,*args,**kwargs):
+        self.measurement = self._concavity
+        ptwise_measurement.__init__(self,*args,**kwargs)
+
+    def _point_derive(self,x,k,bnds,d):
+        delx = (x[d+1]-x[d-1])/2.0
+        ddyddx = (k[d+1]-(2*k[d])+k[d-1])/((x[d]-delx)**2)
+        return ddyddx
+
+    def _derive(self,x,k,bnds):
+        deriv = [self._point_derive(x,k,bnds,d) 
+            for d in range(bnds[0]+1,bnds[1]-1)]
+        return deriv
+        
+    # x,i,j are arrays of equal length, 1-1
+    def _concavity(self,x,i,j,bnds):
+        islope = self._derive(x,i,bnds)
+        jslope = self._derive(x,j,bnds)
+        slopes = [abs(islope[k]-jslope[k]) 
+            for k in range(bnds[0]+1,bnds[1]-2)]
+        return slopes
+
+
+
+
+
+
 
 class metric(lfu.mobject):
 
@@ -7,13 +132,6 @@ class metric(lfu.mobject):
     returns one scalar representing some sort of distance
     '''
     def __init__(self, *args, **kwargs):
-        if not 'valid_base_classes' in kwargs.keys():
-            global valid_metric_base_classes
-            kwargs['valid_base_classes'] = valid_metric_base_classes
-
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                    object, 'abstract metric')
 
         self.impose_default('best_measure', 0, **kwargs)
         self.impose_default('display_threshold', 0, **kwargs)
@@ -110,65 +228,6 @@ class metric(lfu.mobject):
 
         else: return meas
 
-class metric_avg_ptwise_diff_on_domain(metric):
-
-    def __init__(self, *args, **kwargs):
-        if not 'name' in kwargs.keys():
-            kwargs['name'] = 'pointwise difference metric'
-        metric.__init__(self, *args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        #self.data = scalars_from_labels(['mean difference'])
-        self.data = ldc.scalars_from_labels(['mean difference'])
-        metric.initialize(self, *args, **kwargs)
-
-    def measure(self, *args, **kwargs):
-        #if not 'report_only' in kwargs.keys():
-        #   kwargs['report_only'] = False
-        kwargs['measurement'] = self.differences
-        return metric.measure(self, *args, **kwargs)
-
-    def differences(self, *args, **kwargs):
-        to_fit_to_y = args[0]
-        runinterped = args[1]
-        bounds = args[2]
-        dom_weights = args[4]
-        return [weight*abs(to_fit_to_y[k] - runinterped[k]) 
-                        for weight, k in zip(dom_weights, 
-                            range(bounds[0], bounds[1]))]
-
-class metric_slope_1st_derivative(metric):
-
-    def __init__(self, *args, **kwargs):
-        if not 'name' in kwargs.keys():
-            kwargs['name'] = 'slope metric'
-        metric.__init__(self, *args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        #self.data = scalars_from_labels(['mean slope difference'])
-        self.data = ldc.scalars_from_labels(['mean slope difference'])
-        metric.initialize(self, *args, **kwargs)
-
-    def measure(self, *args, **kwargs):
-        kwargs['measurement'] = self.slope_differences
-        return metric.measure(self, *args, **kwargs)
-
-    def slope_differences(self, *args, **kwargs):
-        to_fit_to_y = args[0]
-        runinterped = args[1]
-        bounds = args[2]
-        to_fit_to_x = args[3]
-        dom_weights = args[4]
-        runinterped_slope = [(runinterped[k] - runinterped[k - 1])\
-                    /(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
-                    for k in range(1, len(to_fit_to_x))]
-        to_fit_to_y_slope = [(to_fit_to_y[k] - to_fit_to_y[k - 1])\
-                            /(to_fit_to_x[k] - to_fit_to_x[k - 1]) 
-                            for k in range(1, len(to_fit_to_x))]
-        return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
-                for weight, k in zip(dom_weights, 
-                range(bounds[0], bounds[1] -1))]
-
 class metric_slope_2nd_derivative(metric):
 
     def __init__(self, *args, **kwargs):
@@ -245,44 +304,4 @@ class metric_slope_3rd_derivative(metric):
         return [weight*abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
                 for weight, k in zip(dom_weights, 
                 range(bounds[0] + 2, bounds[1] - 2))]
-
-class metric_slope_4th_derivative(metric):
-
-    def __init__(self, *args, **kwargs):
-        if not 'name' in kwargs.keys():
-            kwargs['name'] = '4th derivative metric'
-        metric.__init__(self, *args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        #self.data = scalars_from_labels(['mean 4th derivative'])
-        self.data = ldc.scalars_from_labels(['mean 4th derivative'])
-        metric.initialize(self, *args, **kwargs)
-
-    def measure(self, *args, **kwargs):
-        kwargs['measurement'] = self.fourth_derivative_differences
-        return metric.measure(self, *args, **kwargs)
-
-    def fourth_derivative_differences(self, *args, **kwargs):
-
-        def calc_4th_deriv(x, y, dex):
-            left = (y[dex - 2] - (2*y[dex - 1]) + y[dex])
-            right = (y[dex] - (2*y[dex + 1]) + y[dex + 2])
-            #top = (y[dex - 2] - (3*y[dex - 1]) +\
-            #           (3*y[dex]) + y[dex + 1])
-            del_x_avg = ((x[dex + 2] - x[dex - 2]))/4.0
-            print 'DONT USE THIS YET!'; return None
-            return top/((x[dex] - del_x_avg)**4)
-
-        to_fit_to_y = args[0]
-        runinterped = args[1]
-        bounds = args[2]
-        to_fit_to_x = args[3]
-        runinterped_slope = [
-            calc_4th_deriv(to_fit_to_x, runinterped, k) 
-                for k in range(1, len(to_fit_to_x) -1)]
-        to_fit_to_y_slope = [
-            calc_4th_deriv(to_fit_to_x, to_fit_to_y, k) 
-                for k in range(1, len(to_fit_to_x) -1)]
-        return [abs(to_fit_to_y_slope[k] - runinterped_slope[k]) 
-                for k in range(bounds[0] + 2, bounds[1] - 3)]
 

@@ -1,4 +1,8 @@
 import modular_core.fundamental as lfu
+import modular_core.data.batch_target as dba
+import modular_core.io.liboutput as lo
+
+import pdb,os,sys,types,time,random
 
 if __name__ == 'modular_core.fitting.routine_abstract':
     lfu.check_gui_pack()
@@ -17,13 +21,137 @@ class routine_abstract(lfu.mobject):
 
     def __init__(self,*args,**kwargs):
         self._default('name','a routine',**kwargs)
+        self._default('max_undos',10000,**kwargs)
+        self._default('max_runtime',60.0,**kwargs)
+        self._default('max_iteration',1000.0,**kwargs)
+        self._default('simulations_per_iteration',1,**kwargs)
+        self._default('parameter_space',None,**kwargs)
+        self._default('capture_targets',[],**kwargs)
+        oname = self.name + ' output'
+        self.output = lo.output_plan(name = oname,
+                parent = self,flat_data = False)
+        self.children = [self.output]
         lfu.mobject.__init__(self,*args,**kwargs)
 
-    def _run(self):
-        pdb.set_trace()
+    def _finished(self):
+        overiter = self.iteration + 1 >= self.max_iteration
+        overtime = time.time() - self.starttime >= self.max_runtime
+        overundo = self.undos > self.max_undos
+        done = overiter or overtime or overundo
+        if done:print 'oi,',overiter,',ot,',overtime,',ou,',overundo
+        return done
 
-    def _feedback(self):
-        pdb.set_trace()
+    def _record_position(self,pspace):
+        psp_position = pspace._position()
+        self.psp_trajectory.append(psp_position)
+
+    def _parameter_space(self):
+        pspace = self.parent.parent.cartographer_plan.parameter_space
+        self.parameter_space = pspace
+        self.parameter_space.steps = []
+
+    def _iterate(self,ensem,pspace):
+        ensem._run_params_to_location()
+
+        traj_cnt = self.simulations_per_iteration
+        capt_cnt = ensem.simulation_plan._capture_count()
+        ptargets = ensem.run_params['plot_targets']
+        targ_cnt = len(ptargets)
+        meta = False
+
+        dshape = (traj_cnt,targ_cnt,capt_cnt)
+        loc_pool = dba.batch_node(metapool = meta,
+                dshape = dshape,targets = ptargets)
+        ran = ensem._run_batch(traj_cnt,loc_pool,pfreq = None)
+        return loc_pool,ran
+
+    # consider a measurement, undo or keep step?
+    def _accept_step(self,information,ran):
+        return True
+
+    def _feedback(self,information,ran,pspace):
+        undo = not self._accept_step(information,ran)
+        self._pspace_move(pspace,undo)
+
+    def _movement_factor(self):
+        return 1.0
+
+    def _pspace_move(self,pspace,undo = False):
+        factor = self._movement_factor()
+        if undo:
+            if self.capture > 0:self.undos += 1
+            pspace._undo_step()
+            dims = pspace.dimensions
+            #many_steps = int(max([1,abs(random.gauss(dims,dims))]))
+            many_steps = int(max([1,abs(random.gauss(dims/2.0,dims/2.0))]))
+            pspace._proportional_step(factor,many_steps)
+        else:
+            creep = 2.0
+            pspace._biased_step(factor/creep)
+
+    def _capture(self,data,pspace):
+        split = data._split()
+        if not self.iteration % 100 == 0 and not self.best and self.capture:
+            split._stow_children(v = False)
+            return
+        print 'routine captured at iteration:',self.iteration
+        if self.best:self.best_capture = self.capture
+        self.capture += 1
+        self._record_position(pspace)
+        for sch in split.children:
+            self.data._add_child(sch)
+            self.data._stow_child(-1,v = False)
+
+    def _initialize(self,*args,**kwargs):
+        print 'initialize routine',self.name
+        meta = False
+        self.data = dba.batch_node(metapool = meta)
+
+        ensem = self.parent.parent
+        ensem._run_params_to_location_prepoolinit()
+        if self.parameter_space is None:
+            self._parameter_space()
+        pspace = self.parameter_space
+        pspace._lock_singular_axes()
+        self.psp_trajectory = []
+        self.iteration = 0
+        self.capture = 0
+        self.best_capture = 0
+        self.undos = 0
+        self.best = False
+
+    def _run(self,*args,**kwargs):
+        self.starttime = time.time()
+        ensem = self.parent.parent
+        pspace = self.parameter_space
+        abort = False
+        while not abort and not self._finished():
+            information,ran = self._iterate(ensem,pspace)
+            if ran is True:
+                self._feedback(information,ran,pspace)
+                self._capture(information,pspace)
+            elif ran is False:abort = True
+            else:
+                self._feedback(information,ran,pspace)
+                information._stow(v = False)
+            if self.capture > 0:self.iteration += 1
+
+    def _finalize(self,*args,**kwargs):
+        print 'finializing routine',self.name,'...'
+        self.data._dupe_child(self.best_capture)
+        ensem = self.parent.parent
+        traj = self.psp_trajectory
+        traj.append(traj[self.best_capture])
+        pspace = self.parameter_space
+        ensem._output_trajectory_key(traj,pspace)
+        print 'routine best captured at plot:',self.best_capture
+        print 'pspace location',traj[-1].location
+
+    def _targetables(self,*args,**kwargs):
+        ptargs = self.parent.parent.simulation_plan.plot_targets
+        return ptargs
+
+    def _target_settables(self,*args,**kwargs):pass
 
 ###############################################################################
 ###############################################################################
@@ -125,109 +253,16 @@ def parse_routine_line_inputs(inputs,procs,routs):
 
 
 
-#handles one run of a simulation; returns data
-def run_system(*args,**kwargs):
-    ensemble = args[0]
-    return ensemble.module._simulate(*args,**kwargs)
 
-#run a system and use its data to perform a measurement
-# measurement is on raw data not wrapped in objects
-def run_system_measurement(*args, **kwargs):
-    args = args[0]
-    kwargs = args[1]
-    args = args[0]
-    ensemble = args[0]
-    to_fit_to = [args[1][k].scalars for k in range(len(args[1]))]
-    target_key = args[2]
-    weights = args[3]
-    p_space = args[4]
-    deviation = args[5]
-    rulers = args[6]
-    for deviant, subsp in zip(deviation, p_space.subspaces):
-        subsp.move_to(deviant[-1])
 
-    p_space.validate_position()
-    run = run_system(ensemble, **kwargs)
-    if run is False: return False
-    return raw_measure(to_fit_to, run, target_key, weights, rulers)
 
-def raw_measure(*args):
-    to_fit_to = args[0]
-    run_data = args[1]
-    labels = args[2]
-    domain_weights = args[3]
-    methods = args[4]
 
-    run_data_domain = run_data[labels[1].index(labels[0][0])]
-    run_data_codomains = [run_data[labels[1].index(
-                labels[0][lab_dex+1])] for lab_dex 
-                    in range(len(labels[0][1:]))]
-    run_data_interped = [lm.linear_interpolation(
-        run_data_domain, codomain, to_fit_to[0], 'linear') 
-                    for codomain in run_data_codomains]
-    x_meas_bnds = (0, len(to_fit_to[0]))
+#TRASH#BELOW###################################################################
 
-    meas = [[[diff for diff in method(domain_weights, 
-            fit_to, interped, x_meas_bnds, to_fit_to[0]) 
-            if not math.isnan(diff)] for fit_to, interped 
-                in zip(to_fit_to[1:], run_data_interped)] 
-                                    for method in methods]
-    measurement = [np.mean([np.mean(mea) for mea in measur]) 
-                    for measur, method in zip(meas, methods)]
-    return measurement
+
 
 class fit_routine(lfu.mobject):
 
-    #ABSTRACT
-    #base class should not assume scalars are the data object
-    '''
-    fit_routine subclasses should have several regimes
-    fine: runs the routine on the parameter space as specified
-    coarse-magnitude: coerce the parameter space into a discrete 
-        parameter space; impose new bounds on the old 
-        parameter space (which is not in general discrete) based
-        on the best fit
-    coarse-decimate: coerce the parameter space into a discrete 
-        space with bounds and increments such that each space has
-        some number of values; impose results as coarse-magnitude does
-    these secondary regimes can run in either of the above two regimes:
-        on_simulation: run a simulation; use its output as input 
-            any relevant metrics
-        on_process: a series of post processes can be run
-            on the output of a simulation at a location
-                processes can be run in the 'per trajectory' or
-                    'all trajectories' regimes
-            must specify how many trajectories are run per
-                location and then fed into the post process chain
-            input data must be based on final post process output goal
-            measurement and acceptance/rejection is exactly the same
-            can't use raw_measure pipeline... -> slow
-
-    fitting routines can be used in series, which is particularly 
-        useful when each provides information for the next
-        this is the express purpose of the coarse regime
-        but the fine regime should also allow this option
-            the option will be on available on both
-
-    fitting routines should be able to run on each other - 
-        use a fitting routine to hone another fitting routine
-
-        this could allow a single recursing routine which 
-        runs the coarse regime several times and then the fine
-        regime or whatever is desired
-
-    fitting routines can have many metrics and many criteria for
-        both accepting a parameter space step and for the end of 
-        the fitting routine which are for now assumed to be 
-        implicitly joined by AND statements
-
-    fitting routines can accept any number of lines as input 
-        for metric minimization (the assumed criterion for fitterness
-        for now)
-
-    input data should be identical to the output of modular via
-        pkl format - scalars objects wrapped in a data_container
-    '''
     def __init__(self, *args, **kwargs):
         self._default('parameter_space', None, **kwargs)
         self._default('many_steps', 1, **kwargs)
@@ -251,169 +286,8 @@ class fit_routine(lfu.mobject):
             ['fine', 'coarse-magnitude', 'coarse-decimate'], **kwargs)
 
         self._default('metrics', [], **kwargs)
-        self.metrics.append(
-            lgeo.metric_avg_ptwise_diff_on_domain(
-                parent = self, acceptance_weight = 1.0))
-        self.metrics.append(
-            lgeo.metric_slope_1st_derivative(
-                parent = self, acceptance_weight = 0.85))
-        self.metrics.append(
-            lgeo.metric_slope_2nd_derivative(
-                parent = self, acceptance_weight = 0.75))
-        self.metrics.append(
-            lgeo.metric_slope_3rd_derivative(
-                parent = self, acceptance_weight = 0.5))
-        self._default('metric_weights', 
-                [met.acceptance_weight for met 
-                    in self.metrics], **kwargs)
-        self.metric_rulers = [lm.differences, 
-                lm.deriv_first_differences, 
-                lm.deriv_second_differences, 
-                lm.deriv_third_differences]
-        self._default('prime_metric', 0, **kwargs)
-        self.prime_metric =\
-            self.metric_weights.index(max(self.metric_weights))
-        self.metrics[self.prime_metric].is_heaviest = True
-
-        self._default('fitted_criteria', [], **kwargs)
-        self.fitted_criteria.append(
-            cab.criterion_iteration(parent = self,max_iterations = 2500))
-        self.fitted_criteria.append(
-            criterion_impatient(parent = self,max_timeouts = 50,max_last_best = 1000))
-
-        self._default('fitter_criteria', [], **kwargs)
-        self.fitter_criteria.append(
-            criterion_minimize_measures(parent = self))
-
-        self._default('data_to_fit_to', None, **kwargs)
-        self._default('input_data_file', '', **kwargs)
-        self._default('input_data_domain', '', **kwargs)
-        self._default('input_data_codomains', [], **kwargs)
-        self._default('input_data_targets', [], **kwargs)
-        self._default('input_data_aliases', {}, **kwargs)
-        self.input_data_file = ''
-        if not 'visible_attributes' in kwargs.keys():
-            kwargs['visible_attributes'] = None
-
-        if not 'valid_base_classes' in kwargs.keys():
-            kwargs['valid_base_classes'] =\
-                valid_fit_routine_base_classes
-
-        if not 'base_class' in kwargs.keys():
-            kwargs['base_class'] = lfu.interface_template_class(
-                                object, 'fit routine abstract')
-
-        lfu.mobject.__init__(self, *args, **kwargs)
-        self.output = lo.output_plan(label = ' '.join(
-                [self.label, 'output']), parent = self)
-        #self.output.flat_data = False
-        #self._children_ = [self.output] + self.metrics +\
-        #   self.fitted_criteria + self.fitter_criteria
-        self._children_ = [self.output]
-
-    def __call__(self, *args, **kwargs):
-        self.initialize(*args, **kwargs)
-        run_func = run_system_measurement
-        #data_pool = self.ensemble.data_pool.batch_pool
-        #data_pool = self.ensemble.set_data_scheme().batch_pool#data_pool.batch_pool
-        data_pool = args[1].batch_pool
-        worker_pool = None
-        if self.use_mean_fitting or self.use_genetics:
-            ensem_to_loc = self.ensemble.set_run_params_to_location
-            worker_pool = mp.Pool(processes = self.worker_count, 
-                initializer = ensem_to_loc)
-
-        if self.use_genetics:
-            iterate = self.iterate_genetic
-            self.iterate(run_func, data_pool, worker_pool)
-
-        else:
-            iterate = self.iterate
-
-        while not self.bAbort and not self.verify_criteria_list(
-                                    self.fitted_criteria, self):
-            iterate(run_func, data_pool, worker_pool)
-
-        if self.use_genetics:
-            worker_pool.close()
-            worker_pool.join()
-
-        self.finalize(*args, **kwargs)
-
-    def get_input_data(self, read = True):
-        if not os.path.exists(self.input_data_file):
-            dat_file = self.input_data_file.split(os.path.sep)[-1]
-            #self.input_data_file = lfu.resolve_filepath(dat_file)
-            def_input_dir = lset.get_setting(
-                'default_fitting_input_path')
-            self.input_data_file = os.path.join(def_input_dir, dat_file)
-        if not os.path.exists(self.input_data_file):
-            print 'input data file not found!'
-            if lfu.using_gui():
-                fidlg = lgd.create_dialog('Choose Input File', 
-                    'File?', 'file', 'pkl files (*.pkl)', os.getcwd())
-                file_ = fidlg()
-            else:
-                file_ = raw_input('enter full path to a new default input directory')
-                pdb.set_trace()
-            self.input_data_file = file_
-        data = lf.load_mobject(self.input_data_file)
-        self.input_data_targets = [dater.label for dater in data.data]
-        self.rewidget(True)
-        if read:
-            self.input_data_domain = self.input_data_targets[0]
-            self.input_data_codomains = self.input_data_targets[1:]
-            self.input_data_aliases = {}
-            for targ, codom in zip(self.input_data_targets, 
-                                [self.input_data_domain] +\
-                                self.input_data_codomains):
-                self.input_data_aliases[targ] = codom
-
-        else:
-            for dater in data.data:
-                dater.label = self.input_data_aliases[dater.label]
-
-            relevant = self.input_data_aliases.values()
-            data = [dater for dater in data.data 
-                    if dater.label in relevant]
-            for dater in data:
-                if type(dater.scalars) is types.ListType:
-                    dater.scalars = np.array(dater.scalars)
-
-            return data
 
     def initialize(self, *args, **kwargs):
-        self.output.flat_data = True
-        self.ensemble = self.parent.parent
-        self.worker_count =\
-            self.parent.parent.multiprocess_plan.worker_count
-        self.proginy_count = 100
-        if False and self.ensemble.multiprocess_plan.use_plan and\
-                not self.regime.endswith('magnitude'):
-            self.use_genetics = True
-            self.proginy_count = 100
-
-        else: self.use_genetics = False
-        #self.ensemble.data_pool = self.ensemble.set_data_scheme()
-        self.run_targets = self.ensemble.run_params['plot_targets']
-        self.data_to_fit_to = self.get_input_data(read = False)
-        self.target_key = [[dat.label for dat in 
-            self.data_to_fit_to], self.run_targets]
-
-        def expo_weights(leng):
-            dom_weight_max = 5.0
-            dom_weight_x = np.linspace(dom_weight_max, 0, leng)
-            return np.exp(dom_weight_x)
-
-        def para_weights(leng):
-            dom_weight_max = 9.0
-            x = np.linspace(0, leng, leng)
-            y = x*(x - x[-1])
-            y_0 = min(y)
-            y = y - y_0
-            y = dom_weight_max*y/max(y) + 1
-            #for k in range(0, 2) + range(-3, -1): y[k] = 0.0
-            return y
 
         def affi_weights(leng):
             x = np.linspace(0, leng, leng)
@@ -422,19 +296,6 @@ class fit_routine(lfu.mobject):
             y = m*x + b
             return y
 
-        def flat_weights(leng):
-            y = [1.0 for val in range(leng)]
-            return y
-
-        fit_x_leng = len(self.data_to_fit_to[0].scalars)
-        #self.domain_weights = expo_weights(fit_x_leng)
-        self.domain_weights = para_weights(fit_x_leng)
-        #self.domain_weights = affi_weights(fit_x_leng)
-        #self.domain_weights = flat_weights(fit_x_leng)
-        self.iteration = 0
-        self.timeouts = 0
-        self.parameter_space =\
-            self.parent.parent.cartographer_plan.parameter_space
         if self.regime == 'coarse-magnitude':
             self.use_mean_fitting = False
             self.parameter_space, valid =\
@@ -462,110 +323,6 @@ class fit_routine(lfu.mobject):
             metric.initialize(self, *args, **kwargs)
         self.data = ldc.scalars_from_labels(['fitting iteration'] +\
                 [met.label + ' measurement' for met in self.metrics])
-
-    def kill_proginy(self, *args):
-        measurements = args[0]
-        survivor_weights = []
-        group_data = zip(*measurements)
-        group_means = [np.mean(measure) for measure in group_data]
-        group_mins = [min(measure) for measure in group_data]
-        met_weights = self.metric_weights
-        for surv_dex, proginy in enumerate(measurements):
-            improves = []
-            for meas_dex, measure in enumerate(proginy):
-                min_ = group_mins[meas_dex]
-                improves.append(
-                    group_data[meas_dex][surv_dex] - min_ <=\
-                            (group_means[meas_dex] - min_))
-
-            weights = [we/sum(met_weights) for we, imp in 
-                        zip(met_weights, improves) if imp]
-            weight = sum(weights)
-            survivor_weights.append(weight)
-
-        survivors = heapq.nlargest(1, survivor_weights)
-        return [survivor_weights.index(surv) for surv in survivors]
-
-    #proginy are acceptable arguments for run_system_measurement
-    def create_proginy(self, dex, start, fact):
-        deviation = [[item for item in tup] for tup in start]
-        subs = self.parameter_space.subspaces
-        norm = self.parameter_space.step_normalization
-        initial_factor = self.parameter_space.initial_factor
-        dims = self.parameter_space.dimensions
-        many_steps = int(min([dims, 
-            max([1, abs(random.gauss(dims, dims))*\
-            (self.p_sp_step_factor/initial_factor)])]))
-        dirs_ = random.sample(range(dims), many_steps)
-        #for dir_ in dirs_:
-        #   ax, subsp = deviation[dir_], subs[dir_]
-        for sp_dex in range(len(deviation)):
-            if sp_dex in dirs_:
-                ax = deviation[sp_dex]
-                subsp = subs[sp_dex]
-                new_location =\
-                    subsp.step_sample(norm, fact) +\
-                            subsp.current_location()
-                ax[-1] = new_location
-
-        child = (self.ensemble, self.data_to_fit_to, 
-                self.target_key, self.domain_weights, 
-                    self.parameter_space, deviation, 
-                            self.metric_rulers, dex)
-        return child
-
-    #def iterate_genetic(self, run_func, data_pool, worker_pool):
-    def iterate_genetic(self, *args, **kwargs):
-        run_func = args[0]
-        data_pool = args[1]
-        worker_pool = args[2]
-        dims = self.parameter_space.dimensions
-        st_loc = self.parameter_space.get_current_position()
-        fact = self.p_sp_step_factor/self.parameter_space.initial_factor
-        print 'making', self.proginy_count, 'children'
-        children = [self.create_proginy(dex, st_loc, fact) 
-                    for dex in range(self.proginy_count)]
-        processor_count = self.worker_count
-        measurements = []
-        dex0 = 0
-        while dex0 < self.proginy_count:
-            check_time = time.time()
-            runs_left = self.proginy_count - dex0
-            if runs_left >= processor_count: 
-                runs_this_round = processor_count
-
-            else: runs_this_round = runs_left % processor_count
-            dex0 += runs_this_round
-            result = worker_pool.map_async(run_func, 
-                children[dex0:dex0+runs_this_round], 
-                    callback = measurements.extend)
-            result.wait()
-            print 'multicore reported...', ' location: ', dex0
-
-        survivors = self.kill_proginy(measurements)
-        axial_motions = [[] for d in range(dims)]
-        for winner in survivors:
-            survivor_deviation = children[winner][5]
-            [axial_motions[sub_dex].append(float(
-                survivor_deviation[sub_dex][-1])) 
-                    for sub_dex in range(dims)]
-
-        axial_motions = [np.mean(ax) for ax in axial_motions]
-        print 'axial motions', axial_motions, 'at', self.iteration
-        self.parameter_space.steps.append(
-                lgeo.parameter_space_step(
-            location = [], initial = [], final = []))
-        for dex, subsp in enumerate(self.parameter_space.subspaces):
-            curr = subsp.current_location()
-            new = axial_motions[dex]
-            self.parameter_space.steps[-1].location.append(
-                                    (subsp.inst, subsp.key))
-            self.parameter_space.steps[-1].initial.append(curr)
-            self.parameter_space.steps[-1].final.append(new)
-
-        self.parameter_space.steps[-1].step_forward()
-        self.parameter_space.validate_position()
-        iterat = self.iterate(run_func, data_pool, worker_pool)
 
     def iterate(self, *args, **kwargs):
         self.iteration += 1
@@ -631,48 +388,6 @@ class fit_routine(lfu.mobject):
         self.p_sp_trajectory.append(current_position)
         self.move_in_parameter_space()
         return True
-
-    def move_in_parameter_space_genetic(self, bypass = False):
-        if bypass or not self.verify_criteria_list(
-                self.fitter_criteria, self.metrics):
-            self.parameter_space.undo_step()
-            print 'undoing...'
-        else: print 'keeping...'
-        self.parameter_space.validate_position()
-
-    def move_in_parameter_space(self, bypass = False, insist = False):
-        initial_factor = self.parameter_space.initial_factor
-        dims = self.parameter_space.dimensions
-        self.many_steps = int(max([1, abs(random.gauss(dims, dims))]))
-        #self.many_steps = int(max([1, abs(random.gauss(dims, 
-        #   dims))*(self.p_sp_step_factor/initial_factor)]))
-        if (not bypass and self.verify_criteria_list(
-                self.fitter_criteria, self.metrics)) or insist:
-            #power = 1.0/(self.parameter_space.step_normalization*2)
-            #creep_factor = self.initial_creep_factor*\
-            #   (self.parameter_space.initial_factor/\
-            #           self.p_sp_step_factor)**(power)
-            creep_factor = self.initial_creep_factor
-            self.parameter_space.take_biased_step_along_axis(
-                factor = self.p_sp_step_factor/creep_factor)
-                        #   factor = self.p_sp_step_factor)
-
-        else:
-            self.parameter_space.undo_step()
-            self.parameter_space.take_proportional_step(
-                        factor = self.p_sp_step_factor, 
-                        many_steps = self.many_steps)
-
-        self.parameter_space.validate_position()
-
-    def capture_plot_data(self, *args, **kwargs):
-        self.data[0].scalars.append(self.iteration)
-        bump = 1#number of daters preceding metric daters
-        for dex, met in enumerate(self.metrics):
-            try:
-                self.data[dex + bump].scalars.append(
-                        met.data[0].scalars[-1])
-            except IndexError: pdb.set_trace()
 
     def finalize(self, *args, **kwargs):
 
@@ -808,129 +523,7 @@ class fit_routine(lfu.mobject):
             print sub.label
             print sub.inst.__dict__[sub.key], sub.increment, sub.bounds
 
-    def handle_fitting_key(self):
 
-        def location_to_lines(k, met_dex):
-            loc_measure = self.metrics[met_dex].data[0].scalars[k]
-            lines.append(' : '.join(['Best fit from metric', 
-                self.metrics[met_dex].label, str(loc_measure)]))
-            lines.append('\tTrajectory : ' + str(k + 1))
-            for ax in self.p_sp_trajectory[k]:
-                lines.append('\t\t' + ' : '.join(ax))
-
-        lines = ['Fit Routine Fitting Key: ']
-        for dex, met_best in enumerate(self.best_fits):
-            k = met_best[0]
-            lines.append('\n')
-            location_to_lines(k, dex)
-            lines.append('\n')
-            location_to_lines(0, dex)
-
-    def _widget(self, *args, **kwargs):
-        window = args[0]
-        ensem = args[1]
-        if self.brand_new:
-            self.brand_new = not self.brand_new
-            self.mp_plan_ref = ensem.multiprocess_plan
-            ensem.run_params['output_plans'][
-                self.label + ' output'] = self.output
-
-        self.output.label = self.label + ' output'
-        self.handle_widget_inheritance(*args, **kwargs)
-        domain_alias_templates = []
-        codomains_alias_templates = []
-        if self.input_data_targets:
-            domain_alias_templates.append(
-                lgm.interface_template_gui(
-                    widgets = ['text'], 
-                    instances = [[self.input_data_aliases]], 
-                    keys = [[self.input_data_domain]], 
-                    initials = [[self.input_data_aliases[
-                                self.input_data_domain]]], 
-                    inst_is_dict = [(True, self)]))
-            [codomains_alias_templates.append(
-                lgm.interface_template_gui(
-                    widgets = ['text'], 
-                    instances = [[self.input_data_aliases]], 
-                    #keys = [[self.input_data_codomains[k]]], 
-                    keys = [[self.input_data_targets[k]]], 
-                    initials = [[self.input_data_aliases[
-                            #self.input_data_codomains[k]]]], 
-                            self.input_data_targets[k]]]], 
-                    inst_is_dict = [(True, self)])) for k in 
-                        #range(len(self.input_data_codomains))]
-                        range(len(self.input_data_targets))]
-
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['radio', 'check_set', 'panel', 'panel'], 
-                layout = 'grid', 
-                layouts = ['vertical', 'vertical', 
-                        'vertical', 'vertical'], 
-                widg_positions = [(0, 0), (1, 0), (0, 1), (1, 1)], 
-                #widg_spans = [None, None, (2, 1)], 
-                labels = [self.input_data_targets, 
-                    self.input_data_targets, None, None], 
-                append_instead = [None, True, None, None], 
-                provide_master = [None, True, None, None], 
-                initials = [[self.input_data_domain], 
-                    self.input_data_codomains, None, None], 
-                instances = [[self], [self], None, None], 
-                keys = [['input_data_domain'], 
-                    ['input_data_codomains'], None, None], 
-                templates = [None, None, 
-                    domain_alias_templates, 
-                    codomains_alias_templates], 
-                box_labels = [None, None, 
-                    'Domain Alias', 'Codomain Aliases'], 
-                panel_label = 'Input Data Domain/Codomains'))
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['button_set', 'full_path_box'], 
-                initials = [None, [self.input_data_file, 
-                                'Pickled Data (*.pkl)']], 
-                instances = [None, [self]], 
-                keys = [None, ['input_data_file']], 
-                labels = [['Read Data'], ['Choose Input File']], 
-                bindings = [[lgb.create_reset_widgets_wrapper(
-                        window, self.get_input_data)], None], 
-                panel_label = 'Input Data'))
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['radio'], 
-                labels = [self.valid_regimes], 
-                initials = [[self.regime]], 
-                instances = [[self]], 
-                keys = [['regime']], 
-                box_labels = ['P-Space Walk Regime']))
-        recaster = lgm.recasting_mason()
-        classes = [template._class for template 
-                    in self.valid_base_classes]
-        tags = [template._tag for template 
-                in self.valid_base_classes]
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['radio'], 
-                mason = recaster, 
-                keys = [['_class']], 
-                instances = [[(self.base_class, self)]], 
-                box_labels = ['Routine Method'], 
-                labels = [tags], 
-                initials = [[self.base_class._tag]]))
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                keys = [['label']], 
-                minimum_sizes = [[(150, 50)]], 
-                instances = [[self]], 
-                widgets = ['text'], 
-                box_labels = ['Fit Routine Name']))
-        lfu.mobject._widget(
-                self, *args, from_sub = True)
-
-
-        
-        
-        
         
 def parse_fitting_line(*args):
     data = args[0]

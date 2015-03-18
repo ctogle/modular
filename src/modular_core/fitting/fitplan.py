@@ -1,4 +1,5 @@
 import modular_core.fundamental as lfu
+import modular_core.data.batch_target as dba
 import modular_core.settings as lset
 
 import modular_core.io.libfiler as lf
@@ -46,24 +47,41 @@ class fit_routine_plan(lfu.plan):
     def _enact(self,*args,**kwargs):
         for routine in self.routines:
             stime = time.time()
+            routine._initialize(*args,**kwargs)
             routine._run(*args,**kwargs)
+            routine._finalize(*args,**kwargs)
             rtime = str(time.time() - stime)
             print 'completed fit routine',routine.name,'in',rtime,'seconds'
         return args[1]
+
+    def _data(self):
+        dpool = dba.batch_node()
+        [dpool._add_child(f.data) for f in self.routines]
+        return dpool
 
     # add new fitting routine
     def _add_routine(self,new = None):
         if new is None:new = fab.routine(parent = self)
         if new is None:return
+        new.parent = self
+
+        if hasattr(self.parent,'run_params'):
+            ops = self.parent.run_params['output_plans']
+            ops[new.name+' output'] = new.output
+
         self.routines.append(new)
         self.children.append(new)
+        self.parent.module._rewidget(True)
         self._rewidget(True)
 
-    def _remove_routine(self):
-        select = self._selected()
+    def _remove_routine(self,select = None):
+        if select is None:select = self._selected()
         if select:
             self.routines.remove(select)
             self.children.remove(select)
+            if hasattr(self.parent,'run_params'):
+                ops = self.parent.run_params['output_plans']
+                del ops[select.name+' output']
         self._rewidget(True)
 
     def _move_routine_up(self, *args, **kwargs):

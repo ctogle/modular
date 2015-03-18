@@ -138,8 +138,8 @@ class post_process_abstract(lfu.mobject):
 
         if 'per trajectory' in self.valid_regimes:
             self.regime = 'per trajectory'
-        elif 'by parameter space' in self.valid_regimes and mappspace:
-            self.regime = 'by parameter space'
+        #elif 'by parameter space' in self.valid_regimes and mappspace:
+        #    self.regime = 'by parameter space'
         elif 'all trajectories' in self.valid_regimes:
             self.regime = 'all trajectories'
 

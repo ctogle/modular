@@ -269,24 +269,6 @@ class metamap(lfu.mobject):
                 keys = [['mappath']],
                 initials = [[self.mappath,'Map File (*.mmap)']], 
                 labels = [['Set Map File']]))
-        '''#
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['directory_name_box'],
-                box_labels = ['Metamap Directory'], 
-                instances = [[self]],
-                keys = [['mapdir']],
-                initials = [[self.mapdir]],
-                labels = [['Choose Directory']]))
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['file_name_box'],
-                box_labels = ['Metamap Filename'], 
-                instances = [[self]],
-                keys = [['mapfile']],
-                initials = [[self.mapfile]],
-                labels = [['Choose Filename']]))
-        '''#
         lfu.mobject._widget(self,*args,from_sub = True)
 
 ###############################################################################

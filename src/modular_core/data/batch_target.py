@@ -80,7 +80,9 @@ class batch_node(ldc.data_mobject):
     # compress data and store as pkl file in safe data_pool directory
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
-        if not self._stowed():self._hdf5_data()
+        if not self._stowed():
+            if hasattr(self,'hdffile'):self._hdf5_data()
+            else:self._stow_children(v = v)
         if v:print 'stowed batch node',self.data_pool_id,'...'
 
     # uncompress data and store as data attribute
@@ -99,6 +101,18 @@ class batch_node(ldc.data_mobject):
         self.data_pool_ids.remove(which.data_pool_id)
         which._recover(v = v)
         return which
+
+    def _dupe_child(self,dex,v = True):
+        self.children.append(self.children[dex])
+        if v:print 'duped child node',dex,'...'
+
+    def _stow_children(self,v = True):
+        for dex in range(len(self.children)):
+            self._stow_child(dex,v = v)
+
+    def _recover_children(self,v = True):
+        for dex in range(len(self.children)):
+            self._recover_child(dex,v = v)
 
     def _add_child(self,node = None):
         if node is None:node = batch_node(parent = self)
@@ -230,18 +244,36 @@ class batch_node(ldc.data_mobject):
     # reshape the hierarchy so that children[0].data becomes a set
     # of nodes below the node returned
     # will this cause cyclic references preventing garbage collection?
-    def _split_child(self):
+    def _split_child(self,which = 0):
         split = batch_node()
-        child = self.children[0]
+        child = self.children[which]
         targets = child.targets
         dshape = child.data.shape[1:]
-        for traj in self.children[0].data:
+        for traj in self.children[which].data:
             traj_pool = batch_node(
                 dshape = dshape,targets = targets)
             traj_pool._trajectory(traj)
             split._add_child(traj_pool)
             split._stow_child(-1,v = False)
         return split
+
+    def _split(self):
+        self._recover(v = False)
+        self.children = []
+        targets = self.targets
+        dshape = self.data.shape[1:]
+        for traj in self.data:
+            traj_pool = batch_node(dshape = dshape,targets = targets)
+            traj_pool._trajectory(traj)
+            self._add_child(traj_pool)
+            self._stow_child(-1,v = False)
+
+        pa = self.hdffile.filename
+        self.hdffile.close()
+        #self.data = pa
+        self.data = None
+
+        return self
 
     # receive a batch of results, calling _trajectory on each
     def _trajectorize(self,datas):

@@ -58,8 +58,8 @@ class simulation_module(lfu.mobject):
         elif spl[0].startswith('metamappath'):
             finame = value[value.rfind(os.path.sep)+1:]
             drname = value[:value.find(finame)]
-            ensem.cartographer_plan.metamap.mapdir = drname
-            ensem.cartographer_plan.metamap.mapfile = finame
+            ensem.cartographer_plan.mapdir = drname
+            ensem.cartographer_plan.mapfile = finame
         elif spl[0].startswith('datapool_directory'):
             lfu.user_data_pool_path = value
         elif spl[0].startswith('fitting'):

@@ -10,7 +10,7 @@
   1 A 1.0 -> nothing : A decay
 
 <functions>
-  ext_signal : external_signal(/home/cogle/dev/modular/tests/stringchemical_dep_mcfgs/input_signals/072314_Signal_B.txt,time) + 1.0
+  ext_signal : external_signal(/home/cogle/dev/modular/tests/gillespiemmcfgs/input_signals/072314_Signal_B.txt,time) + 1.0
 
 <species>
   A : 2

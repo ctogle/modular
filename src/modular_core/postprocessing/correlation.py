@@ -66,10 +66,10 @@ class correlate(lpp.post_process_abstract):
         bnode._trajectory(data)
         return bnode
 
-    def _target_settables(self, *args, **kwargs):
+    def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
-        self.valid_inputs = self._valid_inputs(*args, **kwargs)
-        capture_targetable = self._targetables(*args, **kwargs)
+        self.valid_inputs = self._valid_inputs(*args,**kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
         if self.target_1 is None and capture_targetable:
                 self.target_1 = capture_targetable[0]
         if self.target_2 is None and capture_targetable:

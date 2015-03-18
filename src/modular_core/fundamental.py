@@ -225,6 +225,16 @@ def using_os(os_):
     elif os_ == 'linux' and sys.platform.startswith('linux'): return True
     else: return False
 
+# divide each element by the max of a list, if its valid
+def normalize(values,r = None):
+    if not values:return values
+    m = max(values)
+    if m == 0:return values
+    normed = [val/m for val in values]
+    if not r is None:
+        normed = [np.round(n,r) for n in normed]
+    return normed
+
 # keep the value val bounded by bot and top
 def clamp(val,bot,top):
     if val < bot: return bot

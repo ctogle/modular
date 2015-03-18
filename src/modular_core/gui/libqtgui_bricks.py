@@ -1242,7 +1242,7 @@ def create_text_box(parent = None, instance = None, key = None,
             instance[key] = dat
 
         else:
-            if key is 'label': instance._set_label_(dat)
+            #if key is 'label': instance._set_label_(dat)
             #elif isinstance(instance, 
             #    lfu.unique_pool_item) and key is 'value':
             #        instance._set_(dat)

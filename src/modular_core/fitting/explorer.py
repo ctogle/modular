@@ -1,15 +1,29 @@
 import modular_core.fundamental as lfu
 import modular_core.fitting.routine_abstract as fab
 
+import pdb
+
 ###############################################################################
 ###
 ###############################################################################
 
 class explorer(fab.routine_abstract):
 
+    # consider a measurement, undo or keep step?
+    def _accept_step(self,information,ran):
+        if not ran:return False
+        pdb.set_trace()
+        return True
+
     def __init__(self,*args,**kwargs):
         self._default('name','an explorer',**kwargs)
         fab.routine_abstract.__init__(self,*args,**kwargs)
+
+    def _target_settables(self,*args,**kwargs):
+        capture_targetable = self._targetables(*args,**kwargs)
+        self.target_list = capture_targetable[:]
+        self.capture_targets = self.target_list 
+        fab.routine_abstract._target_settables(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)

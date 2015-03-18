@@ -29,6 +29,7 @@ import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
 
 import modular_core.fitting.explorer as fex
+import modular_core.fitting.annealing as fan
 
 import pdb,os,sys,traceback,types,time,imp
 import multiprocessing as mp
@@ -112,7 +113,7 @@ class ensemble(lfu.mobject):
         else:pdata = None
 
         fplan = self.fitting_plan
-        if fplan.use_plan:fdata = [rout.data for rout in fplan.routines]
+        if fplan.use_plan:fdata = fplan._data()
         else:fdata = None
         
         data_pool = lfu.data_container(data = dpool, 
@@ -228,12 +229,17 @@ class ensemble(lfu.mobject):
     def _require_simulation_data(self):
         mustout = self.output_plan._must_output()
         mapping = self.cartographer_plan.use_plan
+        fitting = self.fitting_plan.use_plan
         if not mustout:
             print 'simulation data is not required for output...'
             print 'skipping simulation data aggregation...'
             return False
         elif mapping and mustout:
             print 'cannot output simulation data while mapping...'
+            print 'skipping simulation data aggregation...'
+            return False
+        elif fitting and mustout:
+            print 'cannot output simulation data while fitting...'
             print 'skipping simulation data aggregation...'
             return False
         elif self.num_trajectories > 10000:
@@ -257,10 +263,12 @@ class ensemble(lfu.mobject):
             else:
                 if distributed:dpool = self._run_distributed()
                 else:
-                    if mappspace:dpool = self._run_map()
+                    if mappspace:
+                        dpool = self._run_map()
+                        traj = self.cartographer_plan.trajectory
+                        self._output_trajectory_key(traj,pspace)
                     else:dpool = self._run_nonmap()
             print 'duration of simulations:',time.time() - fullstime
-            #self.cartographer_plan._save_metamap()
         else:
             print 'skipping simulation implies metamap usage...'
             dpool = self._run_metamap_zeroth()
@@ -272,8 +280,6 @@ class ensemble(lfu.mobject):
         print 'duration of non-0th post processes:',time.time() - procstime
 
         self._save_data_pool(dpool)
-        self._output_trajectory_key()
-
         print 'finished simulations and analysis:exiting'
         print 'total run duration:',time.time() - fullstime,'seconds'
         return True
@@ -323,7 +329,7 @@ class ensemble(lfu.mobject):
         arc_dex = 0
         while arc_dex < arc_length:
             loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
-            self.cartographer_plan._save_metamap()
+            if meta:self.cartographer_plan._save_metamap()
             arc_dex += 1
             print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
             if requiresimdata:
@@ -412,19 +418,18 @@ class ensemble(lfu.mobject):
         if not traj_cnt == 0:
             loc_pool = dba.batch_node(metapool = meta,
                     dshape = dshape,targets = ptargets)
-
             if ldex:cplan._move_to(ldex)
             if self.multiprocess_plan.use_plan:mppool._initializer()
             else:self._run_params_to_location()
             if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
             else:self._run_batch(traj_cnt,loc_pool)
-        
+
             if cplan.maintain_pspmap:
                 print 'should record metamap data...'
                 cplan._record_persistent(ldex,loc_pool)
                 loc_pool = mmap._recover_location(lstr)
-        else:
-            loc_pool = mmap._recover_location(lstr,target_traj_cnt)
+        else:loc_pool = mmap._recover_location(lstr,target_traj_cnt)
+
         if pplan.use_plan:
             zeroth = pplan.zeroth
             pplan._enact_processes(zeroth,loc_pool)
@@ -444,12 +449,15 @@ class ensemble(lfu.mobject):
     def _run_batch(self,many,pool,pfreq = 100):
         simu = self.module.simulation
         sim_args = self.module.sim_args
-        print 'batch run completed:%d/%d'%(0,many)
+        if pfreq is None:pfreq = sys.maxint
+        else:print 'batch run completed:%d/%d'%(0,many)
         for m in range(many):
             rundat = simu(sim_args)
+            if rundat is None:return
             pool._trajectory(rundat)
-            if m % pfreq == 0:
+            if m % pfreq == 0 and m > 0:
                 print 'batch run completed:%d/%d'%(m+pfreq,many)
+        return True
 
     # accomplish the same goal as _run_batch but using mp.Pool mppool
     def _run_mpbatch(self,mppool,many,pool,pfreq = 100):
@@ -469,34 +477,31 @@ class ensemble(lfu.mobject):
             result.wait()
             if m % pfreq == 0:
                 print 'mpbatch run completed:%d/%d'%(m,many)
+        return True
 
     def _print_pspace_location(self,ldex):
         return self.cartographer_plan._print_pspace_location(ldex)
 
     # if either fitting or parameter sweeping is used
     # output a txt file describing the pspace trajectory
-    def _output_trajectory_key(self):
-        cplan = self.cartographer_plan
-        fplan = self.fitting_plan
-        if cplan.use_plan or fplan.use_plan:
-            tkey = StringIO()
-            traj = cplan.trajectory
-            paxnames = [pax.name for pax in cplan.parameter_space.axes]
-            paxnamelengs = [len(name) for name in paxnames]
-            tkey.write('\n\t||\tTrajectory Key\t||\t\n')
-            tkey.write('\nTrajectory number'.ljust(25))
-            tkey.write('Trajectory Count'.ljust(25))
-            nasnls = zip(paxnames,paxnamelengs)
-            [tkey.write('\t'+na.ljust(nl+5)) for na,nl in nasnls]
-            tkey.write('\n'+'-'*120+'\n')
-            for ldex,loc in enumerate(traj):
-                locline = [str(l).rjust(ln-5)+' '*10 for 
-                    l,ln in zip(loc.location,paxnamelengs)]
-                tkey.write('\n  Index:'+str(ldex).ljust(8)+' '*9)
-                tkey.write(str(loc.trajectory_count).rjust(10)+' '*15)
-                tkey.write('\t'.join(locline))
-            keypath = os.path.join(os.getcwd(),'trajectory_key.txt')
-            with open(keypath,'w') as ha:ha.write(tkey.getvalue())
+    def _output_trajectory_key(self,traj,pspace):
+        tkey = StringIO()
+        paxnames = [pax.name for pax in pspace.axes]
+        paxnamelengs = [len(name) for name in paxnames]
+        tkey.write('\n\t||\tTrajectory Key\t||\t\n')
+        tkey.write('\nTrajectory number'.ljust(25))
+        tkey.write('Trajectory Count'.ljust(25))
+        nasnls = zip(paxnames,paxnamelengs)
+        [tkey.write('\t'+na.ljust(nl+5)) for na,nl in nasnls]
+        tkey.write('\n'+'-'*120+'\n')
+        for ldex,loc in enumerate(traj):
+            locline = [str(l).rjust(ln-5)+' '*10 for 
+                l,ln in zip(loc.location,paxnamelengs)]
+            tkey.write('\n  Index:'+str(ldex).ljust(8)+' '*9)
+            tkey.write(str(loc.trajectory_count).rjust(10)+' '*15)
+            tkey.write('\t'.join(locline))
+        keypath = os.path.join(os.getcwd(),'trajectory_key.txt')
+        with open(keypath,'w') as ha:ha.write(tkey.getvalue())
 
     # output data associated with post processes
     def _output_postprocesses(self,pool):
@@ -508,16 +513,20 @@ class ensemble(lfu.mobject):
                     data = lfu.data_container(data = pdata)
                     proc._regime(self)
                     proc.output(data)
+                else:print 'process output disabled:',proc.name
+        else:print 'no post process data to output...'
 
     # output data associated with fit routines
     def _output_fitroutines(self,pool):
-        if not pool.routine_data is None:
+        if not pool is None:
             routines = self.fitting_plan.routines
             for dex,rout in enumerate(routines):
                 if rout.output._must_output():
-                    fdata = pool.routine_data.children[dex]
+                    fdata = pool.children[dex]
                     data = lfu.data_container(data = fdata)
                     rout.output(data)
+                else:print 'routine output disabled:',rout.name
+        else:print 'no fit routine data to output...'
 
     # start a qt application if one is not started already
     #   this allows api to call for the plot window
@@ -541,11 +550,11 @@ class ensemble(lfu.mobject):
         stime = time.time()
         pool = self._load_data_pool()
         requiresimdata = self._require_simulation_data()
-        if requiresimdata and pool.data._stowed():pool.data._recover()
+        if requiresimdata:pool.data._recover()
         data = lfu.data_container(data = pool.data)
         if self.output_plan._must_output():self.output_plan(data)
         self._output_postprocesses(pool.postproc_data)
-        self._output_fitroutines(pool)
+        self._output_fitroutines(pool.routine_data)
         print 'produced output:',time.time() - stime
         self._check_qt_application()
         return True

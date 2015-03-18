@@ -147,11 +147,72 @@ class pspace_axis(lfu.mobject):
         self._default('contribute',False,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
+    def _discretize(self):
+        if not self.continuous:
+            span = self.bounds[1]-self.bounds[0]
+            if self.increment == 0.0:self.increment = span
+            num = int(span/self.increment)+1
+            self.discrete = list(np.linspace(
+                self.bounds[0],self.bounds[1],num))
+        else:self.discrete = None
+
     def _move_to(self,value):
         self.instance.__dict__[self.key] = value
 
     def _value(self):
         return self.instance.__dict__[self.key]
+
+    def _validate_continuous(self,step):
+        old_value = float(self._value())
+        if old_value + step < self.bounds[0]:
+            over_the_line = abs(step) - abs(old_value - self.bounds[0])
+            step = over_the_line - old_value
+        elif old_value + step > self.bounds[1]:
+            over_the_line = abs(step) - abs(self.bounds[1] - old_value)
+            step = self.bounds[1] - over_the_line - old_value
+        return step
+
+    def _validate_discrete(self,step):
+        if len(self.discrete) == 1:
+            print 'vacuous validation...'
+            return 0
+        old_value = float(self._value())
+        space_leng = len(self.discrete)
+        val_dex_rng = range(space_leng)
+        if old_value in self.discrete:
+            val_dex = self.discrete.index(old_value)
+        else:
+            delts = [abs(val - old_value) for val in self.discrete]
+            closest = delts.index(min(delts))
+            val_dex = closest
+
+        if val_dex + step > (len(val_dex_rng) - 1):
+            over = val_dex + step - (len(val_dex_rng) - 1)
+            step = (len(val_dex_rng) - 1) - val_dex - over
+        if val_dex + step < 0:
+            over = abs(val_dex + step)
+            step = over - val_dex
+        return self.discrete[val_dex + step] - old_value
+
+    def _validate_step(self,step):
+        if self.continuous:step = self._validate_continuous(step)
+        else:step = self._validate_discrete(step)
+        step = np.round(step,20)
+        return step
+
+    def _sample(self,norm = 3.0,fact = 1.0,direct = None):
+        if self.continuous:leng = self.bounds[1] - self.bounds[0]
+        else:leng = len(self.discrete)
+
+        sig = leng/norm
+        if direct is None:direct = random.choice([-1.0,1.0])
+        raw_step = random.gauss(sig,sig)
+
+        if self.continuous:step = abs(raw_step)*fact*direct
+        else:step = int(max([1,abs(raw_step*fact)])*direct)
+
+        step = self._validate_step(step)
+        return step
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
@@ -204,6 +265,30 @@ class pspace_location(lfu.mobject):
 ###############################################################################
 
 ###############################################################################
+###
+###############################################################################
+
+class pspace_step(object):
+
+    def __init__(self,location = [],initial = [],final = []):
+        self.location = location
+        self.initial = initial
+        self.final = final
+
+    def _forward(self):
+        for k in range(len(self.location)):
+            i,ke = self.location[k]
+            i.__dict__[ke] = float(self.final[k])
+
+    def _backward(self):
+        for k in range(len(self.location)):
+            i,ke = self.location[k]
+            i.__dict__[ke] = float(self.initial[k])
+
+###############################################################################
+###############################################################################
+
+###############################################################################
 ### parameter_spaces consist of pspace_axis objects and methods for managing axes
 ###############################################################################
 
@@ -212,15 +297,117 @@ class parameter_space(lfu.mobject):
     def _move_to(self,location):
         for adx in range(self.dimensions):
             self.axes[adx]._move_to(location[adx])
+    
+    def _position(self):
+        locvals = [ax._value() for ax in self.axes]
+        pos = pspace_location(location = locvals)
+        return pos
+
+    def _lock_singular_axes(self):
+        unlocked = 0
+        for ax in self.axes:
+            if ax.bounds[1] - ax.bounds[0] < 10**-20:ax.locked = True
+            else:
+                ax.locked = False
+                unlocked += 1
+                ax._discretize()
+        self.unlocked_axes = unlocked
 
     def __init__(self,*args,**kwargs):
         self._default('axes',[],**kwargs)
         self.dimensions = len(self.axes)
+        self._default('step_normalization',3.0,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
-        #self.set_simple_space_lookup()
-        #self._default('steps',[],**kwargs)
-        #self._default('step_normalization',5.0,**kwargs)
+    def _undo_step(self):
+        if not self.steps:print 'no pspace_steps to undo...'
+        else:
+            newstep = pspace_step(
+                location = self.steps[-1].location, 
+                initial = self.steps[-1].final,
+                final = self.steps[-1].initial)
+            self.steps.append(newstep)
+            self.steps[-1]._forward()
+
+    # 
+    def _proportional_step(self,factor,many_steps = 3,last_ax_pairs = None):
+        lookup = self._lookup(last_ax_pairs)
+        param_dexes = self._distinct_lookup(lookup,many_steps)
+
+        last_axes = [];last_direcs = []
+        if last_ax_pairs:last_axes,last_direcs = zip(*last_ax_pairs)
+
+        self.steps.append(pspace_step(location = [],initial = [],final = []))
+
+        for param_dex in param_dexes:
+            if param_dex in last_axes:
+                direc = last_direcs[last_axes.index(param_dex)]
+                if direc is None:direc = random.choice([-1.0, 1.0])
+            else:direc = random.choice([-1.0, 1.0])
+            self._prep_step(param_dex,factor,direc)
+
+        self.steps[-1]._forward()
+
+    # _biased_step is a wrapper for _proportional_step
+    def _biased_step(self,factor = 1.0,bias = 100.0):
+        if not self.steps:return self._proportional_step(factor)
+
+        def direction(dex):
+            delta = self.steps[-1].final[dex]-float(self.steps[-1].initial[dex])
+            if delta:return delta/abs(delta)
+            else:return None
+
+        objs = [ax.instance for ax in self.axes]
+        step_objs = [local[0] for local in self.steps[-1].location]
+        last_ax_dexes = [objs.index(obj) for obj in step_objs]
+        last_ax_direcs = [direction(k) for k in range(len(self.steps[-1].initial))]
+        last_ax_pairs = zip(last_ax_dexes,last_ax_direcs)
+        many = len(last_ax_pairs)
+        self._proportional_step(factor,many,last_ax_pairs)
+
+    #bias_axis is the index of the subspace in subspaces
+    #bias is the number of times more likely that axis is than the rest
+    def _lookup(self,bias_axis = None,bias = 1000.0):
+        lookup = [0.0]
+        if bias_axis is None:biaxes = []
+        else:biaxes = [b[0] for b in bias_axis]
+        for d in range(self.dimensions):
+            ax = self.axes[d]
+            if not ax.locked:lookup.append(lookup[-1]+1.0)
+            else:lookup.append(lookup[-1])
+            if d in biaxes:lookup[-1] *= bias
+        lookup.pop(0)
+        lookup = lfu.normalize(lookup,20)
+        return lookup
+
+    def _distinct_lookup(self,lookup,many_steps):
+        dexes = []
+        dexgoal = min([self.unlocked_axes,many_steps])
+        for x in range(dexgoal):
+            if len(dexes) == dexgoal:break
+            rand = random.random()
+            for d in range(self.dimensions):
+                if d in dexes:continue
+                look = lookup[d]
+                if rand < lookup[d]:
+                    dexes.append(d)
+                    clook = lookup[d]
+                    if d > 1:clook -= lookup[d-1]
+                    for a in range(d,self.dimensions):
+                        lookup[a] -= clook
+                    lookup = lfu.normalize(lookup)
+                    break
+        return dexes
+
+    def _prep_step(self,adx,factor,direct):
+        ax = self.axes[adx]
+        old_value = float(ax._value())
+        norm = self.step_normalization
+        step = ax._sample(norm,factor,direct)
+
+        self.steps[-1].location.append((ax.instance,ax.key))
+        self.steps[-1].initial.append(old_value)
+        self.steps[-1].final.append(step+old_value)
 
 ###############################################################################
 ###############################################################################

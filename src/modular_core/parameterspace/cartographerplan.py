@@ -46,6 +46,7 @@ class cartographer_plan(lfu.plan):
         meta = lset.get_setting('metamapparameterspace')
         self._default('maintain_pspmap',meta,**kwargs)
         self._default('mapfile','pspmap.mmap',**kwargs)
+        self._default('mapdir',lfu.get_mapdata_pool_path(),**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
         self.current_tab_index = 0
@@ -234,6 +235,15 @@ class cartographer_plan(lfu.plan):
         window = args[0]
         self._sanitize(*args,**kwargs)
         psptemplates = self._pspace_widg_templates(window)
+        mmap_templates =\
+            [lgm.interface_template_gui(
+                widgets = ['check_set'], 
+                box_labels = ['Use Metamap Features'], 
+                append_instead = [False],
+                instances = [[self]], 
+                keys = [['maintain_pspmap']], 
+                labels = [['use metamap']])] +\
+            self.metamap.widg_templates
         self.widg_templates.append(
             lgm.interface_template_gui(
                 widgets = ['tab_book'], 
@@ -241,7 +251,7 @@ class cartographer_plan(lfu.plan):
                 #handles = [(self,'tab_ref')], 
                 pages = [[
                     ('Parameter Space',psptemplates), 
-                    ('Metamap',self.metamap.widg_templates)]], 
+                    ('Metamap',mmap_templates)]], 
                 initials = [[self.current_tab_index]], 
                 instances = [[self]], 
                 keys = [['current_tab_index']]))

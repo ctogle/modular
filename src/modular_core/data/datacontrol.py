@@ -22,34 +22,13 @@ if __name__ == '__main__':print 'datacontrol of modular_core'
 # remove data_pools which won't be used again from the os specific
 # directory modular uses to store data
 # this is typically called on startup of modular
-def clean_data_pools():
-
-    def pool_name(ensem):
-        pa = os.path.join(os.getcwd(),ensem)
-        en = lf.load_pkl_object(pa)
-        return en.data_pool_pkl
-
+def clean_data_pools(ext = 'hdf5'):
     dp_path = lfu.get_data_pool_path()
-
     pool_matches = []
-    ensem_matches = []
     for root,dirnames,filenames in os.walk(dp_path):
         [pool_matches.append(os.path.join(root,finame)) for 
-            finame in fnmatch.filter(filenames,'data_pool.*.pkl')]
-
-    enpkldir = lset.get_setting('ensempkl_directory')
-    if not enpkldir is None and not enpkldir == 'none':
-        print 'pdir',enpkldir
-        pdb.set_trace()
-        for root,dirnames,filenames in os.walk(enpkldir):
-            [ensem_matches.append(os.path.join(root,finame)) for 
-                finame in fnmatch.filter(filenames,'*.ensempkl')]
-
-    saved_pools = [pool_name(en) for en in ensem_matches]
-    del_pools = [item for item in pool_matches if 
-        os.path.join(os.getcwd(),item) not in saved_pools]
-
-    for pool in del_pools:os.remove(pool)
+            finame in fnmatch.filter(filenames,'data_pool.*.'+ext)]
+    for pool in pool_matches:os.remove(pool)
 
 ###############################################################################
 ###############################################################################
@@ -92,7 +71,7 @@ class data_mobject(lfu.data_container):
 
 
 
-
+### NOT PORTED TO 3.0
 class surface_vector(object):
 
     def __init__(self, surfs, 
