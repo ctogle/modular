@@ -207,6 +207,15 @@ if not os.path.isfile(logfile):
             '%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
         log.write('\tstarted:'+stimepretty+'\n\n\n')
 
+# either raise a notification dialog or notify on the command line
+# require use to press something to continue
+def complain(msg):
+    if using_gui:
+        complaint = gui_pack.lgd.message_dialog(None,msg,'Problem')
+    else:
+        print '\nProblem:\n\t'+msg
+        raw_input('\n')
+
 # log the last traceback or a provided message
 def log(msg = None,trace = True):
     if msg is None:
@@ -470,14 +479,15 @@ def handle_modules():
     mods = [m[0] for m in parse_module_registry()]
     mod_count = len(mods)
     input_ = ':'
-    while not input_ == 'q':
+    while not input_ == '-q':
         print 'you may add or remove modules from the registry'
         print 'currently there are', mod_count, 'modules available'
         print 'they are:'
         for mod in mods: print '\t', mod
-        print '\n-a <module> will attempt to add module <module>'
-        print '-r <module> will attempt to remove module <module>\n'
-        input_ = raw_input('\n:::: ').strip()
+        print '\n-a <module> : attempt to add module <module>'
+        print '-r <module> : attempt to remove module <module>'
+        print '\n-q          : quit'
+        input_ = raw_input(':::: ').strip()
         if input_.startswith('-a '):
             mod = input_[3:]
             added = add_module_to_registry(mod)
@@ -492,7 +502,7 @@ def handle_modules():
             if removed: print '\nmodule', mod, 'was successfully removed\n'
             else: print '\nmodule', mod, 'could not be removed...\n'
             print '-'*50
-        elif not input_ == 'q':
+        elif not input_ == '-q':
             print '-'*50,'\ninput not recognized... :',input_,'\n'+'-'*50
         mods = [m[0] for m in parse_module_registry()]
     print '\n\tfinished editing module registry!\n\n'

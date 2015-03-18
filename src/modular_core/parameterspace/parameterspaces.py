@@ -265,7 +265,7 @@ class pspace_location(lfu.mobject):
 ###############################################################################
 
 ###############################################################################
-###
+### used by fitting routines to navigate the parameter space
 ###############################################################################
 
 class pspace_step(object):
@@ -329,7 +329,7 @@ class parameter_space(lfu.mobject):
             self.steps.append(newstep)
             self.steps[-1]._forward()
 
-    # 
+    # take a multidimensional parameter step proportional to factor
     def _proportional_step(self,factor,many_steps = 3,last_ax_pairs = None):
         lookup = self._lookup(last_ax_pairs)
         param_dexes = self._distinct_lookup(lookup,many_steps)
@@ -338,17 +338,16 @@ class parameter_space(lfu.mobject):
         if last_ax_pairs:last_axes,last_direcs = zip(*last_ax_pairs)
 
         self.steps.append(pspace_step(location = [],initial = [],final = []))
-
         for param_dex in param_dexes:
             if param_dex in last_axes:
                 direc = last_direcs[last_axes.index(param_dex)]
                 if direc is None:direc = random.choice([-1.0, 1.0])
             else:direc = random.choice([-1.0, 1.0])
             self._prep_step(param_dex,factor,direc)
-
         self.steps[-1]._forward()
 
     # _biased_step is a wrapper for _proportional_step
+    # use less step to determine bias
     def _biased_step(self,factor = 1.0,bias = 100.0):
         if not self.steps:return self._proportional_step(factor)
 
@@ -380,6 +379,8 @@ class parameter_space(lfu.mobject):
         lookup = lfu.normalize(lookup,20)
         return lookup
 
+    # lookup represents the probability distribution for pspace axes
+    # using monotonic normalized lookup method also used in gillespiem...
     def _distinct_lookup(self,lookup,many_steps):
         dexes = []
         dexgoal = min([self.unlocked_axes,many_steps])
@@ -399,6 +400,7 @@ class parameter_space(lfu.mobject):
                     break
         return dexes
 
+    # continue to prepare for the next pspace step by setting up axis adx
     def _prep_step(self,adx,factor,direct):
         ax = self.axes[adx]
         old_value = float(ax._value())
@@ -420,6 +422,99 @@ class parameter_space(lfu.mobject):
 
 
 
+
+
+
+###############################################################################
+###############################################################################
+
+def generate_coarse_parameter_space_from_fine(fine, 
+            magnitudes = False, decimates = False):
+
+    def locate(num, vals):
+        delts = [abs(val - num) for val in vals]
+        where = delts.index(min(delts))
+        found = vals[where]
+        return found
+
+    def decimate(fine, orders):
+
+        def create_subrange(dex, num_values):
+            lower = relev_mags[dex - 1]
+            upper = relev_mags[dex]
+            new = np.linspace(lower, upper, num_values)
+            return [np.round(val, 20) for val in new]
+
+        left  = locate(fine.bounds[0], orders)
+        right = locate(fine.bounds[1], orders)
+        if left == right:
+            rng = range(2)
+            relev_mags = [fine.bounds[0], fine.bounds[1]]
+
+        else:
+            rng = range(orders.index(left), orders.index(right) + 1)
+            #many_orders = len(rng)
+            relev_mags = orders[rng[0]:rng[-1] + 1]
+
+        total_values = 20
+        num_values = max([10, int(total_values/len(relev_mags))])
+        new_axis = []
+        for dex in range(1, len(relev_mags)):
+            new_axis.extend([np.round(val, 20) for val in 
+                    create_subrange(dex, num_values)])
+
+        new_axis = lfu.uniqfy(new_axis)
+        #print 'NEW AXIS', new_axis
+        if len(new_axis) == 0: pdb.set_trace()
+        return new_axis
+
+    def slice_subsp(fine, orders):
+        coerced_increment = locate(fine.increment, orders)
+        coerced_bounds =\
+            [locate(fine.bounds[0], orders), 
+            locate(fine.bounds[1], orders)]
+        coarse_subsp = one_dim_space(
+            interface_template_p_space_axis(
+                instance = fine.inst, key = fine.key, 
+                p_sp_bounds = coerced_bounds, 
+                p_sp_continuous = False, 
+                p_sp_perma_bounds = fine.perma_bounds, 
+                p_sp_increment = coerced_increment, 
+                    constraints = fine.constraints))
+        coarse_subsp.scalars = orders[
+            orders.index(coerced_bounds[0]):
+            orders.index(coerced_bounds[1])+1]
+        return coarse_subsp
+
+    if decimates:
+        for finesp in fine.subspaces:
+            finesp.regime = 'decimate'
+
+    elif magnitudes:
+        for finesp in fine.subspaces:
+            finesp.regime = 'magnitude'
+
+    orders = [10**k for k in [val - 20 for val in range(40)]]
+    coarse_subspaces = []
+    for finesp in fine.subspaces:
+        if finesp.regime == 'decimate':
+            temp_orders = decimate(finesp, orders)
+            coarse_subspaces.append(slice_subsp(finesp, temp_orders))
+
+        elif finesp.regime == 'magnitude':
+            coarse_subspaces.append(slice_subsp(finesp, orders))
+
+        else:
+            print 'kept fine space fine'
+            print 'PROBABLY NEED TO USE COPY OR SOMETHING'
+            coarse_subspaces.append(finesp)
+
+    if not len(coarse_subspaces) == len(fine.subspaces):
+        return None, False
+
+    space = merge_spaces(coarse_subspaces)
+    space.parent = fine.parent
+    return space, True
 
 
 

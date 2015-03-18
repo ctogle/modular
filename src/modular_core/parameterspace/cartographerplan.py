@@ -156,14 +156,54 @@ class cartographer_plan(lfu.plan):
     def _new_trajectory(self,window):
         def _new_traj():
             print 'make a new trajectory!'
+            if self.parameter_space is None:
+                lfu.complain('Trajectory requires parameter space!')
+                return
+
+            '''#
+            selected = [self.parameter_space.get_start_position()]
+
+            #traj_dlg = create_trajectory_dialog(
+            #   parent = window, base_object = selected, 
+            #           p_space = self.parameter_space)
+            traj_dlg = lgd.trajectory_dialog(
+                parent = window, base_object = selected, 
+                        p_space = self.parameter_space)
+            made = traj_dlg()
+            if made:
+                if method == 'modify':
+                    self.on_delete_selected_pts(preselected = to_replace)
+                    self.on_reset_trajectory_parameterization()
+
+                self.on_append_trajectory(traj_dlg.result)
+                self.trajectory_string = traj_dlg.result_string
+            '''#
+
             return []
         print 'new trajectory not implemented!!'
-        return _new_traj
+        return lgb.create_reset_widgets_wrapper(window,_new_traj)
+
+    # append new trajectory entries to the current trajectory
+    def _add_locations(self,locations):
+        self.trajectory.extend(locations)
 
     # remove selected pspace locations from the current trajectory
     def _remove_locations(self):
         print 'remove locations not implemented!!'
         pdb.set_trace()
+
+        '''#
+        if preselected is None:
+            selected = [not value for value in 
+                self.selected_locations_lookup()]
+
+        else:
+            selected = [not value for value in preselected]
+
+        self.trajectory = self.positions_from_lookup(selected)
+        self.on_reset_trajectory_parameterization()
+        '''#
+        self._rewidget(True)
 
     # output a key representing the current trajectory
     def _output_key(self):
@@ -173,6 +213,20 @@ class cartographer_plan(lfu.plan):
     def _apply_trajectory_count(self):
         print 'apply t count not implemented!!'
         pdb.set_trace()
+
+        '''#
+        if all_:
+            relevant_locations =\
+                self.positions_from_lookup([True]*len(self.trajectory))
+
+        else:
+            relevant_locations = self.positions_from_lookup(
+                            self.selected_locations_lookup())
+
+        for locale in relevant_locations:
+            locale[1].trajectory_count = self.traj_count
+        '''#
+        self._rewidget(True)
 
     # return widget templates associated with pspace/current trajectory
     def _pspace_widg_templates(self,window):

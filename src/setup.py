@@ -18,7 +18,6 @@ mresourcesdir = os.path.join(appdirs.user_config_dir(),'modular_resources')
 pkgs = [
     'modular_core',
     'modular_core.gui', 
-    'modular_core.gpu',
     'modular_core.modules',
     'modular_core.io',
     'modular_core.fitting', 
