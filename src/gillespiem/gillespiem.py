@@ -182,14 +182,17 @@ class simulation_module(smd.simulation_module):
             orderedrxns = self.parent.run_params['reactions']
             orderedrxns = [orderedrxns[rdx] for rdx in rxnorder]
         cplan = self.parent.cartographer_plan
+        fplan = self.parent.fitting_plan
         mappspace = cplan.use_plan
+        fitting = fplan.use_plan
         runargs = {}
-        if mappspace:
+        if mappspace or fitting:
             paxes = cplan.parameter_space.axes
             paxnames = [a.instance.name.strip() for a in paxes]
             astring = ','.join(paxnames)
             for px,ax in zip(paxnames,paxes):runargs[px] = ax
         else:astring = ''
+        if fitting:astring += ',timeout = 5'
         rargs = {
             'argstring':astring,
             'runargs':runargs,
@@ -201,6 +204,7 @@ class simulation_module(smd.simulation_module):
             'constants':self.parent.run_params['variables'],
             'functions':self.parent.run_params['functions'],
             'countreactions':self.countreactions,
+            'use_timeout':fitting,
                 }
         return run(**rargs)
 
@@ -254,9 +258,6 @@ class simulation_module(smd.simulation_module):
             if self.optimize_reaction_order:
                 print 'creating temporary extension:',self.extensionname
                 self._increment_extensionname()
-                #self.extensionname = self.extensionname.replace('_','.',1)
-                #self.extensionname = lo.increment_filename(self.extensionname)
-                #self.extensionname = self.extensionname.replace('.','_',1)
                 self.countreactions = True
                 ext_kwargs = self._ext_kwargs()
                 writer = cwr.extension(**ext_kwargs)
@@ -264,7 +265,6 @@ class simulation_module(smd.simulation_module):
                 writer._install()
                 mod = writer._import()
                 rcounts = mod.run()
-                #print 'the code!\n',writer.code
                 print 'rcounts',rcounts
                 rcountmap = list(zip(*sorted(zip(rcounts,range(len(rcounts)))))[1])
                 rcountmap.reverse()
@@ -272,27 +272,26 @@ class simulation_module(smd.simulation_module):
             else:rcountmap = None
 
             print 'creating temporary extension:',self.extensionname
-            #self.extensionname = self.extensionname.replace('_','.',1)
-            #self.extensionname = lo.increment_filename(self.extensionname)
-            #self.extensionname = self.extensionname.replace('.','_',1)
             self._increment_extensionname()
             self.countreactions = False
             ext_kwargs = self._ext_kwargs(rcountmap)
             writer = cwr.extension(**ext_kwargs)
             writer._write()
             writer._install()
-            #print 'the code!\n',writer.code
             print '\ninstallation took:',time.time() - insttime,'seconds\n'
         else:print '\ninstallion was not needed...\n'
 
     def _set_parameters(self):
         module = __import__(self.extensionname)
         cplan = self.parent.cartographer_plan
+        fplan = self.parent.fitting_plan
         mappspace = cplan.use_plan
-        if mappspace:
+        fitting = fplan.use_plan
+        if mappspace or fitting:
             paxes = cplan.parameter_space.axes
-            pargs = [px.instance.__dict__[px.key] for px in paxes]
+            pargs = [float(px.instance.__dict__[px.key]) for px in paxes]
         else:pargs = []
+        if fitting:pargs.append(3)
         self.sim_args = [module.run]+pargs
 
     def _reset_parameters(self):
@@ -563,7 +562,17 @@ class run(cwr.function):
         vcnt = len(self.constants)
         fcnt = len(self.functions)
 
-        coder.write('\n\n\twhile capturecount < totalcaptures:')
+        if self.use_timeout:
+            coder.write('\n\n\tcdef float start_time = timemodule.time()')
+            coder.write('\n\tcdef bint timed_out = 0')
+
+        coder.write('\n\n\twhile capturecount < totalcaptures')
+        
+        if self.use_timeout:
+            coder.write(' and not timed_out:')
+            coder.write('\n\t\ttimed_out = (timemodule.time()-start_time) > timeout')
+        else:coder.write(':')
+
         coder.write('\n\t\ttotalpropensity = 0.0')
         rcnt = len(self.reactions)
         for pdex in range(rcnt):
@@ -578,11 +587,7 @@ class run(cwr.function):
         coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
         
         coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
-        #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/float(INT_MAX))*tpinv')
-        #coder.write('\n\t\t\tdel_t = -1.0*log(rand()/imax)*tpinv')
-
         coder.write('\n\t\t\trandr = <float>random.random()')
-        #coder.write('\n\t\t\trandr = rand()/float(INT_MAX)')
 
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
@@ -595,8 +600,10 @@ class run(cwr.function):
 
         coder.write('\n\n\t\tstate[0] += del_t')
         coder.write('\n\t\trealtime = state[0]')
-        coder.write('\n\t\twhile lasttime < realtime and')
-        coder.write(' capturecount < totalcaptures:')
+
+        coder.write('\n\t\twhile lasttime < realtime')
+        coder.write(' and capturecount < totalcaptures:')
+
         coder.write('\n\t\t\tstate[0] = lasttime')
         coder.write('\n\t\t\tlasttime += '+str(self.capture_increment))
 
@@ -632,6 +639,7 @@ class run(cwr.function):
                 coder.write(' = '+rname+'(state)')
 
     def _code_body_finalize(self,coder):
+        if self.use_timeout:coder.write('\n\n\tif timed_out:return None')
         if self.countreactions:
             coder.write('\n\n\treturn numpy.array')
             coder.write('(reactcounts,dtype = numpy.float)\n')
@@ -648,6 +656,7 @@ class run(cwr.function):
 
     def __init__(self,*args,**kwargs):
         self._default('countreactions',False,**kwargs)
+        self._default('use_timeout',False,**kwargs)
         self._default('runargs',{},**kwargs)
         self._default('name','run',**kwargs)
         self._default('cytype','cpdef',**kwargs)
@@ -678,7 +687,8 @@ class species(lfu.run_parameter):
         self._default('initial',0,**kwargs)
         pspace_axes =\
           [lpsp.pspace_axis(instance = self,key = 'initial',
-              bounds = [0,10000000000],increment = 1,continuous = False)]
+              bounds = [0,10000000000],increment = 0.0,
+              continuous = False)]
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
