@@ -84,6 +84,17 @@ def trajectory_set_counts(trajectory,count):
 ###############################################################################
 ###############################################################################
 
+# make a discrete space using just orders of magnitude for each axis
+def magnitude_space(axes):
+    coarse_axes = [ax._coarse() for ax in axes]
+    pspace = parameter_space(axes = coarse_axes)
+    return pspace
+
+def decimated_space(axes):
+    decimated_axes = [ax._decimate() for ax in axes]
+    pspace = parameter_space(axes = decimated_axes)
+    return pspace
+
 def parse_pspace(plines,ensem):
     def read_steps(rng):
         if ';' in rng:return float(rng[rng.rfind(';')+1:])
@@ -145,6 +156,7 @@ class pspace_axis(lfu.mobject):
         self._default('permanent_bounds',[0,1],**kwargs)
         self._default('increment',0.1,**kwargs)
         self._default('contribute',False,**kwargs)
+        self._default('discrete',None,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _discretize(self):
@@ -155,6 +167,48 @@ class pspace_axis(lfu.mobject):
             self.discrete = list(np.linspace(
                 self.bounds[0],self.bounds[1],num))
         else:self.discrete = None
+
+    def _coarse(self):
+        it = self.instance
+        ke = self.key
+        b0 = lfu.coerce_float_magnitude(self.bounds[0])
+        b1 = lfu.coerce_float_magnitude(self.bounds[1])
+        bs = [b0,b1]
+        ic = lfu.coerce_float_magnitude(self.increment)
+        coarse = pspace_axis(instance = it,key = ke,
+            bounds = bs,increment = ic,continuous = False,
+            permanent_bounds = self.permanent_bounds)
+        coarse.discrete = lfu.order_span(*coarse.bounds)
+        return coarse
+
+    def _decimate(self):
+        def create_subrange(dex,num_values):
+            lower = relev_mags[dex - 1]
+            upper = relev_mags[dex]
+            new = np.linspace(lower,upper,num_values)
+            return [np.round(val,20) for val in new]
+
+        b0 = lfu.coerce_float_magnitude(self.bounds[0])
+        b1 = lfu.coerce_float_magnitude(self.bounds[1])
+        relev_mags = lfu.order_span(b0,b1)
+        if len(relev_mags) <= 1:deciax = relev_mags
+        else:
+            total_values = 20
+            num_values = max([10, int(total_values/len(relev_mags))])
+            deciax = []
+            for dex in range(1, len(relev_mags)):
+                subdeci = create_subrange(dex,num_values)
+                deciax.extend(subdeci)
+
+        it = self.instance
+        ke = self.key
+        bs = [b0,b1]
+        deciax = lfu.uniqfy(deciax)
+        decimated = pspace_axis(instance = it,key = ke,
+            bounds = bs,increment = None,continuous = False,
+            permanent_bounds = self.permanent_bounds)
+        decimated.discrete = deciax
+        return decimated
 
     def _move_to(self,value):
         self.instance.__dict__[self.key] = value
@@ -181,10 +235,7 @@ class pspace_axis(lfu.mobject):
         val_dex_rng = range(space_leng)
         if old_value in self.discrete:
             val_dex = self.discrete.index(old_value)
-        else:
-            delts = [abs(val - old_value) for val in self.discrete]
-            closest = delts.index(min(delts))
-            val_dex = closest
+        else:val_dex = lfu.nearest_index(old_value,self.discrete)
 
         if val_dex + step > (len(val_dex_rng) - 1):
             over = val_dex + step - (len(val_dex_rng) - 1)
@@ -192,6 +243,8 @@ class pspace_axis(lfu.mobject):
         if val_dex + step < 0:
             over = abs(val_dex + step)
             step = over - val_dex
+        
+        ret = self.discrete[val_dex + step] - old_value
         return self.discrete[val_dex + step] - old_value
 
     def _validate_step(self,step):
@@ -310,13 +363,13 @@ class parameter_space(lfu.mobject):
             else:
                 ax.locked = False
                 unlocked += 1
-                ax._discretize()
+                if not ax.discrete:ax._discretize()
         self.unlocked_axes = unlocked
 
     def __init__(self,*args,**kwargs):
         self._default('axes',[],**kwargs)
         self.dimensions = len(self.axes)
-        self._default('step_normalization',3.0,**kwargs)
+        self._default('step_normalization',5.0,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _undo_step(self):
@@ -420,101 +473,6 @@ class parameter_space(lfu.mobject):
 
 
 
-
-
-
-
-
-###############################################################################
-###############################################################################
-
-def generate_coarse_parameter_space_from_fine(fine, 
-            magnitudes = False, decimates = False):
-
-    def locate(num, vals):
-        delts = [abs(val - num) for val in vals]
-        where = delts.index(min(delts))
-        found = vals[where]
-        return found
-
-    def decimate(fine, orders):
-
-        def create_subrange(dex, num_values):
-            lower = relev_mags[dex - 1]
-            upper = relev_mags[dex]
-            new = np.linspace(lower, upper, num_values)
-            return [np.round(val, 20) for val in new]
-
-        left  = locate(fine.bounds[0], orders)
-        right = locate(fine.bounds[1], orders)
-        if left == right:
-            rng = range(2)
-            relev_mags = [fine.bounds[0], fine.bounds[1]]
-
-        else:
-            rng = range(orders.index(left), orders.index(right) + 1)
-            #many_orders = len(rng)
-            relev_mags = orders[rng[0]:rng[-1] + 1]
-
-        total_values = 20
-        num_values = max([10, int(total_values/len(relev_mags))])
-        new_axis = []
-        for dex in range(1, len(relev_mags)):
-            new_axis.extend([np.round(val, 20) for val in 
-                    create_subrange(dex, num_values)])
-
-        new_axis = lfu.uniqfy(new_axis)
-        #print 'NEW AXIS', new_axis
-        if len(new_axis) == 0: pdb.set_trace()
-        return new_axis
-
-    def slice_subsp(fine, orders):
-        coerced_increment = locate(fine.increment, orders)
-        coerced_bounds =\
-            [locate(fine.bounds[0], orders), 
-            locate(fine.bounds[1], orders)]
-        coarse_subsp = one_dim_space(
-            interface_template_p_space_axis(
-                instance = fine.inst, key = fine.key, 
-                p_sp_bounds = coerced_bounds, 
-                p_sp_continuous = False, 
-                p_sp_perma_bounds = fine.perma_bounds, 
-                p_sp_increment = coerced_increment, 
-                    constraints = fine.constraints))
-        coarse_subsp.scalars = orders[
-            orders.index(coerced_bounds[0]):
-            orders.index(coerced_bounds[1])+1]
-        return coarse_subsp
-
-    if decimates:
-        for finesp in fine.subspaces:
-            finesp.regime = 'decimate'
-
-    elif magnitudes:
-        for finesp in fine.subspaces:
-            finesp.regime = 'magnitude'
-
-    orders = [10**k for k in [val - 20 for val in range(40)]]
-    coarse_subspaces = []
-    for finesp in fine.subspaces:
-        if finesp.regime == 'decimate':
-            temp_orders = decimate(finesp, orders)
-            coarse_subspaces.append(slice_subsp(finesp, temp_orders))
-
-        elif finesp.regime == 'magnitude':
-            coarse_subspaces.append(slice_subsp(finesp, orders))
-
-        else:
-            print 'kept fine space fine'
-            print 'PROBABLY NEED TO USE COPY OR SOMETHING'
-            coarse_subspaces.append(finesp)
-
-    if not len(coarse_subspaces) == len(fine.subspaces):
-        return None, False
-
-    space = merge_spaces(coarse_subspaces)
-    space.parent = fine.parent
-    return space, True
 
 
 

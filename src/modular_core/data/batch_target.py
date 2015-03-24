@@ -247,14 +247,17 @@ class batch_node(ldc.data_mobject):
     def _split_child(self,which = 0):
         split = batch_node()
         child = self.children[which]
+        child._recover(v = False)
         targets = child.targets
-        dshape = child.data.shape[1:]
-        for traj in self.children[which].data:
+        dshape = child.dshape[1:]
+        #dshape = child.data.shape[1:]
+        for traj in child.data:
             traj_pool = batch_node(
                 dshape = dshape,targets = targets)
             traj_pool._trajectory(traj)
             split._add_child(traj_pool)
             split._stow_child(-1,v = False)
+        child._stow(v = False)
         return split
 
     def _split(self):

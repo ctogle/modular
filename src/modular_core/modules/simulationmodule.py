@@ -233,10 +233,10 @@ class simulation_module(lfu.mobject):
         ensem = self.parent
         ensem.simulation_plan._reset_criteria_lists()
         ensem.postprocess_plan._reset_process_list()
-        ensem.run_params['plot_targets'] = ['iteration','time']
+        ensem.run_params['plot_targets'] = ['time','iteration']
         ensem.capture_targets = ensem.run_params['plot_targets']
         output_plan = ensem.run_params['output_plans']['Simulation']
-        def_targeted = ['iteration','time']
+        def_targeted = ['time','iteration']
         output_plan.targeted = def_targeted[:]
         for w in output_plan.writers:w.targeted = def_targeted[:]
 

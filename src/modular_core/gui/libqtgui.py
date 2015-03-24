@@ -266,7 +266,7 @@ class plot_page(lfu.mobject):
 
         qplot.roll_data(data, self.get_xtitle(), self.get_ytitle())
 
-    def _widget(self, *args, **kwargs):
+    def _widget(self,*args,**kwargs):
         window = args[0]
         toolbar_funcs = [window.get_current_page]
         data = self.data
@@ -312,8 +312,12 @@ class plot_window(lfu.mobject):
         self._geometry_ = (x, y, x_size, y_size)
 
         self.mason = lgm.standard_mason()
-        self.figure = plt.figure()
-        self.canvas = figure_canvas(self.figure)
+        if 'figure' in kwargs.keys():
+            self.figure = kwargs['figure']
+        else:self.figure = plt.figure()
+        if 'canvas' in kwargs.keys():
+            self.canvas = kwargs['canvas']
+        else:self.canvas = figure_canvas(self.figure)
         lfu.mobject.__init__(self, *args, **kwargs)
 
     def __call__(self,*args,**kwargs):
@@ -325,7 +329,6 @@ class plot_window(lfu.mobject):
         self.user_callbacks = page.user_callbacks
         self._widget()
         self._display(self.mason)
-        #self._display_interface_(self.mason)
 
     def get_current_page(self):
         if self.selected_page_label == 'None': return None
@@ -447,6 +450,9 @@ class plot_window(lfu.mobject):
     def _widget(self, *args, **kwargs):
         self._sanitize(*args,**kwargs)
         [pg._widget(self,**kwargs) for pg in self.pages]
+        #for pg in self.pages:
+        #    if pg._rewidget():
+        #        pg._widget(self,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(
                 layout = 'grid', 

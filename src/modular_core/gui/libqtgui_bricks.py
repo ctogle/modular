@@ -1669,7 +1669,10 @@ def create_inspector(mobj, mason = None, lay = 'grid'):
     elif hasattr(mobj, '_inspector_is_mobj_panel_') and\
             mobj._inspector_is_mobj_panel_:
         if mobj.rewidget:
-            window = lfu.gui_pack.lqg._window_
+            if hasattr(lfu.gui_pack.lqg):
+                lqg = lfu.gui_pack.lqg
+            else:lqg = lfu.gui_pack
+            window = lqg._window_
             mobj._rewidget(window)
         pan = create_panel(mobj.widg_templates, mason, layout = lay)
         #x_size = pan.sizeHint().width()
@@ -2322,8 +2325,7 @@ class quick_plot(QtGui.QWidget):
         #if data.x_log: ax.set_xscale('log')
         #if data.y_log: ax.set_yscale('log')
 
-    def plot_lines(self, xs, ys, xlab = None, ylab = None, 
-                              xlog = False, ylog = False):
+    def plot_lines(self,xs,ys,xlab = None,ylab = None,xlog = False,ylog = False):
 
         def rid_nones(x,y):
             x = [x_ for x_,y_ in zip(x,y) if not y_ is None]

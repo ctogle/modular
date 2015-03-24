@@ -1,6 +1,8 @@
 import modular_core.fundamental as lfu
 import modular_core.data.batch_target as dba
+import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.io.liboutput as lo
+import modular_core.io.pkl as pk
 
 import pdb,os,sys,types,time,random
 
@@ -24,8 +26,11 @@ class routine_abstract(lfu.mobject):
         self._default('max_undos',10000,**kwargs)
         self._default('max_runtime',60.0,**kwargs)
         self._default('max_iteration',1000.0,**kwargs)
+        self._default('max_last_best',10000,**kwargs)
         self._default('simulations_per_iteration',1,**kwargs)
         self._default('parameter_space',None,**kwargs)
+        self._default('pspace_source','cartographer',**kwargs)
+        self._default('input_data_path',None,**kwargs)
         self._default('capture_targets',[],**kwargs)
         oname = self.name + ' output'
         self.output = lo.output_plan(name = oname,
@@ -37,8 +42,10 @@ class routine_abstract(lfu.mobject):
         overiter = self.iteration + 1 >= self.max_iteration
         overtime = time.time() - self.starttime >= self.max_runtime
         overundo = self.undos > self.max_undos
-        done = overiter or overtime or overundo
-        if done:print 'oi,',overiter,',ot,',overtime,',ou,',overundo
+        overlbst = (self.iteration - self.best_capture) > self.max_last_best
+        done = overiter or overtime or overundo or overlbst
+        if done:
+            print 'oi,',overiter,',ot,',overtime,',ou,',overundo,',ol,',overlbst
         return done
 
     def _record_position(self,pspace):
@@ -46,7 +53,16 @@ class routine_abstract(lfu.mobject):
         self.psp_trajectory.append(psp_position)
 
     def _parameter_space(self):
-        pspace = self.parent.parent.cartographer_plan.parameter_space
+        cplan = self.parent.parent.cartographer_plan
+        if self.pspace_source == 'cartographer':
+            pspace = cplan.parameter_space
+        elif self.pspace_source == 'magnitude':
+            axes = cplan.parameter_space.axes
+            pspace = lpsp.magnitude_space(axes)
+        elif self.pspace_source == 'decimated':
+            axes = cplan.parameter_space.axes
+            mspace = lpsp.magnitude_space(axes)
+            pspace = lpsp.decimated_space(mspace.axes)
         self.parameter_space = pspace
         self.parameter_space.steps = []
 
@@ -90,8 +106,10 @@ class routine_abstract(lfu.mobject):
             pspace._biased_step(factor/creep)
 
     def _capture(self,data,pspace):
-        split = data._split()
-        if not self.iteration % 100 == 0 and not self.best and self.capture:
+        if not data.children:split = data._split()
+        else:split = data
+        #if not self.iteration % 100 == 0 and not self.best and self.capture:
+        if not self.best and self.capture:
             split._stow_children(v = False)
             return
         print 'routine captured at iteration:',self.iteration
@@ -101,6 +119,26 @@ class routine_abstract(lfu.mobject):
         for sch in split.children:
             self.data._add_child(sch)
             self.data._stow_child(-1,v = False)
+
+    # subclasses can use input data if the want
+    # sets the input_data attribute to the opened data node
+    def _open_data(self,dpath):
+        idata = pk.load_pkl_object(dpath)
+
+        ### THIS IS CURRENTLY UNUSED.... IT PROBABLY SHOULD BE USED....
+        ptargets = self.parent.parent.simulation_plan.plot_targets
+        itargets = [d.name for d in idata.data]
+        aliases = {}
+        for ak,rk in zip(itargets,ptargets):
+            aliases[ak] = rk
+        ### THIS IS CURRENTLY UNUSED.... IT PROBABLY SHOULD BE USED....
+
+        dshape = (len(idata.data),len(idata.data[0].data))
+        targets = [d.name for d in idata.data]
+        idatanode = dba.batch_node(dshape = dshape,targets = targets)
+        for fdx in range(dshape[0]):
+            idatanode.data[fdx,:] = idata.data[fdx].data[:]
+        self.input_data = idatanode
 
     def _initialize(self,*args,**kwargs):
         print 'initialize routine',self.name
@@ -119,6 +157,9 @@ class routine_abstract(lfu.mobject):
         self.best_capture = 0
         self.undos = 0
         self.best = False
+
+        if not self.input_data_path is None:
+            self._open_data(self.input_data_path)
 
     def _run(self,*args,**kwargs):
         self.starttime = time.time()
@@ -263,30 +304,6 @@ def parse_routine_line_inputs(inputs,procs,routs):
 
 class fit_routine(lfu.mobject):
 
-    def __init__(self, *args, **kwargs):
-        self._default('parameter_space', None, **kwargs)
-        self._default('many_steps', 1, **kwargs)
-        self._default('p_sp_trajectory', [], **kwargs)
-        self._default('p_sp_step_factor', 1.0, **kwargs)
-        self._default('capture_targets', [], **kwargs)
-        self._default('bAbort', False, **kwargs)
-        self._default('brand_new', True, **kwargs)
-        self._default('iteration', 0, **kwargs)
-        self._default('auto_overwrite_key', True, **kwargs)
-        self._default('initial_creep_factor', 20, **kwargs)
-        self._default('display_frequency', 500, **kwargs)
-        self._default('max_sim_wait_time', 1.0, **kwargs)
-        self._default('last_best', 0, **kwargs)
-        self._default('timeouts', 0, **kwargs)
-        self._default('use_time_out', True, **kwargs)
-        self._default('use_genetics', False, **kwargs)
-        self._default('use_mean_fitting', False, **kwargs)
-        self._default('regime', 'fine', **kwargs)
-        self._default('valid_regimes', 
-            ['fine', 'coarse-magnitude', 'coarse-decimate'], **kwargs)
-
-        self._default('metrics', [], **kwargs)
-
     def initialize(self, *args, **kwargs):
 
         def affi_weights(leng):
@@ -389,54 +406,6 @@ class fit_routine(lfu.mobject):
         self.move_in_parameter_space()
         return True
 
-    def finalize(self, *args, **kwargs):
-
-        def get_interped_y(label, data, x, x_to):
-            run_y = lfu.grab_mobj_by_name(label, data)
-            run_interped = ldc.scalars(
-                label = 'interpolated best result - ' + label, 
-                scalars = lm.linear_interpolation(
-                    x.scalars, run_y.scalars, 
-                    x_to.scalars, 'linear'))
-            return run_interped
-
-        self.best_fits = [(met.best_measure, 
-            met.data[0].scalars[met.best_measure]) 
-            for met in self.metrics]
-        self.handle_fitting_key()
-        self.parameter_space.set_current_position(
-            self.p_sp_trajectory[self.best_fits[
-                        self.prime_metric][0]])
-        best_run_data = run_system(self.ensemble)
-        best_run_data = [ldc.scalars(label = lab, scalars = dat) 
-            for lab, dat in zip(self.run_targets, best_run_data)]
-        best_run_data_x = lfu.grab_mobj_by_name(
-            self.data_to_fit_to[0].label, best_run_data)
-        best_run_data_ys = [get_interped_y(
-            lab, best_run_data, best_run_data_x, self.data_to_fit_to[0]) 
-                for lab in lfu.grab_mobj_names(self.data_to_fit_to[1:])]
-
-        print 'fit routine:', self.label, 'best fit:', self.best_fits
-        print '\tran using regime:', self.regime
-        best_data = self.data_to_fit_to + best_run_data_ys
-        #lgd.quick_plot_display(best_data[0], best_data[1:], delay = 5)
-        #self.data.extend(best_data)
-        #self.capture_targets = [d.label for d in self.data]
-        #self.output.targeted = self.capture_targets[:]
-        #self.output.set_target_settables()
-        #pdb.set_trace()
-        args[1].pool_names = [dat.label for dat in best_data]
-        args[1].batch_pool.append(best_data)
-        args[1].override_targets = True
-        #self.ensemble.data_pool.pool_names =\
-        #   [dat.label for dat in best_data]
-        #self.ensemble.data_pool.batch_pool.append(best_data)
-        #self.ensemble.data_pool.override_targets = True
-        if self.regime.startswith('coarse'):
-            self.impose_coarse_result_to_p_space()
-            self.ensemble.cartographer_plan.parameter_space.\
-                set_current_position(self.p_sp_trajectory[
-                    self.best_fits[self.prime_metric][0]])
 
     def impose_coarse_result_to_p_space(self):
 
@@ -523,42 +492,6 @@ class fit_routine(lfu.mobject):
             print sub.label
             print sub.inst.__dict__[sub.key], sub.increment, sub.bounds
 
-
-        
-def parse_fitting_line(*args):
-    data = args[0]
-    ensem = args[1]
-    parser = args[2]
-    procs = args[3]
-    routs = args[4]
-    split = [item.strip() for item in data.split(' : ')]
-    for fit_type in valid_fit_routine_base_classes:
-        if split: name = split[0]
-        if len(split) > 1:
-            if split[1].strip() == fit_type._tag:
-                rout = fit_type._class(label = name, 
-                    parent = ensem.fitting_plan)
-                routs.append(rout)
-            if len(split) > 2: rout.regime = split[2].strip()
-            if len(split) > 3:
-                input_data_path = split[3].strip()
-                rout.input_data_file = input_data_path
-                try: rout.get_input_data()
-                except: traceback.print_exc(file=sys.stdout)
-            if len(split) > 4:
-                alias = split[4]
-                l = alias.find('{') + 1
-                r = alias.rfind('}')
-                sub_alias = alias[l:r].split(',')
-                aliases = {}
-                for alias in sub_alias:
-                    spl = alias.split(':')
-                    al, ias = spl[0], spl[1]
-                    aliases[al] = ias
-                rout.input_data_aliases = aliases
-
-    ensem.fitting_plan.add_routine(new = rout)
-    if lfu.using_gui(): rout._widget(0, ensem)
 
 
  

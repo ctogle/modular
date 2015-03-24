@@ -234,6 +234,26 @@ def using_os(os_):
     elif os_ == 'linux' and sys.platform.startswith('linux'): return True
     else: return False
 
+def nearest_index(num,vals):
+    delts = [abs(val-num) for val in vals]
+    where = delts.index(min(delts))
+    return where
+
+def nearest(num,vals):
+    where = nearest_index(num,vals)
+    found = vals[where]
+    return found
+
+orders = [10**k for k in [val - 20 for val in range(40)]]
+def coerce_float_magnitude(fl):
+    return nearest(fl,orders)
+
+def order_span(x0,x1):
+    t0 = orders.index(nearest(x0,orders))
+    t1 = orders.index(nearest(x1,orders))
+    span = orders[t0:t1+1]
+    return span
+
 # divide each element by the max of a list, if its valid
 def normalize(values,r = None):
     if not values:return values

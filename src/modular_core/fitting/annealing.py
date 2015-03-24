@@ -2,7 +2,6 @@ import modular_core.fundamental as lfu
 import modular_core.fitting.routine_abstract as fab
 import modular_core.fitting.metrics as mts
 import modular_core.data.batch_target as dba
-import modular_core.io.pkl as pk
 
 import pdb,os
 import scipy.interpolate as sp
@@ -26,11 +25,13 @@ class annealing(fab.routine_abstract):
             me = mes[mx]
             metme = self.metric_measurements[mx]
             metme.append(me)
+            if not mx == 0:continue
             if me <= min(metme):metbest = True
             else:metbest = False
             bestflags.append(metbest)
-        if bestflags.count(True) > 0:
-            print 'found best!'
+        #mthrsh = self.metric_threshold
+        mthrsh = 0
+        if bestflags.count(True) > mthrsh:
             self.best = True
 
     def _fitter(self,measures,noisey = 0.1):
@@ -38,7 +39,7 @@ class annealing(fab.routine_abstract):
         else:
             last = [m[-1] for m in self.metric_measurements]
             better = [(l-m) > (-1.0*noisey*m) for l,m in zip(last,measures)]
-            mthrsh = int(self.metric_count/2)
+            mthrsh = self.metric_threshold
             if better.count(True) >= mthrsh:fitter = True
             else:fitter = False
         if fitter:self._capture_measurements(measures)
@@ -71,38 +72,22 @@ class annealing(fab.routine_abstract):
         fitter = self._fitter(temp_measurements)
         return fitter
 
-    def _open_data(self):
-
-        dpath = os.path.join(os.getcwd(),'mm_fit_input.0.pkl')
-        idata = pk.load_pkl_object(dpath)
-
-        ### THIS IS CURRENTLY UNUSED.... IT PROBABLY SHOULD BE USED....
-        ptargets = self.parent.parent.simulation_plan.plot_targets
-        itargets = [d.name for d in idata.data]
-        aliases = {}
-        for ak,rk in zip(itargets,ptargets):
-            aliases[ak] = rk
-        ### THIS IS CURRENTLY UNUSED.... IT PROBABLY SHOULD BE USED....
-
-        dshape = (len(idata.data),len(idata.data[0].data))
-        targets = [d.name for d in idata.data]
-        idatanode = dba.batch_node(dshape = dshape,targets = targets)
-        for fdx in range(dshape[0]):
-            idatanode.data[fdx,:] = idata.data[fdx].data[:]
-        self.input_data = idatanode
-
     def __init__(self,*args,**kwargs):
         self._default('name','an annealer',**kwargs)
-        self._default('max_iteration',10000.0,**kwargs)
+        self._default('max_iteration',100000.0,**kwargs)
+        self._default('max_undos',100000,**kwargs)
+        self._default('max_runtime',300.0,**kwargs)
+        self._default('max_last_best',100000,**kwargs)
         self._default('max_temperature',1000.0,**kwargs)
+        self._default('input_data_path',None,**kwargs)
         #self.metrics = [mts.difference()]
         self.metrics = [mts.difference(),mts.derivative1()]
         #self.metrics = [mts.difference(),mts.derivative1(),mts.derivative2()]
         self.metric_count = len(self.metrics)
+        self.metric_threshold = int((self.metric_count/2.1) + 1.0)
         fab.routine_abstract.__init__(self,*args,**kwargs)
 
     def _initialize(self,*args,**kwargs):
-        self._open_data()
         self.metric_measurements = [[] for m in self.metrics]
 
         finali = int(self.max_iteration)
@@ -135,9 +120,13 @@ class annealing(fab.routine_abstract):
 
 # return valid **kwargs for annealing based on msplit(line)
 def parse_line(split,ensem,procs,routs):
+    dpath = lfu.resolve_filepath(split[3])
     eargs = {
         'name':split[0],
         'variety':split[1],
+        'pspace_source':split[2],
+        'input_data_path':dpath, 
+        'metamapfile':split[4], 
             }
     return eargs
 

@@ -30,17 +30,20 @@
 
 <parameter_space>
 	<fitting_space> #
+    #k1 : value : 0.0-100.0;100
+    #k2 : value : 0.0-100.0;100
     k1 : value : 1.0
     k2 : value : 0.01
     mu : value : 800.0
-    Enzyme     : initial : 0-10000;100
-    Substrate  : initial : 0-10000;100
-    ES_Complex : initial : 0-10000;100
-    Product    : initial : 0-10000;100
+    Enzyme     : initial : 1-100000;100
+    Substrate  : initial : 1-100000;100
+    ES_Complex : initial : 1-100000;100
+    Product    : initial : 1-100000;100
 
 <fit_routines>
-  #anexplorer : explorer : mm_kinetics_map.mmap
-  anannealer : annealing : mm_kinetics_map.mmap
+  #anexplorer : explorer : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+  anannealer : annealing : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+  #alearner   : learning  : magnitude : mm_fit_input.0.pkl : mm_kinetics_map.mmap
 
 <multiprocessing>
 	workers : 16

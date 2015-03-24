@@ -38,14 +38,16 @@ class endcapture_plan(lfu.plan):
         return cpt
 
     def _capture_count(self):
-        end = self.end_criteria[0]
-        cap = self.capture_criteria[0]
-        ccnt = int(float(end.max_time)/float(cap.increment))+1
+        ccnt = int(self._max_time()/self._capture_increment())+1
         return ccnt
 
     def _capture_increment(self):
         cap = self.capture_criteria[0]
         return float(cap.increment)
+
+    def _max_time(self):
+        end = self.end_criteria[0]
+        return float(end.max_time)
 
     def _sanitize(self,*args,**kwargs):
         if not ('from_sub' in kwargs.keys() and kwargs['from_sub']):

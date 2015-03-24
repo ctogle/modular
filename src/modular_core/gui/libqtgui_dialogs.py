@@ -95,7 +95,6 @@ def create_dialog(title = 'Dialog', message = '', variety = 'input',
             initials = [[choice_container.data]], 
             instances = [[choice_container]], 
             keys = [['data']], 
-            #box_labels = ['Ensemble Module'], 
             minimum_sizes = [[(250, 50)]])]
         mod_dlg = create_dialog(title = title, 
             templates = options_templates,variety = 'templated')
@@ -110,8 +109,14 @@ def create_dialog(title = 'Dialog', message = '', variety = 'input',
 class create_obj_dialog(QtGui.QDialog):
     made = False
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self,*args,**kwargs):
         self.dialoging = True
+        for t in self.widg_templates:
+            if 'plot' in t.widgets:
+                h,k = t.handles[0]
+                qplot = h.__dict__[k][0]
+                data = t.datas[0]
+                qplot.plot(data,'x','y','title',ptype = 'lines')
         self.exec_()
         if self.made: return True
         else: return False

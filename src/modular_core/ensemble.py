@@ -30,6 +30,7 @@ import modular_core.postprocessing.slices as slc
 
 import modular_core.fitting.explorer as fex
 import modular_core.fitting.annealing as fan
+import modular_core.fitting.learner as fln
 
 import pdb,os,sys,traceback,types,time,imp
 import multiprocessing as mp
@@ -182,9 +183,7 @@ class ensemble(lfu.mobject):
         self.cancel_make = False
         opts = kwargs['module_options']
         if len(opts) == 0:
-            if lfu.using_gui:
-                lgd.message_dialog(None,'No modules detected!','Problem')
-            else: print 'Problem! : No modules detected!'
+            lfu.complain('No simulation modules found!')
             self.cancel_make = True
             return
         elif len(opts) == 1: module = opts[0]
@@ -194,9 +193,8 @@ class ensemble(lfu.mobject):
             else:
                 if lfu.using_gui:
                     module = lgd.create_dialog(
-                            title = 'Choose Ensemble Module', 
-                            options = opts, 
-                            variety = 'radioinput')
+                        title = 'Choose Ensemble Module',
+                        options = opts,variety = 'radioinput')
                     if not module: 
                         self.cancel_make = True
                         return
