@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from mpi4py import MPI
 
 import pdb
@@ -6,15 +8,16 @@ def test():
     comm = MPI.COMM_WORLD
     print 'hey, im rank %d from %d running in total:' % (comm.rank,comm.size)
     comm.Barrier()
-test()
+    return comm.rank
 
+test()
 
 def run():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    MPI.rank
-    MPI.size
+    #MPI.rank
+    #MPI.size
 
     someinput = ()
     thing = comm.Gather(*someinput)
@@ -27,6 +30,7 @@ def run():
 
     pdb.set_trace()
 
+#run()
 
 
 

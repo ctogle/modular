@@ -21,10 +21,23 @@ class measurement(lfu.mobject):
 class ptwise_measurement(measurement):
 
     def __init__(self,*args,**kwargs):
+        self._default('weights','uniform',**kwargs)
+        if self.weights == 'uniform':self._weights = self._unif_weights
+        if self.weights == 'affine':self._weights = self._affi_weights
+        if self.weights == 'parabolic':self._weights = self._para_weights
+        if self.weights == 'exponential':self._weights = self._expo_weights
         measurement.__init__(self,*args,**kwargs)
 
     def _unif_weights(self,measurements):
         return np.ones((len(measurements),),dtype = np.float)
+
+    def _affi_weights(self,measurements):
+        leng = len(measurements)
+        x = np.linspace(0,leng,leng)
+        b = 5.0
+        m = -4.0/x[-1]
+        y = m*x + b
+        return y
 
     def _expo_weights(self,measurements):
         maxweight = 9.0
@@ -35,7 +48,7 @@ class ptwise_measurement(measurement):
         return y
 
     def _para_weights(self,measurements):
-        maxweight = 9.0
+        maxweight = 4.0
         x = np.linspace(maxweight,0,len(measurements))
         y = (x-(max(x)/2.0))**2
         y *= maxweight/max(y)
@@ -44,9 +57,7 @@ class ptwise_measurement(measurement):
 
     # should allow exponential, parabolic, affine, etc...
     def _weight(self,measurements):
-        weights = self._unif_weights(measurements)
-        #weights = self._expo_weights(measurements)
-        #weights = self._para_weights(measurements)
+        weights = self._weights(measurements)
         zwm = zip(weights,measurements)
         return [w*m for w,m in zwm if not math.isnan(m)]
 

@@ -14,6 +14,7 @@ initfile = ['modular_core/resources/__init__.py']
 mdatapooldir = os.path.join(appdirs.user_data_dir(),'modular_data_pools')
 mdatamappooldir = os.path.join(mdatapooldir,'mapdata')
 mresourcesdir = os.path.join(appdirs.user_config_dir(),'modular_resources')
+mcachedir = os.path.join(appdirs.user_cache_dir(),'modular_cache')
 
 pkgs = [
     'modular_core',
@@ -36,11 +37,12 @@ setup(
     url = "http://github.com/ctogle/modular",
     license = "MIT License",
     long_description = '''this is the core package of modular''',
-    scripts = ['../modular.py'], 
+    scripts = ['../modular'], 
     packages = pkgs, 
     #py_modules = ['../modular.py'], 
     zip_safe = False,
     data_files=[(mresourcesdir,res_files), 
+                (mcachedir,initfile),
                 (mdatapooldir,initfile),
                 (mdatamappooldir,initfile)]
     )

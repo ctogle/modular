@@ -90,9 +90,18 @@ def magnitude_space(axes):
     pspace = parameter_space(axes = coarse_axes)
     return pspace
 
+# make a discrete space using 10 values per order of magnitude for each axis
 def decimated_space(axes):
     decimated_axes = [ax._decimate() for ax in axes]
     pspace = parameter_space(axes = decimated_axes)
+    return pspace
+
+# given the current value of each axis, and the range of its discrete values
+# provide a parameter space which increase state density near the current
+# pspace location (be removing states far from the current location)
+def trimmed_space(axes):
+    trimmed_axes = [ax._concentrate() if not ax.locked else ax for ax in axes]
+    pspace = parameter_space(axes = trimmed_axes)
     return pspace
 
 def parse_pspace(plines,ensem):
@@ -157,6 +166,7 @@ class pspace_axis(lfu.mobject):
         self._default('increment',0.1,**kwargs)
         self._default('contribute',False,**kwargs)
         self._default('discrete',None,**kwargs)
+        self._default('caste',float,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _discretize(self):
@@ -182,24 +192,10 @@ class pspace_axis(lfu.mobject):
         return coarse
 
     def _decimate(self):
-        def create_subrange(dex,num_values):
-            lower = relev_mags[dex - 1]
-            upper = relev_mags[dex]
-            new = np.linspace(lower,upper,num_values)
-            return [np.round(val,20) for val in new]
-
         b0 = lfu.coerce_float_magnitude(self.bounds[0])
         b1 = lfu.coerce_float_magnitude(self.bounds[1])
         relev_mags = lfu.order_span(b0,b1)
-        if len(relev_mags) <= 1:deciax = relev_mags
-        else:
-            total_values = 20
-            num_values = max([10, int(total_values/len(relev_mags))])
-            deciax = []
-            for dex in range(1, len(relev_mags)):
-                subdeci = create_subrange(dex,num_values)
-                deciax.extend(subdeci)
-
+        deciax = self._decimate_range(relev_mags)
         it = self.instance
         ke = self.key
         bs = [b0,b1]
@@ -210,11 +206,64 @@ class pspace_axis(lfu.mobject):
         decimated.discrete = deciax
         return decimated
 
+    def _concentrate(self):
+        wheres = range(len(self.discrete))
+        where = lfu.nearest_index(self._value(),self.discrete)
+        cut = int(len(wheres)/6)
+        if cut > 0:
+            if where in wheres[2*cut:-2*cut]:keep = self.discrete[cut:-cut]
+            elif where in wheres[:-2*cut]:keep = self.discrete[:-cut]
+            elif where in wheres[2*cut:]:keep = self.discrete[cut:]
+        else:
+            keep = self.discrete[:]
+            side = self._on_edge()
+            if side == 'left':
+                keep.insert(0,lfu.coerce_float_magnitude(self.bounds[0])/10.0)
+                keep.pop(-1)
+            elif side == 'right':
+                keep.append(lfu.coerce_float_magnitude(self.bounds[1])*10.0)
+                keep.pop(0)
+            keep = self._decimate_range(self.discrete[:],6)
+
+        b0,b1 = keep[0],keep[-1]
+        bs = [b0,b1]
+        it = self.instance
+        ke = self.key
+        concentrated = pspace_axis(instance = it,key = ke,
+            bounds = bs,increment = None,continuous = False,
+            permanent_bounds = self.permanent_bounds)
+        concentrated.discrete = keep
+        return concentrated
+
+    def _on_edge(self):
+        cv = self._value()
+        span = float(len(self.discrete))
+        spos = float(lfu.nearest_index(cv,self.discrete))/span
+        print 'onedge',spos
+        if spos > 0.6:return 'right'
+        if spos < 0.4:return 'left'
+        else:return False
+
+    def _decimate_range(self,rng,num_values = 10):
+        def create_subrange(dex,num_values):
+            lower,upper = rng[dex-1:dex+1]
+            new = np.linspace(lower,upper,num_values)
+            return [np.round(val,20) for val in new]
+
+        if len(rng) <= 1:deci = rng
+        else:
+            deci = []
+            for dex in range(1,len(rng)):
+                subd = create_subrange(dex,num_values)
+                deci.extend(subd)
+        deci = lfu.uniqfy(deci)
+        return deci
+
     def _move_to(self,value):
-        self.instance.__dict__[self.key] = value
+        self.instance.__dict__[self.key] = self.caste(value)
 
     def _value(self):
-        return self.instance.__dict__[self.key]
+        return float(self.instance.__dict__[self.key])
 
     def _validate_continuous(self,step):
         old_value = float(self._value())
@@ -359,7 +408,9 @@ class parameter_space(lfu.mobject):
     def _lock_singular_axes(self):
         unlocked = 0
         for ax in self.axes:
-            if ax.bounds[1] - ax.bounds[0] < 10**-20:ax.locked = True
+            if ax.bounds[1] - ax.bounds[0] < 10**-20:
+                ax.locked = True
+                print 'ax is locked:',ax.name
             else:
                 ax.locked = False
                 unlocked += 1

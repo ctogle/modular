@@ -16,10 +16,10 @@
 	1 ES_Complex mu -> 1 Enzyme + 1 Product   : Product formation
 
 <species>
-	Enzyme : 1000
-	Substrate : 1000
-	ES_Complex : 1000
-	Product : 1000
+	Enzyme : 10
+	Substrate : 10
+	ES_Complex : 10
+	Product : 10
 
 <plot_targets>
 	time
@@ -30,20 +30,21 @@
 
 <parameter_space>
 	<fitting_space> #
-    #k1 : value : 0.0-100.0;100
-    #k2 : value : 0.0-100.0;100
     k1 : value : 1.0
     k2 : value : 0.01
     mu : value : 800.0
-    Enzyme     : initial : 1-100000;100
-    Substrate  : initial : 1-100000;100
-    ES_Complex : initial : 1-100000;100
-    Product    : initial : 1-100000;100
+    #k1 : value : 0.000001-10000.0;2
+    #k2 : value : 0.000001-10000.0;2
+    #mu : value : 0.000001-10000.0;2
+    Enzyme     : initial : 1-1000000000;2
+    Substrate  : initial : 1-1000000000;2
+    ES_Complex : initial : 1-1000000000;2
+    Product    : initial : 1-1000000000;2
 
 <fit_routines>
   #anexplorer : explorer : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
-  anannealer : annealing : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
-  #alearner   : learning  : magnitude : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+  #anannealer : annealing : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+  alearner   : learning  : magnitude : mm_fit_input.0.pkl : mm_kinetics_map.mmap
 
 <multiprocessing>
 	workers : 16

@@ -33,7 +33,7 @@
 	x2
 
 <parameter_space>
-	<product_space> 100
+	<product_space> 1000
     mu     : value : 10.0
 		K      : value : 0.000000000000001
 		lambda1 : value : 2.0-10.0;5
@@ -50,6 +50,7 @@
 <multiprocessing>
 	workers : 200
   distributed : on
+  clustertype : dispy
   nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>

@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 import modular_core.fundamental as lfu
 lfu.using_gui = True
 

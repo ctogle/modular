@@ -108,6 +108,9 @@ from cython.view cimport array as cvarray
     # install the last written pyx file as a python extension
     # attempt to uninstall the last on-the-fly extension by first uninstalling
     def _install(self):
+        # build/install things in modulars cache directory...
+        cwd = os.getcwd()
+        os.chdir(lfu.get_cache_path())
         self._uninstall()
         srcs = [self.filepath]
         exts = cythonize([Extension(self.name,srcs)])
@@ -121,6 +124,7 @@ from cython.view cimport array as cvarray
         args = ['build_ext','--inplace']
         setup(script_args = args,ext_modules = exts,
             include_dirs = [numpy.get_include()])
+        os.chdir(cwd)
 
     # calculate the code for an extension and write it to a safe place
     def _write(self):

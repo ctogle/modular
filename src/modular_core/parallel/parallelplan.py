@@ -1,6 +1,8 @@
 import modular_core.fundamental as lfu
 import modular_core.data.batch_target as dba
 import modular_core.settings as lset
+import modular_core.parallel.dispycluster as mdcl
+import modular_core.parallel.mpicluster as mmcl
 
 import pdb,sys,time,types
 import numpy as np
@@ -42,10 +44,20 @@ class parallel_plan(lfu.plan):
         self._default('name','parallel plan',**kwargs)
         use_plan = lset.get_setting('multiprocessing')
         self._default('use_plan',use_plan,**kwargs)
+        self._default('cluster_type','mpi',**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self.cluster_node_ips = cluster_ips
         lfu.plan.__init__(self,*args,**kwargs)
+
+    def _cluster(self,nodes,work,wrgs,deps):
+        print 'CLUSTERIZING...'
+        if self.cluster_type == 'dispy':
+            loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
+        elif self.cluster_type == 'mpi':
+            loc_0th_pools = mmcl.clusterize(nodes,work,wrgs,deps)
+        print 'CLUSTERIZED...'
+        return loc_0th_pools
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)

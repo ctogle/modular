@@ -7,7 +7,8 @@ import modular_core.parameterspace.cartographerplan as cplan
 import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
 import modular_core.parallel.threadwork as wt
-import modular_core.parallel.cluster as mcl
+#import modular_core.parallel.dispycluster as mdcl
+#import modular_core.parallel.mpicluster as mmcl
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
@@ -320,7 +321,6 @@ class ensemble(lfu.mobject):
         stow_needed = self._require_stow(max_run,arc_length)
 
         usepplan = self.postprocess_plan.use_plan
-        #if usepplan:self.postprocess_plan._init_processes(arc,meta)
         if usepplan:self.postprocess_plan._init_processes(arc)
 
         data_pool = dba.batch_node(metapool = meta)
@@ -358,17 +358,15 @@ class ensemble(lfu.mobject):
             nodes = self.multiprocess_plan.cluster_node_ips
             work = _unbound_map_pspace_location
             wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
+            deps = self.module.dependencies
 
-            deps = [os.path.join(os.getcwd(),'gillespiemext_0.so')]
+            loc_0th_pools = self.multiprocess_plan._cluster(nodes,work,wrgs,deps)
 
-            print 'CLUSTERIZING...'
-            loc_0th_pools = mcl.clusterize(nodes,work,wrgs,deps)
-            print 'CLUSTERIZED...'
             zeroth = self.postprocess_plan.zeroth
             zcount = len(zeroth)
             for adx in range(arc_length):
-
                 l0p = loc_0th_pools[adx]
+
                 if cplan.maintain_pspmap:
                     mloc = l0p.metalocation
                     mstr = mloc.location_string
@@ -1050,6 +1048,14 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
     return pdata
 
 ###############################################################################
+###############################################################################
+
+def unbound_batch_run():
+    print 'run'
+
+###############################################################################
+###############################################################################
+
 
 
 

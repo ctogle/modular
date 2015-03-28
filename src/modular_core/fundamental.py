@@ -144,6 +144,13 @@ def gather_string(msg,title):
     else:string = raw_input(msg)
     return string
 
+# resolve full cached resource path from resource filename
+def get_cache_path(res = None):
+    rpath = os.path.join(appdirs.user_cache_dir(),'modular_cache')
+    if res is None: return rpath
+    else: return os.path.join(rpath,res)
+sys.path.append(get_cache_path())
+
 # resolve full resource path from resource filename
 def get_resource_path(res = None):
     rpath = os.path.join(appdirs.user_config_dir(),'modular_resources')
@@ -235,6 +242,8 @@ def using_os(os_):
     else: return False
 
 def nearest_index(num,vals):
+    if num > vals[-1]:return len(vals)-1
+    elif num < vals[0]:return 0
     delts = [abs(val-num) for val in vals]
     where = delts.index(min(delts))
     return where
@@ -243,6 +252,11 @@ def nearest(num,vals):
     where = nearest_index(num,vals)
     found = vals[where]
     return found
+
+# return True if floats a,b are within 10**-20 of one another
+def near(a,b):
+    if abs(a-b) < 10**-20:return True
+    else:return False
 
 orders = [10**k for k in [val - 20 for val in range(40)]]
 def coerce_float_magnitude(fl):
