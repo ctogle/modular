@@ -229,14 +229,13 @@ class simulation_module(lfu.mobject):
         self.sim_args = ()
 
     # initialize run parameters of an ensemble
-    def _reset_parameters(self):
+    def _reset_parameters(self,def_targeted = ['time','iteration']):
         ensem = self.parent
         ensem.simulation_plan._reset_criteria_lists()
         ensem.postprocess_plan._reset_process_list()
-        ensem.run_params['plot_targets'] = ['time','iteration']
+        ensem.run_params['plot_targets'] = def_targeted
         ensem.capture_targets = ensem.run_params['plot_targets']
         output_plan = ensem.run_params['output_plans']['Simulation']
-        def_targeted = ['time','iteration']
         output_plan.targeted = def_targeted[:]
         for w in output_plan.writers:w.targeted = def_targeted[:]
 
@@ -256,7 +255,7 @@ class simulation_module(lfu.mobject):
     def _panel_templates(self,window,ensem,target_labels = None):
         panel_template_lookup = []
         if target_labels:plot_target_labels = target_labels
-        else:plot_target_labels = ['iteration','time']
+        else:plot_target_labels = ['time','iteration']
         ensem.simulation_plan.plot_targets = plot_target_labels
         ensem.capture_targets = plot_target_labels
         sim_plan = ensem.simulation_plan

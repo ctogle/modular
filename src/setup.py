@@ -37,7 +37,7 @@ setup(
     url = "http://github.com/ctogle/modular",
     license = "MIT License",
     long_description = '''this is the core package of modular''',
-    scripts = ['../modular'], 
+    scripts = ['../modular.py'], 
     packages = pkgs, 
     #py_modules = ['../modular.py'], 
     zip_safe = False,

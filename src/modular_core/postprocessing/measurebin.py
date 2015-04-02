@@ -126,7 +126,6 @@ def parse_line(split,ensem,procs,routs):
         'variety':split[1],
         'input_regime':inputs,
         'targets':targets,
-        'bin_count':int(split[4]),
             }
     return pargs
 

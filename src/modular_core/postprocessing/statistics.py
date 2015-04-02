@@ -7,7 +7,7 @@ import pdb,sys
 import numpy as np
 
 ###############################################################################
-### meanfields calculates means for a set of targets as a function of one target
+### statistics calculates means and a bunch of other typically desired stats
 ###############################################################################
 
 class statistics(lpp.post_process_abstract):
@@ -17,7 +17,7 @@ class statistics(lpp.post_process_abstract):
         phrase = self.mean_of + ' of ' + self.function_of
         bins = str(self.bin_count)
         ordered = 'ordered' if self.ordered else 'unordered'
-        strs = [self.name,'standard statistics',inps,phrase,bins,ordered]
+        strs = [self.name,'statistics',inps,phrase,bins,ordered]
         return '\t' + ' : '.join(strs)
 
     def __init__(self,*args,**kwargs):
@@ -34,30 +34,41 @@ class statistics(lpp.post_process_abstract):
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def statistics(self,*args,**kwargs):
-        fof,mof = self.function_of,self.mean_of
-        bct,orr,pool = self.bin_count,self.ordered,args[0]
+        pool = args[0]
 
-        bin_axes,mean_axes = select_for_binning(pool,fof,mof)
-        bins,vals = bin_scalars(bin_axes,mean_axes,bct,orr)
+        fof,mof = self.function_of,self.mean_of
+        bct,orr = self.bin_count,self.ordered
+        bins,valss = pool._bin_data(fof,[mof],bct,orr)
+        vals = valss[:,0,:]
+
+        #bin_axes,mean_axes = select_for_binning(pool,fof,mof)
+        #bins,vals = bin_scalars(bin_axes,mean_axes,bct,orr)
+
+        tcount = len(self.target_list)
+        dshape = (tcount,bct)
+        data = np.zeros(dshape,dtype = np.float)
 
         means = [np.mean(val) for val in vals]
         medians = [np.median(val) for val in vals]
-        stddevs = [np.stddev(val) for val in vals]
-        coeff_variations = [stddev_/mean_ if not mean == 0.0 else None 
-                            for stddev_,mean_ in zip(stddevs,means)]
-        variances = [variance(val) for val in vals]
+        stddevs = [np.std(val) for val in vals]
+        cov = [s/m if not m == 0.0 else None for s,m in zip(stddevs,means)]
+        variances = [np.var(val) for val in vals]
         ddexes = range(len(means))
 
-        data = ldc.scalars_from_labels(self.target_list)
-        data[0].scalars = bins
-        data[1].scalars = means
-        data[2].scalars = medians
-        data[3].scalars = variances
-        data[4].scalars = stddevs
-        data[5].scalars = [means[k] + stddevs[k] for k in ddexes]
-        data[6].scalars = [means[k] - stddevs[k] for k in ddexes]
-        data[7].scalars = coeff_variations
-        return data
+        #data = ldc.scalars_from_labels(self.target_list)
+        data[0] = bins
+        data[1] = means
+        data[2] = medians
+        data[3] = variances
+        data[4] = stddevs
+        data[5] = [means[k] + stddevs[k] for k in ddexes]
+        data[6] = [means[k] - stddevs[k] for k in ddexes]
+        data[7] = cov
+
+        #return data
+        bnode = self._init_data(dshape,self.target_list)
+        bnode._trajectory(data)
+        return bnode
 
     def _target_settables(self, *args, **kwargs):
         self.valid_regimes = ['all trajectories','by parameter space']
@@ -73,10 +84,11 @@ class statistics(lpp.post_process_abstract):
             self.mean_of + ' +1 stddev', self.mean_of + ' -1 stddev', 
             self.mean_of + ' coefficient of variation']
         self.capture_targets = self.target_list
-        post_process._target_settables(self, *args, **kwargs)
+        lpp.post_process_abstract._target_settables(self, *args, **kwargs)
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
         self.widg_templates.append(
             lgm.interface_template_gui(

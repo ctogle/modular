@@ -160,7 +160,7 @@ class batch_node(ldc.data_mobject):
         dpath = os.path.join(prepath,self.data_pool_id)
         return dpath
 
-    def _init_data(self,fop = None):
+    def _init_data(self,fop = 'w'):
         dpath = self._get_data_pool_path()
         self.hdffile = h5py.File(dpath,fop,libver = 'latest')
         if fop == 'w':
@@ -170,12 +170,6 @@ class batch_node(ldc.data_mobject):
                 shape = self.dshape,dtype = np.float,data = zeros)
         elif fop == 'r':
             self.data = self.hdffile['data']
-        elif fop is None:
-            self.dataform = 'numpy'
-            zeros = np.zeros(self.dshape,dtype = np.float)
-            self.dims = len(self.dshape)
-            self.data = zeros
-            pdb.set_trace()
 
     def _subset_pool(self,count,**kwargs):
         subshape = (count,)+self.dshape[1:]
