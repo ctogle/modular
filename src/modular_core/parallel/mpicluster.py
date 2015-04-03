@@ -89,7 +89,8 @@ def clusterize(ensem,arc_length):
             batch = ensem._run_batch_np(subtjcnt,subshape)
             if comm.rank == 0:
                 print 'calling gather!'
-                batches = comm.gather(batch,root = 0)
+                #batches = comm.gather(batch,root = 0)
+                batches = [None]*20
                 print 'gathered!'
                 for batch in batches:
                     for b in batch:
