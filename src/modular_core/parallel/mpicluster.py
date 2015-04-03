@@ -63,8 +63,8 @@ def clusterize(ensem,arc_length):
     comm = MPI.COMM_WORLD
 
     while arc_dex < arc_length:
+        traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
         if comm.rank == 0:
-            traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
             dshape = (traj_cnt,targ_cnt,capt_cnt)
 
             if cplan.maintain_pspmap:
