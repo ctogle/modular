@@ -9,7 +9,7 @@ def test():
     comm.Barrier()
     return comm.rank
 
-def test(*args):
+def test_DISPY(*args):
     mobj,jobdex = args
 
     import modular_core.fundamental as lfu

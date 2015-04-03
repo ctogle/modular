@@ -6,6 +6,8 @@ from modular_core.ensemble import ensemble_manager
 
 import os,sys,pdb,argparse
 
+from mpi4py import MPI
+
 def run_gui():
     lfu.set_gui_pack('modular_core.gui.libqtgui_modular')
     lfu.gui_pack.initialize()
@@ -15,6 +17,11 @@ def run_pklplotter():
     lfu.gui_pack.initialize()
 
 def run_mcfg(module,mcfg):
+    comm = MPI.COMM_WORLD
+    print 'hey, im rank %d from %d running in total:' % (comm.rank,comm.size)
+    comm.Barrier()
+    return comm.rank
+
     mcfg = os.path.join(os.getcwd(),mcfg)
     mnger = ensemble_manager()
     ensem = mnger._add_ensemble(module = module)
