@@ -50,12 +50,18 @@ class parallel_plan(lfu.plan):
         self.cluster_node_ips = cluster_ips
         lfu.plan.__init__(self,*args,**kwargs)
 
-    def _cluster(self,nodes,work,wrgs,deps):
+    def _cluster(self,arc_length,work):
+        ensem = self.parent
         print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':
+            nodes = self.cluster_node_ips
+            with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
+            modulename = ensem.module_name
+            wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
+            deps = ensem.module.dependencies
             loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
         elif self.cluster_type == 'mpi':
-            loc_0th_pools = mmcl.clusterize(nodes,work,wrgs,deps)
+            loc_0th_pools = mmcl.clusterize(ensem,arc_length)
             pdb.set_trace()
         print 'CLUSTERIZED...'
         return loc_0th_pools

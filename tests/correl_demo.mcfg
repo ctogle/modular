@@ -50,7 +50,7 @@
 <multiprocessing>
 	workers : 200
   distributed : on
-  clustertype : dispy
+  clustertype : mpi
   nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>

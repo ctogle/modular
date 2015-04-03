@@ -1,4 +1,5 @@
 import modular_core.fundamental as lfu
+import modular_core.data.batch_target as dba
 
 import dispy,random,time,socket,pdb
 
@@ -46,21 +47,74 @@ def collect_cluster(jobs):
             print '%s executed job %s at %s with %s'%printargs
     return results
 
-def clusterize(nodeips,work,args,deps = []):
+def clusterize(ensem,arc_length):
+    requiresimdata = ensem._require_simulation_data()
+    cplan = ensem.cartographer_plan
+    pplan = ensem.postprocess_plan
+    meta = cplan.maintain_pspmap
+    arc = cplan.trajectory
+    arc_length = len(arc)
+    max_run = arc[0].trajectory_count
+    stow_needed = ensem._require_stow(max_run,arc_length)
+
+    data_pool = dba.batch_node(metapool = meta)
+    arc_dex = 0
+    while arc_dex < arc_length:
+        traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
+        dshape = (traj_cnt,targ_cnt,capt_cnt)
+
+        if cplan.maintain_pspmap:
+            print 'should only fill metamap data as required...'
+            target_traj_cnt = traj_cnt
+            traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
+            lstr = cplan._print_friendly_pspace_location(arc_dex)
+            mmap = cplan.metamap
+
+        if not traj_cnt == 0:
+            loc_pool = dba.batch_node(metapool = meta,
+                    dshape = dshape,targets = ptargets)
+            cplan._move_to(arc_dex)
+            ensem._run_params_to_location()
+
+            #subtjcnt = traj_cnt
+            subtjcnt = traj_cnt/20
+            subshape = (subtjcnt,targ_cnt,capt_cnt)
+            batch = ensem._run_batch_np(subtjcnt,subshape)
+            batches = comm.gather(batch,root = 0)
+
+            pdb.set_trace()
+            #if self.multiprocess_plan.use_plan:mppool._initializer()
+            #else:self._run_params_to_location()
+            #if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
+            #else:self._run_batch(traj_cnt,loc_pool)
+
+            for rundat in results:
+                loc_pool._trajectory(rundat)
+
+            if cplan.maintain_pspmap:
+                print 'should record metamap data...'
+                cplan._record_persistent(arc_dex,loc_pool)
+                loc_pool = mmap._recover_location(lstr)
+        else:loc_pool = mmap._recover_location(lstr,target_traj_cnt)
+
+        if pplan.use_plan:
+            zeroth = pplan.zeroth
+            pplan._enact_processes(zeroth,loc_pool)
+        
+        #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
+
+        if meta:cplan._save_metamap()
+        arc_dex += 1
+        print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
+        if requiresimdata:
+            data_pool._add_child(loc_pool)
+            if stow_needed:data_pool._stow_child(-1)
+
+    pdb.set_trace()
 
     print 'dumb mpi clusterized!'
     test()
     return 'result'
-
-    cluster = dispy.JobCluster(work,nodes = nodeips,
-        depends = deps,setup = cluster_setup,cleanup = False)
-    print 'node ips',nodeips
-    jobs = start_cluster(cluster,args)
-    print 'started cluster...'
-    results = collect_cluster(jobs)
-    print 'cluster finished...'
-    cluster.stats()
-    return results
 
 if __name__ == '__main__':
     inpmobj = lfu.mobject(name = 'ensemble?')

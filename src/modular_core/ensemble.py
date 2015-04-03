@@ -283,7 +283,6 @@ class ensemble(lfu.mobject):
         print 'total run duration:',time.time() - fullstime,'seconds'
         return True
 
-    # NOT TESTED
     # use the fitting_plan to perform simulations
     def _run_fitting(self):
         dpool = dba.batch_node()
@@ -340,10 +339,6 @@ class ensemble(lfu.mobject):
         return data_pool
 
     # use dispy to distribute work across a network
-    def _run_distributed_dispy(self):
-        pass
-
-    # use dispy to distribute work across a network
     def _run_distributed(self):
         cplan = self.cartographer_plan
         pspace = cplan.parameter_space
@@ -357,17 +352,19 @@ class ensemble(lfu.mobject):
             usepplan = self.postprocess_plan.use_plan
             if usepplan:self.postprocess_plan._init_processes(arc)
 
-            with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
-            modulename = self.module_name
+            #with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
+            #modulename = self.module_name
 
             # dispy specific here?
-            nodes = self.multiprocess_plan.cluster_node_ips
+            #nodes = self.multiprocess_plan.cluster_node_ips
             work = _unbound_map_pspace_location
             # dispy specific here?
-            wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
-            deps = self.module.dependencies
+            #wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
+            #deps = self.module.dependencies
 
-            loc_0th_pools = self.multiprocess_plan._cluster(nodes,work,wrgs,deps)
+            loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
+
+            pdb.set_trace()
 
             zeroth = self.postprocess_plan.zeroth
             zcount = len(zeroth)
@@ -451,21 +448,21 @@ class ensemble(lfu.mobject):
 
     # run many simulations, aggregating data in a numpy array
     # print the current trajectory/maxtrajectory at frequency pfreq
-    def _run_batch_np(self,many,pool,pfreq = 100):
+    def _run_batch_np(self,many,dshape,pfreq = 100):
         simu = self.module.simulation
         sim_args = self.module.sim_args
         if pfreq is None:pfreq = sys.maxint
         else:print 'batch run completed:%d/%d'%(0,many)
 
-        pdb.set_trace()
-
+        batch = np.zeros(dshape,dtype = np.float)
         for m in range(many):
             rundat = simu(sim_args)
             if rundat is None:return
-            pool._trajectory(rundat)
+            batch[m,:,:] = rundat[:]
+            #pool._trajectory(rundat)
             if m % pfreq == 0 and m > 0:
                 print 'batch run completed:%d/%d'%(m+pfreq,many)
-        return True
+        return batch
 
     # run many simulations, adding the data to node pool
     # print the current trajectory/maxtrajectory at frequency pfreq
