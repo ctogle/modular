@@ -63,9 +63,9 @@
 	skipsimulation : off
 	multiprocessing : on
 	mapparameterspace : on
-	metamapparameterspace : off
+	metamapparameterspace : on
   metamappath : /srv/shared_modular_data/mapdata/correl_metamap.mmap
-  #datapool_directory : /srv/shared_modular_data
+  datapool_directory : /srv/shared_modular_data
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000

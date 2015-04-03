@@ -2,6 +2,13 @@ import modular_core.fundamental as lfu
 
 import dispy,random,time,socket,pdb
 
+from mpi4py import MPI
+def test():
+    comm = MPI.COMM_WORLD
+    print 'hey, im rank %d from %d running in total:' % (comm.rank,comm.size)
+    comm.Barrier()
+    return comm.rank
+
 def test(*args):
     mobj,jobdex = args
 
@@ -40,6 +47,11 @@ def collect_cluster(jobs):
     return results
 
 def clusterize(nodeips,work,args,deps = []):
+
+    print 'dumb mpi clusterized!'
+    test()
+    return 'result'
+
     cluster = dispy.JobCluster(work,nodes = nodeips,
         depends = deps,setup = cluster_setup,cleanup = False)
     print 'node ips',nodeips

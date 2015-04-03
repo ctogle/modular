@@ -56,6 +56,7 @@ class parallel_plan(lfu.plan):
             loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
         elif self.cluster_type == 'mpi':
             loc_0th_pools = mmcl.clusterize(nodes,work,wrgs,deps)
+            pdb.set_trace()
         print 'CLUSTERIZED...'
         return loc_0th_pools
 

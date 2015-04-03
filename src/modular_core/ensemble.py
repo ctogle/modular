@@ -340,11 +340,16 @@ class ensemble(lfu.mobject):
         return data_pool
 
     # use dispy to distribute work across a network
+    def _run_distributed_dispy(self):
+        pass
+
+    # use dispy to distribute work across a network
     def _run_distributed(self):
         cplan = self.cartographer_plan
         pspace = cplan.parameter_space
         mappspace = cplan.use_plan and pspace
         self._run_params_to_location_prepoolinit()
+
         if mappspace:
             arc = cplan.trajectory
             arc_length = len(arc)
@@ -355,8 +360,10 @@ class ensemble(lfu.mobject):
             with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
             modulename = self.module_name
 
+            # dispy specific here?
             nodes = self.multiprocess_plan.cluster_node_ips
             work = _unbound_map_pspace_location
+            # dispy specific here?
             wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
             deps = self.module.dependencies
 
@@ -382,7 +389,9 @@ class ensemble(lfu.mobject):
 
             if cplan.maintain_pspmap:cplan._save_metamap()
             dpool = dba.batch_node()
+
         else:dpool = self._run_nonmap()
+
         return dpool
 
     # use current parameters like a single position trajectory
@@ -439,6 +448,24 @@ class ensemble(lfu.mobject):
         ntarg = len(ptargs)
         ncapt = self.simulation_plan._capture_count()
         return (ntraj,ntarg,ncapt,ptargs)
+
+    # run many simulations, aggregating data in a numpy array
+    # print the current trajectory/maxtrajectory at frequency pfreq
+    def _run_batch_np(self,many,pool,pfreq = 100):
+        simu = self.module.simulation
+        sim_args = self.module.sim_args
+        if pfreq is None:pfreq = sys.maxint
+        else:print 'batch run completed:%d/%d'%(0,many)
+
+        pdb.set_trace()
+
+        for m in range(many):
+            rundat = simu(sim_args)
+            if rundat is None:return
+            pool._trajectory(rundat)
+            if m % pfreq == 0 and m > 0:
+                print 'batch run completed:%d/%d'%(m+pfreq,many)
+        return True
 
     # run many simulations, adding the data to node pool
     # print the current trajectory/maxtrajectory at frequency pfreq
