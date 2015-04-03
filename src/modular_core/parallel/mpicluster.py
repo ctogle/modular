@@ -87,8 +87,6 @@ def clusterize(ensem,arc_length):
             batch = ensem._run_batch_np(subtjcnt,subshape)
             batches = comm.gather(batch,root = 0)
 
-            if comm.rank == 0:
-                pdb.set_trace()
             #if self.multiprocess_plan.use_plan:mppool._initializer()
             #else:self._run_params_to_location()
             #if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
@@ -121,7 +119,9 @@ def clusterize(ensem,arc_length):
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
 
-    pdb.set_trace()
+    if comm.rank == 0:
+        pdb.set_trace()
+    comm.Barrier()
 
     print 'dumb mpi clusterized!'
     test()
