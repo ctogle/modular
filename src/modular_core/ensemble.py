@@ -39,6 +39,8 @@ import numpy as np
 import importlib as imp
 from cStringIO import StringIO
 
+from mpi4py import MPI
+
 if __name__ == 'modular_core.ensemble':
     lfu.check_gui_pack()
     lgm = lfu.gui_pack.lgm
@@ -338,12 +340,16 @@ class ensemble(lfu.mobject):
             mppool.join()
         return data_pool
 
-    # use dispy to distribute work across a network
+    # use dispy/mpi to distribute work across a network
     def _run_distributed(self):
         cplan = self.cartographer_plan
         pspace = cplan.parameter_space
         mappspace = cplan.use_plan and pspace
-        self._run_params_to_location_prepoolinit()
+
+        comm = MPI.COMM_WORLD
+        if comm.rank == 0:
+            self._run_params_to_location_prepoolinit()
+        comm.Barrier()
 
         if mappspace:
             arc = cplan.trajectory

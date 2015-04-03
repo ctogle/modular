@@ -8,6 +8,8 @@ import pdb,sys,time,types
 import numpy as np
 import multiprocessing as mp
 
+from mpi4py import MPI
+
 if __name__ == 'modular_core.parallel.parallelplan':
     lfu.check_gui_pack()
     lgb = lfu.gui_pack.lgb
@@ -61,8 +63,10 @@ class parallel_plan(lfu.plan):
             deps = ensem.module.dependencies
             loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
         elif self.cluster_type == 'mpi':
+            comm = MPI.COMM_WORLD
             loc_0th_pools = mmcl.clusterize(ensem,arc_length)
-            pdb.set_trace()
+            if comm.rank == 0:
+                pdb.set_trace()
         print 'CLUSTERIZED...'
         return loc_0th_pools
 

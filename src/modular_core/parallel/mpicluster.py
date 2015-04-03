@@ -113,14 +113,11 @@ def clusterize(ensem,arc_length):
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
 
+    comm.Barrier()
     if comm.rank == 0:
         print 'i might have made it?'
-        pdb.set_trace()
-    comm.Barrier()
-
-    print 'dumb mpi clusterized!'
-    test()
-    return 'result'
+        return data_pool
+    else:return None
 
 if __name__ == '__main__':
     inpmobj = lfu.mobject(name = 'ensemble?')
