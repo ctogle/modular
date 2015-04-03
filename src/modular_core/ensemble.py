@@ -361,8 +361,10 @@ class ensemble(lfu.mobject):
             arc = cplan.trajectory
             arc_length = len(arc)
 
-            usepplan = self.postprocess_plan.use_plan
-            if usepplan:self.postprocess_plan._init_processes(arc)
+            if comm.rank == 0:
+                usepplan = self.postprocess_plan.use_plan
+                if usepplan:self.postprocess_plan._init_processes(arc)
+            comm.Barrier()
 
             #with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
             #modulename = self.module_name
@@ -375,8 +377,6 @@ class ensemble(lfu.mobject):
             #deps = self.module.dependencies
 
             loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
-
-            pdb.set_trace()
 
             if comm.rank == 0:
                 zeroth = self.postprocess_plan.zeroth
@@ -399,10 +399,12 @@ class ensemble(lfu.mobject):
 
                 if cplan.maintain_pspmap:cplan._save_metamap()
                 dpool = dba.batch_node()
+            comm.Barrier()
 
         else:
             if comm.rank == 0:
                 dpool = self._run_nonmap()
+            comm.Barrier()
 
         if comm.rank == 0:
             return dpool
@@ -633,8 +635,10 @@ class ensemble(lfu.mobject):
     def _run_mcfg(self,mcfg):
         self.mcfg_path = mcfg
         self._parse_mcfg()
-        self.output_plan.targeted = self.run_params['plot_targets'][:]
-        self.output_plan._target_settables()
+        comm = MPI.COMM_WORLD
+        if comm.rank == 0:
+            self.output_plan.targeted = self.run_params['plot_targets'][:]
+            self.output_plan._target_settables()
         return self._run_specific()
 
     def _select_mcfg(self,file_ = None):
