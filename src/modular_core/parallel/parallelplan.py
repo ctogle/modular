@@ -54,7 +54,7 @@ class parallel_plan(lfu.plan):
 
     def _cluster(self,arc_length,work):
         ensem = self.parent
-        print 'CLUSTERIZING...'
+        if comm.rank == 0:print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':
             nodes = self.cluster_node_ips
             with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
@@ -62,13 +62,33 @@ class parallel_plan(lfu.plan):
             wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
             deps = ensem.module.dependencies
             loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
+            if comm.rank == 0:
+                zeroth = ensem.postprocess_plan.zeroth
+                zcount = len(zeroth)
+                for adx in range(arc_length):
+                    l0p = loc_0th_pools[adx]
+
+                    if cplan.maintain_pspmap:
+                        mloc = l0p.metalocation
+                        mstr = mloc.location_string
+                        cplan.metamap.entries[mstr] = mloc
+                        cplan.metamap.location_strings.append(mstr)
+
+                    for zdx in range(zcount):
+                        zp = zeroth[zdx]
+                        zpdata = l0p.children[zdx]
+                        zpdata._unfriendly()
+                        zp.data._add_child(zpdata)
+                        zp.data._stow_child(-1,v = False)
+
+                if cplan.maintain_pspmap:cplan._save_metamap()
         elif self.cluster_type == 'mpi':
             comm = MPI.COMM_WORLD
             loc_0th_pools = mmcl.clusterize(ensem,arc_length)
             if comm.rank == 0:
-                pdb.set_trace()
-        print 'CLUSTERIZED...'
-        return loc_0th_pools
+                print 'CLUSTERIZED...'
+                #pdb.set_trace()
+        #return loc_0th_pools
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)

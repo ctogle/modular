@@ -376,8 +376,10 @@ class ensemble(lfu.mobject):
             #wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
             #deps = self.module.dependencies
 
-            loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
+            #loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
+            self.multiprocess_plan._cluster(arc_length,work)
 
+            '''#
             if comm.rank == 0:
                 zeroth = self.postprocess_plan.zeroth
                 zcount = len(zeroth)
@@ -398,14 +400,15 @@ class ensemble(lfu.mobject):
                         zp.data._stow_child(-1,v = False)
 
                 if cplan.maintain_pspmap:cplan._save_metamap()
+            '''#
+            if comm.rank == 0:
                 dpool = dba.batch_node()
-            comm.Barrier()
 
         else:
             if comm.rank == 0:
                 dpool = self._run_nonmap()
-            comm.Barrier()
 
+        comm.Barrier()
         if comm.rank == 0:
             return dpool
         else:return None
