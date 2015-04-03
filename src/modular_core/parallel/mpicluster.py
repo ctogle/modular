@@ -73,6 +73,7 @@ def clusterize(ensem,arc_length):
                 traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
                 lstr = cplan._print_friendly_pspace_location(arc_dex)
                 mmap = cplan.metamap
+        comm.Barrier()
 
         if not traj_cnt == 0:
             if comm.rank == 0:
