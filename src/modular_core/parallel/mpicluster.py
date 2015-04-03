@@ -59,6 +59,9 @@ def clusterize(ensem,arc_length):
 
     data_pool = dba.batch_node(metapool = meta)
     arc_dex = 0
+
+    comm = MPI.COMM_WORLD
+
     while arc_dex < arc_length:
         traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
         dshape = (traj_cnt,targ_cnt,capt_cnt)
@@ -77,6 +80,7 @@ def clusterize(ensem,arc_length):
             ensem._run_params_to_location()
 
             #subtjcnt = traj_cnt
+            print 'im rank %d from %d running in total:'%(comm.rank,comm.size)
             subtjcnt = traj_cnt/20
             subshape = (subtjcnt,targ_cnt,capt_cnt)
             batch = ensem._run_batch_np(subtjcnt,subshape)
