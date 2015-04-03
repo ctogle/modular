@@ -67,7 +67,7 @@ def clusterize(ensem,arc_length):
         dshape = (traj_cnt,targ_cnt,capt_cnt)
 
         if cplan.maintain_pspmap:
-            print 'should only fill metamap data as required...'
+            #print 'should only fill metamap data as required...'
             target_traj_cnt = traj_cnt
             traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
             lstr = cplan._print_friendly_pspace_location(arc_dex)
@@ -85,22 +85,14 @@ def clusterize(ensem,arc_length):
             subtjcnt = traj_cnt/20
             subshape = (subtjcnt,targ_cnt,capt_cnt)
             batch = ensem._run_batch_np(subtjcnt,subshape)
-            batches = comm.gather(batch,root = 0)
-
             if comm.rank == 0:
-                pdb.set_trace()
-            #if self.multiprocess_plan.use_plan:mppool._initializer()
-            #else:self._run_params_to_location()
-            #if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
-            #else:self._run_batch(traj_cnt,loc_pool)
-
-            if comm.rank == 0:
+                batches = comm.gather(batch,root = 0)
                 for batch in batches:
                     for b in batch:
                         loc_pool._trajectory(b)
 
                 if cplan.maintain_pspmap:
-                    print 'should record metamap data...'
+                    #print 'should record metamap data...'
                     cplan._record_persistent(arc_dex,loc_pool)
                     loc_pool = mmap._recover_location(lstr)
         else:
@@ -121,7 +113,10 @@ def clusterize(ensem,arc_length):
                 data_pool._add_child(loc_pool)
                 if stow_needed:data_pool._stow_child(-1)
 
-    pdb.set_trace()
+    if comm.rank == 0:
+        print 'i might have made it?'
+        pdb.set_trace()
+    comm.Barrier()
 
     print 'dumb mpi clusterized!'
     test()
