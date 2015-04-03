@@ -192,7 +192,7 @@ class simulation_module(smd.simulation_module):
             astring = ','.join(paxnames)
             for px,ax in zip(paxnames,paxes):runargs[px] = ax
         else:astring = ''
-        if fitting:astring += ',timeout = 5'
+        if fitting:astring += ',timeout = 2.0'
         rargs = {
             'argstring':astring,
             'runargs':runargs,
@@ -280,6 +280,7 @@ class simulation_module(smd.simulation_module):
             writer._install()
             print '\ninstallation took:',time.time() - insttime,'seconds\n'
         else:print '\ninstallion was not needed...\n'
+        self.dependencies = [lfu.get_cache_path('gillespiemext_0.so')]
 
     def _set_parameters(self):
         module = __import__(self.extensionname)
@@ -687,8 +688,8 @@ class species(lfu.run_parameter):
         self._default('initial',0,**kwargs)
         pspace_axes =\
           [lpsp.pspace_axis(instance = self,key = 'initial',
-              bounds = [0,10000000000],increment = 0.0,
-              continuous = False)]
+              bounds = [1,10000000000],increment = 0.0,
+              continuous = False,caste = int)]
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
@@ -860,7 +861,7 @@ class variable(lfu.run_parameter):
         self._default('value',1.0,**kwargs)
         pspace_axes = [
             lpsp.pspace_axis(instance = self,key = 'value',
-                        bounds = [0.0,sys.float_info.max])]
+                        bounds = [1.0/sys.float_info.max,sys.float_info.max])]
         self.pspace_axes = pspace_axes
         lfu.run_parameter.__init__(self,*args,**kwargs)
 
