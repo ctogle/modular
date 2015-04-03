@@ -257,6 +257,8 @@ class ensemble(lfu.mobject):
         pspace = self.cartographer_plan.parameter_space
         mappspace = self.cartographer_plan.use_plan and pspace
         distributed = self.multiprocess_plan.distributed
+        
+        comm = MPI.COMM_WORLD
 
         if not self.skip_simulation:
             print 'simulation start time:',stimepretty
@@ -271,19 +273,21 @@ class ensemble(lfu.mobject):
                     else:dpool = self._run_nonmap()
             print 'duration of simulations:',time.time() - fullstime
         else:
-            print 'skipping simulation implies metamap usage...'
-            dpool = self._run_metamap_zeroth()
+            if comm.rank == 0:
+                print 'skipping simulation implies metamap usage...'
+                dpool = self._run_metamap_zeroth()
 
-        print 'performing non-0th post processing...'
-        procstime = time.time()
-        if self.postprocess_plan.use_plan:
-            self.postprocess_plan._walk_processes()
-        print 'duration of non-0th post processes:',time.time() - procstime
+        if comm.rank == 0:
+            print 'performing non-0th post processing...'
+            procstime = time.time()
+            if self.postprocess_plan.use_plan:
+                self.postprocess_plan._walk_processes()
+            print 'duration of non-0th post processes:',time.time() - procstime
 
-        self._save_data_pool(dpool)
-        print 'finished simulations and analysis:exiting'
-        print 'total run duration:',time.time() - fullstime,'seconds'
-        return True
+            self._save_data_pool(dpool)
+            print 'finished simulations and analysis:exiting'
+            print 'total run duration:',time.time() - fullstime,'seconds'
+            return True
 
     # use the fitting_plan to perform simulations
     def _run_fitting(self):
@@ -349,6 +353,8 @@ class ensemble(lfu.mobject):
         comm = MPI.COMM_WORLD
         if comm.rank == 0:
             self._run_params_to_location_prepoolinit()
+        else:
+            self.module._increment_extensionname()
         comm.Barrier()
 
         if mappspace:
@@ -372,30 +378,35 @@ class ensemble(lfu.mobject):
 
             pdb.set_trace()
 
-            zeroth = self.postprocess_plan.zeroth
-            zcount = len(zeroth)
-            for adx in range(arc_length):
-                l0p = loc_0th_pools[adx]
+            if comm.rank == 0:
+                zeroth = self.postprocess_plan.zeroth
+                zcount = len(zeroth)
+                for adx in range(arc_length):
+                    l0p = loc_0th_pools[adx]
 
-                if cplan.maintain_pspmap:
-                    mloc = l0p.metalocation
-                    mstr = mloc.location_string
-                    cplan.metamap.entries[mstr] = mloc
-                    cplan.metamap.location_strings.append(mstr)
+                    if cplan.maintain_pspmap:
+                        mloc = l0p.metalocation
+                        mstr = mloc.location_string
+                        cplan.metamap.entries[mstr] = mloc
+                        cplan.metamap.location_strings.append(mstr)
 
-                for zdx in range(zcount):
-                    zp = zeroth[zdx]
-                    zpdata = l0p.children[zdx]
-                    zpdata._unfriendly()
-                    zp.data._add_child(zpdata)
-                    zp.data._stow_child(-1,v = False)
+                    for zdx in range(zcount):
+                        zp = zeroth[zdx]
+                        zpdata = l0p.children[zdx]
+                        zpdata._unfriendly()
+                        zp.data._add_child(zpdata)
+                        zp.data._stow_child(-1,v = False)
 
-            if cplan.maintain_pspmap:cplan._save_metamap()
-            dpool = dba.batch_node()
+                if cplan.maintain_pspmap:cplan._save_metamap()
+                dpool = dba.batch_node()
 
-        else:dpool = self._run_nonmap()
+        else:
+            if comm.rank == 0:
+                dpool = self._run_nonmap()
 
-        return dpool
+        if comm.rank == 0:
+            return dpool
+        else:return None
 
     # use current parameters like a single position trajectory
     def _run_nonmap(self):

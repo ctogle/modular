@@ -63,15 +63,16 @@ def clusterize(ensem,arc_length):
     comm = MPI.COMM_WORLD
 
     while arc_dex < arc_length:
-        traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
-        dshape = (traj_cnt,targ_cnt,capt_cnt)
+        if comm.rank == 0:
+            traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
+            dshape = (traj_cnt,targ_cnt,capt_cnt)
 
-        if cplan.maintain_pspmap:
-            #print 'should only fill metamap data as required...'
-            target_traj_cnt = traj_cnt
-            traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
-            lstr = cplan._print_friendly_pspace_location(arc_dex)
-            mmap = cplan.metamap
+            if cplan.maintain_pspmap:
+                #print 'should only fill metamap data as required...'
+                target_traj_cnt = traj_cnt
+                traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
+                lstr = cplan._print_friendly_pspace_location(arc_dex)
+                mmap = cplan.metamap
 
         if not traj_cnt == 0:
             if comm.rank == 0:
