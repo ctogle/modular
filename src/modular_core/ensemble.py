@@ -465,7 +465,7 @@ class ensemble(lfu.mobject):
 
     # run many simulations, aggregating data in a numpy array
     # print the current trajectory/maxtrajectory at frequency pfreq
-    def _run_batch_np(self,many,dshape,pfreq = 0):
+    def _run_batch_np(self,many,dshape,pfreq = None):
         simu = self.module.simulation
         sim_args = self.module.sim_args
         if pfreq is None:pfreq = sys.maxint
