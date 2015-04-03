@@ -103,20 +103,23 @@ def clusterize(ensem,arc_length):
                     print 'should record metamap data...'
                     cplan._record_persistent(arc_dex,loc_pool)
                     loc_pool = mmap._recover_location(lstr)
-        else:loc_pool = mmap._recover_location(lstr,target_traj_cnt)
+        else:
+            if comm.rank == 0:
+                loc_pool = mmap._recover_location(lstr,target_traj_cnt)
 
-        if pplan.use_plan:
-            zeroth = pplan.zeroth
-            pplan._enact_processes(zeroth,loc_pool)
-        
-        #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
-
-        if meta:cplan._save_metamap()
         arc_dex += 1
-        print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
-        if requiresimdata:
-            data_pool._add_child(loc_pool)
-            if stow_needed:data_pool._stow_child(-1)
+        if comm.rank == 0:
+            if pplan.use_plan:
+                zeroth = pplan.zeroth
+                pplan._enact_processes(zeroth,loc_pool)
+            
+            #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
+
+            if meta:cplan._save_metamap()
+            print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
+            if requiresimdata:
+                data_pool._add_child(loc_pool)
+                if stow_needed:data_pool._stow_child(-1)
 
     pdb.set_trace()
 
