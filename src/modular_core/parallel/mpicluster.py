@@ -86,7 +86,9 @@ def clusterize(ensem,arc_length):
             subshape = (subtjcnt,targ_cnt,capt_cnt)
             batch = ensem._run_batch_np(subtjcnt,subshape)
             if comm.rank == 0:
+                print 'calling gather!'
                 batches = comm.gather(batch,root = 0)
+                print 'gathered!'
                 for batch in batches:
                     for b in batch:
                         loc_pool._trajectory(b)
@@ -95,6 +97,7 @@ def clusterize(ensem,arc_length):
                     #print 'should record metamap data...'
                     cplan._record_persistent(arc_dex,loc_pool)
                     loc_pool = mmap._recover_location(lstr)
+            comm.Barrier()
         else:
             if comm.rank == 0:
                 loc_pool = mmap._recover_location(lstr,target_traj_cnt)
