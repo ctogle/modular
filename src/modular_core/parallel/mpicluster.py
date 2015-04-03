@@ -99,6 +99,7 @@ def clusterize(ensem,arc_length):
                     #print 'should record metamap data...'
                     cplan._record_persistent(arc_dex,loc_pool)
                     loc_pool = mmap._recover_location(lstr)
+            else:print 'im rank %d and im done:'%(comm.rank)
             comm.Barrier()
         else:
             if comm.rank == 0:
