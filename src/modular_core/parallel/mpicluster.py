@@ -114,10 +114,7 @@ def clusterize(ensem,arc_length):
                 if stow_needed:data_pool._stow_child(-1)
 
     if comm.rank == 0:
-<<<<<<< HEAD
         print 'i might have made it?'
-=======
->>>>>>> 9cdbc8c3d6fab6e49b720e684779a9195a98e092
         pdb.set_trace()
     comm.Barrier()
 
