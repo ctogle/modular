@@ -74,8 +74,9 @@ def clusterize(ensem,arc_length):
             mmap = cplan.metamap
 
         if not traj_cnt == 0:
-            loc_pool = dba.batch_node(metapool = meta,
-                    dshape = dshape,targets = ptargets)
+            if comm.rank == 0:
+                loc_pool = dba.batch_node(metapool = meta,
+                        dshape = dshape,targets = ptargets)
             cplan._move_to(arc_dex)
             ensem._run_params_to_location()
 
@@ -86,19 +87,22 @@ def clusterize(ensem,arc_length):
             batch = ensem._run_batch_np(subtjcnt,subshape)
             batches = comm.gather(batch,root = 0)
 
-            pdb.set_trace()
+            if comm.rank == 0:
+                pdb.set_trace()
             #if self.multiprocess_plan.use_plan:mppool._initializer()
             #else:self._run_params_to_location()
             #if mppool:self._run_mpbatch(mppool,traj_cnt,loc_pool)
             #else:self._run_batch(traj_cnt,loc_pool)
 
-            for rundat in results:
-                loc_pool._trajectory(rundat)
+            if comm.rank == 0:
+                for batch in batches:
+                    for b in batch:
+                        loc_pool._trajectory(b)
 
-            if cplan.maintain_pspmap:
-                print 'should record metamap data...'
-                cplan._record_persistent(arc_dex,loc_pool)
-                loc_pool = mmap._recover_location(lstr)
+                if cplan.maintain_pspmap:
+                    print 'should record metamap data...'
+                    cplan._record_persistent(arc_dex,loc_pool)
+                    loc_pool = mmap._recover_location(lstr)
         else:loc_pool = mmap._recover_location(lstr,target_traj_cnt)
 
         if pplan.use_plan:
