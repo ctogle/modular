@@ -18,15 +18,13 @@ def run_pklplotter():
 
 def run_mcfg(module,mcfg):
     comm = MPI.COMM_WORLD
-    print 'hey, im rank %d from %d running in total:' % (comm.rank,comm.size)
-    comm.Barrier()
-    return comm.rank
-
     mcfg = os.path.join(os.getcwd(),mcfg)
     mnger = ensemble_manager()
     ensem = mnger._add_ensemble(module = module)
     ensem._run_mcfg(mcfg)
-    ensem._output()
+    comm.Barrier()
+    if comm.rank == 0:ensem._output()
+    return comm.rank
 
 if __name__ == '__main__':
     agcnt = len(sys.argv)
