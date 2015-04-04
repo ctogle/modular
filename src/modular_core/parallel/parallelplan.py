@@ -54,6 +54,7 @@ class parallel_plan(lfu.plan):
 
     def _cluster(self,arc_length,work):
         ensem = self.parent
+        cplan = ensem.cartographer_plan
         comm = MPI.COMM_WORLD
         if comm.rank == 0:print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':

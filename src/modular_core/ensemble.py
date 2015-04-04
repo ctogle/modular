@@ -28,6 +28,7 @@ import modular_core.postprocessing.conditional as cdl
 import modular_core.postprocessing.correlation as crl
 import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
+import modular_core.postprocessing.k_means_clusters as kmc
 
 import modular_core.fitting.explorer as fex
 import modular_core.fitting.annealing as fan

@@ -52,6 +52,11 @@ class post_process_plan(lfu.plan):
         stime = time.time()
         ptraj = self.psp_trajectory
         if proc.regime == 'per trajectory':
+            if not pool.children:
+                proxy = dba.batch_node(targets = pool.targets)
+                proxy._add_child(pool)
+                pool = proxy
+                #pool = pool._split_self()
             for pchild in pool.children:
                 pchild._recover(v = False)
                 presult = proc.method(pchild,ptraj)

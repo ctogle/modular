@@ -229,17 +229,49 @@ class batch_node(ldc.data_mobject):
     # return the single_target data_mobjects held by children
     # associated with both x and y
     def _bin_select(self,x,ys):
-        dshape = self.data.shape
+        #dshape = self.data.shape
+        dshape = self.dshape
+        if dshape is None:
+            child0 = self.children[0]
+            targs = child0.targets
+            dshape = (len(self.children),)+child0.dshape
+            proxy = batch_node(dshape = dshape,targets = targs)
+            for ch in self.children:
+                ch._recover(v = False)
+                proxy._trajectory(ch.data)
+                ch._stow(v = False)
+            data = proxy.data
+        else:
+            targs = self.targets
+            data = self.data
         xs = np.empty(shape = (dshape[0],dshape[2]),dtype = np.float)
         yss = np.empty(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
         for trajdx in range(dshape[0]):
             for targdx in range(dshape[1]):
-                targ = self.targets[targdx]
-                if targ == x:xs[trajdx][:] = self.data[trajdx][targdx]
+                targ = targs[targdx]
+                if targ == x:xs[trajdx][:] = data[trajdx][targdx]
                 if targ in ys:
                     ydex = ys.index(targ)
-                    yss[trajdx][ydex][:] = self.data[trajdx][targdx]
+                    yss[trajdx][ydex][:] = data[trajdx][targdx]
         return xs,yss
+
+    # reshape the hierarchy so that self.data becomes a set
+    # of nodes below the node returned
+    # will this cause cyclic references preventing garbage collection?
+    def _split_self(self):
+        split = batch_node()
+        #child = self.children[which]
+        self._recover(v = False)
+        targets = self.targets
+        dshape = self.dshape[1:]
+        #dshape = child.data.shape[1:]
+        for traj in self.data:
+            traj_pool = batch_node(dshape = dshape,targets = targets)
+            traj_pool._trajectory(traj)
+            split._add_child(traj_pool)
+            split._stow_child(-1,v = False)
+        self._stow(v = False)
+        return split
 
     # reshape the hierarchy so that children[0].data becomes a set
     # of nodes below the node returned
