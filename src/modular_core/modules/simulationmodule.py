@@ -40,6 +40,8 @@ class simulation_module(lfu.mobject):
             ensem.multiprocess_plan.worker_count = int(val)
         elif key.strip() == 'distributed':
             ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(val)
+        elif key.strip() == 'clustertype':
+            ensem.multiprocess_plan.cluster_type = val
         elif key.strip() == 'nodes':
             ips = lfu.msplit(val,',')
             ensem.multiprocess_plan.cluster_node_ips = ips

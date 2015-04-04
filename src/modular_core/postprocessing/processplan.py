@@ -67,7 +67,7 @@ class post_process_plan(lfu.plan):
             presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)
             proc.data._stow_child(-1,v = False)
-        print '\n proc regime ',proc.regime,'\n\n'
+        print 'process regime:',proc.regime
         runtime = time.time() - stime
         print 'finished post process:',proc.name,'in',runtime
 
