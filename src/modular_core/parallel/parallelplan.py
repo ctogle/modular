@@ -46,7 +46,7 @@ class parallel_plan(lfu.plan):
         self._default('name','parallel plan',**kwargs)
         use_plan = lset.get_setting('multiprocessing')
         self._default('use_plan',use_plan,**kwargs)
-        self._default('cluster_type','mpi',**kwargs)
+        self._default('cluster_type','dispy',**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self.cluster_node_ips = cluster_ips
@@ -83,6 +83,10 @@ class parallel_plan(lfu.plan):
                         zp.data._stow_child(-1,v = False)
 
                 if cplan.maintain_pspmap:cplan._save_metamap()
+            if comm.rank == 0:
+                dpool = dba.batch_node()
+                return dpool
+            else:return None
         elif self.cluster_type == 'mpi':
             comm = MPI.COMM_WORLD
             loc_0th_pools = mmcl.clusterize(ensem,arc_length)

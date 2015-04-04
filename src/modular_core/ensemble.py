@@ -377,7 +377,7 @@ class ensemble(lfu.mobject):
             #deps = self.module.dependencies
 
             #loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
-            self.multiprocess_plan._cluster(arc_length,work)
+            dpool = self.multiprocess_plan._cluster(arc_length,work)
 
             '''#
             if comm.rank == 0:
@@ -401,12 +401,22 @@ class ensemble(lfu.mobject):
 
                 if cplan.maintain_pspmap:cplan._save_metamap()
             '''#
-            if comm.rank == 0:
-                dpool = dba.batch_node()
+            #if comm.rank == 0:
+            #    dpool = dba.batch_node()
 
         else:
             if comm.rank == 0:
-                dpool = self._run_nonmap()
+                #dpool = self._run_nonmap()
+                requiresimdata = self._require_simulation_data()
+                cplan = self.cartographer_plan
+                pspace = cplan._parameter_space([])
+                lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
+
+                data_pool = self._run_map()
+                #data_pool = self.multiprocess_plan._cluster(arc_length,work)
+
+                if requiresimdata:dpool = data_pool._split_child()
+                else:dpool = dba.batch_node()
 
         comm.Barrier()
         if comm.rank == 0:

@@ -59,7 +59,9 @@ class binmeasure(lpp.post_process_abstract):
         dshape = (tcount,len(bins))
         data = np.zeros(dshape,dtype = np.float)
         bins = [b-0.5 for b in bins]
-        binw = bins[-1]-bins[-2] if bins else 10.0
+        if len(bins) > 1:binw = bins[-1]-bins[-2]
+        else:binw = 10.0
+        #binw = bins[-1]-bins[-2] if len(bins) > 1 else 10.0
         bins.append(max(bins)+binw)
         bins = np.array(bins)
 
