@@ -7,7 +7,7 @@ import modular_core.criteria.abstract as cab
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
 
-import pdb,os,types
+import pdb,os,sys,types
 from cStringIO import StringIO
 
 if __name__ == 'modular_core.modules.simulationmodule':
