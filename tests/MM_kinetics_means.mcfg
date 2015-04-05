@@ -36,6 +36,8 @@
 <ensemble>
 	multiprocessing : off
 	mapparameterspace : off
+	metamapparameterspace : off
+  datapool_directory : /srv/cluster/shared_modular_data
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000

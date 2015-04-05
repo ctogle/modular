@@ -127,7 +127,8 @@ class ensemble(lfu.mobject):
         self._describe_data_pool(data_pool)
         self.data_pool_pkl = self._data_pool_path()
         lf.save_mobject(data_pool,self.data_pool_pkl)
-        print 'saved data pool:',time.time() - stime
+        print 'saved data pool:',time.time() - stime,
+        print '\tsaved at:',self.data_pool_pkl
 
     def _load_data_pool(self):
         print 'loading data pool...'

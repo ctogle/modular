@@ -81,8 +81,15 @@ class batch_node(ldc.data_mobject):
     def _stow(self,v = True): 
         if v:print 'stowing batch node',self.data_pool_id,'...'
         if not self._stowed():
-            if hasattr(self,'hdffile'):self._hdf5_data()
-            else:self._stow_children(v = v)
+            if self.stowformat == 'hdf5':
+                if hasattr(self,'hdffile'):self._hdf5_data()
+                else:self._stow_children(v = v)
+            elif self.stowformat is None:
+                print 'dont really stow!'
+            else:
+                print 'throw away batch nodes data!'
+                self.data = None
+                self.children = []
         if v:print 'stowed batch node',self.data_pool_id,'...'
 
     # uncompress data and store as data attribute
@@ -127,7 +134,8 @@ class batch_node(ldc.data_mobject):
     def _sanitize(self):
         dpath = self._get_data_pool_path()
         self.hdffile = None
-        self.data = dpath
+        if not self.stowformat is None:
+            self.data = dpath
         self.dims = None
 
     def __getstate__(self):
@@ -136,6 +144,7 @@ class batch_node(ldc.data_mobject):
 
     def __init__(self,*args,**kwargs):
         self._default('metapool',False,**kwargs)
+        self._default('stowformat',None,**kwargs)
         self._default('dshape',None,**kwargs)
         self._default('dims',None,**kwargs)
         self._default('parent',None,**kwargs)
@@ -147,7 +156,11 @@ class batch_node(ldc.data_mobject):
         self._default('surface_targets',None,**kwargs)
         self.data_pool_id = pool_id()
         self.data_pool_ids = []
-        if not self.dshape is None:self._init_data()
+
+        if self.metapool:self.stowformat = 'hdf5'
+        if self.stowformat == 'hdf5':fop = 'w'
+        else:fop = None
+        if not self.dshape is None:self._init_data(fop)
         ldc.data_mobject.__init__(self,*args,**kwargs)
 
     def _open(self):
@@ -160,16 +173,23 @@ class batch_node(ldc.data_mobject):
         dpath = os.path.join(prepath,self.data_pool_id)
         return dpath
 
-    def _init_data(self,fop = 'w'):
+    #def _init_data(self,fop = 'w'):
+    def _init_data(self,fop = None):
         dpath = self._get_data_pool_path()
-        self.hdffile = h5py.File(dpath,fop,libver = 'latest')
         if fop == 'w':
+            self.hdffile = h5py.File(dpath,fop,libver = 'latest')
             zeros = np.zeros(self.dshape,dtype = np.float)
             self.dims = len(self.dshape)
             self.data = self.hdffile.create_dataset('data',
                 shape = self.dshape,dtype = np.float,data = zeros)
         elif fop == 'r':
+            self.hdffile = h5py.File(dpath,fop,libver = 'latest')
             self.data = self.hdffile['data']
+        elif fop is None:
+            self.hdffile = None
+            zeros = np.zeros(self.dshape,dtype = np.float)
+            self.dims = len(self.dshape)
+            self.data = zeros
 
     def _subset_pool(self,count,**kwargs):
         subshape = (count,)+self.dshape[1:]
@@ -357,7 +377,7 @@ class batch_node(ldc.data_mobject):
             self._spruce(friendly)
             return friendly
         else:
-            self._open()
+            if not self.stowformat is None:self._open()
             data = self.data
             targets = self.targets
             friendly = []
