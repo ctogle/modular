@@ -35,14 +35,14 @@ class simulation_module(lfu.mobject):
         if not li in targs:targs.append(li)
 
     def _parse_mcfg_multiprocessing(li,ensem,parser,procs,routs,targs):
-        key,val = li.split(':')
-        if key.strip() == 'workers':
+        key,val = lfu.msplit(li)#li.split(':')
+        if key == 'workers':
             ensem.multiprocess_plan.worker_count = int(val)
-        elif key.strip() == 'distributed':
+        elif key == 'distributed':
             ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(val)
-        elif key.strip() == 'clustertype':
+        elif key == 'clustertype':
             ensem.multiprocess_plan.cluster_type = val
-        elif key.strip() == 'nodes':
+        elif key == 'nodes':
             ips = lfu.msplit(val,',')
             ensem.multiprocess_plan.cluster_node_ips = ips
 

@@ -94,6 +94,8 @@ class parallel_plan(lfu.plan):
             if comm.rank == 0:
                 print 'CLUSTERIZED...'
                 #pdb.set_trace()
+        else:
+            if comm.rank == 0:pdb.set_trace()
         #return loc_0th_pools
 
     def _widget(self,*args,**kwargs):
