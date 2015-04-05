@@ -32,6 +32,7 @@ import modular_core.postprocessing.k_means_clusters as kmc
 
 import modular_core.fitting.explorer as fex
 import modular_core.fitting.annealing as fan
+import modular_core.fitting.measurement as fme
 import modular_core.fitting.learner as fln
 
 import pdb,os,sys,traceback,types,time,imp

@@ -152,6 +152,7 @@ def get_cache_path(res = None):
     else:cpath = user_cache_path
     if res is None: return cpath
     else: return os.path.join(cpath,res)
+sys.path.append(get_cache_path())
 
 # change the user cache path, modifying sys.path as needed
 def set_cache_path(cpath = None):

@@ -77,6 +77,9 @@ class learner(fab.routine_abstract):
         #else:self.input_friendly = []
 
     def _set_hammer(self):
+        self._set_hammer_annealing()
+
+    def _set_hammer_annealing(self):
         import modular_core.fitting.annealing as fan
         mrt = 180.0
         mi = 10000
