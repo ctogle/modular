@@ -46,7 +46,7 @@ class parallel_plan(lfu.plan):
         self._default('name','parallel plan',**kwargs)
         use_plan = lset.get_setting('multiprocessing')
         self._default('use_plan',use_plan,**kwargs)
-        self._default('cluster_type','dispy',**kwargs)
+        self._default('cluster_type','mpi',**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self.cluster_node_ips = cluster_ips

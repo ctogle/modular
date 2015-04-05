@@ -407,7 +407,8 @@ class ensemble(lfu.mobject):
 
         else:
             if comm.rank == 0:
-                #dpool = self._run_nonmap()
+                dpool = self._run_nonmap()
+                '''#
                 requiresimdata = self._require_simulation_data()
                 cplan = self.cartographer_plan
                 pspace = cplan._parameter_space([])
@@ -418,6 +419,7 @@ class ensemble(lfu.mobject):
 
                 if requiresimdata:dpool = data_pool._split_child()
                 else:dpool = dba.batch_node()
+                '''#
 
         comm.Barrier()
         if comm.rank == 0:
