@@ -156,7 +156,8 @@ def get_cache_path(res = None):
 # change the user cache path, modifying sys.path as needed
 def set_cache_path(cpath = None):
     global user_cache_path
-    sys.path.remove(get_cache_path())
+    current = get_cache_path()
+    if current in sys.path:sys.path.remove(current)
     if not cpath is None:user_cache_path = cpath
     sys.path.append(get_cache_path())
 
