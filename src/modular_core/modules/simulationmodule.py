@@ -65,8 +65,7 @@ class simulation_module(lfu.mobject):
         elif which.startswith('datapool_directory'):
             lfu.user_data_pool_path = value
         elif which.startswith('cache_directory'):
-            lfu.user_cache_path = value
-            sys.path.append(lfu.get_cache_path())
+            lfu.set_cache_path(value)
         elif which.startswith('fitting'):
             ensem.fitting_plan.use_plan = lfu.coerce_string_bool(value)
         elif which.startswith('postprocessing'):
