@@ -144,11 +144,14 @@ def gather_string(msg,title):
     else:string = raw_input(msg)
     return string
 
+user_cache_path = None
+default_cache_path = os.path.join(appdirs.user_cache_dir(),'modular_cache')
 # resolve full cached resource path from resource filename
 def get_cache_path(res = None):
-    rpath = os.path.join(appdirs.user_cache_dir(),'modular_cache')
-    if res is None: return rpath
-    else: return os.path.join(rpath,res)
+    if user_cache_path is None:cpath = default_cache_path
+    else:cpath = user_cache_path
+    if res is None: return cpath
+    else: return os.path.join(cpath,res)
 sys.path.append(get_cache_path())
 
 # resolve full resource path from resource filename

@@ -355,6 +355,8 @@ class ensemble(lfu.mobject):
         comm = MPI.COMM_WORLD
         if comm.rank == 0:
             self._run_params_to_location_prepoolinit()
+            # each node needs a copy of the new .so file...
+            #
         else:
             self.module._increment_extensionname()
         comm.Barrier()

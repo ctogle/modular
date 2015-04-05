@@ -47,28 +47,30 @@ class simulation_module(lfu.mobject):
             ensem.multiprocess_plan.cluster_node_ips = ips
 
     def _parse_mcfg_ensemble(li,ensem,parser,procs,routs,targs):
-        spl = [l.strip() for l in li.split(':')]
-        which,value = spl
+        which,value = lfu.msplit(li)
+        #which,value = spl
         if which.startswith('multiprocessing'):
             ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('skipsimulation'):
+        elif which.startswith('skipsimulation'):
             ensem.skip_simulation = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('mapparameterspace'):
+        elif which.startswith('mapparameterspace'):
             ensem.cartographer_plan.use_plan = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('metamapparameterspace'):
+        elif which.startswith('metamapparameterspace'):
             ensem.cartographer_plan.maintain_pspmap = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('metamappath'):
+        elif which.startswith('metamappath'):
             finame = value[value.rfind(os.path.sep)+1:]
             drname = value[:value.find(finame)]
             ensem.cartographer_plan.mapdir = drname
             ensem.cartographer_plan.mapfile = finame
-        elif spl[0].startswith('datapool_directory'):
+        elif which.startswith('datapool_directory'):
             lfu.user_data_pool_path = value
-        elif spl[0].startswith('fitting'):
+        elif which.startswith('cache_directory'):
+            lfu.user_cache_path = value
+        elif which.startswith('fitting'):
             ensem.fitting_plan.use_plan = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('postprocessing'):
+        elif which.startswith('postprocessing'):
             ensem.postprocess_plan.use_plan = lfu.coerce_string_bool(value)
-        elif spl[0].startswith('trajectory_count'):
+        elif which.startswith('trajectory_count'):
             ensem.num_trajectories = int(value)
         ensem._rewidget(True)
 
