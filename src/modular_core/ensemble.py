@@ -278,6 +278,7 @@ class ensemble(lfu.mobject):
                 print 'skipping simulation implies metamap usage...'
                 dpool = self._run_metamap_zeroth()
 
+        comm.Barrier()
         if comm.rank == 0:
             print 'performing non-0th post processing...'
             procstime = time.time()
