@@ -1,4 +1,5 @@
 import modular_core.fundamental as lfu
+import modular_core.parameterspace.parameterspaces as lpsp
 
 import pdb,os,numpy,dispy,random,time,socket,multiprocessing
 
@@ -54,12 +55,6 @@ def clusterize(nodeips,work,args,deps = []):
 from threading import Thread
 
 class mjob(Thread):
-
-    # an mjob is meant to be either a batch of simulations
-    # or some post processing upon simulation results
-
-    # when its created, its given a list of other mjobs which must
-    # finish before it may run
 
     def _abort(self):
         self.aborted = True
@@ -137,12 +132,20 @@ class mjob(Thread):
         print 'I DID MY JOB!!',self.job_id,'with input',len(self.inputs)
         return host,result
 
+###############################################################################
+# an mjob is meant to be either a batch of simulations
+# or some post processing upon simulation results
+
+# when its created, its given a list of other mjobs which must
+# finish before it may run
+
 def unbound_batch_run(*args):
     import numpy
 
     inputs,job_id = args
     host = socket.gethostname()
 
+    #ensem.module._increment_extensionname()
     result = numpy.zeros((5,100),dtype = numpy.float)
 
     time.sleep(2)
@@ -155,11 +158,14 @@ def unbound_zeroth(*args):
     inputs,job_id = args
     host = socket.gethostname()
 
+    #ensem.module._increment_extensionname()
     result = numpy.zeros((5,100),dtype = numpy.float)
 
     time.sleep(5)
     print 'I DID MY JOB!!ZZZZZZERO',job_id,'with input',len(inputs)
     return host,result
+
+###############################################################################
 
 class mcluster(lfu.mobject):
 
@@ -237,10 +243,42 @@ class mcluster(lfu.mobject):
         self.clusters.values()[0].stats()
         print 'cluster finished...'
 
-# replace the functionality of 
-# ensem._run_distributed with a clusterized version
-def mcluster_run(ensem):
+def setup_mjobs(ensem):
+    requiresimdata = ensem._require_simulation_data()
+    cplan = ensem.cartographer_plan
+    pplan = ensem.postprocess_plan
+    pspace = cplan.parameter_space
+    mappspace = cplan.use_plan and pspace
+    if not mappspace:
+        pspace = cplan._parameter_space([])
+        trj,ntrj = cplan.trajectory,ensem.num_trajectories
+        lpsp.trajectory_set_counts(trj,ntrj)
+    ensem._run_params_to_location_prepoolinit()
 
+    arc = cplan.trajectory
+    arc_length = len(arc)
+    if pplan.use_plan:pplan._init_processes(arc)
+
+    #data_pool = dba.batch_node(metapool = meta)
+    arc_dex = 0
+    while arc_dex < arc_length:
+
+        print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
+        #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
+        #if meta:self.cartographer_plan._save_metamap()
+
+        print 'make a job which assembles the data of the new jobs'
+        arc_dex += 1
+        #print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
+        #if requiresimdata:
+        #    data_pool._add_child(loc_pool)
+        #    if stow_needed:data_pool._stow_child(-1)
+
+        print 'make a job which runs zeroth processing on these jobs data'
+
+        print 'there should be a job which waits for the zeroth data\
+              to finish to put it into a final data pool to return'
+        
     pdb.set_trace()
 
     wf1 = 'batch_run'
@@ -250,6 +288,12 @@ def mcluster_run(ensem):
     js2 = [mjob(x+len(js1),js1,wf2) for x in range(5)]
     jobs = js2+js1
 
+    return jobs
+
+# replace the functionality of 
+# ensem._run_distributed with a clusterized version
+def mcluster_run(ensem):
+    jobs = setup_mjobs(ensem)
     nodes = {
         #'sierpenski':'192.168.4.89', 
         #'latitude':'192.168.4.76', 
