@@ -1,5 +1,4 @@
 import modular_core.fundamental as lfu
-import modular_core.postprocessing.process_abstract as lpp
 
 import numpy as np
 import pdb,math
@@ -22,27 +21,21 @@ class measurement(lfu.mobject):
 class postprocess_measurement(measurement):
 
     def __init__(self,*args,**kwargs):
-        pprocs = lpp.process_types
-        self._default('processtype',pprocs.keys()[0],**kwargs)
-        #pdb.set_trace()
+        self._default('process',None,**kwargs)
+        self._default('direction','maximize',**kwargs)
         measurement.__init__(self,*args,**kwargs)
 
-    #### THIS WILL BE REWRITTEN
-    # i,j are batch_nodes with the same dshape and targets
-    # call measurement on i,j[1:] 1-1 for ptwise
-    def _measure(self,i,j):
+    # i is the information node of a fit routine
+    def _measure(self,i):
+        me = self.process.method(i,None)
 
-        pdb.set_trace()
+        ### HACK
+        crunch = np.mean(me.data[1])
+        ### HACK
 
-        bnds = (0,i.dshape[-1])
-        tmeasures = []
-        x = i.data[0]
-        for t in range(1,i.dshape[-2]):
-            idat = i.data[t]
-            jdat = j.data[t]
-            measures = self._weight(self.measurement(x,idat,jdat,bnds))
-            tmeasures.append(np.mean(measures))
-        meas = np.mean(tmeasures)
+        if self.direction == 'maximize':
+            meas = 1.0/crunch
+        else:meas = crunch
         return meas
 
 class ptwise_measurement(measurement):

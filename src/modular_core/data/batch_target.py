@@ -85,7 +85,8 @@ class batch_node(ldc.data_mobject):
                 if hasattr(self,'hdffile'):self._hdf5_data()
                 else:self._stow_children(v = v)
             elif self.stowformat is None:
-                print 'dont really stow!'
+                #print 'dont really stow!'
+                pass
             else:
                 print 'throw away batch nodes data!'
                 self.data = None
@@ -323,8 +324,10 @@ class batch_node(ldc.data_mobject):
             self._add_child(traj_pool)
             self._stow_child(-1,v = False)
 
-        pa = self.hdffile.filename
-        self.hdffile.close()
+        if hasattr(self.hdffile,'close'):
+            #pa = self.hdffile.filename
+            self.hdffile.close()
+
         #self.data = pa
         self.data = None
 

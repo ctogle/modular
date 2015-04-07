@@ -25,54 +25,26 @@ class measure(fan.annealing):
         else:self.best = False
         if not ran:return False
 
-        ##########
-        #runintp = dba.batch_node(
-        #    dshape = self.input_data.dshape,
-        #    targets = self.input_data.targets)
-        #rundata = information.data[0]
-        #inpdata = self.input_data.data
-        #runintp.data[0] = inpdata[0]
-        #for dx in range(1,rundata.shape[0]):
-        #    rdat = rundata[dx]
-        #    runintp.data[dx] = interpolate(rundata[0],rdat,inpdata[0])
-        ##########
-        
-        print ' must measure the run data in information ' 
-        pdb.set_trace()
-
         temp_measurements = []
         for mdx in range(self.metric_count):
             met = self.metrics[mdx]
-            ##########
-            #m = met._measure(self.input_data,runintp)
-            ##########       
-            pdb.set_trace()
-            m = met._measure()
+            m = met._measure(information)
             temp_measurements.append(m)
-
-        ##########
-        #runintp._stow(v = False)
-        ##########
-
 
         fitter = self._fitter(temp_measurements)
         return fitter
 
     def __init__(self,*args,**kwargs):
         self._default('name','a measure',**kwargs)
-        self._default('simulations_per_iteration',1,**kwargs)
-        #self._default('max_iteration',100000.0,**kwargs)
-        #self._default('max_undos',100000,**kwargs)
-        #self._default('max_runtime',300.0,**kwargs)
-        #self._default('max_last_best',100000,**kwargs)
-        #self._default('max_temperature',1000.0,**kwargs)
+        self._default('simulations_per_iteration',100,**kwargs)
+        self._default('measurement',None,**kwargs)
+        self._default('max_iteration',100000.0,**kwargs)
+        self._default('max_undos',100000,**kwargs)
+        self._default('max_runtime',600.0,**kwargs)
+        self._default('max_last_best',100000,**kwargs)
 
-        #self._default('weight_scheme','uniform',**kwargs)
-        wrgs = {'processtype':'k-means'}
+        wrgs = {'process':self.measurement}
         self.metrics = [mts.postprocess_measurement(**wrgs)]
-
-        self.metric_count = len(self.metrics)
-        self.metric_threshold = int((self.metric_count/2.1) + 1.0)
         fan.annealing.__init__(self,*args,**kwargs)
 
 ###############################################################################
@@ -80,14 +52,32 @@ class measure(fan.annealing):
 
 # return valid **kwargs for measure based on msplit(line)
 def parse_line(split,ensem,procs,routs):
-    dpath = lfu.resolve_filepath(split[3])
-    #pdb.set_trace()
+
+    # create a k-means post process to use later...
+    ###
+    pvar = 'k-means'
+    spl = split[8]
+    spl = lfu.msplit(spl[spl.find('<')+1:spl.find('>')],'%')
+
+    import modular_core.postprocessing.process_abstract as lpp
+    ptypes = lpp.process_types
+    pargs = ptypes[pvar][1](spl,None,[],[])
+    pproc = ptypes[pvar][0](**pargs)
+    pproc._target_settables(0,ensem)
+    ###
+
+    mi,mr,mu,ml,si = split[3:8]
     eargs = {
         'name':split[0],
         'variety':split[1],
+        'max_iteration':int(mi),
+        'max_runtime':int(mr),
+        'max_undos':int(mu),
+        'max_last_best':int(ml),
+        'simulations_per_iteration':int(si),
         'pspace_source':split[2],
-        #'input_data_path':dpath, 
-        'metamapfile':split[4], 
+        'measurement':pproc, 
+        'metamapfile':split[9], 
             }
     return eargs
 

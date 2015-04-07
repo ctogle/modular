@@ -34,7 +34,7 @@ class annealing(fab.routine_abstract):
         if bestflags.count(True) > mthrsh:
             self.best = True
 
-    def _fitter(self,measures,noisey = 0.2):
+    def _fitter(self,measures,noisey = 0.1):
         if not self.metric_measurements[0]:fitter = True
         else:
             last = [m[-1] for m in self.metric_measurements]
@@ -82,11 +82,12 @@ class annealing(fab.routine_abstract):
         self._default('input_data_path',None,**kwargs)
         self._default('weight_scheme','uniform',**kwargs)
 
-        wrgs = {'weights':self.weight_scheme}
-        self.metrics = [
-            mts.difference(**wrgs),
-            mts.derivative1(**wrgs),
-            mts.derivative2(**wrgs)]
+        if not hasattr(self,'metrics'):
+            wrgs = {'weights':self.weight_scheme}
+            self.metrics = [
+                mts.difference(**wrgs),
+                mts.derivative1(**wrgs),
+                mts.derivative2(**wrgs)]
         self.metric_count = len(self.metrics)
         self.metric_threshold = int((self.metric_count/2.1) + 1.0)
         fab.routine_abstract.__init__(self,*args,**kwargs)

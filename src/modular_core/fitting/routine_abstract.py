@@ -135,7 +135,6 @@ class routine_abstract(lfu.mobject):
     def _capture(self,data,pspace):
         if not data.children:split = data._split()
         else:split = data
-        #if not self.iteration % 100 == 0 and not self.best and self.capture:
         if not self.best and self.capture:
             split._stow_children(v = False)
             return
@@ -144,6 +143,7 @@ class routine_abstract(lfu.mobject):
         self._record_position(pspace)
         print '\nroutine captured at iteration:',self.iteration
         print 'pspace location',self.psp_trajectory[-1].location
+
         for sch in split.children:
             self.data._add_child(sch)
             self.data._stow_child(-1,v = False)

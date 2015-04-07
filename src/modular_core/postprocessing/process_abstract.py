@@ -109,7 +109,8 @@ class post_process_abstract(lfu.mobject):
         return '\t' + self.label + ' : abstract'
 
     def _init_data(self,dshape,targets,**kwargs):
-        meta = self.parent.parent.cartographer_plan.maintain_pspmap
+        if self.parent is None:meta = False
+        else:meta = self.parent.parent.cartographer_plan.maintain_pspmap
         bnode = dba.batch_node(metapool = meta,
             dshape = dshape,targets = targets,**kwargs)
         return bnode
@@ -170,6 +171,9 @@ class post_process_abstract(lfu.mobject):
 
     # return the proper list of input objects based on input_regime
     def _source_reference(self,*args,**kwargs):
+        if self.parent is None:
+            print 'orphan post process cannot _source_reference...'
+            return []
         if self.fitting_aware:return self._source_reference_fit(*args,**kwargs)
         else:return self._source_reference_nofit(*args,**kwargs)
 

@@ -11,6 +11,10 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canva
 import matplotlib.pyplot as plt
 
 ###############################################################################
+# import other fitting routines to use as the "hammer"
+import modular_core.fitting.annealing as fan
+import modular_core.fitting.measurement as fme
+###############################################################################
 ### learner runs consecutive fitting routines, applying feedback of information
 ###############################################################################
 
@@ -63,6 +67,7 @@ class learner(fab.routine_abstract):
 
         self._default('max_runtime',1800.0,**kwargs)
         self._default('max_iteration',100.0,**kwargs)
+        self._default('hammer_string',None,**kwargs)
         self._default('nail',None,**kwargs)
 
         fab.routine_abstract.__init__(self,*args,**kwargs)
@@ -77,10 +82,17 @@ class learner(fab.routine_abstract):
         #else:self.input_friendly = []
 
     def _set_hammer(self):
-        self._set_hammer_annealing()
+        hspl = lfu.msplit(self.hammer_string)
+        hvar = hspl[1]
+        if hvar == 'annealing':
+            self._set_hammer_annealing(hspl)
+        elif hvar == 'measure':
+            self._set_hammer_measure(hspl)
 
-    def _set_hammer_annealing(self):
-        import modular_core.fitting.annealing as fan
+    def _set_hammer_annealing(self,hsplit):
+
+        pdb.set_trace()
+
         mrt = 180.0
         mi = 10000
 
@@ -94,6 +106,13 @@ class learner(fab.routine_abstract):
             'input_data_path':self.input_data_path,
                 }
         self.hammer = (fan.annealing,aargs,akwargs)
+
+    def _set_hammer_measure(self,hsplit):
+        ensem = self.parent.parent
+        mkwargs = fme.parse_line(hsplit,ensem,[],[])
+        mkwargs['parent'] = self.parent
+        margs = ()
+        self.hammer = (fme.measure,margs,mkwargs)
 
     def _finalize(self,*args,**kwargs):
         self.nail._move_to_best()
@@ -122,13 +141,20 @@ class learner(fab.routine_abstract):
 
 # return valid **kwargs for explorer based on msplit(line)
 def parse_line(split,ensem,procs,routs):
-    dpath = lfu.resolve_filepath(split[3])
+    mi,mr,mu,ml,si = split[3:8]
+    hstring = split[8][split[8].find('<')+1:split[8].rfind('>')]
+    hstring = hstring.replace('%',':').replace('&','%')
     eargs = {
         'name':split[0],
         'variety':split[1],
+        'max_iteration':int(mi),
+        'max_runtime':int(mr),
+        'max_undos':int(mu),
+        'max_last_best':int(ml),
+        'simulations_per_iteration':int(si),
         'pspace_source':split[2],
-        'input_data_path':dpath, 
-        'metamapfile':split[4], 
+        'hammer_string':hstring, 
+        'metamapfile':split[9], 
             }
     return eargs
 

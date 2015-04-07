@@ -50,10 +50,12 @@ class k_means(lpp.post_process_abstract):
         kcount = len(self.k_means_of)
 
         cc = self.cluster_count
-        def kdist(bindvals):
+        def kdist(bindvals):        
             kmeans = vq.kmeans(bindvals,cc)
             cposs,distortion = kmeans
-            return abs(cposs[1]-cposs[0]),distortion
+            try:kmeasure = abs(cposs[1]-cposs[0]),distortion
+            except:pdb.set_trace()
+            return kmeasure
 
         for dex in range(valss.shape[1]):
             vals = valss[:,dex,:]
