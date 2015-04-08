@@ -51,7 +51,7 @@ class post_process_plan(lfu.plan):
         print 'performing post process:',proc.name
         stime = time.time()
         ptraj = self.psp_trajectory
-        method = proc.__dict__[proc.method]
+        method = proc.__getattribute__[proc.method]
         if proc.regime == 'per trajectory':
             #if not pool.children:
             #    proxy = dba.batch_node(targets = pool.targets)

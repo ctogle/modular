@@ -1094,7 +1094,7 @@ def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
 
     if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
     host = socket.gethostname()
-    pdata = dba.batch_node(meta = meta)
+    pdata = dba.batch_node(metapool = meta)
     for z in zeroth:
         pdata._add_child(z.data.children[0])
         pdata._stow_friendly_child(-1)

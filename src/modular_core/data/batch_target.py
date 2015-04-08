@@ -179,7 +179,8 @@ class batch_node(ldc.data_mobject):
         dpath = self._get_data_pool_path()
         if fop == 'w':
             self.hdffile = h5py.File(dpath,fop,libver = 'latest')
-            zeros = np.zeros(self.dshape,dtype = np.float)
+            if hasattr(self.data,'shape'):zeros = self.data
+            else:zeros = np.zeros(self.dshape,dtype = np.float)
             self.dims = len(self.dshape)
             self.data = self.hdffile.create_dataset('data',
                 shape = self.dshape,dtype = np.float,data = zeros)
@@ -188,7 +189,8 @@ class batch_node(ldc.data_mobject):
             self.data = self.hdffile['data']
         elif fop is None:
             self.hdffile = None
-            zeros = np.zeros(self.dshape,dtype = np.float)
+            if hasattr(self.data,'shape'):zeros = self.data
+            else:zeros = np.zeros(self.dshape,dtype = np.float)
             self.dims = len(self.dshape)
             self.data = zeros
 
