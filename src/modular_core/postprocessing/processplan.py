@@ -66,7 +66,7 @@ class post_process_plan(lfu.plan):
                 proc.data._add_child(presult)
                 proc.data._stow_child(-1,v = False)
         elif proc.regime == 'all trajectories':
-            presult = method(pchild,ptraj)
+            presult = method(pool,ptraj)
             #presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)
             proc.data._stow_child(-1,v = False)
