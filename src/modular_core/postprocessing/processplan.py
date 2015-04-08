@@ -51,6 +51,8 @@ class post_process_plan(lfu.plan):
         print 'performing post process:',proc.name
         stime = time.time()
         ptraj = self.psp_trajectory
+        print 'method = proc.__getattribute__[proc.method]'
+        pdb.set_trace()
         method = proc.__getattribute__[proc.method]
         if proc.regime == 'per trajectory':
             #if not pool.children:

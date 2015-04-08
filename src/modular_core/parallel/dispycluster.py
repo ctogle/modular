@@ -181,9 +181,6 @@ def unbound_zeroth(*args):
         data = aggregate,dshape = dshape,targets = ptargets)
     pplan = ensem.postprocess_plan
     zeroth = pplan.zeroth
-
-    pdb.set_trace()
-
     pplan._enact_processes(zeroth,loc_pool)
     pdata = dba.batch_node(metapool = meta)
     for z in zeroth:pdata._add_child(z.data.children[0])
