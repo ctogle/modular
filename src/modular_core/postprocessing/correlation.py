@@ -37,7 +37,8 @@ class correlate(lpp.post_process_abstract):
         self._default('bin_count',100,**kwargs)
         self._default('ordered',True,**kwargs)
         self._default('fill_value',-100.0,**kwargs)
-        self.method = self.correlate
+        self.method = 'correlate'
+        #self.method = self.correlate
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def correlate(self,*args,**kwargs):

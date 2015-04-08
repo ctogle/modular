@@ -29,7 +29,8 @@ class binmeasure(lpp.post_process_abstract):
         #self._default('target',None,**kwargs)
         self._default('targets',None,**kwargs)
         self._default('bin_count',10,**kwargs)
-        self.method = self.measurement_bin
+        self.method = 'measurement_bin'
+        #self.method = self.measurement_bin
 
         self.measure = measurement_steady_state_count(parent = self)
         self.children = [self.measure]

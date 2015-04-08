@@ -1,7 +1,8 @@
 import modular_core.fundamental as lfu
+import modular_core.data.batch_target as dba
 import modular_core.parameterspace.parameterspaces as lpsp
 
-import pdb,os,numpy,dispy,random,time,socket,multiprocessing
+import pdb,os,sys,numpy,dispy,random,time,socket,multiprocessing,traceback
 
 def test(*args):
     mobj,jobdex = args
@@ -50,10 +51,13 @@ def clusterize(nodeips,work,args,deps = []):
     cluster.stats()
     return results
 
-
+###############################################################################
+### new cluster code
+###############################################################################
 
 from threading import Thread
 
+unused_mjob_id = 0
 class mjob(Thread):
 
     def _abort(self):
@@ -71,7 +75,6 @@ class mjob(Thread):
     def _ready(self):
         prcnt = len(self.prereqs)
         if prcnt == 0:self.status = 'ready'
-        #else:print 'job',self.job_id,'is not ready but waiting on',prcnt
         return self.status == 'ready'
 
     def _release(self,result):
@@ -80,16 +83,23 @@ class mjob(Thread):
                 d.prereqs.remove(self)
                 d.inputs[self.input_id] = result
 
-    def __init__(self,job_id,prereqs,work,interval = 0.1):
+    def _id(self):
+        global unused_mjob_id
+        if not hasattr(self,'job_id'):
+            self.job_id = unused_mjob_id
+            unused_mjob_id += 1
+        return self.job_id
+
+    def __init__(self,prereqs,work,wargs = (),interval = 0.1):
         Thread.__init__(self)
-        self.job_id = job_id
+        self._id()
         self.prereqs = prereqs
         self.dependants = []
         self.interval = interval
         self.status = 'init'
 
         self.work = work
-        self._wargs = ()
+        self.wargs = wargs
 
         self.aborted = False
         self.abortable = False
@@ -106,31 +116,25 @@ class mjob(Thread):
             self.process.start()
             self.process.join()
         else:
-            self._wargs = (self.inputs,self.job_id)
-            dpjob = self.dpcluster.submit(*self._wargs)
-            dpjob.id = self.job_id
-            #time.sleep(1)# I NEEDED THIS IN THE PAST FOR SOME REASON?
-            #self._work(*self._wargs)
-            dpresult = dpjob()
+            wargs = (self.inputs,self.job_id,)+self.wargs
+            if self.work == 'aggregate':
+                dpresult = self.dpcluster(*wargs)
+            else:
+                dpjob = self.dpcluster.submit(*wargs)
+                dpresult = dpjob()
+                # I NEEDED THIS IN THE PAST FOR SOME REASON?
+                #time.sleep(1)
             if dpresult is None:
                 print 'LIKELY EXCEPTION\n',dpjob.exception
                 host,result = None,None
             else:
                 host,result = dpresult
-                printargs = (host,dpjob.id,dpjob.start_time,self.dpcluster.mtype)
+                printargs = (host,self.job_id,dpjob.start_time,self.work)
                 print '%s executed job %s at %s doing work %s'%printargs
 
         if self.aborted:self.status = 'aborted'
         else:self.status = 'completed'
         self._release(result)
-
-    def _work(self,*args):
-        host = socket.gethostname()
-        result = numpy.zeros((5,100),dtype = numpy.float)
-
-        time.sleep(5)
-        print 'I DID MY JOB!!',self.job_id,'with input',len(self.inputs)
-        return host,result
 
 ###############################################################################
 # an mjob is meant to be either a batch of simulations
@@ -140,30 +144,40 @@ class mjob(Thread):
 # finish before it may run
 
 def unbound_batch_run(*args):
-    import numpy
-
-    inputs,job_id = args
+    ##########
+    import modular_core.fundamental as lfu
+    lfu.using_gui = False
+    import modular_core.ensemble as mce
+    ##########
+    inputs,job_id,ensem,trjcnt,tgcnt,cptcnt = args
     host = socket.gethostname()
-
-    #ensem.module._increment_extensionname()
-    result = numpy.zeros((5,100),dtype = numpy.float)
-
-    time.sleep(2)
-    print 'I DID MY JOB!!BAAAAAATCH',job_id,'with input',len(inputs)
+    ##########
+    dshape = (tgcnt,cptcnt)
+    result = ensem._run_batch_np(trjcnt,dshape,pfreq = None)
     return host,result
 
 def unbound_zeroth(*args):
     import numpy
 
+    # inputs is a list of numpy arrays, one for each sim realization
     inputs,job_id = args
     host = socket.gethostname()
 
-    #ensem.module._increment_extensionname()
     result = numpy.zeros((5,100),dtype = numpy.float)
 
+    result[0,0] = inputs[0][1,-1]
+
     time.sleep(5)
-    print 'I DID MY JOB!!ZZZZZZERO',job_id,'with input',len(inputs)
     return host,result
+
+def unbound_aggregate(*args):
+    inputs,job_id = args
+    host = socket.gethostname()
+
+    v = inputs[0][0,0]
+    print 'what the hell',v
+
+    pdb.set_trace()
 
 ###############################################################################
 
@@ -185,23 +199,19 @@ class mcluster(lfu.mobject):
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _initialize(self):
-
         self.ubound_work_functions = {
             'batch_run':unbound_batch_run,
             'zeroth':unbound_zeroth,
-                }
+            'aggregate':unbound_aggregate,}
         self.clusters = {}
 
         ndips = self.nodes.values()
         for uwf in self.ubound_work_functions.keys():
             clargs = (self.ubound_work_functions[uwf],)
             clkwgs = {'nodes':ndips,'depends':self.depends}
-
-            print 'cluster clargs',clargs,clkwgs
-
-            cluster = dispy.SharedJobCluster(*clargs,**clkwgs)
+            if uwf == 'aggregate':cluster = clargs[0]
+            else:cluster = dispy.SharedJobCluster(*clargs,**clkwgs)
             self.clusters[uwf] = cluster
-            cluster.mtype = uwf
 
         self.torun = self.mjobs[:]
         self.hasrun = []
@@ -214,7 +224,6 @@ class mcluster(lfu.mobject):
         print 'cluster initialized...'
         running = []
         while self.torun:
-            #print 'cluster running',len(running),'of',self.runatonce
             time.sleep(0.1)
             nowdone = []
             for j in running:
@@ -227,7 +236,6 @@ class mcluster(lfu.mobject):
                     print 'mjob',j.job_id,'has not started...'
 
             for nd in nowdone:
-                #nd._release()
                 running.remove(nd)
                 self.torun.remove(nd)
                 self.hasrun.append(nd)
@@ -243,7 +251,7 @@ class mcluster(lfu.mobject):
         self.clusters.values()[0].stats()
         print 'cluster finished...'
 
-def setup_mjobs(ensem):
+def setup_mjobs(ensem,ncores = 20):
     requiresimdata = ensem._require_simulation_data()
     cplan = ensem.cartographer_plan
     pplan = ensem.postprocess_plan
@@ -259,36 +267,51 @@ def setup_mjobs(ensem):
     arc_length = len(arc)
     if pplan.use_plan:pplan._init_processes(arc)
 
+    from modular_core.ensemble import ensemble_manager
+    mnger = ensemble_manager()
+    with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
+
+    mjobs = []
+    zjobs = []
+
     #data_pool = dba.batch_node(metapool = meta)
     arc_dex = 0
     while arc_dex < arc_length:
+        anensem = mnger._add_ensemble(module = ensem.module_name)
+        anensem._parse_mcfg(mcfgstring = mcfgstring)
+        anensem.module.parsers = None
+        anensem.multiprocess_plan.use_plan = False
+        #
+        anensem.module._increment_extensionname()
+        #
+        traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
+        anensem.cartographer_plan._move_to(arc_dex)
+        anensem._run_params_to_location()
+        anensem.parent = None
 
+        trjcntperbrun = ncores/traj_cnt
+        brun_args = (anensem,trjcntperbrun,targ_cnt,capt_cnt)
+        brun_mjobs = [mjob([],'batch_run',brun_args) for x in range(ncores)]
+        mjobs.extend(brun_mjobs)
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
+
         #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
         #if meta:self.cartographer_plan._save_metamap()
 
-        print 'make a job which assembles the data of the new jobs'
-        arc_dex += 1
         #print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
         #if requiresimdata:
         #    data_pool._add_child(loc_pool)
         #    if stow_needed:data_pool._stow_child(-1)
 
-        print 'make a job which runs zeroth processing on these jobs data'
+        zero_mjob = mjob(brun_mjobs,'zeroth')
+        zjobs.append(zero_mjob)
 
-        print 'there should be a job which waits for the zeroth data\
-              to finish to put it into a final data pool to return'
-        
-    pdb.set_trace()
+        arc_dex += 1
 
-    wf1 = 'batch_run'
-    wf2 = 'zeroth'
-
-    js1 = [mjob(x,[],wf1) for x in range(50)]
-    js2 = [mjob(x+len(js1),js1,wf2) for x in range(5)]
-    jobs = js2+js1
-
-    return jobs
+    mjobs.extend(zjobs)
+    aggr_mjob = mjob(zjobs,'aggregate')
+    mjobs.append(aggr_mjob)
+    return mjobs
 
 # replace the functionality of 
 # ensem._run_distributed with a clusterized version
@@ -311,6 +334,8 @@ def mcluster_run(ensem):
     mclust = mcluster(**mckwgs)
     mclust._clusterize()
     #mclust._run_async()
+
+    pdb.set_trace()
 
     print '...successfully ran on mcluster...'
     dpool = dba.batch_node()

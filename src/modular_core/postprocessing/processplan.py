@@ -51,6 +51,7 @@ class post_process_plan(lfu.plan):
         print 'performing post process:',proc.name
         stime = time.time()
         ptraj = self.psp_trajectory
+        method = proc.__dict__[proc.method]
         if proc.regime == 'per trajectory':
             #if not pool.children:
             #    proxy = dba.batch_node(targets = pool.targets)
@@ -59,12 +60,14 @@ class post_process_plan(lfu.plan):
             #    #pool = pool._split_self()
             for pchild in pool.children:
                 pchild._recover(v = False)
-                presult = proc.method(pchild,ptraj)
+                presult = method(pchild,ptraj)
+                #presult = proc.method(pchild,ptraj)
                 pchild._stow(v = False)
                 proc.data._add_child(presult)
                 proc.data._stow_child(-1,v = False)
         elif proc.regime == 'all trajectories':
-            presult = proc.method(pool,ptraj)
+            presult = method(pchild,ptraj)
+            #presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)
             proc.data._stow_child(-1,v = False)
         print 'process regime:',proc.regime

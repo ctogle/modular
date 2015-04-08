@@ -31,7 +31,8 @@ class meanfields(lpp.post_process_abstract):
         self._default('means_of',[],**kwargs)
         self._default('bin_count',100,**kwargs)
         self._default('ordered',True,**kwargs)
-        self.method = self.meanfields
+        self.method = 'meanfields'
+        #self.method = self.meanfields
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def meanfields(self,*args,**kwargs):

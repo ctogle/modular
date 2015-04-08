@@ -39,7 +39,8 @@ class reorganize(lpp.post_process_abstract):
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
         self._default('dater_ids',None,**kwargs)
-        self.method = self.data_by_trajectory
+        self.method = 'data_by_trajectory'
+        #self.method = self.data_by_trajectory
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def _process(self,*args,**kwargs):

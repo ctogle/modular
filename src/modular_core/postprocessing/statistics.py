@@ -30,7 +30,8 @@ class statistics(lpp.post_process_abstract):
         self._default('mean_of',None,**kwargs)
         self._default('bin_count',100,**kwargs)
         self._default('ordered',True,**kwargs)
-        self.method = self.statistics
+        self.method = 'statistics'
+        #self.method = self.statistics
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def statistics(self,*args,**kwargs):

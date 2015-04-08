@@ -29,7 +29,8 @@ class trajectory_slice(lpp.post_process_abstract):
 
         self._default('dater_ids',None,**kwargs)
         self._default('slice_dex',-1,**kwargs)
-        self.method = self.slice_from_trajectory
+        self.method = 'slice_from_trajectory'
+        #self.method = self.slice_from_trajectory
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def _slice(self):

@@ -35,7 +35,8 @@ class k_means(lpp.post_process_abstract):
         self._default('function_of',None,**kwargs)
         self._default('k_means_of',['gamma'],**kwargs)
 
-        self.method = self.k_means_clusters
+        self.method = 'k_means_clusters'
+        #self.method = self.k_means_clusters
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
     def k_means_clusters(self,*args,**kwargs):
