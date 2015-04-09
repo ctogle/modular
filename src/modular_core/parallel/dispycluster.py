@@ -4,16 +4,9 @@ import modular_core.parameterspace.parameterspaces as lpsp
 
 import pdb,os,sys,numpy,dispy,random,time,socket,multiprocessing,traceback
 
-def test(*args):
-    mobj,jobdex = args
-
-    import modular_core.fundamental as lfu
-    data = lfu.mobject(name = 'jobmobj%d'%(jobdex))
-
-    host = socket.gethostname()
-    data.dispyhost = host
-    data.dispyindex = jobdex
-    return data
+###############################################################################
+### old cluster code
+###############################################################################
 
 def start_cluster(cluster,args):
     jobs = []

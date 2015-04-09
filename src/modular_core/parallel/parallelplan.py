@@ -47,8 +47,8 @@ class parallel_plan(lfu.plan):
             #nodes = self.cluster_node_ips
             nodes = {
                 'sierpenski':'192.168.4.89', 
-                'latitude':'192.168.4.76', 
-                'wizbox':'192.168.2.173', 
+                #'latitude':'192.168.4.76', 
+                #'wizbox':'192.168.2.173', 
                     }
             dpool = mdcl.mcluster_run(ensem,nodes)
             return dpool
