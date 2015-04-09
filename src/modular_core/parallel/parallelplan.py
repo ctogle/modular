@@ -21,21 +21,6 @@ if __name__ == '__main__':print 'parallelplan of modular_core'
 ### a parallel_plan provides parallel support to an ensemble
 ###############################################################################
 
-cluster_ips = [
-    #'10.0.0.5',
-    #'10.0.0.8',
-
-    #'127.0.1.1', 
-
-    #'192.168.4.86', 
-    #'192.168.4.76', 
-    #'192.168.4.87', 
-    #'192.168.4.89',
-    #'192.168.2.173', 
-
-    #'hemlock.phys.vt.edu',
-        ]
-
 class parallel_plan(lfu.plan):
 
     def _string(self):
@@ -49,16 +34,26 @@ class parallel_plan(lfu.plan):
         self._default('cluster_type','mpi',**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
-        self.cluster_node_ips = cluster_ips
+        self._default('cluster_node_ips',[],**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
-    def _cluster(self,arc_length,work):
+    #def _cluster(self,arc_length,work):
+    def _cluster(self):
         ensem = self.parent
         cplan = ensem.cartographer_plan
         comm = MPI.COMM_WORLD
         if comm.rank == 0:print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':
-            nodes = self.cluster_node_ips
+            #nodes = self.cluster_node_ips
+            nodes = {
+                'sierpenski':'192.168.4.89', 
+                'latitude':'192.168.4.76', 
+                'wizbox':'192.168.2.173', 
+                    }
+            dpool = mdcl.mcluster_run(ensem,nodes)
+            return dpool
+
+            '''#
             with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
             modulename = ensem.module_name
             wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
@@ -88,7 +83,18 @@ class parallel_plan(lfu.plan):
                 dpool = dba.batch_node()
                 return dpool
             else:return None
+            '''#
+
+
+
+
         elif self.cluster_type == 'mpi':
+
+
+            print 'BROKEN'
+            pdb.set_trace()
+
+
             comm = MPI.COMM_WORLD
             loc_0th_pools = mmcl.clusterize(ensem,arc_length)
             if comm.rank == 0:

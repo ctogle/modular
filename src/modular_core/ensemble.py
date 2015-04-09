@@ -350,6 +350,12 @@ class ensemble(lfu.mobject):
 
     # use dispy/mpi to distribute work across a network
     def _run_distributed(self):
+        dpool = self.multiprocess_plan._cluster()
+        return dpool
+
+
+
+        ##############################
         cplan = self.cartographer_plan
         pspace = cplan.parameter_space
         mappspace = cplan.use_plan and pspace

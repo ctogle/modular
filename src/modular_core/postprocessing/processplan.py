@@ -51,7 +51,6 @@ class post_process_plan(lfu.plan):
         print 'performing post process:',proc.name
         stime = time.time()
         ptraj = self.psp_trajectory
-        print 'method = proc.__getattribute__[proc.method]'
         method = proc.__getattribute__(proc.method)
         if proc.regime == 'per trajectory':
             #if not pool.children:
@@ -62,13 +61,11 @@ class post_process_plan(lfu.plan):
             for pchild in pool.children:
                 pchild._recover(v = False)
                 presult = method(pchild,ptraj)
-                #presult = proc.method(pchild,ptraj)
                 pchild._stow(v = False)
                 proc.data._add_child(presult)
                 proc.data._stow_child(-1,v = False)
         elif proc.regime == 'all trajectories':
             presult = method(pool,ptraj)
-            #presult = proc.method(pool,ptraj)
             proc.data._add_child(presult)
             proc.data._stow_child(-1,v = False)
         print 'process regime:',proc.regime
