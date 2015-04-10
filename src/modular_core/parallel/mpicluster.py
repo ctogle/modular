@@ -202,7 +202,7 @@ def listen(root):
         job = comm.recv(source = root)
         if job == 'quit':quit = True
         else:
-            print 'rank:',rank,'received job:',job.job_id
+            print 'rank:',rank,'received job:',job.job_id,'with work:',job.work
             job._work()
             job.rank = rank
             job.host = host
