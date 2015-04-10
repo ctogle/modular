@@ -27,10 +27,13 @@
 	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 100 : ordered
 
 <multiprocessing>
-	workers : 100
+	workers : 32
+  distributed : on
+  clustertype : mpi
+  nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>
-	1 : - : mm_means : plt : all
+	1 : - : mm_means : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>
@@ -38,8 +41,9 @@
 	mapparameterspace : off
 	metamapparameterspace : off
   datapool_directory : /srv/cluster/shared_modular_data
+  cache_directory : /srv/cluster/shared_modular_cache
 	fitting : off
 	postprocessing : on
-	trajectory_count : 1000
+	trajectory_count : 1000000
 
 

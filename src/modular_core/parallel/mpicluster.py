@@ -1,4 +1,5 @@
 import modular_core.data.batch_target as dba
+import modular_core.parameterspace.parameterspaces as lpsp
 
 import random,time
 
@@ -92,7 +93,6 @@ class mjob(object):
         r = None
         if self.work == 'batch_run':r = self._runbatch()
         elif self.work == 'zeroth':r = self._zeroth()
-        elif self.work == 'aggregate':r = self._aggregate()
         elif self.work == 'pass':pass
         else:print 'UNKNOWN WORK REQUEST!',self.work
         self.result = r
@@ -114,9 +114,15 @@ def select_mjob(jobs,jcnt):
         if jobs[jdx]._ready():
             return jdx
 
-def delegate(root,jobs):
+def delegate_per_node(setup):
+    pdb.set_trace()
+
+def delegate(root,jobs,setup = None):
     comm = MPI.COMM_WORLD
     ncnt = comm.size
+
+    if not setup is None:delegate_per_node(setup)
+
     free = [x for x in range(ncnt)]
     occp = []
     free.remove(root)
@@ -177,6 +183,49 @@ def listen(root):
 
 ###############################################################################
 
+def host_ranks(root):
+    comm = MPI.COMM_WORLD
+    ncnt = comm.size
+    rnks = [x for x in range(ncnt)]
+
+    # ask every rank what their host is
+    # keep one rank per host in a list and return
+
+    remaining_jobs = jobs[:]
+    for j in jobs:j._initialize(jobs)
+    jobcount = len(jobs)
+    jobstodo = jobcount
+    jobsdone = 0
+    while jobsdone < jobcount:
+        swap = []
+        for f in free:
+            if jobstodo > 0:
+                jdx = select_mjob(remaining_jobs,jobstodo)
+                if jdx is None:break
+                j = remaining_jobs.pop(jdx)
+                if j.root_only:
+                    print 'executing root only job:',j.job_id
+                    j._work()
+                    comm.send(passjob,dest = f)
+                else:
+                    j.selfdex = jobs.index(j)
+                    comm.send(j,dest = f)
+                swap.append(f)
+                jobstodo -= 1
+            else:break
+        for f in swap:
+            free.remove(f)
+            occp.append(f)
+    
+        anyreply = comm.recv(source = MPI.ANY_SOURCE)
+
+def setup_node_setup_mjob(ensem):
+    
+    pdb.set_trace()
+
+    prepoolargs = (ensem,)
+    setup = [mjob([],'prepoolinit',prepoolargs) for x in range(hcnt)]
+
 def setup_ensemble_mjobs(ensem,trj_per_job = None):
     comm = MPI.COMM_WORLD
     ncores = comm.size
@@ -190,6 +239,8 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
         pspace = cplan._parameter_space([])
         trj,ntrj = cplan.trajectory,ensem.num_trajectories
         lpsp.trajectory_set_counts(trj,ntrj)
+
+    # run a function on one core of each node which does this locally
     ensem._run_params_to_location_prepoolinit()
 
     meta = False
@@ -217,6 +268,12 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
         #
         anensem.module._increment_extensionname()
         #
+        if not mappspace:
+            pspace = anensem.cartographer_plan._parameter_space([])
+            trj = anensem.cartographer_plan.trajectory
+            ntrj = anensem.num_trajectories
+            lpsp.trajectory_set_counts(trj,ntrj)
+
         traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
         anensem.cartographer_plan._move_to(arc_dex)
         anensem._run_params_to_location()
@@ -278,111 +335,14 @@ def test():
 if __name__ == '__main__':
     test()
 
+###############################################################################
 
 
-'''#
-import modular_core.fundamental as lfu
-import modular_core.data.batch_target as dba
 
-import dispy,random,time,socket,pdb
 
-from mpi4py import MPI
-def test():
-    comm = MPI.COMM_WORLD
-    print 'hey, im rank %d from %d running in total:' % (comm.rank,comm.size)
-    comm.Barrier()
-    return comm.rank
 
-def clusterize(ensem,arc_length):
-    requiresimdata = ensem._require_simulation_data()
-    cplan = ensem.cartographer_plan
-    pplan = ensem.postprocess_plan
-    meta = cplan.maintain_pspmap
-    arc = cplan.trajectory
-    arc_length = len(arc)
-    max_run = arc[0].trajectory_count
-    stow_needed = ensem._require_stow(max_run,arc_length)
 
-    data_pool = dba.batch_node(metapool = meta)
-    arc_dex = 0
 
-    comm = MPI.COMM_WORLD
 
-    while arc_dex < arc_length:
-        traj_cnt,targ_cnt,capt_cnt,ptargets = ensem._run_init(arc_dex)
-        if comm.rank == 0:
-            dshape = (traj_cnt,targ_cnt,capt_cnt)
-
-            if cplan.maintain_pspmap:
-                #print 'should only fill metamap data as required...'
-                target_traj_cnt = traj_cnt
-                traj_cnt,dshape = cplan._metamap_remaining(arc_dex,traj_cnt,dshape)
-                lstr = cplan._print_friendly_pspace_location(arc_dex)
-                mmap = cplan.metamap
-        comm.Barrier()
-
-        if not traj_cnt == 0:
-            if comm.rank == 0:
-                loc_pool = dba.batch_node(metapool = meta,
-                        dshape = dshape,targets = ptargets)
-            cplan._move_to(arc_dex)
-            ensem._run_params_to_location()
-
-            #subtjcnt = traj_cnt
-            print 'im rank %d from %d running in total:'%(comm.rank,comm.size)
-            subtjcnt = traj_cnt/20
-            subshape = (subtjcnt,targ_cnt,capt_cnt)
-            batch = ensem._run_batch_np(subtjcnt,subshape)
-            print 'calling gather!'
-            batches = comm.gather(batch,root = 0)
-            if comm.rank == 0:
-                #batches = [None]*20
-                print 'gathered!'
-                for batch in batches:
-                    for b in batch:
-                        loc_pool._trajectory(b)
-
-                if cplan.maintain_pspmap:
-                    #print 'should record metamap data...'
-                    cplan._record_persistent(arc_dex,loc_pool)
-                    loc_pool = mmap._recover_location(lstr)
-            else:print 'im rank %d and im done:'%(comm.rank)
-        else:
-            if comm.rank == 0:
-                loc_pool = mmap._recover_location(lstr,target_traj_cnt)
-
-        comm.Barrier()
-        arc_dex += 1
-        if comm.rank == 0:
-            if pplan.use_plan:
-                zeroth = pplan.zeroth
-                pplan._enact_processes(zeroth,loc_pool)
-            
-            #loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
-
-            if meta:cplan._save_metamap()
-            print 'pspace locations completed:%d/%d'%(arc_dex,arc_length)
-            if requiresimdata:
-                data_pool._add_child(loc_pool)
-                if stow_needed:data_pool._stow_child(-1)
-
-    comm.Barrier()
-    if comm.rank == 0:
-        print 'i might have made it?'
-        return data_pool
-    else:return None
-
-if __name__ == '__main__':
-    inpmobj = lfu.mobject(name = 'ensemble?')
-    inpargs = [(inpmobj,x) for x in range(10)]
-    nodes = ['127.0.0.1']
-    #nodes = ['127.0.0.1','192.168.4.76']
-    #nodes = ['127.0.0.1','hemlock.phys.vt.edu','192.168.4.76']
-    #nodes = ['hemlock.phys.vt.edu','192.168.4.76']
-    #nodes = ['127.0.0.1','192.168.4.76']
-    results = clusterize(nodes,test,inpargs,[])
-
-    pdb.set_trace()
-'''#
 
 

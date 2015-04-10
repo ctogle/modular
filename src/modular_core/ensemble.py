@@ -261,8 +261,6 @@ class ensemble(lfu.mobject):
         mappspace = self.cartographer_plan.use_plan and pspace
         distributed = self.multiprocess_plan.distributed
         
-        comm = MPI.COMM_WORLD
-
         if not self.skip_simulation:
             print 'simulation start time:',stimepretty
             if self.fitting_plan.use_plan:dpool = self._run_fitting()
@@ -276,22 +274,19 @@ class ensemble(lfu.mobject):
                     else:dpool = self._run_nonmap()
             print 'duration of simulations:',time.time() - fullstime
         else:
-            if comm.rank == 0:
-                print 'skipping simulation implies metamap usage...'
-                dpool = self._run_metamap_zeroth()
+            print 'skipping simulation implies metamap usage...'
+            dpool = self._run_metamap_zeroth()
 
-        comm.Barrier()
-        if comm.rank == 0:
-            print 'performing non-0th post processing...'
-            procstime = time.time()
-            if self.postprocess_plan.use_plan:
-                self.postprocess_plan._walk_processes()
-            print 'duration of non-0th post processes:',time.time() - procstime
+        print 'performing non-0th post processing...'
+        procstime = time.time()
+        if self.postprocess_plan.use_plan:
+            self.postprocess_plan._walk_processes()
+        print 'duration of non-0th post processes:',time.time() - procstime
 
-            self._save_data_pool(dpool)
-            print 'finished simulations and analysis:exiting'
-            print 'total run duration:',time.time() - fullstime,'seconds'
-            return True
+        self._save_data_pool(dpool)
+        print 'finished simulations and analysis:exiting'
+        print 'total run duration:',time.time() - fullstime,'seconds'
+        return True
 
     # use the fitting_plan to perform simulations
     def _run_fitting(self):

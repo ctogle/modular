@@ -35,12 +35,12 @@ class parallel_plan(lfu.plan):
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self._default('cluster_node_ips',[],**kwargs)
+        self._default('simulations_per_job',10000,**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
     #def _cluster(self,arc_length,work):
     def _cluster(self):
         ensem = self.parent
-        print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':
             #nodes = self.cluster_node_ips
             nodes = {
@@ -52,10 +52,11 @@ class parallel_plan(lfu.plan):
             return dpool
         elif self.cluster_type == 'mpi':
             comm = MPI.COMM_WORLD
-            jobs = mmcl.setup_ensemble_mjobs(ensem,1000)
+            jobs = mmcl.setup_ensemble_mjobs(
+                ensem,self.simulations_per_job)
+            prej = mmcl.setup_node_setup_mjob(ensem)
             mmcl.delegate(comm.rank,jobs)
         else:pdb.set_trace()
-        print 'CLUSTERIZED...'
         dpool = dba.batch_node()
         return dpool
 
