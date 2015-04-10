@@ -127,7 +127,7 @@ class ensemble(lfu.mobject):
         self._describe_data_pool(data_pool)
         self.data_pool_pkl = self._data_pool_path()
         lf.save_mobject(data_pool,self.data_pool_pkl)
-        print 'saved data pool:',time.time() - stime,
+        print 'saved data pool:',time.time() - stime
         print '\tsaved at:',self.data_pool_pkl
 
     def _load_data_pool(self):
@@ -269,9 +269,10 @@ class ensemble(lfu.mobject):
                 else:
                     if mappspace:
                         dpool = self._run_map()
-                        traj = self.cartographer_plan.trajectory
-                        self._output_trajectory_key(traj,pspace)
                     else:dpool = self._run_nonmap()
+            if mappspace:
+                traj = self.cartographer_plan.trajectory
+                self._output_trajectory_key(traj,pspace)
             print 'duration of simulations:',time.time() - fullstime
         else:
             print 'skipping simulation implies metamap usage...'
@@ -683,6 +684,10 @@ class ensemble(lfu.mobject):
         except:
             traceback.print_exc(file = sys.stdout)
             lgd.message_dialog(None,'Failed to write file!','Problem')
+
+    def _mcfg_string(self):
+        with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
+        return mcfgstring
 
     def _mcfg_widget(self,*args,**kwargs):
         window = args[0]

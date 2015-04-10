@@ -20,7 +20,6 @@ class mjob(object):
     def __init__(self,prereqs,work,wargs = ()):
         self._id()
         self.prereqs = prereqs
-        #self.prereqs = [p.job_id for p in prereqs]
         self.dependants = []
         self.work = work
         self.wargs = wargs
@@ -84,7 +83,11 @@ class mjob(object):
                 zp = zeroth[zdx]
                 zpdata = l0p.children[zdx]
                 zp.data._add_child(zpdata)
-                #zp.data._stow_child(-1,v = False)
+                zp.data._stow_child(-1,v = False)
+
+    def _prepoolinit(self):
+        ensem = self.wargs[0]
+        ensem._run_params_to_location_prepoolinit()
 
     def _work(self):
         #if self.inputs:
@@ -93,6 +96,8 @@ class mjob(object):
         r = None
         if self.work == 'batch_run':r = self._runbatch()
         elif self.work == 'zeroth':r = self._zeroth()
+        elif self.work == 'aggregate':r = self._aggregate()
+        elif self.work == 'prepoolinit':r = self._prepoolinit()
         elif self.work == 'pass':pass
         else:print 'UNKNOWN WORK REQUEST!',self.work
         self.result = r
@@ -114,14 +119,37 @@ def select_mjob(jobs,jcnt):
         if jobs[jdx]._ready():
             return jdx
 
-def delegate_per_node(setup):
-    pdb.set_trace()
+def host_lookup(root):
+    comm = MPI.COMM_WORLD
+    ncnt = comm.size
+    hosts = {}
+    passjob = mjob([],'pass')
+    for c in range(ncnt):
+        if c == root:hosts['root'] = c
+        else:
+            comm.send(passjob,dest = c)
+            reply = comm.recv(source = c)
+            host = reply.host
+            if host in hosts.keys():hosts[host].append(c)
+            else:hosts[host] = [c]
+    return hosts
+
+def delegate_per_node(hosts,setup):
+    comm = MPI.COMM_WORLD
+    for h in hosts.keys():
+        if h == 'root':continue
+        r = hosts[h][0]
+        comm.send(setup,dest = r)
+    for h in hosts.keys():
+        if h == 'root':continue
+        reply = comm.recv(source = r)
 
 def delegate(root,jobs,setup = None):
     comm = MPI.COMM_WORLD
     ncnt = comm.size
 
-    if not setup is None:delegate_per_node(setup)
+    hosts = host_lookup(root)
+    if not setup is None:delegate_per_node(hosts,setup)
 
     free = [x for x in range(ncnt)]
     occp = []
@@ -183,48 +211,59 @@ def listen(root):
 
 ###############################################################################
 
-def host_ranks(root):
-    comm = MPI.COMM_WORLD
-    ncnt = comm.size
-    rnks = [x for x in range(ncnt)]
-
-    # ask every rank what their host is
-    # keep one rank per host in a list and return
-
-    remaining_jobs = jobs[:]
-    for j in jobs:j._initialize(jobs)
-    jobcount = len(jobs)
-    jobstodo = jobcount
-    jobsdone = 0
-    while jobsdone < jobcount:
-        swap = []
-        for f in free:
-            if jobstodo > 0:
-                jdx = select_mjob(remaining_jobs,jobstodo)
-                if jdx is None:break
-                j = remaining_jobs.pop(jdx)
-                if j.root_only:
-                    print 'executing root only job:',j.job_id
-                    j._work()
-                    comm.send(passjob,dest = f)
-                else:
-                    j.selfdex = jobs.index(j)
-                    comm.send(j,dest = f)
-                swap.append(f)
-                jobstodo -= 1
-            else:break
-        for f in swap:
-            free.remove(f)
-            occp.append(f)
-    
-        anyreply = comm.recv(source = MPI.ANY_SOURCE)
-
 def setup_node_setup_mjob(ensem):
-    
-    pdb.set_trace()
+    from modular_core.ensemble import ensemble_manager
+    mnger = ensemble_manager()
 
-    prepoolargs = (ensem,)
-    setup = [mjob([],'prepoolinit',prepoolargs) for x in range(hcnt)]
+    mcfgstring = ensem._mcfg_string()
+    anensem = mnger._add_ensemble(module = ensem.module_name)
+    anensem._parse_mcfg(mcfgstring = mcfgstring)
+    anensem.module.parsers = None
+    anensem.multiprocess_plan.use_plan = False
+    anensem.parent = None
+
+    prepoolargs = (anensem,)
+    setup = mjob([],'prepoolinit',prepoolargs)
+    return setup
+
+def setup_pspace_mjobs(mjobs,zjobs,mnger,modname,mstring,arc,arc_dex,tpj,meta):
+    anensem = mnger._add_ensemble(module = modname)
+    anensem._parse_mcfg(mcfgstring = mstring)
+    anensem.module.parsers = None
+    anensem.multiprocess_plan.use_plan = False
+    if anensem.postprocess_plan.use_plan:
+        anensem.postprocess_plan._init_processes(arc)
+    #
+    anensem.module._increment_extensionname()
+    #
+    cplan = anensem.cartographer_plan
+    pspace = cplan.parameter_space
+    mappspace = cplan.use_plan and pspace
+    if not mappspace:
+        pspace = anensem.cartographer_plan._parameter_space([])
+        trj = anensem.cartographer_plan.trajectory
+        ntrj = anensem.num_trajectories
+        lpsp.trajectory_set_counts(trj,ntrj)
+
+    traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
+    anensem.cartographer_plan._move_to(arc_dex)
+    anensem._run_params_to_location()
+    anensem.parent = None
+
+    brun_jcnt = traj_cnt/tpj
+    remainder = traj_cnt - brun_jcnt*tpj
+
+    brun_args = (anensem,tpj,targ_cnt,capt_cnt)
+    brun_mjobs = [mjob([],'batch_run',brun_args) for x in range(brun_jcnt)]
+    if remainder > 0:
+        brun_args = (anensem,remainder,targ_cnt,capt_cnt)
+        brun_mjobs.append(mjob([],'batch_run',brun_args))
+    mjobs.extend(brun_mjobs)
+
+    zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
+    brun_jdxs = [mjobs.index(j) for j in brun_mjobs]
+    zero_mjob = mjob(brun_jdxs,'zeroth',zero_args)
+    zjobs.append(zero_mjob)
 
 def setup_ensemble_mjobs(ensem,trj_per_job = None):
     comm = MPI.COMM_WORLD
@@ -240,9 +279,6 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
         trj,ntrj = cplan.trajectory,ensem.num_trajectories
         lpsp.trajectory_set_counts(trj,ntrj)
 
-    # run a function on one core of each node which does this locally
-    ensem._run_params_to_location_prepoolinit()
-
     meta = False
 
     arc = cplan.trajectory
@@ -251,7 +287,7 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     from modular_core.ensemble import ensemble_manager
     mnger = ensemble_manager()
-    with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
+    mcfgstring = ensem._mcfg_string()
 
     mjobs = []
     zjobs = []
@@ -259,43 +295,11 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
     while arc_dex < arc_length:
-        anensem = mnger._add_ensemble(module = ensem.module_name)
-        anensem._parse_mcfg(mcfgstring = mcfgstring)
-        anensem.module.parsers = None
-        anensem.multiprocess_plan.use_plan = False
-        if anensem.postprocess_plan.use_plan:
-            anensem.postprocess_plan._init_processes(arc)
-        #
-        anensem.module._increment_extensionname()
-        #
-        if not mappspace:
-            pspace = anensem.cartographer_plan._parameter_space([])
-            trj = anensem.cartographer_plan.trajectory
-            ntrj = anensem.num_trajectories
-            lpsp.trajectory_set_counts(trj,ntrj)
-
-        traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
-        anensem.cartographer_plan._move_to(arc_dex)
-        anensem._run_params_to_location()
-        anensem.parent = None
-
-        brun_jcnt = traj_cnt/trj_per_job
-        remainder = traj_cnt - brun_jcnt*trj_per_job
-
-        brun_args = (anensem,trj_per_job,targ_cnt,capt_cnt)
-        brun_mjobs = [mjob([],'batch_run',brun_args) for x in range(brun_jcnt)]
-        if remainder > 0:
-            brun_args = (anensem,remainder,targ_cnt,capt_cnt)
-            brun_mjobs.append(mjob([],'batch_run',brun_args))
-        mjobs.extend(brun_mjobs)
-        print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
-
-        zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
-        brun_jdxs = [mjobs.index(j) for j in brun_mjobs]
-        zero_mjob = mjob(brun_jdxs,'zeroth',zero_args)
-        zjobs.append(zero_mjob)
-
+        spargs = (mjobs,zjobs,mnger,ensem.module_name,
+            mcfgstring,arc,arc_dex,trj_per_job,meta)
+        setup_pspace_mjobs(*spargs)
         arc_dex += 1
+        print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)

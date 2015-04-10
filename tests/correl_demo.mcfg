@@ -33,11 +33,11 @@
 	x2
 
 <parameter_space>
-	<product_space> 10000
+	<product_space> 1000
     mu     : value : 10.0
 		K      : value : 0.000000000000001
-		lambda1 : value : 1.0-10.0;10
-		lambda2 : value : 1.0-10.0;10
+		lambda1 : value : 2.0-10.0;5
+		lambda2 : value : 2.0-10.0;5
 	  gamma : value : 0.01
     x1 : initial : 10
     x2 : initial : 10
@@ -65,8 +65,8 @@
 	mapparameterspace : on
 	metamapparameterspace : off
   metamappath : /srv/cluster/shared_modular_data/mapdata/correl_metamap.mmap
-  datapool_directory : /srv/cluster/shared_modular_data
-  cache_directory : /srv/cluster/shared_modular_cache
+  #datapool_directory : /srv/cluster/shared_modular_data
+  #cache_directory : /srv/cluster/shared_modular_cache
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000

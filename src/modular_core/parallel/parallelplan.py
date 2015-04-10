@@ -35,7 +35,7 @@ class parallel_plan(lfu.plan):
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self._default('cluster_node_ips',[],**kwargs)
-        self._default('simulations_per_job',10000,**kwargs)
+        self._default('simulations_per_job',1000,**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
     #def _cluster(self,arc_length,work):
@@ -55,7 +55,7 @@ class parallel_plan(lfu.plan):
             jobs = mmcl.setup_ensemble_mjobs(
                 ensem,self.simulations_per_job)
             prej = mmcl.setup_node_setup_mjob(ensem)
-            mmcl.delegate(comm.rank,jobs)
+            mmcl.delegate(comm.rank,jobs,setup = prej)
         else:pdb.set_trace()
         dpool = dba.batch_node()
         return dpool
