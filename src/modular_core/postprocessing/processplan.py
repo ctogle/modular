@@ -80,6 +80,11 @@ class post_process_plan(lfu.plan):
         for process in procs:self._enact_process(process,pool)
         pool._stow(v = False)
 
+    # enact this processplans zeroth processes
+    def _enact_zeroth_processes(self,pool):
+        procs = self.zeroth
+        return self._enact_processes(procs,pool)
+
     # for each 0th process, recursively call consuming processes
     def _walk_processes(self):
         ptraj = self.psp_trajectory

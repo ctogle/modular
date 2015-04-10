@@ -158,6 +158,7 @@ class batch_node(ldc.data_mobject):
         self.data_pool_id = pool_id()
         self.data_pool_ids = []
 
+        if not self.data is None:self.dshape = self.data.shape
         if self.metapool:self.stowformat = 'hdf5'
         if self.stowformat == 'hdf5':fop = 'w'
         else:fop = None
