@@ -658,10 +658,8 @@ class ensemble(lfu.mobject):
     def _run_mcfg(self,mcfg):
         self.mcfg_path = mcfg
         self._parse_mcfg()
-        comm = MPI.COMM_WORLD
-        if comm.rank == 0:
-            self.output_plan.targeted = self.run_params['plot_targets'][:]
-            self.output_plan._target_settables()
+        self.output_plan.targeted = self.run_params['plot_targets'][:]
+        self.output_plan._target_settables()
         return self._run_specific()
 
     def _select_mcfg(self,file_ = None):

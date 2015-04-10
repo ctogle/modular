@@ -40,9 +40,7 @@ class parallel_plan(lfu.plan):
     #def _cluster(self,arc_length,work):
     def _cluster(self):
         ensem = self.parent
-        cplan = ensem.cartographer_plan
-        comm = MPI.COMM_WORLD
-        if comm.rank == 0:print 'CLUSTERIZING...'
+        print 'CLUSTERIZING...'
         if self.cluster_type == 'dispy':
             #nodes = self.cluster_node_ips
             nodes = {
@@ -52,57 +50,14 @@ class parallel_plan(lfu.plan):
                     }
             dpool = mdcl.mcluster_run(ensem,nodes)
             return dpool
-
-            '''#
-            with open(ensem.mcfg_path,'r') as mh:mcfgstring = mh.read()
-            modulename = ensem.module_name
-            wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
-            deps = ensem.module.dependencies
-            loc_0th_pools = mdcl.clusterize(nodes,work,wrgs,deps)
-            if comm.rank == 0:
-                zeroth = ensem.postprocess_plan.zeroth
-                zcount = len(zeroth)
-                for adx in range(arc_length):
-                    l0p = loc_0th_pools[adx]
-
-                    if cplan.maintain_pspmap:
-                        mloc = l0p.metalocation
-                        mstr = mloc.location_string
-                        cplan.metamap.entries[mstr] = mloc
-                        cplan.metamap.location_strings.append(mstr)
-
-                    for zdx in range(zcount):
-                        zp = zeroth[zdx]
-                        zpdata = l0p.children[zdx]
-                        zpdata._unfriendly()
-                        zp.data._add_child(zpdata)
-                        zp.data._stow_child(-1,v = False)
-
-                if cplan.maintain_pspmap:cplan._save_metamap()
-            if comm.rank == 0:
-                dpool = dba.batch_node()
-                return dpool
-            else:return None
-            '''#
-
-
-
-
         elif self.cluster_type == 'mpi':
-
-
-            print 'BROKEN'
-            pdb.set_trace()
-
-
             comm = MPI.COMM_WORLD
-            loc_0th_pools = mmcl.clusterize(ensem,arc_length)
-            if comm.rank == 0:
-                print 'CLUSTERIZED...'
-                #pdb.set_trace()
-        else:
-            if comm.rank == 0:pdb.set_trace()
-        #return loc_0th_pools
+            jobs = mmcl.setup_ensemble_mjobs(ensem,1000)
+            mmcl.delegate(comm.rank,jobs)
+        else:pdb.set_trace()
+        print 'CLUSTERIZED...'
+        dpool = dba.batch_node()
+        return dpool
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)

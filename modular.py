@@ -3,10 +3,10 @@ import modular_core.fundamental as lfu
 lfu.using_gui = True
 
 from modular_core.ensemble import ensemble_manager
+from modular_core.parallel.mpicluster import listen
+from mpi4py import MPI
 
 import os,sys,pdb,argparse
-
-from mpi4py import MPI
 
 def run_gui():
     lfu.set_gui_pack('modular_core.gui.libqtgui_modular')
@@ -16,15 +16,15 @@ def run_pklplotter():
     lfu.set_gui_pack('modular_core.gui.libqtgui_pklplotter')
     lfu.gui_pack.initialize()
 
-def run_mcfg(module,mcfg):
+def run_mcfg(module,mcfg,root = 0):
     comm = MPI.COMM_WORLD
-    mcfg = os.path.join(os.getcwd(),mcfg)
-    mnger = ensemble_manager()
-    ensem = mnger._add_ensemble(module = module)
-    ensem._run_mcfg(mcfg)
-    comm.Barrier()
-    if comm.rank == 0:ensem._output()
-    return comm.rank
+    if comm.rank == root:
+        mcfg = os.path.join(os.getcwd(),mcfg)
+        mnger = ensemble_manager()
+        ensem = mnger._add_ensemble(module = module)
+        ensem._run_mcfg(mcfg)
+        ensem._output()
+    else:listen(root)
 
 if __name__ == '__main__':
     agcnt = len(sys.argv)
