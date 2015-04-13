@@ -4,6 +4,7 @@ import modular_core.parameterspace.parameterspaces as lpsp
 import random,time
 
 from mpi4py import MPI
+from cStringIO import StringIO
 
 import pdb,os,sys,numpy
 
@@ -86,8 +87,11 @@ class mjob(object):
                 zp.data._stow_child(-1,v = False)
 
     def _prepoolinit(self):
+        silence()
         ensem = self.wargs[0]
         ensem._run_params_to_location_prepoolinit()
+        vocalize()
+        print 'finished prepoolinit work'
 
     def _work(self):
         #if self.inputs:
@@ -98,7 +102,7 @@ class mjob(object):
         elif self.work == 'zeroth':r = self._zeroth()
         elif self.work == 'aggregate':r = self._aggregate()
         elif self.work == 'prepoolinit':r = self._prepoolinit()
-        elif self.work == 'pass':pass
+        elif self.work == 'pass':r = None
         else:print 'UNKNOWN WORK REQUEST!',self.work
         self.result = r
 
@@ -136,20 +140,25 @@ def host_lookup(root):
 
 def delegate_per_node(hosts,setup):
     comm = MPI.COMM_WORLD
-    for h in hosts.keys():
-        if h == 'root':continue
-        r = hosts[h][0]
-        comm.send(setup,dest = r)
-    for h in hosts.keys():
-        if h == 'root':continue
-        reply = comm.recv(source = r)
+    nonroots = hosts.keys()
+    nonroots.remove('root')
+    print 'delegating setup to nodes:',nonroots
+    for h in nonroots:comm.send(setup,dest = hosts[h][0])
+    print 'sent setup jobs to hosts:',nonroots
+    for h in nonroots:
+        print 'nonroot',h,'receiving'
+        reply = comm.recv(source = hosts['root'])
+        print 'host',h,'received reply',reply
+    print 'received setup jobs from hosts:',nonroots
 
 def delegate(root,jobs,setup = None):
     comm = MPI.COMM_WORLD
     ncnt = comm.size
 
     hosts = host_lookup(root)
+    print 'performing node setup...'
     if not setup is None:delegate_per_node(hosts,setup)
+    print 'finished node setup...'
 
     free = [x for x in range(ncnt)]
     occp = []
@@ -206,6 +215,7 @@ def listen(root):
             job._work()
             job.rank = rank
             job.host = host
+            print 'rank:',rank,'finished job:',job.job_id,'with work:',job.work
         comm.send(job,dest = root)
     print 'listener quit',rank,'on',host
 
@@ -294,12 +304,14 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
+    silence()
     while arc_dex < arc_length:
         spargs = (mjobs,zjobs,mnger,ensem.module_name,
             mcfgstring,arc,arc_dex,trj_per_job,meta)
         setup_pspace_mjobs(*spargs)
         arc_dex += 1
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
+    vocalize()
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)
@@ -308,6 +320,14 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
     aggr_mjob.root_only = True
     mjobs.append(aggr_mjob)
     return mjobs
+
+def silence():
+    sys.stdout = StringIO()
+    sys.stderr = StringIO()
+
+def vocalize():
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
 
 ###############################################################################
 
