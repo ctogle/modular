@@ -145,10 +145,7 @@ def delegate_per_node(hosts,setup):
     print 'delegating setup to nodes:',nonroots
     for h in nonroots:comm.send(setup,dest = hosts[h][0])
     print 'sent setup jobs to hosts:',nonroots
-    for h in nonroots:
-        print 'nonroot',h,'receiving'
-        reply = comm.recv(source = hosts['root'])
-        print 'host',h,'received reply',reply
+    for h in nonroots:reply = comm.recv(source = hosts[h][0])
     print 'received setup jobs from hosts:',nonroots
 
 def delegate(root,jobs,setup = None):
@@ -304,14 +301,14 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
-    silence()
+    #silence()
     while arc_dex < arc_length:
         spargs = (mjobs,zjobs,mnger,ensem.module_name,
             mcfgstring,arc,arc_dex,trj_per_job,meta)
         setup_pspace_mjobs(*spargs)
         arc_dex += 1
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
-    vocalize()
+    #vocalize()
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)

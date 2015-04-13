@@ -28,6 +28,7 @@ def run_mcfg(module,mcfg,root = 0):
 
 if __name__ == '__main__':
     agcnt = len(sys.argv)
+    root = 0
     if agcnt > 1:
         fi = sys.argv[1]
         if fi == '--modules':lfu.handle_modules()
@@ -35,8 +36,10 @@ if __name__ == '__main__':
         else:
             if agcnt > 2:mo = sys.argv[2]
             else:mo = 'gillespiem'
-            if os.path.isfile(fi):run_mcfg(mo,fi)
-            else: print 'file',fi,'is not a file!'
+            if comm.rank == root:
+                if os.path.isfile(fi):run_mcfg(mo,fi)
+                else:print 'file',fi,'is not a file!'
+            else:listen(root)
     else:run_gui()
 
 
