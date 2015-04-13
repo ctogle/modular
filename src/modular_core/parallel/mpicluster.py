@@ -146,20 +146,17 @@ def delegate_per_node(hosts,setup):
     for h in nonroots:comm.send(setup,dest = hosts[h][0])
     print 'sent setup jobs to hosts:',nonroots
     for h in nonroots:reply = comm.recv(source = hosts[h][0])
-    print 'received setup jobs from hosts:',nonroots
+    print 'received setup replies from hosts:',nonroots
 
 def delegate(root,jobs,setup = None):
     comm = MPI.COMM_WORLD
     ncnt = comm.size
-
-    hosts = host_lookup(root)
-    print 'performing node setup...'
-    if not setup is None:delegate_per_node(hosts,setup)
-    print 'finished node setup...'
-
     free = [x for x in range(ncnt)]
     occp = []
     free.remove(root)
+
+    hosts = host_lookup(root)
+    if not setup is None:delegate_per_node(hosts,setup)
 
     passjob = mjob([],'pass')
     remaining_jobs = jobs[:]
@@ -191,7 +188,6 @@ def delegate(root,jobs,setup = None):
         anyreply = comm.recv(source = MPI.ANY_SOURCE)
         anyreply._release(jobs)
         nowfree = anyreply.rank
-        print 'job returned',nowfree
         jobsdone += 1
         free.append(nowfree)
         occp.remove(nowfree)
@@ -301,14 +297,14 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
-    #silence()
+    silence()
     while arc_dex < arc_length:
         spargs = (mjobs,zjobs,mnger,ensem.module_name,
             mcfgstring,arc,arc_dex,trj_per_job,meta)
         setup_pspace_mjobs(*spargs)
         arc_dex += 1
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
-    #vocalize()
+    vocalize()
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)

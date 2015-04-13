@@ -6,9 +6,8 @@ import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.parameterspace.cartographerplan as cplan
 import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
+import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.threadwork as wt
-#import modular_core.parallel.dispycluster as mdcl
-#import modular_core.parallel.mpicluster as mmcl
 
 import modular_core.io.liboutput as lo
 import modular_core.io.libfiler as lf
@@ -344,90 +343,18 @@ class ensemble(lfu.mobject):
             mppool.join()
         return data_pool
 
-    # use dispy/mpi to distribute work across a network
+    # use mpi to distribute work across a network
     def _run_distributed(self):
-        dpool = self.multiprocess_plan._cluster()
-        return dpool
-
-
-
-        ##############################
-        cplan = self.cartographer_plan
-        pspace = cplan.parameter_space
-        mappspace = cplan.use_plan and pspace
-
+        mplan = self.multiprocess_plan
+        simulations_per_job = mplan.simulations_per_job
         comm = MPI.COMM_WORLD
-        if comm.rank == 0:self._run_params_to_location_prepoolinit()
-        else:self.module._increment_extensionname()
-        comm.Barrier()
+        jobs = mmcl.setup_ensemble_mjobs(
+                self,simulations_per_job)
+        prej = mmcl.setup_node_setup_mjob(self)
+        mmcl.delegate(comm.rank,jobs,setup = prej)
 
-        if mappspace:
-            arc = cplan.trajectory
-            arc_length = len(arc)
-
-            if comm.rank == 0:
-                usepplan = self.postprocess_plan.use_plan
-                if usepplan:self.postprocess_plan._init_processes(arc)
-            comm.Barrier()
-
-            #with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
-            #modulename = self.module_name
-
-            # dispy specific here?
-            #nodes = self.multiprocess_plan.cluster_node_ips
-            work = _unbound_map_pspace_location
-            # dispy specific here?
-            #wrgs = [(mcfgstring,modulename,x) for x in range(arc_length)]
-            #deps = self.module.dependencies
-
-            #loc_0th_pools = self.multiprocess_plan._cluster(arc_length,work)
-            dpool = self.multiprocess_plan._cluster(arc_length,work)
-
-            '''#
-            if comm.rank == 0:
-                zeroth = self.postprocess_plan.zeroth
-                zcount = len(zeroth)
-                for adx in range(arc_length):
-                    l0p = loc_0th_pools[adx]
-
-                    if cplan.maintain_pspmap:
-                        mloc = l0p.metalocation
-                        mstr = mloc.location_string
-                        cplan.metamap.entries[mstr] = mloc
-                        cplan.metamap.location_strings.append(mstr)
-
-                    for zdx in range(zcount):
-                        zp = zeroth[zdx]
-                        zpdata = l0p.children[zdx]
-                        zpdata._unfriendly()
-                        zp.data._add_child(zpdata)
-                        zp.data._stow_child(-1,v = False)
-
-                if cplan.maintain_pspmap:cplan._save_metamap()
-            '''#
-            #if comm.rank == 0:
-            #    dpool = dba.batch_node()
-
-        else:
-            if comm.rank == 0:
-                dpool = self._run_nonmap()
-                '''#
-                requiresimdata = self._require_simulation_data()
-                cplan = self.cartographer_plan
-                pspace = cplan._parameter_space([])
-                lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
-
-                data_pool = self._run_map()
-                #data_pool = self.multiprocess_plan._cluster(arc_length,work)
-
-                if requiresimdata:dpool = data_pool._split_child()
-                else:dpool = dba.batch_node()
-                '''#
-
-        comm.Barrier()
-        if comm.rank == 0:
-            return dpool
-        else:return None
+        dpool = dba.batch_node()
+        return dpool
 
     # use current parameters like a single position trajectory
     def _run_nonmap(self):
@@ -497,7 +424,6 @@ class ensemble(lfu.mobject):
             rundat = simu(sim_args)
             if rundat is None:return
             batch[m,:,:] = rundat[:]
-            #pool._trajectory(rundat)
             if m % pfreq == 0 and m > 0:
                 print 'batch run completed:%d/%d'%(m+pfreq,many)
         return batch
@@ -1071,47 +997,6 @@ class ensemble_manager(lfu.mobject):
                 keys = [['current_tab_index']]))
         self._toolbars(*args,**kwargs)
         lfu.mobject._widget(self,*args,from_sub = True)
-
-###############################################################################
-###############################################################################
-
-def _unbound_map_pspace_location(mcfgstring,modulename,arc_dex):
-    import modular_core.fundamental as lfu
-    lfu.using_gui = False
-    import modular_core.ensemble as mce
-    import modular_core.data.batch_target as dba
-
-    mnger = mce.ensemble_manager()
-    ensem = mnger._add_ensemble(module = modulename)
-
-    ensem._parse_mcfg(mcfgstring = mcfgstring)
-    ensem.multiprocess_plan.use_plan = False
-    meta = ensem.cartographer_plan.maintain_pspmap
-
-    ensem.module._increment_extensionname()
-
-    pplan = ensem.postprocess_plan
-    if pplan.use_plan:pplan._init_processes(None)
-
-    loc_pool = ensem._run_pspace_location(arc_dex,meta = meta)
-    loc_pool._stow(v = False)
-
-    if pplan.use_plan:zeroth = ensem.postprocess_plan.zeroth
-    host = socket.gethostname()
-    pdata = dba.batch_node(metapool = meta)
-    for z in zeroth:
-        pdata._add_child(z.data.children[0])
-        pdata._stow_friendly_child(-1)
-        pdata._stow_child(-1)
-
-    if ensem.cartographer_plan.maintain_pspmap:
-        mmap = ensem.cartographer_plan.metamap
-        pdata.metalocation = mmap.entries[mmap.location_strings[0]]
-    pdata.dispyhost = host
-    pdata.dispyindex = arc_dex
-    psplocstr = ensem._print_pspace_location(arc_dex)
-    lfu.log('\n\ncluster psp-location: %d - %s'%(arc_dex,psplocstr))
-    return pdata
 
 ###############################################################################
 ###############################################################################

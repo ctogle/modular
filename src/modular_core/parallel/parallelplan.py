@@ -1,8 +1,6 @@
 import modular_core.fundamental as lfu
 import modular_core.data.batch_target as dba
 import modular_core.settings as lset
-import modular_core.parallel.dispycluster as mdcl
-import modular_core.parallel.mpicluster as mmcl
 
 import pdb,sys,time,types
 import numpy as np
@@ -31,34 +29,11 @@ class parallel_plan(lfu.plan):
         self._default('name','parallel plan',**kwargs)
         use_plan = lset.get_setting('multiprocessing')
         self._default('use_plan',use_plan,**kwargs)
-        self._default('cluster_type','mpi',**kwargs)
         self.worker_count = lset.get_setting('worker_processes')
         self.distributed = lset.get_setting('distributed')
         self._default('cluster_node_ips',[],**kwargs)
         self._default('simulations_per_job',1000,**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
-
-    #def _cluster(self,arc_length,work):
-    def _cluster(self):
-        ensem = self.parent
-        if self.cluster_type == 'dispy':
-            #nodes = self.cluster_node_ips
-            nodes = {
-                'sierpenski':'192.168.4.89', 
-                #'latitude':'192.168.4.76', 
-                #'wizbox':'192.168.2.173', 
-                    }
-            dpool = mdcl.mcluster_run(ensem,nodes)
-            return dpool
-        elif self.cluster_type == 'mpi':
-            comm = MPI.COMM_WORLD
-            jobs = mmcl.setup_ensemble_mjobs(
-                ensem,self.simulations_per_job)
-            prej = mmcl.setup_node_setup_mjob(ensem)
-            mmcl.delegate(comm.rank,jobs,setup = prej)
-        else:pdb.set_trace()
-        dpool = dba.batch_node()
-        return dpool
 
     def _widget(self,*args,**kwargs):
         self._sanitize(*args,**kwargs)
