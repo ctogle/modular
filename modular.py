@@ -27,8 +27,9 @@ def run_mcfg(module,mcfg,root = 0):
     else:listen(root)
 
 if __name__ == '__main__':
-    agcnt = len(sys.argv)
+    comm = MPI.COMM_WORLD
     root = 0
+    agcnt = len(sys.argv)
     if agcnt > 1:
         fi = sys.argv[1]
         if fi == '--modules':lfu.handle_modules()
