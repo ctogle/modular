@@ -73,7 +73,6 @@ class ejob(mmcl.mjob):
         r = self._runbatch(*self.wargs[:-1])
         self.inputs = [r]
         z = self._zeroth()
-        self.inputs.pop()
         return z
 
     # generally expected to be called once per node before
