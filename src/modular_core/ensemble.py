@@ -7,6 +7,7 @@ import modular_core.parameterspace.cartographerplan as cplan
 import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
 import modular_core.parallel.mpicluster as mmcl
+import modular_core.parallel.ensemblejobs as mej
 import modular_core.parallel.threadwork as wt
 
 import modular_core.io.liboutput as lo
@@ -348,9 +349,9 @@ class ensemble(lfu.mobject):
         mplan = self.multiprocess_plan
         simulations_per_job = mplan.simulations_per_job
         comm = MPI.COMM_WORLD
-        jobs = mmcl.setup_ensemble_mjobs(
+        jobs = mej.setup_ensemble_mjobs(
                 self,simulations_per_job)
-        prej = mmcl.setup_node_setup_mjob(self)
+        prej = mej.setup_node_setup_mjob(self)
         mmcl.delegate(comm.rank,jobs,setup = prej)
 
         dpool = dba.batch_node()

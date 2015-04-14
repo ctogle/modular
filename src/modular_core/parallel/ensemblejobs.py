@@ -109,7 +109,7 @@ def setup_node_setup_mjob(ensem):
     anensem.parent = None
 
     prepoolargs = (anensem,)
-    setup = mjob([],'prepoolinit',prepoolargs)
+    setup = ejob([],'prepoolinit',prepoolargs)
     return setup
 
 # setup jobs for a pspace assuming break up of simulation work
@@ -141,15 +141,15 @@ def setup_pspace_mjobs(mjobs,zjobs,mnger,modname,mstring,arc,arc_dex,tpj,meta):
     remainder = traj_cnt - brun_jcnt*tpj
 
     brun_args = (anensem,tpj,targ_cnt,capt_cnt)
-    brun_mjobs = [mjob([],'batch_run',brun_args) for x in range(brun_jcnt)]
+    brun_mjobs = [ejob([],'batch_run',brun_args) for x in range(brun_jcnt)]
     if remainder > 0:
         brun_args = (anensem,remainder,targ_cnt,capt_cnt)
-        brun_mjobs.append(mjob([],'batch_run',brun_args))
+        brun_mjobs.append(ejob([],'batch_run',brun_args))
     mjobs.extend(brun_mjobs)
 
     zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
     brun_jdxs = [mjobs.index(j) for j in brun_mjobs]
-    zero_mjob = mjob(brun_jdxs,'zeroth',zero_args)
+    zero_mjob = ejob(brun_jdxs,'zeroth',zero_args)
     zjobs.append(zero_mjob)
 
 # create mjob hierarchy assuming fully broken up work
@@ -182,19 +182,19 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
-    silence()
+    mmcl.silence()
     while arc_dex < arc_length:
         spargs = (mjobs,zjobs,mnger,ensem.module_name,
             mcfgstring,arc,arc_dex,trj_per_job,meta)
         setup_pspace_mjobs(*spargs)
         arc_dex += 1
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
-    vocalize()
+    mmcl.vocalize()
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)
     zero_jdxs = [mjobs.index(j) for j in zjobs]
-    aggr_mjob = mjob(zero_jdxs,'aggregate',aggr_args)
+    aggr_mjob = ejob(zero_jdxs,'aggregate',aggr_args)
     aggr_mjob.root_only = True
     mjobs.append(aggr_mjob)
     return mjobs
