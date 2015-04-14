@@ -13,8 +13,9 @@ import pdb,os,sys,numpy
 class ejob(mmcl.mjob):
 
     # produce a numpy array of trajectory data
-    def _runbatch(self):
-        ensem,trjcnt,tgcnt,cptcnt = self.wargs
+    def _runbatch(self,*args):
+        #ensem,trjcnt,tgcnt,cptcnt = self.wargs
+        ensem,trjcnt,tgcnt,cptcnt = args
         dshape = (trjcnt,tgcnt,cptcnt)
         r = ensem._run_batch_np(trjcnt,dshape,pfreq = None)
         return r
@@ -68,7 +69,7 @@ class ejob(mmcl.mjob):
     # this bypasses much communication which is necessary
     # to break up work at a single pspace location
     def _run_pspace_location(self):
-        r = self._runbatch()
+        r = self._runbatch(*self.wargs[:-1])
         self.inputs = [r]
         z = self._zeroth()
         return z
@@ -85,7 +86,7 @@ class ejob(mmcl.mjob):
     # decide how to do work based on self.work string
     def _work(self):
         r = None
-        if self.work == 'batch_run':r = self._runbatch()
+        if self.work == 'batch_run':r = self._runbatch(*self.wargs)
         elif self.work == 'zeroth':r = self._zeroth()
         elif self.work == 'aggregate':r = self._aggregate()
         elif self.work == 'plocation':r = self._run_pspace_location()
@@ -195,6 +196,78 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
     aggr_args = (ensem,arc_length)
     zero_jdxs = [mjobs.index(j) for j in zjobs]
     aggr_mjob = ejob(zero_jdxs,'aggregate',aggr_args)
+    aggr_mjob.root_only = True
+    mjobs.append(aggr_mjob)
+    return mjobs
+
+# setup jobs for a pspace assuming NO break up of simulation work
+def setup_pspace_mjob_maponly(mjobs,mnger,modname,mstring,arc,arc_dex,meta):
+    anensem = mnger._add_ensemble(module = modname)
+    anensem._parse_mcfg(mcfgstring = mstring)
+    anensem.module.parsers = None
+    anensem.multiprocess_plan.use_plan = False
+    if anensem.postprocess_plan.use_plan:
+        anensem.postprocess_plan._init_processes(arc)
+    #
+    anensem.module._increment_extensionname()
+    #
+    cplan = anensem.cartographer_plan
+    pspace = cplan.parameter_space
+    mappspace = cplan.use_plan and pspace
+    if not mappspace:
+        pspace = anensem.cartographer_plan._parameter_space([])
+        trj = anensem.cartographer_plan.trajectory
+        ntrj = anensem.num_trajectories
+        lpsp.trajectory_set_counts(trj,ntrj)
+
+    traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
+    anensem.cartographer_plan._move_to(arc_dex)
+    anensem._run_params_to_location()
+    anensem.parent = None
+
+    prun_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
+    psploc_job = ejob([],'plocation',prun_args)
+    mjobs.append(psploc_job)
+
+# create mjob hierarchy assuming pspace map breakup of work
+def setup_ensemble_mjobs_maponly(ensem):
+    comm = MPI.COMM_WORLD
+    ncores = comm.size
+
+    requiresimdata = ensem._require_simulation_data()
+    pplan = ensem.postprocess_plan
+    cplan = ensem.cartographer_plan
+    pspace = cplan.parameter_space
+    mappspace = cplan.use_plan and pspace
+    if not mappspace:
+        pspace = cplan._parameter_space([])
+        trj,ntrj = cplan.trajectory,ensem.num_trajectories
+        lpsp.trajectory_set_counts(trj,ntrj)
+
+    meta = False
+
+    arc = cplan.trajectory
+    arc_length = len(arc)
+    if pplan.use_plan:pplan._init_processes(arc)
+
+    from modular_core.ensemble import ensemble_manager
+    mnger = ensemble_manager()
+    mcfgstring = ensem._mcfg_string()
+
+    mjobs = []
+    arc_dex = 0
+    #mmcl.silence()
+    while arc_dex < arc_length:
+        spargs = (mjobs,mnger,ensem.module_name,
+                    mcfgstring,arc,arc_dex,meta)
+        setup_pspace_mjob_maponly(*spargs)
+        arc_dex += 1
+        print 'make job for this location:%d/%d'%(arc_dex,arc_length)
+    #mmcl.vocalize()
+
+    aggr_args = (ensem,arc_length)
+    pspl_jdxs = [x for x in range(arc_length)]
+    aggr_mjob = ejob(pspl_jdxs,'aggregate',aggr_args)
     aggr_mjob.root_only = True
     mjobs.append(aggr_mjob)
     return mjobs

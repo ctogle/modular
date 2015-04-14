@@ -346,11 +346,15 @@ class ensemble(lfu.mobject):
 
     # use mpi to distribute work across a network
     def _run_distributed(self):
-        mplan = self.multiprocess_plan
-        simulations_per_job = mplan.simulations_per_job
         comm = MPI.COMM_WORLD
-        jobs = mej.setup_ensemble_mjobs(
-                self,simulations_per_job)
+
+        #mplan = self.multiprocess_plan
+        #simulations_per_job = mplan.simulations_per_job
+        #jobs = mej.setup_ensemble_mjobs(
+        #        self,simulations_per_job)
+
+        jobs = mej.setup_ensemble_mjobs_maponly(self)
+
         prej = mej.setup_node_setup_mjob(self)
         mmcl.delegate(comm.rank,jobs,setup = prej)
 
