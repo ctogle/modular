@@ -50,7 +50,7 @@
 <multiprocessing>
 	workers : 16
   distributed : on
-  simulations_per_job : 1000
+  simulations_per_job : 10000
   nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>
