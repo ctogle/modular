@@ -42,6 +42,7 @@ class ejob(mmcl.mjob):
         ptargets = ensem.simulation_plan.plot_targets
         loc_pool = self._gather_zeroth_inputs(ptargets,meta)
         ensem.postprocess_plan._enact_zeroth_processes(loc_pool)
+        del self.inputs
         r = dba.batch_node(metapool = meta)
         for z in ensem.postprocess_plan.zeroth:
             r._add_child(z.data.children[0])
@@ -72,6 +73,7 @@ class ejob(mmcl.mjob):
         r = self._runbatch(*self.wargs[:-1])
         self.inputs = [r]
         z = self._zeroth()
+        self.inputs.pop()
         return z
 
     # generally expected to be called once per node before
