@@ -29,7 +29,7 @@
 	Enzyme
 
 <parameter_space>
-	<fitting_space> #
+	<fitting_space> 100
     k1 : value : 1.0
     k2 : value : 0.01
     mu : value : 800.0
@@ -48,6 +48,8 @@
 
 <multiprocessing>
 	workers : 16
+  distributed : on
+  simulations_per_job : 10
 
 <output_plans>
 	1 : - : fitroutn_output : plt : all
