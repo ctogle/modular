@@ -18,6 +18,10 @@ class mjob(object):
             unused_mjob_id += 1
         return self.job_id
 
+    def _np_reply(self):
+        np = hasattr(self.result,'shape')
+        return np
+
     def __init__(self,prereqs,work,wargs = ()):
         self._id()
         self.prereqs = prereqs
@@ -118,10 +122,31 @@ class mjob(object):
 
 ###############################################################################
 
+def find_mjob(jobs,job_id):
+    for j in jobs:
+        if j.job_id == job_id:
+            return j
+
 def select_mjob(jobs,jcnt):
     for jdx in range(jcnt):
         if jobs[jdx]._ready():
             return jdx
+
+def wait_for_mjob(root,jobs):
+    comm = MPI.COMM_WORLD
+    jrk,npr,jid,jshp = comm.recv(source = MPI.ANY_SOURCE)
+    #anyreply = comm.recv(source = MPI.ANY_SOURCE)
+    if npr:
+        jresult = numpy.empty(jshp,dtype = numpy.float)
+        jreply = comm.Recv(jresult,source = jrk)
+        j = find_mjob(jobs,jid)
+        j.result = jreply
+        j._release(jobs)
+    else:
+        jresult = comm.recv(source = jrk)
+        jresult._release(jobs)
+    jobsdone += 1
+    return jrk
 
 def host_lookup(root):
     comm = MPI.COMM_WORLD
@@ -132,6 +157,7 @@ def host_lookup(root):
         if c == root:hosts['root'] = c
         else:
             comm.send(passjob,dest = c)
+            jrk,npr,jid,jshp = comm.recv(source = c)
             reply = comm.recv(source = c)
             host = reply.host
             if host in hosts.keys():hosts[host].append(c)
@@ -184,15 +210,12 @@ def delegate(root,jobs,setup = None):
         for f in swap:
             free.remove(f)
             occp.append(f)
-    
-        anyreply = comm.recv(source = MPI.ANY_SOURCE)
-        anyreply._release(jobs)
-        nowfree = anyreply.rank
-        jobsdone += 1
-        free.append(nowfree)
-        occp.remove(nowfree)
+    jrank = wait_for_mjob(root)
+    free.append(jrank)
+    occp.remove(jrank)
 
-    for f in free:comm.send('quit',dest = f)
+    #for f in free:comm.send('quit',dest = f)
+    #stop_listeners(comm.rank)
 
 def listen(root):
     comm = MPI.COMM_WORLD
@@ -209,8 +232,19 @@ def listen(root):
             job.rank = rank
             job.host = host
             print 'rank:',rank,'finished job:',job.job_id,'with work:',job.work
-        comm.send(job,dest = root)
+        npreply = job._np_reply()
+        if npreply:jshape = job.result.shape
+        else:jshape = None
+        comm.send((job.rank,npreply,job.job_id,jshape),dest = root)
+        if npreply:comm.Send([job.result,MPI.FLOAT],dest = root)
+        else:comm.send(job,dest = root)
     print 'listener quit',rank,'on',host
+
+def stop_listeners(root):
+    comm = MPI.COMM_WORLD
+    ncnt = comm.size
+    nodes = [x for x in range(ncnt) if not x == root]
+    for f in nodes:comm.send('quit',dest = f)
 
 ###############################################################################
 

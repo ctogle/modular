@@ -4,6 +4,7 @@ lfu.using_gui = True
 
 from modular_core.ensemble import ensemble_manager
 from modular_core.parallel.mpicluster import listen
+from modular_core.parallel.mpicluster import stop_listeners
 from mpi4py import MPI
 
 import os,sys,pdb,argparse
@@ -37,6 +38,7 @@ if __name__ == '__main__':
             if comm.rank == root:
                 if os.path.isfile(fi):run_mcfg(mo,fi)
                 else:print 'file',fi,'is not a file!'
+                stop_listeners(root)
             else:listen(root)
     else:run_gui()
 
