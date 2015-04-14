@@ -98,9 +98,6 @@ class mjob(object):
         print 'finished prepoolinit work'
 
     def _work(self):
-        #if self.inputs:
-        #    print 'my inputs',self.inputs,'from',self.job_id
-        #print 'doing work',self.work,self.wargs
         r = None
         if self.work == 'batch_run':r = self._runbatch()
         elif self.work == 'zeroth':r = self._zeroth()
@@ -134,18 +131,16 @@ def select_mjob(jobs,jcnt):
 
 def wait_for_mjob(root,jobs):
     comm = MPI.COMM_WORLD
+    print 'waiting for mjobs'
     jrk,npr,jid,jshp = comm.recv(source = MPI.ANY_SOURCE)
-    #anyreply = comm.recv(source = MPI.ANY_SOURCE)
     if npr:
-        jresult = numpy.empty(jshp,dtype = numpy.float)
-        jreply = comm.Recv(jresult,source = jrk)
         j = find_mjob(jobs,jid)
-        j.result = jreply
+        j.result = numpy.empty(jshp,dtype = numpy.float)
+        comm.Recv(j.result,source = jrk)
         j._release(jobs)
     else:
         jresult = comm.recv(source = jrk)
         jresult._release(jobs)
-    jobsdone += 1
     return jrk
 
 def host_lookup(root):
@@ -171,7 +166,9 @@ def delegate_per_node(hosts,setup):
     print 'delegating setup to nodes:',nonroots
     for h in nonroots:comm.send(setup,dest = hosts[h][0])
     print 'sent setup jobs to hosts:',nonroots
-    for h in nonroots:reply = comm.recv(source = hosts[h][0])
+    for h in nonroots:
+        jrk,npr,jid,jshp = comm.recv(source = hosts[h][0])
+        reply = comm.recv(source = hosts[h][0])
     print 'received setup replies from hosts:',nonroots
 
 def delegate(root,jobs,setup = None):
@@ -210,9 +207,10 @@ def delegate(root,jobs,setup = None):
         for f in swap:
             free.remove(f)
             occp.append(f)
-    jrank = wait_for_mjob(root)
-    free.append(jrank)
-    occp.remove(jrank)
+        jrank = wait_for_mjob(root,jobs)
+        free.append(jrank)
+        occp.remove(jrank)
+        jobsdone += 1
 
     #for f in free:comm.send('quit',dest = f)
     #stop_listeners(comm.rank)
@@ -225,7 +223,7 @@ def listen(root):
     print 'listener starting',rank,'on',host
     while not quit:
         job = comm.recv(source = root)
-        if job == 'quit':quit = True
+        if job == 'quit':break
         else:
             print 'rank:',rank,'received job:',job.job_id,'with work:',job.work
             job._work()
