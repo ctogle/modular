@@ -257,14 +257,14 @@ def setup_ensemble_mjobs_maponly(ensem):
 
     mjobs = []
     arc_dex = 0
-    #mmcl.silence()
+    mmcl.silence()
     while arc_dex < arc_length:
         spargs = (mjobs,mnger,ensem.module_name,
                     mcfgstring,arc,arc_dex,meta)
         setup_pspace_mjob_maponly(*spargs)
         arc_dex += 1
         print 'make job for this location:%d/%d'%(arc_dex,arc_length)
-    #mmcl.vocalize()
+    mmcl.vocalize()
 
     aggr_args = (ensem,arc_length)
     pspl_jdxs = [x for x in range(arc_length)]

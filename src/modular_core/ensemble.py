@@ -348,13 +348,14 @@ class ensemble(lfu.mobject):
     def _run_distributed(self):
         comm = MPI.COMM_WORLD
 
-        #mplan = self.multiprocess_plan
-        #simulations_per_job = mplan.simulations_per_job
-        #jobs = mej.setup_ensemble_mjobs(
-        #        self,simulations_per_job)
-
-        jobs = mej.setup_ensemble_mjobs_maponly(self)
-
+        mplan = self.multiprocess_plan
+        simulations_per_job = mplan.simulations_per_job
+        if self.cartographer_plan.use_plan:t = 0
+        else:t = None
+        ntraj = self._run_init_ntraj(t)
+        if ntraj == simulations_per_job:
+            jobs = mej.setup_ensemble_mjobs_maponly(self)
+        else:jobs = mej.setup_ensemble_mjobs(self,simulations_per_job)
         prej = mej.setup_node_setup_mjob(self)
         mmcl.delegate(comm.rank,jobs,setup = prej)
 
@@ -407,10 +408,14 @@ class ensemble(lfu.mobject):
             pplan._enact_processes(zeroth,loc_pool)
         return loc_pool
 
-    # helper function for common run info
-    def _run_init(self,t = None):
+    def _run_init_ntraj(self,t = None):
         if t is None:ntraj = self.num_trajectories
         else:ntraj = self.cartographer_plan.trajectory[t].trajectory_count
+        return ntraj
+
+    # helper function for common run info
+    def _run_init(self,t = None):
+        ntraj = self._run_init_ntraj(t)
         ptargs = self.run_params['plot_targets']
         ntarg = len(ptargs)
         ncapt = self.simulation_plan._capture_count()
