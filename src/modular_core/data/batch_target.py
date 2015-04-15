@@ -135,6 +135,12 @@ class batch_node(ldc.data_mobject):
     def _sanitize(self):
         dpath = self._get_data_pool_path()
         self.hdffile = None
+
+        if not hasattr(self,'stowformat'):
+            print 'SOMETHING THAT SHOULDNT HAPPEN HAPPENED...'
+            self.stowformat = None
+            #pdb.set_trace()
+
         if not self.stowformat is None:
             self.data = dpath
         self.dims = None
@@ -146,6 +152,9 @@ class batch_node(ldc.data_mobject):
     def __init__(self,*args,**kwargs):
         self._default('metapool',False,**kwargs)
         self._default('stowformat',None,**kwargs)
+
+        print 'makin node',hasattr(self,'stowformat')
+
         self._default('dshape',None,**kwargs)
         self._default('dims',None,**kwargs)
         self._default('parent',None,**kwargs)

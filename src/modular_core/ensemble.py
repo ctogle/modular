@@ -250,6 +250,10 @@ class ensemble(lfu.mobject):
             print 'unwilling to output 10000+ simulation trajectories...'
             print 'skipping simulation data aggregation...'
             return False
+        #elif self.multiprocess_plan.distributed:
+        #    print 'unwilling to output clusterized trajectories...'
+        #    print 'skipping simulation data aggregation...'
+        #    return False
         return True
 
     # run a specific way depending on the settings of the ensemble
