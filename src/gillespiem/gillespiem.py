@@ -192,7 +192,7 @@ class simulation_module(smd.simulation_module):
             astring = ','.join(paxnames)
             for px,ax in zip(paxnames,paxes):runargs[px] = ax
         else:astring = ''
-        if fitting:astring += ',timeout = 2.0'
+        if fitting:astring += ',timeout = 30.0'
         rargs = {
             'argstring':astring,
             'runargs':runargs,
