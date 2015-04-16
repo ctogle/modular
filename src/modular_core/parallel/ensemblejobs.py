@@ -25,6 +25,9 @@ class ejob(mmcl.mjob):
             ptargets = self.wargs[0].simulation_plan.plot_targets
         inputs = self.inputs
         if len(inputs) > 1:
+            for i in inputs:
+                if i is None:
+                    return None
             ishape = inputs[0].shape
             agshape = (len(inputs)*ishape[0],ishape[1],ishape[2])
             aggregate = numpy.zeros(agshape,dtype = numpy.float)
@@ -44,7 +47,7 @@ class ejob(mmcl.mjob):
         ptargets = ensem.simulation_plan.plot_targets
         loc_pool = self._gather_zeroth_inputs(ptargets,meta)
         ensem.postprocess_plan._enact_zeroth_processes(loc_pool)
-        del self.inputs
+        #del self.inputs
         r = dba.batch_node(metapool = meta)
         for z in ensem.postprocess_plan.zeroth:
             r._add_child(z.data.children[0])
@@ -304,7 +307,7 @@ def setup_pspace_fitting_mjobs(anensem,traj_cnt,tpj):
     zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
     brun_jdxs = [x for x in range(len(mjobs))]
     if anensem.postprocess_plan.use_plan:
-        zero_mjob = ejob(brun_jdxs,'zeroth',zero_args)
+        zero_mjob = ejob(brun_jdxs,'zeroth',zero_args,root_only = True)
     else:zero_mjob = ejob(brun_jdxs,'gather',zero_args,root_only = True)
     mjobs.append(zero_mjob)
     return mjobs

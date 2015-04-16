@@ -27,7 +27,8 @@ class postprocess_measurement(measurement):
 
     # i is the information node of a fit routine
     def _measure(self,i):
-        me = self.process.method(i,None)
+        #me = self.process.method(i,None)
+        me = self.process.__getattribute__(self.process.method)(i,None)
 
         ### HACK
         crunch = np.mean(me.data[1])

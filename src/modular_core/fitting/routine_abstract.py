@@ -121,10 +121,17 @@ class routine_abstract(lfu.mobject):
 
         sims_per_job = ensem.multiprocess_plan.simulations_per_job
         jobs = mej.setup_pspace_fitting_mjobs(ensem,traj_cnt,sims_per_job)
-        mmcl.delegate(comm.rank,jobs)
+        #mmcl.delegate(comm.rank,jobs)
+        mmcl.delegate(comm.rank,jobs,v = False)
 
         loc_pool = jobs[-1].result
-        ran = False if loc_pool is None else True
+        if loc_pool is None:
+            #loc_pool = dba.batch_node()
+            ran = None
+        else:ran = True
+
+        #ran = None if loc_pool is None else True
+        #ran = False if loc_pool is None else True
         return loc_pool,ran
 
     # consider a measurement, undo or keep step?
@@ -229,7 +236,8 @@ class routine_abstract(lfu.mobject):
             comm = MPI.COMM_WORLD
             prej = mej.setup_node_setup_mjob(ensem)
             hosts = mmcl.host_lookup(comm.rank)
-            if not prej is None:mmcl.delegate_per_node(hosts,prej)
+            if not prej is None:mmcl.delegate_per_node(hosts,prej,v = False)
+            #if not prej is None:mmcl.delegate_per_node(hosts,prej)
         elif prepoolinit:ensem._run_params_to_location_prepoolinit()
 
         #
@@ -267,7 +275,8 @@ class routine_abstract(lfu.mobject):
             elif ran is False:abort = True
             else:
                 self._feedback(information,ran,pspace)
-                information._stow(v = False)
+                if not information is None:
+                    information._stow(v = False)
             if self.capture > 0:self.iteration += 1
 
     # called after _initialize/_run

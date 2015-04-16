@@ -20,9 +20,13 @@ import modular_core.fitting.measurement as fme
 
 class learner(fab.routine_abstract):
 
+    def _iterate_mpi(self,ensem,pspace):
+        return self._iterate(ensem,pspace)
+
     # create a fitting routine and a parameter space and run it
     def _iterate(self,ensem,pspace):
         self.nail = self.hammer[0](*self.hammer[1],**self.hammer[2])
+        #self.nail.simulations_per_iteration = self.simulations_per_iteration
 
         self.nail._initialize(prepoolinit = False)
         print 'nail starting at:',self.nail.parameter_space._position().location
@@ -75,6 +79,7 @@ class learner(fab.routine_abstract):
     def _initialize(self,*args,**kwargs):
         fab.routine_abstract._initialize(self,*args,**kwargs)
         self._set_hammer()
+        #self.simulations_per_iteration = self.hammer[0].simulations_per_iteration
         #if self.input_data:
         #    self.input_data._stow(v = False)
         #    self.input_friendly = self.input_data._plot_friendly()
@@ -95,24 +100,6 @@ class learner(fab.routine_abstract):
         mkwargs['parent'] = self.parent
         margs = ()
         self.hammer = (fan.annealing,margs,mkwargs)
-
-        '''#
-        pdb.set_trace()
-
-        mrt = 180.0
-        mi = 10000
-
-        aargs = ()
-        akwargs = {
-            'parent':self.parent, 
-            'pspace_source':'magnitude',
-            'weight_scheme':'parabolic',
-            'max_iteration':mi,
-            'max_runtime':mrt,
-            'input_data_path':self.input_data_path,
-                }
-        self.hammer = (fan.annealing,aargs,akwargs)
-        '''#
 
     def _set_hammer_measure(self,hsplit):
         ensem = self.parent.parent
