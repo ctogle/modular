@@ -152,9 +152,6 @@ class batch_node(ldc.data_mobject):
     def __init__(self,*args,**kwargs):
         self._default('metapool',False,**kwargs)
         self._default('stowformat',None,**kwargs)
-
-        print 'makin node',hasattr(self,'stowformat')
-
         self._default('dshape',None,**kwargs)
         self._default('dims',None,**kwargs)
         self._default('parent',None,**kwargs)

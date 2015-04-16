@@ -14,14 +14,15 @@ class ejob(mmcl.mjob):
 
     # produce a numpy array of trajectory data
     def _runbatch(self,*args):
-        #ensem,trjcnt,tgcnt,cptcnt = self.wargs
         ensem,trjcnt,tgcnt,cptcnt = args
         dshape = (trjcnt,tgcnt,cptcnt)
         r = ensem._run_batch_np(trjcnt,dshape,pfreq = None)
         return r
 
     # create a loc_pool from numpy arrays in self.inputs
-    def _gather_zeroth_inputs(self,ptargets,meta = False):
+    def _gather_zeroth_inputs(self,ptargets = None,meta = False):
+        if ptargets is None:
+            ptargets = self.wargs[0].simulation_plan.plot_targets
         inputs = self.inputs
         if len(inputs) > 1:
             ishape = inputs[0].shape
@@ -30,6 +31,7 @@ class ejob(mmcl.mjob):
             for idx in range(len(inputs)):
                 i0 = idx*ishape[0]
                 i1 = (idx+1)*ishape[0]
+                if inputs[idx] is None:return None
                 aggregate[i0:i1,:,:] = inputs[idx][:,:]
         else:aggregate = inputs[0]
         loc_pool = dba.batch_node(metapool = meta,
@@ -89,6 +91,7 @@ class ejob(mmcl.mjob):
         r = None
         if self.work == 'batch_run':r = self._runbatch(*self.wargs)
         elif self.work == 'zeroth':r = self._zeroth()
+        elif self.work == 'gather':r = self._gather_zeroth_inputs()
         elif self.work == 'aggregate':r = self._aggregate()
         elif self.work == 'plocation':r = self._run_pspace_location()
         elif self.work == 'prepoolinit':r = self._prepoolinit()
@@ -96,6 +99,7 @@ class ejob(mmcl.mjob):
         else:print 'UNKNOWN WORK REQUEST!',self.work
         self.result = r
 
+###############################################################################
 ###############################################################################
 
 # create an mjob which performs _prepoolinit once for each node
@@ -109,6 +113,11 @@ def setup_node_setup_mjob(ensem):
     anensem.module.parsers = None
     anensem.multiprocess_plan.use_plan = False
     anensem.parent = None
+
+    anensem.fitting_plan.routines = []
+    anensem.fitting_plan.children = []
+    anensem.run_params['fit_routines'] = []
+    anensem.run_params['output_plans'] = {}
 
     prepoolargs = (anensem,)
     setup = ejob([],'prepoolinit',prepoolargs)
@@ -271,6 +280,33 @@ def setup_ensemble_mjobs_maponly(ensem):
     aggr_mjob = ejob(pspl_jdxs,'aggregate',aggr_args)
     aggr_mjob.root_only = True
     mjobs.append(aggr_mjob)
+    return mjobs
+
+###############################################################################
+
+def setup_pspace_fitting_mjobs(anensem,traj_cnt,tpj):
+    mjobs = []
+    brun_jcnt = traj_cnt/tpj
+    remainder = traj_cnt - brun_jcnt*tpj
+
+    ptargs = anensem.run_params['plot_targets']
+    targ_cnt = len(ptargs)
+    capt_cnt = anensem.simulation_plan._capture_count()
+    meta = False
+
+    brun_args = (anensem,tpj,targ_cnt,capt_cnt)
+    brun_mjobs = [ejob([],'batch_run',brun_args) for x in range(brun_jcnt)]
+    if remainder > 0:
+        brun_args = (anensem,remainder,targ_cnt,capt_cnt)
+        brun_mjobs.append(ejob([],'batch_run',brun_args))
+    mjobs.extend(brun_mjobs)
+
+    zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
+    brun_jdxs = [x for x in range(len(mjobs))]
+    if anensem.postprocess_plan.use_plan:
+        zero_mjob = ejob(brun_jdxs,'zeroth',zero_args)
+    else:zero_mjob = ejob(brun_jdxs,'gather',zero_args,root_only = True)
+    mjobs.append(zero_mjob)
     return mjobs
 
 ###############################################################################

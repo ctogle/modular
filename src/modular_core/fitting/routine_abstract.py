@@ -1,10 +1,14 @@
 import modular_core.fundamental as lfu
 import modular_core.data.batch_target as dba
 import modular_core.parameterspace.parameterspaces as lpsp
+import modular_core.parallel.mpicluster as mmcl
+import modular_core.parallel.ensemblejobs as mej
 import modular_core.io.liboutput as lo
 import modular_core.io.pkl as pk
 
 import pdb,os,sys,types,time,random
+
+from mpi4py import MPI
 
 if __name__ == 'modular_core.fitting.routine_abstract':
     lfu.check_gui_pack()
@@ -74,7 +78,8 @@ class routine_abstract(lfu.mobject):
 
     # set and return a parameter space based on pspace_source
     def _parameter_space(self):
-        cplan = self.parent.parent.cartographer_plan
+        #cplan = self.parent.parent.cartographer_plan
+        cplan = self.proxy_ensemble.cartographer_plan
         if self.pspace_source == 'cartographer':
             pspace = cplan.parameter_space
         elif self.pspace_source == 'magnitude':
@@ -87,7 +92,7 @@ class routine_abstract(lfu.mobject):
         self.parameter_space = pspace
         self.parameter_space.steps = []
 
-    # perform one iteration of fitting
+    # perform one iteration of simulation data collection
     def _iterate(self,ensem,pspace):
         ensem._run_params_to_location()
 
@@ -101,6 +106,25 @@ class routine_abstract(lfu.mobject):
         loc_pool = dba.batch_node(metapool = meta,
                 dshape = dshape,targets = ptargets)
         ran = ensem._run_batch(traj_cnt,loc_pool,pfreq = None)
+        return loc_pool,ran
+
+    # perform one iteration of simulation data collection using clustering
+    def _iterate_mpi(self,ensem,pspace):
+        comm = MPI.COMM_WORLD
+        ensem._run_params_to_location()
+
+        traj_cnt = self.simulations_per_iteration
+        capt_cnt = ensem.simulation_plan._capture_count()
+        ptargets = ensem.run_params['plot_targets']
+        targ_cnt = len(ptargets)
+        meta = False
+
+        sims_per_job = ensem.multiprocess_plan.simulations_per_job
+        jobs = mej.setup_pspace_fitting_mjobs(ensem,traj_cnt,sims_per_job)
+        mmcl.delegate(comm.rank,jobs)
+
+        loc_pool = jobs[-1].result
+        ran = False if loc_pool is None else True
         return loc_pool,ran
 
     # consider a measurement, undo or keep step?
@@ -175,7 +199,43 @@ class routine_abstract(lfu.mobject):
         self.data = dba.batch_node(metapool = meta)
 
         ensem = self.parent.parent
-        ensem._run_params_to_location_prepoolinit()
+        ###
+        from modular_core.ensemble import ensemble_manager
+        mnger = ensemble_manager()
+
+        mcfgstring = ensem._mcfg_string()
+        anensem = mnger._add_ensemble(module = ensem.module_name)
+        anensem._parse_mcfg(mcfgstring = mcfgstring)
+        anensem.module.parsers = None
+        anensem.multiprocess_plan.use_plan = False
+        anensem.parent = None
+
+        anensem.postprocess_plan._init_processes([])
+
+        anensem.fitting_plan.routines = []
+        anensem.fitting_plan.children = []
+        anensem.run_params['fit_routines'] = []
+        anensem.run_params['output_plans'] = {}
+        ###
+
+        self.proxy_ensemble = anensem
+        #ensem = self.proxy_ensemble
+        self.distributed = ensem.multiprocess_plan.distributed
+
+        if 'prepoolinit' in kwargs.keys():prepoolinit = kwargs['prepoolinit']
+        else:prepoolinit = True
+
+        if self.distributed:
+            comm = MPI.COMM_WORLD
+            prej = mej.setup_node_setup_mjob(ensem)
+            hosts = mmcl.host_lookup(comm.rank)
+            if not prej is None:mmcl.delegate_per_node(hosts,prej)
+        elif prepoolinit:ensem._run_params_to_location_prepoolinit()
+
+        #
+        anensem.module._increment_extensionname()
+        #
+
         if self.parameter_space is None:
             self._parameter_space()
         pspace = self.parameter_space
@@ -193,11 +253,14 @@ class routine_abstract(lfu.mobject):
     # called between _initialize/_finalize
     def _run(self,*args,**kwargs):
         self.starttime = time.time()
-        ensem = self.parent.parent
+        #ensem = self.parent.parent
+        ensem = self.proxy_ensemble
         pspace = self.parameter_space
         abort = False
         while not abort and not self._finished():
-            information,ran = self._iterate(ensem,pspace)
+            if self.distributed:
+                information,ran = self._iterate_mpi(ensem,pspace)
+            else:information,ran = self._iterate(ensem,pspace)
             if ran is True:
                 self._feedback(information,ran,pspace)
                 self._capture(information,pspace)
@@ -211,7 +274,8 @@ class routine_abstract(lfu.mobject):
     def _finalize(self,*args,**kwargs):
         print 'finializing routine',self.name,'...'
         self.data._dupe_child(self.best_capture)
-        ensem = self.parent.parent
+        #ensem = self.parent.parent
+        ensem = self.proxy_ensemble
         traj = self.psp_trajectory
         traj.append(traj[self.best_capture])
         pspace = self.parameter_space

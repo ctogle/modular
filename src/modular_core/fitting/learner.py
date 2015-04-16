@@ -24,7 +24,7 @@ class learner(fab.routine_abstract):
     def _iterate(self,ensem,pspace):
         self.nail = self.hammer[0](*self.hammer[1],**self.hammer[2])
 
-        self.nail._initialize()
+        self.nail._initialize(prepoolinit = False)
         print 'nail starting at:',self.nail.parameter_space._position().location
         self.nail._run()
         print 'nail stopping at:',self.nail.parameter_space._position().location
@@ -90,7 +90,13 @@ class learner(fab.routine_abstract):
             self._set_hammer_measure(hspl)
 
     def _set_hammer_annealing(self,hsplit):
+        ensem = self.parent.parent
+        mkwargs = fan.parse_line(hsplit,ensem,[],[])
+        mkwargs['parent'] = self.parent
+        margs = ()
+        self.hammer = (fan.annealing,margs,mkwargs)
 
+        '''#
         pdb.set_trace()
 
         mrt = 180.0
@@ -106,6 +112,7 @@ class learner(fab.routine_abstract):
             'input_data_path':self.input_data_path,
                 }
         self.hammer = (fan.annealing,aargs,akwargs)
+        '''#
 
     def _set_hammer_measure(self,hsplit):
         ensem = self.parent.parent

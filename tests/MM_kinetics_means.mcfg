@@ -42,6 +42,6 @@
 	metamapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 1000000
+	trajectory_count : 100000
 
 

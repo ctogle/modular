@@ -477,6 +477,13 @@ class ensemble(lfu.mobject):
                 print 'mpbatch run completed:%d/%d'%(m,many)
         return True
 
+    # accomplish the same goal as _run_batch but using mpi clustering
+    def _run_mpibatch(self,sims_per_job,many,pool):
+        comm = MPI.COMM_WORLD
+        jobs = mej.setup_ensemble_mjobs(self,sims_per_job)
+        #prej = mej.setup_node_setup_mjob(self)
+        mmcl.delegate(comm.rank,jobs)
+
     def _print_pspace_location(self,ldex):
         return self.cartographer_plan._print_pspace_location(ldex)
 

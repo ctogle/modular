@@ -29,34 +29,39 @@
 	Enzyme
 
 <parameter_space>
-	<fitting_space> 100
+	<fitting_space> #
     k1 : value : 1.0
     k2 : value : 0.01
     mu : value : 800.0
     #k1 : value : 0.000001-10000.0;2
     #k2 : value : 0.000001-10000.0;2
     #mu : value : 0.000001-10000.0;2
-    Enzyme     : initial : 1-1000000000;2
-    Substrate  : initial : 1-1000000000;2
-    ES_Complex : initial : 1-1000000000;2
-    Product    : initial : 1-1000000000;2
+    Enzyme     : initial : 1-10000000;2
+    Substrate  : initial : 1-10000000;2
+    ES_Complex : initial : 1-10000000;2
+    Product    : initial : 1-10000000;2
 
 <fit_routines>
   #anexplorer : explorer : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
   #anannealer : annealing : decimated : mm_fit_input.0.pkl : mm_kinetics_map.mmap
-  alearner   : learning  : magnitude : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+  #alearner   : learning  : magnitude : mm_fit_input.0.pkl : mm_kinetics_map.mmap
+
+  alearner : learning : magnitude : 10000 : 600 : 10000 : 10000 : 10 : < anannealer % annealing % magnitude % 1000 % 300 % 1000 % 1000 % 1 % mm_fit_input.0.pkl % mm_kinetics.mmap > : mm_kinetics.mmap
+  #anannealer : annealing : decimated : 1000 : 300 : 1000 : 1000 : 100 : mm_fit_input.0.pkl : mm_kinetics_map.mmap
 
 <multiprocessing>
+	multiprocessing : off
 	workers : 16
-  distributed : on
+
+<clustering>
+  distributed : off
   simulations_per_job : 10
 
 <output_plans>
-	1 : - : fitroutn_output : plt : all
-	0 : - : ensemble_output : plt : all
+	1 : - : fitroutn_output : pkl : all
+	0 : - : ensemble_output : pkl : all
 
 <ensemble>
-	multiprocessing : off
 	mapparameterspace : off
 	metamapparameterspace : off
 	fitting : on

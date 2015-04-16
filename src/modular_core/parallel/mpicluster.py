@@ -28,13 +28,14 @@ class mjob(object):
         np = hasattr(self.result,'shape')
         return np
 
-    def __init__(self,prereqs,work,wargs = ()):
+    def __init__(self,prereqs,work,wargs = (),root_only = False):
         self._id()
         self.prereqs = prereqs
         self.dependants = []
         self.work = work
         self.wargs = wargs
-        self.root_only = False
+        self.root_only = root_only
+        self.silent = False
 
     def _initialize(self,jobs):
         self.inputs = []
@@ -58,6 +59,7 @@ class mjob(object):
         if self.work == 'pass':return
         result = self.result
         selfdex = self.selfdex
+        jobs[selfdex].result = result
         for d in self.dependants:
             dep = jobs[d]
             if selfdex in dep.prereqs:
@@ -122,17 +124,20 @@ def delegate_per_node(hosts,setup):
         reply = comm.recv(source = hosts[h][0])
     print 'received setup replies from hosts:',nonroots
 
-def delegate(root,jobs,setup = None):
+def delegate(root,jobs,setup = None,v = True):
     comm = MPI.COMM_WORLD
     ncnt = comm.size
     free = [x for x in range(ncnt)]
     occp = []
     free.remove(root)
 
+    if v is False:silence()
+
     hosts = host_lookup(root)
     if not setup is None:delegate_per_node(hosts,setup)
 
     passjob = mjob([],'pass')
+    passjob.silent = True
     remaining_jobs = jobs[:]
     for j in jobs:j._initialize(jobs)
     jobcount = len(jobs)
@@ -145,6 +150,8 @@ def delegate(root,jobs,setup = None):
                 jdx = select_mjob(remaining_jobs,jobstodo)
                 if jdx is None:break
                 j = remaining_jobs.pop(jdx)
+                if v is False:j.silent = True
+                else:j.silent = False
                 if j.root_only:
                     print 'executing root only job:',j.job_id
                     j._work()
@@ -162,6 +169,7 @@ def delegate(root,jobs,setup = None):
         free.append(jrank)
         occp.remove(jrank)
         jobsdone += 1
+    if v is False:vocalize()
 
 ###############################################################################
 
@@ -175,6 +183,8 @@ def listen(root):
         job = comm.recv(source = root)
         if job == 'quit':break
         else:
+            if job.silent:silence()
+            else:vocalize()
             print 'rank:',rank,'received job:',job.job_id,'with work:',job.work
             job._work()
             job.rank = rank

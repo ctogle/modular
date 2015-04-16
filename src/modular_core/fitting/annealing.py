@@ -34,7 +34,7 @@ class annealing(fab.routine_abstract):
         if bestflags.count(True) > mthrsh:
             self.best = True
 
-    def _fitter(self,measures,noisey = 0.1):
+    def _fitter(self,measures,noisey = 0.2):
         if not self.metric_measurements[0]:fitter = True
         else:
             last = [m[-1] for m in self.metric_measurements]
@@ -80,7 +80,7 @@ class annealing(fab.routine_abstract):
         self._default('max_last_best',100000,**kwargs)
         self._default('max_temperature',1000.0,**kwargs)
         self._default('input_data_path',None,**kwargs)
-        self._default('weight_scheme','uniform',**kwargs)
+        self._default('weight_scheme','parabolic',**kwargs)
 
         if not hasattr(self,'metrics'):
             wrgs = {'weights':self.weight_scheme}
@@ -125,13 +125,19 @@ class annealing(fab.routine_abstract):
 
 # return valid **kwargs for annealing based on msplit(line)
 def parse_line(split,ensem,procs,routs):
-    dpath = lfu.resolve_filepath(split[3])
+    mi,mr,mu,ml,si = split[3:8]
+    dpath = lfu.resolve_filepath(split[8])
     eargs = {
         'name':split[0],
         'variety':split[1],
+        'max_iteration':int(mi),
+        'max_runtime':int(mr),
+        'max_undos':int(mu),
+        'max_last_best':int(ml),
+        'simulations_per_iteration':int(si),
         'pspace_source':split[2],
         'input_data_path':dpath, 
-        'metamapfile':split[4], 
+        'metamapfile':split[9],
             }
     return eargs
 

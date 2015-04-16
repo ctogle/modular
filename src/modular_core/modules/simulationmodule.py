@@ -35,23 +35,25 @@ class simulation_module(lfu.mobject):
         if not li in targs:targs.append(li)
 
     def _parse_mcfg_multiprocessing(li,ensem,parser,procs,routs,targs):
-        key,val = lfu.msplit(li)#li.split(':')
-        if key == 'workers':
-            ensem.multiprocess_plan.worker_count = int(val)
-        elif key == 'distributed':
-            ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(val)
-        elif key == 'simulations_per_job':
-            ensem.multiprocess_plan.simulations_per_job = int(val)
-        elif key == 'nodes':
-            ips = lfu.msplit(val,',')
-            ensem.multiprocess_plan.cluster_node_ips = ips
+        which,value = lfu.msplit(li)
+        if which.startswith('multiprocessing'):
+            ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
+        elif which == 'workers':
+            ensem.multiprocess_plan.worker_count = int(value)
+        #elif key == 'nodes':
+        #    ips = lfu.msplit(val,',')
+        #    ensem.multiprocess_plan.cluster_node_ips = ips
+
+    def _parse_mcfg_clustering(li,ensem,parser,procs,routs,targs):
+        which,value = lfu.msplit(li)
+        if which == 'distributed':
+            ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(value)
+        elif which == 'simulations_per_job':
+            ensem.multiprocess_plan.simulations_per_job = int(value)
 
     def _parse_mcfg_ensemble(li,ensem,parser,procs,routs,targs):
         which,value = lfu.msplit(li)
-        #which,value = spl
-        if which.startswith('multiprocessing'):
-            ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
-        elif which.startswith('skipsimulation'):
+        if which.startswith('skipsimulation'):
             ensem.skip_simulation = lfu.coerce_string_bool(value)
         elif which.startswith('mapparameterspace'):
             ensem.cartographer_plan.use_plan = lfu.coerce_string_bool(value)
@@ -83,6 +85,7 @@ class simulation_module(lfu.mobject):
         'parameter_space',
         'plot_targets',
         'multiprocessing',
+        'clustering',
         'ensemble']
     parse_funcs = [
         cab.parse_criterion_line,
@@ -93,6 +96,7 @@ class simulation_module(lfu.mobject):
         None,
         _parse_mcfg_plot_targets,
         _parse_mcfg_multiprocessing,
+        _parse_mcfg_clustering,
         _parse_mcfg_ensemble]
 
     def __init__(self,*args,**kwargs):
