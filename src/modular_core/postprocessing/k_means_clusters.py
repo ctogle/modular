@@ -56,7 +56,10 @@ class k_means(lpp.post_process_abstract):
             kmeans = vq.kmeans(bindvals,cc)
             cposs,distortion = kmeans
             try:kmeasure = abs(cposs[1]-cposs[0]),distortion
-            except:pdb.set_trace()
+            except:
+                print 'POSSIBLE KMEANS ERROR...'
+                kmeasure = (0.0,distortion)
+                #pdb.set_trace()
             return kmeasure
 
         for dex in range(valss.shape[1]):
