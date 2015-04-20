@@ -6,7 +6,7 @@ import modular_core.parallel.ensemblejobs as mej
 import modular_core.io.liboutput as lo
 import modular_core.io.pkl as pk
 
-import pdb,os,sys,types,time,random
+import pdb,os,sys,types,time,random,traceback
 
 from mpi4py import MPI
 
@@ -121,8 +121,8 @@ class routine_abstract(lfu.mobject):
 
         sims_per_job = ensem.multiprocess_plan.simulations_per_job
         jobs = mej.setup_pspace_fitting_mjobs(ensem,traj_cnt,sims_per_job)
-        #mmcl.delegate(comm.rank,jobs)
-        mmcl.delegate(comm.rank,jobs,v = False)
+        mmcl.delegate(comm.rank,jobs)
+        #mmcl.delegate(comm.rank,jobs,v = False)
 
         loc_pool = jobs[-1].result
         if loc_pool is None:
@@ -236,8 +236,7 @@ class routine_abstract(lfu.mobject):
             comm = MPI.COMM_WORLD
             prej = mej.setup_node_setup_mjob(ensem)
             hosts = mmcl.host_lookup(comm.rank)
-            if not prej is None:mmcl.delegate_per_node(hosts,prej,v = False)
-            #if not prej is None:mmcl.delegate_per_node(hosts,prej)
+            if not prej is None:mmcl.delegate_per_node(hosts,prej)
         elif prepoolinit:ensem._run_params_to_location_prepoolinit()
 
         #
@@ -282,7 +281,10 @@ class routine_abstract(lfu.mobject):
     # called after _initialize/_run
     def _finalize(self,*args,**kwargs):
         print 'finializing routine',self.name,'...'
-        self.data._dupe_child(self.best_capture)
+        try:self.data._dupe_child(self.best_capture)
+        except:
+            traceback.print_exc(file=sys.stdout)
+            pdb.set_trace()
         #ensem = self.parent.parent
         ensem = self.proxy_ensemble
         traj = self.psp_trajectory

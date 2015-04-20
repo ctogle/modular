@@ -33,7 +33,8 @@ class k_means(lpp.post_process_abstract):
         self._default('ordered',True,**kwargs)
 
         self._default('function_of',None,**kwargs)
-        self._default('k_means_of',['gamma'],**kwargs)
+        #self._default('k_means_of',['gamma'],**kwargs)
+        self._default('k_means_of',[],**kwargs)
 
         self.method = 'k_means_clusters'
         #self.method = self.k_means_clusters
@@ -81,6 +82,11 @@ class k_means(lpp.post_process_abstract):
 
         diff_targets = [item+'-centroid-difference' for item in self.k_means_of]
         dist_targets = [item+'-centroid-distortion' for item in self.k_means_of]
+
+        # need a target for each items centroid value
+        #othr_targets = [item+'-centroid-'+str(x) for 
+        #        x,item in enumerate(self.k_means_of)]
+
         self.target_list = [self.function_of]+diff_targets+dist_targets
 
         self.capture_targets = self.target_list
@@ -131,7 +137,7 @@ def parse_line(split,ensem,procs,routs):
         'variety':split[1],
         'input_regime':inputs,
         'dater_ids':relevant+[function_of],
-        'means_of':relevant,
+        'k_means_of':relevant,
         'function_of':function_of,
         'bin_count':int(split[4]),
         'ordered':split[5].count('unordered') < 1,

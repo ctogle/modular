@@ -80,7 +80,7 @@ class annealing(fab.routine_abstract):
         self._default('max_last_best',100000,**kwargs)
         self._default('max_temperature',1000.0,**kwargs)
         self._default('input_data_path',None,**kwargs)
-        self._default('weight_scheme','parabolic',**kwargs)
+        self._default('weight_scheme','uniform',**kwargs)
 
         if not hasattr(self,'metrics'):
             wrgs = {'weights':self.weight_scheme}
