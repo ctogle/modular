@@ -15,7 +15,6 @@ from matplotlib.backend_bases import NavigationToolbar2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.path as path
-from mpl_toolkits.mplot3d import Axes3D
 
 code_font = QtGui.QFont()
 code_font.setFamily('Sans')
@@ -2254,7 +2253,7 @@ class quick_plot(QtGui.QWidget):
             return
         else: x, y, surf = made_surf
         self.set_labels(xlab,ylab,starget,starget)
-        #surf = surf.transpose()
+
         x_min, x_max = x.min(), x.max()
         y_min, y_max = y.min(), y.max()
         z_min, z_max = surf.min(), surf.max()

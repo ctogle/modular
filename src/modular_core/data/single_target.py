@@ -110,8 +110,19 @@ class reducer(base_target):
         y = np.array(self.axis_values[y_ax_dex].data,dtype = float)
         sf = np.array(sub_surf.data,dtype = float)
         sf = sf.reshape(len(x),len(y))
+        if self._orient_surface(x_ax,y_ax):sf = sf.transpose()
         return x,y,sf
 
+    def _orient_surface(self,x,y):
+        if x in self.axes and y in self.axes:
+            xdx = self.axes.index(x)
+            ydx = self.axes.index(y)
+            if xdx < ydx:return True
+            else:return False
+        else:
+            print 'could not properly orient surface...'
+            return False
+      
 ###############################################################################
 
 class bin_vector(object):

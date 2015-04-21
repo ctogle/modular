@@ -142,10 +142,11 @@ class standard_mason(object):
                 verbosities[dex].extend([1]*missing)
 
         try:
-            threshold = self.lset.get_setting('interface_verbosity')
+            threshold = self.lset.get_setting(
+                'interface_verbosity',fail_silent = True)
             if not threshold: threshold = 1
-
         except: threshold = 1
+
         for widg, volume in zip(lfu.flatten(widgs), 
                         lfu.flatten(verbosities)):
             if not volume <= threshold: widg.hide()
