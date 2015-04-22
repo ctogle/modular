@@ -48,10 +48,12 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
+	multiprocessing : off
 	workers : 16
+
+<clustering>
   distributed : on
   simulations_per_job : 1000
-  nodes : 192.168.2.173, 192.168.4.76, 192.168.4.89
 
 <output_plans>
 	3 : - : reorg_output : pkl : all
@@ -61,14 +63,8 @@
 
 <ensemble>
 	skipsimulation : off
-	multiprocessing : off
 	mapparameterspace : on
 	metamapparameterspace : off
-
-  #metamappath : /srv/cluster/shared_modular_data/mapdata/correl_metamap.mmap
-  #datapool_directory : /srv/cluster/shared_modular_data
-  #cache_directory : /srv/cluster/shared_modular_cache
-
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000
