@@ -1904,8 +1904,11 @@ class quick_plot(QtGui.QWidget):
         self.user_ztitle = None
         self.user_title = None
         self.callbacks = callbacks
+        self.current_page = None
         self.max_line_count = 32
         self.colormap = plt.get_cmap('jet')
+        #self.colors = [self.colormap(i) for i in 
+        #    np.linspace(0,0.9,min([self.max_line_count,len(ys)]))]
         self.set_up_widgets()
 
     def set_up_widgets(self):
@@ -2091,6 +2094,7 @@ class quick_plot(QtGui.QWidget):
         except IndexError: pass
 
         xlog, ylog = data.x_log, data.y_log
+        self.colors = data.colors
         if ptype == 'lines':
             ldata = [d for d in data.data if d.tag 
                 in self.lplot_data_types]
@@ -2191,15 +2195,16 @@ class quick_plot(QtGui.QWidget):
         y_labs = [y.name for y in ys]
         self.set_labels(x_labs[0], y_labs[0])
 
-        self.colors = [self.colormap(i) for i in 
-            np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
-        styles = ['solid']*len(self.colors)
-        widths = [1.0]*len(self.colors)
-        marks = [None]*len(self.colors)
+        #self.colors = [self.colormap(i) for i in 
+        #    np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
+        colors = self.colors[:]
+        styles = ['solid']*len(colors)
+        widths = [1.0]*len(colors)
+        marks = [None]*len(colors)
         for d, da in enumerate(ys):
             if hasattr(da, 'linewidth'):widths[d] = da.linewidth
             if hasattr(da, 'linestyle'):styles[d] = da.linestyle
-            if hasattr(da, 'color'):self.colors[d] = da.color
+            if hasattr(da, 'color'):colors[d] = da.color
             if hasattr(da, 'marker'):marks[d] = da.marker
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
         #if type(xs) is types.ListType:xs_ = [x.scalars for x in xs]
@@ -2220,11 +2225,11 @@ class quick_plot(QtGui.QWidget):
                 subs = y.subscalars
                 lx = xs_[-1]
                 subcnt = len(subs)
-                ycol = self.colors[sdx + ioffset]
+                ycol = colors[sdx + ioffset]
                 for su in subs:
                     idx = sdx + ioffset
                     y_labs.insert(idx,'__skip__')
-                    self.colors.insert(idx,ycol)
+                    colors.insert(idx,ycol)
                     styles.insert(idx,'-.')
                     widths.insert(idx,'0.5')
                     marks.insert(idx,'+')
@@ -2235,7 +2240,7 @@ class quick_plot(QtGui.QWidget):
         [plot_(x, y, lab, col, ls, lw, ma) for 
             x, y, lab, col, ls, lw, ma
                 in zip(xs_, ys_, y_labs, 
-                    self.colors, styles, widths, marks)]
+                    colors, styles, widths, marks)]
         ax.axis(self.get_minmaxes(xs_, ys_))
         #ax.legend()
         leg = ax.legend()
@@ -2414,9 +2419,9 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         labels_dlg = lgd.change_labels_dialog(
             page.get_title(), 
             domain, page.get_ytitle(), 
-            page.max_line_count, page.colors, 
+            page.max_line_count, page.parent.colors, 
             page.get_targets(), domain, 
-            page.x_log, page.y_log, page.cplot_interpolation)
+            page.x_log, page.y_log, page.parent.cplot_interpolation)
         if not labels_dlg: return
         new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp = labels_dlg
         page.set_title(new_title)
@@ -2424,7 +2429,8 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         page.x_log = xlog
         page.set_ytitle(new_y_label)
         page.y_log = ylog
-        page.colors = colors
+        #page.colors = colors
+        page.parent.colors = colors
         page.parent.cplot_interpolation = cinterp
         page.parent.x_log = xlog
         page.parent.y_log = ylog

@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canva
 import matplotlib.pyplot as plt
 
 from PySide import QtGui, QtCore
-import pdb,os,sys,types,time
+import pdb,os,sys,types,time,numpy
 
 _window_ = None
 
@@ -168,9 +168,9 @@ class plot_page(lfu.mobject):
         self.x_log = parent.x_log
         self.y_log = parent.y_log
         self.plot_bounds = [[None,None],[None,None],[None,None]]
-        self.max_line_count = 20
-        self.colors = []
+        self.max_line_count = 20 #this should come from the plot_window, but it doesnt
         self.cplot_interpolation = parent.cplot_interpolation
+        
         #Acceptable interpolations are:
         # 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 
         # 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 
@@ -190,6 +190,7 @@ class plot_page(lfu.mobject):
         else: ucbs = {}
         self.user_callbacks = ucbs
         label = ' : '.join([str(pagenum), self.filename])
+        self.name = label
         self.data = data
         lfu.mobject.__init__(self,**kwargs)
 
@@ -227,6 +228,7 @@ class plot_page(lfu.mobject):
         data.zdomain = self.parent.zdomain
         data.active_targs = self.parent.active_targs
         data.cplot_interpolation = self.parent.cplot_interpolation
+        data.colors = self.parent.colors
         data.x_log = self.parent.x_log
         data.y_log = self.parent.y_log
         return data
@@ -238,8 +240,7 @@ class plot_page(lfu.mobject):
         qplot.plot(data, xlab, ylab, title, ptype = ptype)
 
     def show_plot(self):
-        self.redraw_plot(self.get_xtitle(), 
-            self.get_ytitle(), self.get_title())
+        self.redraw_plot(self.get_xtitle(),self.get_ytitle(),self.get_title())
 
     def roll_data(self):
         qplot = self.qplot[0]
@@ -294,6 +295,13 @@ class plot_window(lfu.mobject):
         self._default('slice_widgets', [], **kwargs)
         self._default('x_log', False, **kwargs)
         self._default('y_log', False, **kwargs)
+        self._default('max_line_count',20,**kwargs)
+
+        self.colormap = plt.get_cmap('jet')
+        defcolors = [self.colormap(i) for i in numpy.linspace(0,0.9,
+                    min([self.max_line_count,len(self.targs)-1]))]
+        self._default('colors', defcolors, **kwargs)
+
         #self._default('plot_bounds',
         #    [[None,None],[None,None],[None,None]],**kwargs)
         ptypes = ['lines','color','surface','bars','voxels','tables']
@@ -323,6 +331,10 @@ class plot_window(lfu.mobject):
     def __call__(self,*args,**kwargs):
         page = self.get_current_page()
         self.active_targs = page.active_targs
+        defcolors = [self.colormap(i) for i in numpy.linspace(0,0.9,
+                min([self.max_line_count,len(self.active_targs)]))]
+        self.colors = defcolors
+
         self.xdomain = page.xdomain
         self.ydomain = page.ydomain
         self.zdomain = page.zdomain

@@ -47,6 +47,10 @@ def create_dialog(title = 'Dialog', message = '', variety = 'input',
 
     def show_dialog_color():
         col = QtGui.QColorDialog.getColor()
+
+        print 'col',col
+        pdb.set_trace()
+
         if col.isValid():
             some_frame.setStyleSheet(
                 "QWidget { background-color: %s }" % col.name())
@@ -237,7 +241,7 @@ class labels_dialog(create_obj_dialog):
         if self.plot_targets: self.target = self.plot_targets[0]
         else: self.target = None
         colormap = plt.get_cmap('jet')
-        if 'colors' in kwargs.keys(): self.colors = kwargs['colors']
+        if 'colors' in kwargs.keys():self.colors = kwargs['colors']
         else:
             self.colors = [colormap(i) for i in np.linspace(
                             0, 0.9, min([self.max_line_count, 
@@ -256,7 +260,10 @@ class labels_dialog(create_obj_dialog):
         col = QtGui.QColorDialog.getColor()
         if col.isValid():
             targ_dex = self.plot_targets.index(self.target) - 1
-            self.colors[targ_dex] = col.getRgbF()
+            try:
+                self.colors[targ_dex] = col.getRgbF()
+            except IndexError:
+                pdb.set_trace()
 
     def set_settables(self, *args, **kwargs):
         self.widg_templates = []

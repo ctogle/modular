@@ -152,7 +152,8 @@ class writer_plt(writer_abstract):
         plot_types = ['color','surface','lines','bars','voxels']
         if lfu.using_gui and not self._plt_window:
             title = self._window_title()
-            cplot_interp_def = lset.get_setting('cplot_interpolation')
+            cplot_interp_def = lset.get_setting(
+                'cplot_interpolation',fail_silent = True)
             self._check_qt_application()
             glib = self._guilib()
             self._plt_window = glib.plot_window(
