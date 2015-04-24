@@ -55,15 +55,20 @@ class metamap(lfu.mobject):
     # it is a pspace location independent representation of the model
     def __init__(self,*args,**kwargs):
         self._default('axes',[],**kwargs)
+        self._default('location_strings',[],**kwargs)
         self._default('uniqueness',None,**kwargs)
-        self._default('mapfile','pspmap.mmap',**kwargs)
+        #self._default('mapfile','pspmap.mmap',**kwargs)
+        self._default('mapfile',None,**kwargs)
         self._default('mapdir',lfu.get_mapdata_pool_path(),**kwargs)
-        self.mappath = os.path.join(self.mapdir,self.mapfile)
+        self.mappath = self.mapdir[:]
         self.children = self.axes
         lfu.mobject.__init__(self,**kwargs)
         self._load()
 
     def _load(self):
+        if self.mapfile is None:
+            print 'no metamap to load...'
+            return
         self.mappath = os.path.join(self.mapdir,self.mapfile)
         if os.path.isfile(self.mappath):
             proxy = pk.load_pkl_object(self.mappath)
@@ -76,7 +81,6 @@ class metamap(lfu.mobject):
                 print 'skipping metamap load...'
                 self.entries = {}
                 self.location_strings = []
-                #pdb.set_trace()
             else:
                 self.entries = proxy.entries
                 self.location_strings = proxy.location_strings
@@ -127,7 +131,11 @@ class metamap(lfu.mobject):
     def _location_from_location_string(self,loc_str):
         locaxs = lfu.msplit(loc_str,'||')
         locvls = []
-        for lax in locaxs:locvls.append(float(lfu.msplit(lax,':')[-1]))
+
+        try:
+          for lax in locaxs:locvls.append(float(lfu.msplit(lax,':')[-1]))
+        except:pdb.set_trace()
+
         newloc = lpsp.pspace_location(location = locvls)
         trjcnt = self.entries[loc_str].simulation_pool.children[0].dshape[0]
         newloc.trajectory_count = trjcnt

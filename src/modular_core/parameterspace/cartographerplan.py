@@ -45,7 +45,7 @@ class cartographer_plan(lfu.plan):
 
         meta = lset.get_setting('metamapparameterspace')
         self._default('maintain_pspmap',meta,**kwargs)
-        self._default('mapfile','pspmap.mmap',**kwargs)
+        self._default('mapfile',None,**kwargs)
         self._default('mapdir',lfu.get_mapdata_pool_path(),**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
