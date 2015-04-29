@@ -2190,13 +2190,11 @@ class quick_plot(QtGui.QWidget):
 
         ax = self.pre_plot()
 
-        if type(xs) is types.ListType: x_labs = [x.name for x in xs]
-        else: x_labs = [xs.name]*len(ys)
+        if type(xs) is types.ListType:x_labs = [x.name for x in xs]
+        else:x_labs = [xs.name]*len(ys)
         y_labs = [y.name for y in ys]
         self.set_labels(x_labs[0], y_labs[0])
 
-        #self.colors = [self.colormap(i) for i in 
-        #    np.linspace(0, 0.9, min([self.max_line_count, len(ys)]))]
         colors = self.colors[:]
         styles = ['solid']*len(colors)
         widths = [1.0]*len(colors)
@@ -2207,9 +2205,7 @@ class quick_plot(QtGui.QWidget):
             if hasattr(da, 'color'):colors[d] = da.color
             if hasattr(da, 'marker'):marks[d] = da.marker
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
-        #if type(xs) is types.ListType:xs_ = [x.scalars for x in xs]
-        #else: xs_ = [xs.scalars]*len(ys)
-        #ys_ = [y.scalars for y in ys]
+
         xs_, ys_ = [], []
         use_xdom = False
         ioffset = 0
