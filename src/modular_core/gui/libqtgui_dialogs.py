@@ -152,7 +152,7 @@ class create_obj_dialog(QtGui.QDialog):
         else:
             if not kwargs['from_sub']: self.set_up_widgets()
 
-    def rewidget(self, *args, **kwargs):
+    def _rewidget(self, *args, **kwargs):
         try:
             if type(args[0]) is types.BooleanType:
                 self.rewidget_ = args[0]

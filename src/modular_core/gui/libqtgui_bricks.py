@@ -1942,8 +1942,7 @@ class quick_plot(QtGui.QWidget):
         ymins,ymaxs = zip(*yminmaxes)
         return [min(xmins),max(xmaxs),min(ymins),max(ymaxs)]
 
-    def set_labels(self, xlab = None, ylab = None, 
-            zlab = None, title = None):
+    def set_labels(self,xlab = None,ylab = None,zlab = None,title = None):
         ax = self.newest_ax
         if self.user_xtitle: final_xlab = self.user_xtitle
         elif xlab: final_xlab = xlab

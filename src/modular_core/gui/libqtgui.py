@@ -240,7 +240,10 @@ class plot_page(lfu.mobject):
         qplot = self.qplot[0]
         data = self.get_plot_info(self.data)
         ptype = self.parent.plot_type
-        qplot.plot(data, xlab, ylab, title, ptype = ptype)
+        qplot.user_title = self.parent.plot_title
+        qplot.user_xtitle = self.parent.xtitle
+        qplot.user_ytitle = self.parent.ytitle
+        qplot.plot(data,xlab,ylab,title,ptype = ptype)
 
     def show_plot(self):
         self.redraw_plot(self.get_xtitle(),self.get_ytitle(),self.get_title())
