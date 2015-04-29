@@ -2416,24 +2416,34 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         lgd = lfu.gui_pack.lgd
         page = self.current_page()
         domain = page.get_xtitle()
-        labels_dlg = lgd.change_labels_dialog(
-            page.get_title(), 
-            domain, page.get_ytitle(), 
-            page.max_line_count, page.parent.colors, 
-            page.get_targets(), domain, 
-            page.x_log, page.y_log, page.parent.cplot_interpolation)
+        labels_dlg = lgd.change_labels_dialog(page.get_title(),domain,
+            page.get_ytitle(),page.max_line_count,page.parent.colors, 
+            page.get_targets(),domain,page.x_log,page.y_log,
+            page.parent.cplot_interpolation)
         if not labels_dlg: return
         new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp = labels_dlg
-        page.set_title(new_title)
-        page.set_xtitle(new_x_label)
-        page.x_log = xlog
-        page.set_ytitle(new_y_label)
-        page.y_log = ylog
+        
+        #page.set_title(new_title)
+        page.parent.plot_title = new_title
+        page.set_title()
+
+        #page.set_xtitle(new_x_label)
+        page.parent.xtitle = new_x_label
+        page.set_xtitle()
+
+        #page.set_ytitle(new_y_label)
+        page.parent.ytitle = new_y_label
+        page.set_ytitle()
+
         #page.colors = colors
         page.parent.colors = colors
         page.parent.cplot_interpolation = cinterp
+
         page.parent.x_log = xlog
         page.parent.y_log = ylog
+        page.x_log = xlog
+        page.y_log = ylog
+
         #ax = page.newest_ax
         ax = page.get_newest_ax()
         ax.set_xlabel(new_x_label, fontsize = 18)

@@ -76,12 +76,14 @@ class ensemble(lfu.mobject):
     def _require_stow(self,runcount,psplocationcount):
         dptpertraj = self.simulation_plan._captures_per_trajectory()
         dptcount = dptpertraj * runcount * psplocationcount
+        metamapping = self.cartographer_plan.maintain_pspmap
         print 'data point count:',dptcount
-        if dptcount > 500000000:
+        if metamapping or dptcount > 500000000:
             print 'memory errors may occur; will stow'
             stow_needed = True
         else:
             print 'memory errors not expected; will not stow'
+            print 'not metamapping; will not stow'
             stow_needed = False
         time.sleep(1)
         return stow_needed

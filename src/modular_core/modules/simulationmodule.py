@@ -40,9 +40,6 @@ class simulation_module(lfu.mobject):
             ensem.multiprocess_plan.use_plan = lfu.coerce_string_bool(value)
         elif which == 'workers':
             ensem.multiprocess_plan.worker_count = int(value)
-        #elif key == 'nodes':
-        #    ips = lfu.msplit(val,',')
-        #    ensem.multiprocess_plan.cluster_node_ips = ips
 
     def _parse_mcfg_clustering(li,ensem,parser,procs,routs,targs):
         which,value = lfu.msplit(li)

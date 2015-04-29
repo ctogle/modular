@@ -199,21 +199,24 @@ class plot_page(lfu.mobject):
 
     def get_title(self):
         return self.title
-    def set_title(self, new):
+    def set_title(self,new = None):
+        if new is None:new = self.parent.plot_title
         self.title = new
         qplot = self.qplot[0]
         qplot.user_title = new
 
     def get_xtitle(self):
         return self.xtitle
-    def set_xtitle(self, new):
+    def set_xtitle(self,new = None):
+        if new is None:new = self.parent.xtitle
         self.xtitle = new
         qplot = self.qplot[0]
         qplot.user_xtitle = new
 
     def get_ytitle(self):
         return self.ytitle
-    def set_ytitle(self, new):
+    def set_ytitle(self,new = None):
+        if new is None:new = self.parent.ytitle
         self.ytitle = new
         qplot = self.qplot[0]
         qplot.user_ytitle = new
@@ -296,6 +299,10 @@ class plot_window(lfu.mobject):
         self._default('x_log', False, **kwargs)
         self._default('y_log', False, **kwargs)
         self._default('max_line_count',20,**kwargs)
+        
+        self._default('plot_title','title',**kwargs)
+        self._default('xtitle','xtitle',**kwargs)
+        self._default('ytitle','ytitle',**kwargs)
 
         self.colormap = plt.get_cmap('jet')
         defcolors = [self.colormap(i) for i in numpy.linspace(0,0.9,
