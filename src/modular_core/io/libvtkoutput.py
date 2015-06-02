@@ -1,11 +1,9 @@
-#import libs.modular_core.libfundamental as lfu
-#import libs.modular_core.libgeometry as lgeo
-
 import modular_core.fundamental as lfu
-
 import modular_core.data.datacontrol as ldc
 
 import xml.dom.minidom
+import numpy as np
+
 from copy import deepcopy as copy
 
 import pdb
@@ -17,6 +15,7 @@ if __name__ == 'libs.modular_core.libvtkoutput':
 
 if __name__ == '__main__': print 'this is a library!'
 
+#WAY OLD AND BROKEN
 def write_image(system, vtk_filename, specifics = []):
     plot_targets = sort_data_by_type(system.data, specifics)
     doc = xml.dom.minidom.Document()
@@ -31,7 +30,8 @@ def write_image(system, vtk_filename, specifics = []):
 
     #ImageData Element
     #tempExtent = lgeo.array_to_string(['0', viewdims[0], 
-    tempExtent = ldc.array_to_string(['0', viewdims[0], 
+    #tempExtent = ldc.array_to_string(['0', viewdims[0], 
+    tempExtent = array_to_string(['0', viewdims[0], 
                     '0', viewdims[1], '0', viewdims[2]])
     dataType = doc.createElementNS("VTK", vtktype)
     dataType.setAttribute("WholeExtent", tempExtent)
@@ -87,7 +87,8 @@ def write_image(system, vtk_filename, specifics = []):
             node.setAttribute("format", "ascii")
             point_data.appendChild(node)
             #string = lgeo.array_to_string(data[key])
-            string = ldc.array_to_string(data[key])
+            #string = ldc.array_to_string(data[key])
+            string = array_to_string(data[key])
             node_Data = doc.createTextNode(string)
             node.appendChild(node_Data)
 
@@ -198,7 +199,8 @@ def write_unstructured(system, vtk_filename, specifics = []):
             'format' : 'ascii'})
         point_data.appendChild(node)
         #string = lgeo.array_to_string(plot_targets['scalars'][key])
-        string = ldc.array_to_string(plot_targets['scalars'][key])
+        #string = ldc.array_to_string(plot_targets['scalars'][key])
+        string = array_to_string(plot_targets['scalars'][key])
         node_Data = doc.createTextNode(string)
         node.appendChild(node_Data)
 
@@ -281,7 +283,7 @@ def sort_data_by_type(data, specifics = []):
     sorted_data = {'scalars': {}, 'coords': {}}
     for dater in [dater for dater in data if dater.name in specifics]:
         if dater.tag == 'scalar':
-            sorted_data['scalars'][dater.name] = dater.scalars
+            sorted_data['scalars'][dater.name] = dater.data
 
         elif dater.tag == 'coordinates':
             sorted_data['coords']['_'.join(dater.coords.keys())] = dater.coords
