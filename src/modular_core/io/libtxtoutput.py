@@ -12,17 +12,16 @@ if __name__ == 'libs.modular_core.libtxtoutput':
 if __name__ == '__main__': print 'this is a library!'
 
 def write_csv(system, csv_filename, specifics = []):
-    csv_filename=csv_filename[:-4] + '.csv'
+    csv_filename = csv_filename[:-4] + '.csv'
     out = csv.writer(open(csv_filename,"wb"),
         delimiter =',',quoting=csv.QUOTE_NONE)
-    out.writerow([data.label for data in system.data 
-                        if data.label in specifics])
-    for dex in range(len(system.data[0].scalars)):
+    out.writerow([data.name for data in 
+        system.data if data.name in specifics])
+    for dex in range(len(system.data[0].data)):
         row = []
         for data in system.data:
-            if data.label in specifics:
-                row.append(data.scalars[dex])
-                
+            if data.name in specifics:
+                row.append(data.data[dex])
         out.writerow(row)
 
 

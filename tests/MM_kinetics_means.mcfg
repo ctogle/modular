@@ -35,7 +35,7 @@
   simulations_per_job : 1000
 
 <output_plans>
-	1 : - : mm_means : plt : all
+	1 : - : mm_means : txt : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>
