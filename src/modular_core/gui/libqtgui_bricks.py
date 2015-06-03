@@ -2095,19 +2095,31 @@ class quick_plot(QtGui.QWidget):
         xlog, ylog = data.x_log, data.y_log
         self.colors = data.colors
         if ptype == 'lines':
-            ldata = [d for d in data.data if d.tag 
-                in self.lplot_data_types]
-            try: xs = lfu.grab_mobj_by_name(data.xdomain, ldata)
+            surf_target = data.zdomain
+            xdom = data.xdomain
+            ydom = data.ydomain
+
+            ldata = [d for d in data.data if d.tag in self.lplot_data_types]
+            try: xs = lfu.grab_mobj_by_name(xdom, ldata)
             except ValueError:
                 print 'domain is not in line data'
                 return
             ys = [d for d in ldata if d.name in data.active_targs] 
+
+            nonldata = [d for d in data.data if not d.tag in self.lplot_data_types]
+            for nl in nonldata:
+                if not nl.name in data.active_targs:continue
+                if hasattr(nl,'_curve'):
+                    nlcrv = nl._curve(xdom,ydom,surf_target)
+                    if nlcrv:ys.append(nlcrv)
+
             self.plot_lines(xs, ys, xlab, ylab, xlog, ylog)
 
         elif ptype == 'color':
             surf_target = data.zdomain
             xdom = data.xdomain
             ydom = data.ydomain
+
             self.cplot_interpolation = data.cplot_interpolation
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
@@ -2192,6 +2204,7 @@ class quick_plot(QtGui.QWidget):
         if type(xs) is types.ListType:x_labs = [x.name for x in xs]
         else:x_labs = [xs.name]*len(ys)
         y_labs = [y.name for y in ys]
+
         self.set_labels(x_labs[0], y_labs[0])
 
         colors = self.colors[:]

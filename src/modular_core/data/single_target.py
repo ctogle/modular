@@ -69,6 +69,36 @@ class reducer(base_target):
         self.axis_defaults = [da.data[0] for da in self.axis_values]
         self.reduced = None
 
+    # given an xdomain,ydomain,and curvtarget
+    # produce a curve that is curv_target vs. x_ax 
+    #   with y_ax and other axes fixed!
+    def _curve(self,x_ax = '',y_ax = '',curv_target = ''):
+        dnames = lfu.grab_mobj_names(self.data_scalars)
+        axes = [d for d,n in zip(self.data_scalars,dnames) if n in self.axes]
+        ax_labs = [ax.name for ax in axes]
+        if not (x_ax in ax_labs and curv_target in self.surfs):
+            print 'chosen axes do not correspond to curve'
+            print 'axes:\n',ax_labs,'\ncurves:\n',self.surfs
+            return False
+
+        curv = lfu.grab_mobj_by_name(curv_target,self.data_scalars)
+        x_ax_dex = ax_labs.index(x_ax)
+        ax_slices = self.axis_defaults[:]
+        ax_slices[x_ax_dex] = None
+        in_slices = []
+        for axx,ax in enumerate(axes):
+            if ax_slices[axx] is None:in_slices.append([True for v in ax.data])
+            else:in_slices.append([(v == ax_slices[axx]) for v in ax.data])
+        in_every_slice = [(not False in row) for row in zip(*in_slices)]
+        crvdata = [crv for crv,ie in zip(curv.data,in_every_slice) if ie]
+        odom = lfu.uniqfy(axes[x_ax_dex].data)
+        subcurv = scalars(override_domain = True,
+            name = curv_target,data = crvdata,domain = odom)
+        return subcurv
+
+    # given an xdomain,ydomain,and surftarget
+    # produce a surface that is surf_target vs x_ax,y_ax
+    #   with other axes fixed!
     def _surface(self,x_ax = '',y_ax = '',surf_target = ''):
         data = self.data_scalars
         daters = [dater.name for dater in data]

@@ -322,6 +322,7 @@ class plot_window(lfu.mobject):
         self._default('roll_time_span', 1.0, **kwargs)
         self._default('roll_methods',['time_span','preset'],**kwargs)
         self._default('roll_method', 'time_span', **kwargs)
+        self.line_data_types = ['surface_reducing']
         self.bin_data_types = ['bin_vector']
         self.surf_data_types = ['surface_vector', 'surface_reducing']
         self.vox_data_types = ['voxel_vector']
@@ -368,7 +369,8 @@ class plot_window(lfu.mobject):
 
     def set_up_widgets(self):
         current_page = self.get_current_page()
-        if self.using_surfaces() or self.using_voxels() or self.using_bars():
+        #if self.using_surfaces() or self.using_voxels() or self.using_bars():
+        if True:
             could = self.update_slice_panel() 
             if could: self.slice_panel[0].show()
             else: self.slice_panel[0].hide()
@@ -432,6 +434,7 @@ class plot_window(lfu.mobject):
         data = page.data
         data.sliceselectors = lfu.data_container()
         slice_types =\
+            self.line_data_types +\
             self.bin_data_types +\
             self.surf_data_types +\
             self.vox_data_types

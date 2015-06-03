@@ -359,6 +359,10 @@ class batch_node(ldc.data_mobject):
         if self.pspace_axes and self.surface_targets:
             red = dst.reducer(name = 'reducer',data = friendly[:],
                 surfs = self.surface_targets,axes = self.pspace_axes)
+            for ef in friendly:
+                if ef.name == 'reducer':
+                    friendly.remove(ef)
+                    break
             friendly.append(red)
 
     def _friendly(self):
