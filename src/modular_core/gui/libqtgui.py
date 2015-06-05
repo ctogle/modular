@@ -273,6 +273,46 @@ class plot_page(lfu.mobject):
 
         qplot.roll_data(data, self.get_xtitle(), self.get_ytitle())
 
+    def vtksnapshot(self):
+        data = self.get_plot_info(self.data)
+        xdom = data.xdomain
+        ydom = data.ydomain
+        zdom = data.zdomain
+
+        ldata = [d for d in data.data if d.tag in ['scalar']]
+        xs = lfu.grab_mobj_by_name(xdom,ldata)
+        ys = [d for d in ldata if d.name in data.active_targs] 
+
+        nonldata = [d for d in data.data if not d in ldata]
+        for nl in nonldata:
+            if not nl.name in data.active_targs:continue
+            if hasattr(nl,'_curve'):
+                nlcrv = nl._curve(xdom,ydom,zdom)
+                if nlcrv:ys.append(nlcrv)
+
+        if not len(ys) == 1:
+            print('CANNOT VTKSNAPSHOT WITH > 1 TARGET!')
+            return
+
+        import modular_core.io.libvtkoutput as lvtk
+        import modular_core.data.single_target as dst
+        y = ys[0]
+        if hasattr(y,'override_domain') and y.override_domain:
+            x = dst.scalars(name = y.name+'-domain',data = y.domain) 
+        else:x = xs
+        
+        dc = lfu.data_container(data = [x,y])
+        ps = [x.name,y.name]
+
+        startpath = os.getcwd()
+        fname = lgd.create_dialog('Choose File','File?',
+            'file_save','Paraview vtk file (*.vtk)',startpath)
+        fname = fname()
+        if fname:
+            snapfile = fname
+            if not snapfile.endswith('.vtk'):snapfile+='.vtk'
+            lvtk.write_unstructured(dc,snapfile,ps)
+
     def _widget(self,*args,**kwargs):
         window = args[0]
         toolbar_funcs = [window.get_current_page]

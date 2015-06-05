@@ -2219,7 +2219,7 @@ class quick_plot(QtGui.QWidget):
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
 
         xs_, ys_ = [], []
-        use_xdom = False
+        #use_xdom = False
         ioffset = 0
         for sdx,x,y in zip(range(self.max_line_count),xs,ys):
             #if sdx >= self.max_line_count: continue
@@ -2228,7 +2228,7 @@ class quick_plot(QtGui.QWidget):
                 xs_.append(y.domain)
             else:
                 xs_.append(x.data)
-                use_xdom = True
+                #use_xdom = True
             if hasattr(y,'subscalars'):
                 subs = y.subscalars
                 lx = xs_[-1]
@@ -2359,6 +2359,7 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
     else: toolitems = []
     toolitems.append(('Labels','Change the title and axes labels','gear','labels'))
     toolitems.append(('Roll','Roll through a series of plots','gear','roll'))
+    toolitems.append(('vtk Snapshot','Output a vtk file of current plot data','gear','vtksnapshot'))
 
     def __init__(self, canvas, parent, current_page = None, coordinates = True):
         self.current_page = current_page[0]
@@ -2464,6 +2465,10 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         else: cpage = self.parent.current_page
         #self.parent.get_current_page().show_plot()
         cpage().show_plot()
+
+    def vtksnapshot(self):
+        page = self.current_page()
+        page.vtksnapshot()
 
     def dynamic_update(self):
         self.canvas.draw()
