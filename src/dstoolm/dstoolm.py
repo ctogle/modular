@@ -266,34 +266,66 @@ class simulation_module(smd.simulation_module):
         self.vsequations = []
         self.dsequations = {}
         self.fsequations = {}
+        fsequations = {}
+        cparameters = {}
         mname = 'dstoolm_model'
         domain = [0.0,etime]
 
         for fnkey in funcs:
             fn = funcs[fnkey]
-            #self.iconditions[fn.name] = 0.0
-            self.fsequations[fn.name] = str(fn.func_statement)
-            #self.dsequations[fn.name] = '0.0'
-            #self.vsequations.append(fn.name)
+            fsequations[fn.name] = str(fn.func_statement)
         for vrkey in varis:
             vr = varis[vrkey]
-            self.cparameters[vr.name] = float(vr.value)
-        for spkey in specs:
-            sp = specs[spkey]
-            speqn = ''#str(sp.initial)
-            for rx in rxns:
-                for u in rx.used:
-                    if u[0] == sp.name:
-                        speqn += '*'.join(['-1',str(rx.rate),u[0]])
-                for p in rx.produced:
-                    if p[0] == sp.name:
-                        speqn += '+'+str(rx.rate)
-            if speqn.startswith('+'):speqn = speqn[1:]
-            print '#####\nspeqn',speqn
-            self.iconditions[sp.name] = int(sp.initial)
-            self.dsequations[sp.name] = str(speqn)
-            self.vsequations.append(sp.name)
-            
+            cparameters[vr.name] = float(vr.value)
+
+        speqns = {}
+        for spkey in specs:speqns[spkey] = ''
+        for rx in rxns:
+            if rx.used:u = zip(*rx.used)[0]
+            else:u = []
+            if rx.produced:p = zip(*rx.produced)[0]
+            else:p = []
+            term = '*'.join([str(rx.rate)]+[x for x in u])
+            for us in u:speqns[us] += '-'+term
+            for ps in p:speqns[ps] += '+'+term
+
+        for speq in speqns:
+            for speq in speqns:
+                speqn = speqns[speq]
+                if speqn.startswith('+'):speqn = speqn.replace('+','',1)
+                if speqn.startswith('-'):speqn = speqn.replace('-','',1)
+                check = False
+                while not check:
+                    check = True
+                    for feqn in fsequations:
+                        if speqn.count(feqn) > 0:
+                            feq = fsequations[feqn]
+                            speqn = speqn.replace(feqn,'('+feq+')',1)
+                            check = False
+                            break
+                check = False
+                while not check:
+                    check = True
+                    for cpar in cparameters:
+                        if speqn.count(cpar) > 0:
+                            cpa = str(cparameters[cpar])
+                            speqn = speqn.replace(cpar,'('+cpa+')',1)
+                            check = False
+                            break
+                speqns[speq] = speqn
+
+        for sp in speqns:
+            print 'd',sp,'/dt = ',speqns[sp]
+            self.iconditions[specs[sp].name] = int(specs[sp].initial)
+            self.dsequations[specs[sp].name] = speqns[specs[sp].name]
+            #self.vsequations.append(specs[sp].name)#??
+
+
+        #self.dsequations['x1'] = '1.0'
+        #self.dsequations['x2'] = '1.0'
+
+        #pdb.set_trace()
+
         # any plot target needs a diff eq
         # so a diffeq for each spec/func/vari
         # the ic for the func depends on system initial state
@@ -383,15 +415,17 @@ def simulate(args):
     modelname,ptargs,tdomain,captcnt,captincr,icdict,pardict,vardict,varspecdict,fnspecdict = args
     dsargs = pdt.args()
     dsargs.name = modelname
-    dsargs.tdata = tdomain
-    dsargs.algparams = {'init_step':captincr/100.0}
     dsargs.ics = icdict
     dsargs.pars = pardict
-    dsargs.vars = vardict
+    dsargs.tdata = tdomain
+    #dsargs.vars = vardict
     dsargs.varspecs = varspecdict
-    dsargs.fnspecs = fnspecdict
+    #dsargs.fnspecs = fnspecdict
+    #dsargs.algparams = {'init_step':captincr/100.0}
+    dsargs.algparams = {'init_step':captincr/100.0}
 
-    dsys = pdt.Generator.Vode_ODEsystem(dsargs)
+    #dsys = pdt.Generator.Vode_ODEsystem(dsargs)
+    dsys = pdt.Generator.Radau_ODEsystem(dsargs)
     traj = dsys.compute('demo')
     pts = traj.sample()
 
