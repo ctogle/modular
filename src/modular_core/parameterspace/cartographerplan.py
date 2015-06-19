@@ -97,7 +97,7 @@ class cartographer_plan(lfu.plan):
 
     def _set_trajectory(self,newtraj):
         self.trajectory = newtraj
-        self._move_to(0)
+        #self._move_to(0)
 
     def _move_to(self,t):
         location = self.trajectory[t].location

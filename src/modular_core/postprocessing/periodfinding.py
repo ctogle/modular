@@ -1,159 +1,187 @@
+import modular_core.fundamental as lfu
 
+import modular_core.data.datacontrol as ldc
+import modular_core.data.single_target as dst
+import modular_core.data.batch_target as dba
+import modular_core.postprocessing.process_abstract as lpp
 
-class post_process_period_finding(post_process):
+import pdb,sys,math
+import numpy as np
+import scipy.ndimage.morphology as morph
 
-    #the **kwargs keyword dictionary is modified and passed to the 
-    # superclass where elements like kwargs['base_class'] are used
-    def __init__(self, *args, **kwargs):
-        if not 'base_class' in kwargs.keys():
-            #class is used for recasting processes as other process instances
-            # second argument is a string to look up the appropriate class
-            #subsequently also appears in valid_postproc_base_classes
-            kwargs['base_class'] = lfu.interface_template_class(
-                                        object, 'period finding')
+import matplotlib.pyplot as plt
 
-        #provide a default label - is made unique by superclasses
-        if not 'label' in kwargs.keys():
-            kwargs['label'] = 'period finder'
+###############################################################################
+### period_finder measures the period of a signal as a function of time
+###############################################################################
 
-        #this process can be run on all trajectories
-        # if the parameter space is not being mapped
-        #or the process can be run all each p-space location
-        # this is equivalent to the first case but run once
-        # on each p-space location's collection of trajectories
-        if not 'valid_regimes' in kwargs.keys():
-            kwargs['valid_regimes'] = ['per trajectory']
+class period_finder(lpp.post_process_abstract):
 
-        #by default it will attempt to run on all trajectories
-        if not 'regime' in kwargs.keys():
-            kwargs['regime'] = 'per trajectory'
+    def _string(self):
+        #periods : find periods : 0 : all : -1
+        raise NotImplemented
 
-        self.window = 5
-        self.period_of = None
-
-        #always call superclass's init within modular platform
-        post_process.__init__(self, *args, **kwargs)
-
-    def to_string(self):
-        #label : period finding : 0
         inps = self._string_inputs()
-        return '\t' + ' : '.join([self.label, 'period finding', inps])
+        phrase = 'all'
+        slice_dex = str(self.slice_dex)
+        strs = [self.name,'trajectory slice',inps,phrase,slice_dex]
+        return '\t' + ' : '.join(strs)
 
-    def provide_axes_manager_input(self):
-        self.use_line_plot = True
-        self.use_color_plot = False
-        self.use_voxel_plot = False
-        self.use_bar_plot = False
+    def __init__(self,*args,**kwargs):
+        self._default('name','periodfinder',**kwargs)
+        self._default('valid_regimes',['per trajectory'],**kwargs)
+        self._default('regime','per trajectory',**kwargs)
+        self._default('dater_ids',[],**kwargs)
+        self._default('window',5,**kwargs)
+        self.method = 'find_period'
+        lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
-    #the superclass actually runs the method, but here the subclass
-    # points to the appropriate bound method to use
-    def postproc(self, *args, **kwargs):
-        if not 'fixed_time' in self.target_list:
-            print 'ensemble is captureing fixed time' +\
-                    '\n\tperiod-finding will be ignored'
+    def find_period(self,*args,**kwargs):
+        pool = args[0]
+        tcount = len(self.targetlist)
+        dshape = (tcount,pool.data[0].shape[0])
+        data = np.zeros(dshape,dtype = np.float)
 
-        kwargs['method'] = self.find_period
-        post_process.postproc(self, *args, **kwargs)
+        trajectory = pool.data
+        timevs = trajectory[0]
+        tnames = pool.targets
+        for px,pt in enumerate(tnames):
+            if px == 0:data[px] = timevs
+            targvs = trajectory[self.dater_ids.index(pt)]
+            newtime,periods,amplitudes = self.find_period_in_window(timevs,targvs)
+            if not newtime is None and not newtime.shape[0] == 0:
+                tailoff = np.where(timevs == newtime[0])[0][0]
+                tipoff = np.where(timevs == newtime[-1])[0][0]
+                perdex = self.targetlist.index(pt+'-period')
+                ampdex = self.targetlist.index(pt+'-amplitude')
+                data[perdex,tailoff:tipoff+1] = periods
+                data[ampdex,tailoff:tipoff+1] = amplitudes
+                #data[perdex,:tailoff] = periods[0]
+                #data[perdex,tipoff+1:] = periods[-1]
+                #data[ampdex,:tailoff] = amplitudes[0]
+                #data[ampdex,tipoff+1:] = amplitudes[-1]
 
-    #this is where the actual algorithm for period finding goes
-    # args[0] will be the data set
-    # at this function, the data set will always appear to be a list
-    # of lists of libs.modular_core.libgeometry.scalars objects
-    #each trajectory results in a list of scalars objects
-    # these lists are put in a list which is what appears as args[0]
-    #use pdb.set_trace() to investigate if this isn't clear
-    def find_period(self, *args, **kwargs):
-        time_dex = [dater.label == 'fixed_time' for 
-                        dater in args[0]].index(True)
-        targ_dex = [dater.label == self.period_of for 
-                        dater in args[0]].index(True)
-        time = args[0][time_dex]
-        targ = args[0][targ_dex]
-        periods, amplitudes = self.find_period_in_window(
-                            time.scalars, targ.scalars)
-        #data = lgeo.scalars_from_labels(self.target_list)
-        data = ldc.scalars_from_labels(self.target_list)
-        data[1].scalars, data[2].scalars = self.fill_in(
-                    periods, amplitudes, time.scalars)
-        data[0].scalars = copy(time.scalars[:len(data[1].scalars)])
-        return data
+        bnode = self._init_data(dshape,self.targetlist)
+        bnode._trajectory(data)
+        return bnode
 
-    #fill in values for codomain so that it is 1 - 1 with domain
-    def fill_in(self, codomain, follow, domain):
-        new_codomain = []
-        new_follow = []
-        dom_dex = 0
-        summed_periods = 0
-        for value, fellow in zip(codomain, follow):
-            summed_periods += value
-            #print 'summed_periods', summed_periods
-            while summed_periods > domain[dom_dex]:
-                new_codomain.append(value)
-                new_follow.append(fellow)
-                dom_dex += 1
+    def hone(self,inds,y):
+        ninds = []
+        block = []
+        for ind in inds:
+            if y[ind] == 0.0:continue
+            if not block:block.append(ind)
+            else:
+                if block[-1] == ind-1 and y[ind] == y[ind-1]:
+                    block.append(ind)
+                else:
+                    ninds.append(int(np.median(block)))
+                    block = [ind]
+        if block:ninds.append(int(np.median(block)))
+        return ninds
 
-        return new_codomain, new_follow
-
-    def find_period_in_window(self, t, x):
+    def find_period_in_window(self,t,x):
         w = int(self.window)
-        y = morph.grey_dilation(x, size = w)
-        t = t[w-1:-w]
-        x = x[w-1:-w]
-        y = y[w-1:-w]
-        inds = np.argwhere(x==y)
-        NN = inds.size
-        period = np.zeros(NN - 1)
-        #period = np.zeros(NN)
-        amp = np.zeros(NN - 1)
-        #amp = np.zeros(NN)
-        for ii in range(NN - 1):
-        #for ii in range(1, NN):
-            xs = x[inds[ii]:inds[ii + 1]]
-            #xs = x[inds[ii] - 1:inds[ii]]
-            amp[ii] = 0.5 * (xs[0] + xs[-1] - 2 * np.min(xs))
-            period[ii] = t[inds[ii + 1]] - t[inds[ii]]
-            #period[ii] = t[inds[ii]] - t[inds[ii - 1]]
-            #print np.min(xs)
+        y = morph.grey_dilation(x,size = w)
+        inds = np.argwhere(x == y)
+        inds = self.hone(inds,x)
+        if not inds:return None,None,None
+        time = np.zeros((inds[-1]-inds[0],))
+        period = np.zeros((inds[-1]-inds[0],))
+        amp = np.zeros((inds[-1]-inds[0],))
+        time[0:inds[-1]] = t[inds[0]:inds[-1]]
+        for idx in range(1,len(inds)):
+            icnt = inds[idx]-inds[idx-1]
+            xs = x[inds[idx-1]:inds[idx]]
+            a = 0.5 * (xs[0] + xs[-1] - 2 * np.min(xs))
+            p = t[inds[idx]] - t[inds[idx-1]]
+            dslice = slice(inds[idx-1]-inds[0],inds[idx]-inds[0])
+            amp[dslice] = [a for ix in range(icnt)]
+            period[dslice] = [p for ix in range(icnt)]
+        return time,period,amp
 
-        return period, amp
-
-    def _target_settables(self, *args, **kwargs):
+    def _target_settables(self,*args,**kwargs):
         self.valid_regimes = ['per trajectory']
-        self.valid_inputs = self._valid_inputs(*args, **kwargs)
-        capture_targetable = self.g_targetables(*args, **kwargs)
-        if self.period_of is None and capture_targetable:
-            self.period_of = capture_targetable[0]
+        self.valid_inputs = self._valid_inputs(*args,**kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
+        if self.dater_ids is None or self.dater_ids == ['all']:
+            self.dater_ids = capture_targetable
 
-        self.target_list = ['fixed_time', 
-                self.period_of + ' period', 
-                self.period_of + ' amplitude']
-        self.capture_targets = self.target_list
-        post_process._target_settables(self, *args, **kwargs)
+        targetlist = ['time'] 
+        for d in self.dater_ids:
+            if d == 'time':continue
+            targetlist.append(d+'-period')
+            targetlist.append(d+'-amplitude')
+        self.targetlist = targetlist
+        self.capture_targets = targetlist[:]
 
-    #this function specifies the gui for this object
-    # it's a bit difficult to describe when it's called, but anything
-    # which is kept up-to-date prior to running is likely kept that way
-    # by this function
-    #this function is only called to recalculate the widget templates
-    # it is NOT called simply to make them, unless necessary
-    def set_settables(self, *args, **kwargs):
-        self.handle_widget_inheritance(*args, from_sub = False)
-        capture_targetable = self._targetables(*args, **kwargs)
+        #self.capture_targets = self.dater_ids
+        self.output.targeted = lfu.intersect_lists(
+            self.output.targeted,self.capture_targets)
+        lpp.post_process_abstract._target_settables(self,*args,**kwargs)
+
+    def _widget(self,*args,**kwargs):
+        self._sanitize(*args,**kwargs)
+        self._target_settables(*args,**kwargs)
+        capture_targetable = self._targetables(*args,**kwargs)
+        #use a spin widget to select a location in the domain
+        #   or a text box to support true slicing
         self.widg_templates.append(
             lgm.interface_template_gui(
                 keys = [['window']], 
                 instances = [[self]], 
-                #rewidget = [[True]], 
                 widgets = ['text'], 
                 box_labels = ['Window'], 
                 initials = [[self.window]]))
         self.widg_templates.append(
             lgm.interface_template_gui(
-                widgets = ['radio'], 
-                labels = [capture_targetable], 
-                initials = [[self.period_of]], 
+                keys = [['dater_ids']], 
                 instances = [[self]], 
-                keys = [['period_of']], 
-                box_labels = ['Period/Amplitude of']))
-        super(post_process_period_finding, self).set_settables(
-                                        *args, from_sub = True)
+                widgets = ['check_set'], 
+                box_labels = ['To Measure'], 
+                append_instead = [True], 
+                provide_master = [True], 
+                labels = [capture_targetable]))
+        lpp.post_process_abstract._widget(self,*args,from_sub = True)
+
+###############################################################################
+###############################################################################
+
+# return valid **kwargs for periodfinder based on msplit(line)
+def parse_line(split,ensem,procs,routs):
+    # MUST SUPPORT 'all'....
+    #if 'all' in relevant:proc.dater_ids = proc._targetables(0, ensem)
+    #else: proc.dater_ids = relevant
+
+    targets = lfu.msplit(split[3],',')
+    window = split[4]
+    inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
+    pargs = {
+        'name':split[0],
+        'variety':split[1],
+        'input_regime':inputs,
+        'dater_ids':targets,
+        'window':window,
+            }
+    return pargs
+
+###############################################################################
+
+if __name__ == 'modular_core.postprocessing.periodfinding':
+    lfu.check_gui_pack()
+    lgb = lfu.gui_pack.lgb
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lpp.process_types['period finder'] = (period_finder,parse_line)
+
+###############################################################################
+
+
+
+
+
+
+
+
+
+

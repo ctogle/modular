@@ -1,0 +1,192 @@
+
+<end_criteria>
+    time limit : 200
+
+<capture_criteria>
+    increment : 0.1 : time
+
+<variables> 
+    pi : 3.141592653589793
+    #parameters for the promoter governing the oscillator
+    c0 : 100.0
+    alphaR : 3000.0
+    #dilution
+    #g = ln(2.0)/30.0
+    g : 0.0231049
+    #increase in production rate for YFP relative to repressor
+    A : 3.0
+    #production rate for CFP
+    #period
+    T : 35.0
+
+    #number of delay reactions (assumed to be 10 for this particular model)
+    NTau : 10.0
+    #delay time
+    tau : 5.0
+
+    #delay time for YFP
+    tauY : 3.0
+
+    # enzyme parameters
+    #maximal degradation rate
+    mu : 1000.0
+
+    #inverse affinity (make less than 1) 
+    K : 1e-5
+
+    #preference of enzyme for non-repressor species 
+    eta : 4
+
+    #regulation constant for plasmid
+    cp : 10.0
+
+    #mean plasmid count
+    p0 : 30.0
+
+    #production rate of plasmid
+    alphaP : 10
+
+<functions>
+    #delay rate
+    ktau : NTau/tau
+
+    #delay rate
+    ktauY : NTau/tauY
+
+    alphaCFP : 500*heaviside(sin(2*pi*time/T) - 0.9)
+
+    alpha_r0 : (p/p0)*alphaR/(1.0+(R/c0)**2)
+    alpha_y0 : (p/p0)*A*alphaR/(1.0+(R/c0)**2)
+    alpha_C : (p/p0)*alphaCFP
+    mu_R : mu/(K+R+eta*(Y+C))
+    mu_Y : mu*eta/(K+R+eta*(Y+C))
+    mu_C : mu*eta/(K+R+eta*(Y+C))
+    alpha_p : alphaP/(1+(p/cp)**2)
+
+<reactions>
+    #delay chain for repressor
+    1 r0 ktau -> 1 r1 : rep chain 01
+    1 r1 ktau -> 1 r2 : rep chain 12
+    1 r2 ktau -> 1 r3 : rep chain 23
+    1 r3 ktau -> 1 r4 : rep chain 34
+    1 r4 ktau -> 1 r5 : rep chain 45
+    1 r5 ktau -> 1 r6 : rep chain 56
+    1 r6 ktau -> 1 r7 : rep chain 67
+    1 r7 ktau -> 1 r8 : rep chain 78
+    1 r8 ktau -> 1 r9 : rep chain 89
+    1 r9 ktau -> 1 R  : rep chain 9R
+
+    #delay chain for YFP
+    1 y0 ktauY -> 1 y1 : YFP chain 01
+    1 y1 ktauY -> 1 y2 : YFP chain 12
+    1 y2 ktauY -> 1 y3 : YFP chain 23
+    1 y3 ktauY -> 1 y4 : YFP chain 34
+    1 y4 ktauY -> 1 y5 : YFP chain 45
+    1 y5 ktauY -> 1 y6 : YFP chain 56
+    1 y6 ktauY -> 1 y7 : YFP chain 67
+    1 y7 ktauY -> 1 y8 : YFP chain 78
+    1 y8 ktauY -> 1 y9 : YFP chain 89
+    1 y9 ktauY -> 1 Y  : YFP chain 9Y
+
+    #production of pre-repressor (can be loosely interpreted as mRNA)
+    nothing alpha_r0 -> 1 r0 : r0 production
+
+    #production of YFP
+    nothing alpha_y0 -> 1 y0 : y0 production
+
+    #production of CFP
+    nothing alpha_C -> 1 C : C production
+
+    #enzymatic degradation of species
+    1 R mu_R -> nothing : R degradation 
+    1 Y mu_Y -> nothing : Y degradation 
+    1 C mu_C -> nothing : C degradation 
+
+    #dilution of species
+    1 g R -> nothing : R dilution
+    1 g Y -> nothing : Y dilution
+    1 g C -> nothing : C dilution
+
+    #plasmid regulation (overly simplified model)
+    nothing alpha_p -> 1 p : p production
+    1 p g -> nothing : p dilution
+
+<species>
+    r0 : 0
+    r1 : 0
+    r2 : 0
+    r3 : 0
+    r4 : 0
+    r5 : 0
+    r6 : 0
+    r7 : 0
+    r8 : 0
+    r9 : 0
+
+    #repressor and "pre" repressor (way to enact the delay) 
+    R : 7500
+
+    y0 : 0
+    y1 : 0
+    y2 : 0
+    y3 : 0
+    y4 : 0
+    y5 : 0
+    y6 : 0
+    y7 : 0
+    y8 : 0
+    y9 : 0
+
+    #YFP
+    Y : 10000
+   
+    #CFP
+    C : 0
+
+    #plasmid copy number 
+    p : 0
+
+<plot_targets>
+    time
+    R
+    C
+    Y
+    p
+
+<post_processes>
+    correlationx1x2 : correlation : 0 : C and Y of time : 1000 : ordered
+    #correlslices : trajectory slice : 1 : all : -1
+    #correlreorg : reorganize : 2 : all
+    means : meanfields : 0 : C, Y, R of time : 1000 : ordered
+    pfind : period finder : 2 : C, Y : 5
+    #meanslices : trajectory slice : 3 : all : -1
+    #meanreorg : reorganize : 4 : all
+
+<multiprocessing>
+    workers : 16
+    multiprocessing : off
+
+<clustering>
+    distributed : off
+    simulations_per_job : 100
+
+<output_plans>
+    #6 : - : meanreorg_output : plt : all
+    #5 : - : meanslices_output : none : all
+    #4 : - : means_output : plt : all
+    3 : - : pfind_output : plt : all
+    2 : - : means_output : plt : all
+    #3 : - : correlreorg_output : plt : all
+    #2 : - : correlslices_output : none : all
+    1 : - : correlation_output : plt : all
+    0 : - : ensemble_output : plt : all
+
+<ensemble>
+    mapparameterspace : off
+    metamapparameterspace : off
+    fitting : off
+    postprocessing : on
+    trajectory_count : 10
+
+
+

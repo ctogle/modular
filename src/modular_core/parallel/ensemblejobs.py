@@ -147,24 +147,28 @@ def setup_pspace_mjobs(mjobs,zjobs,mnger,modname,mstring,arc,arc_dex,tpj,meta):
         lpsp.trajectory_set_counts(trj,ntrj)
 
     traj_cnt,targ_cnt,capt_cnt,ptargets = anensem._run_init(arc_dex)
-    anensem.cartographer_plan._move_to(arc_dex)
+    anensem.cartographer_plan._move_to(arc_dex)    
     anensem._run_params_to_location()
     anensem.parent = None
 
     brun_jcnt = traj_cnt/tpj
     remainder = traj_cnt - brun_jcnt*tpj
 
+    print 'creating',brun_jcnt,'batch run jobs, each simulating',tpj,'trajectories'
     brun_args = (anensem,tpj,targ_cnt,capt_cnt)
     brun_mjobs = [ejob([],'batch_run',brun_args) for x in range(brun_jcnt)]
     if remainder > 0:
         brun_args = (anensem,remainder,targ_cnt,capt_cnt)
         brun_mjobs.append(ejob([],'batch_run',brun_args))
     mjobs.extend(brun_mjobs)
+    print 'created',brun_jcnt,'batch run jobs, each simulating',tpj,'trajectories'
 
+    #print 'creating',brun_jcnt,'batch run jobs, each simulating',tpj,'trajectories'
     zero_args = (anensem,traj_cnt,targ_cnt,capt_cnt,meta)
     brun_jdxs = [mjobs.index(j) for j in brun_mjobs]
     zero_mjob = ejob(brun_jdxs,'zeroth',zero_args)
     zjobs.append(zero_mjob)
+    #print 'created',brun_jcnt,'batch run jobs, each simulating',tpj,'trajectories'
 
 # create mjob hierarchy assuming fully broken up work
 def setup_ensemble_mjobs(ensem,trj_per_job = None):

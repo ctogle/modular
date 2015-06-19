@@ -103,7 +103,7 @@ class trajectory_slice(lpp.post_process_abstract):
 ###############################################################################
 ###############################################################################
 
-# return valid **kwargs for reorganize based on msplit(line)
+# return valid **kwargs for slices based on msplit(line)
 def parse_line(split,ensem,procs,routs):
     # MUST SUPPORT 'all'....
     #if 'all' in relevant:proc.dater_ids = proc._targetables(0, ensem)

@@ -28,6 +28,8 @@ import modular_core.postprocessing.conditional as cdl
 import modular_core.postprocessing.correlation as crl
 import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.slices as slc
+import modular_core.postprocessing.periodfinding as mpf
+import modular_core.postprocessing.extraction as mex
 import modular_core.postprocessing.k_means_clusters as kmc
 
 import modular_core.fitting.explorer as fex
@@ -442,6 +444,7 @@ class ensemble(lfu.mobject):
             batch[m,:,:] = rundat[:]
             if m % pfreq == 0 and m > 0:
                 print 'batch run completed:%d/%d'%(m+pfreq,many)
+            #print 'batch run completed:%d/%d'%(m+pfreq,many)
         return batch
 
     # run many simulations, adding the data to node pool
@@ -449,14 +452,15 @@ class ensemble(lfu.mobject):
     def _run_batch(self,many,pool,pfreq = 100):
         simu = self.module.simulation
         sim_args = self.module.sim_args
-        if pfreq is None:pfreq = sys.maxint
-        else:print 'batch run completed:%d/%d'%(0,many)
+        #if pfreq is None:pfreq = sys.maxint
+        #else:print 'batch run completed:%d/%d'%(0,many)
         for m in range(many):
             rundat = simu(sim_args)
             if rundat is None:return
             pool._trajectory(rundat)
-            if m % pfreq == 0 and m > 0:
-                print 'batch run completed:%d/%d'%(m+pfreq,many)
+            #if m % pfreq == 0 and m > 0:
+            #    print 'batch run completed:%d/%d'%(m+pfreq,many)
+            print 'batch run completed:%d/%d'%(m,many)
         return True
 
     # accomplish the same goal as _run_batch but using mp.Pool mppool
@@ -464,7 +468,7 @@ class ensemble(lfu.mobject):
         pcnt = int(self.multiprocess_plan.worker_count)
         simu = self.module.simulation
         m = 0
-        print 'mpbatch run completed:%d/%d'%(0,many)
+        #print 'mpbatch run completed:%d/%d'%(0,many)
         while m < many:
             mleft = many - m
             if mleft >= pcnt:rtr = pcnt
@@ -475,8 +479,9 @@ class ensemble(lfu.mobject):
             args = [self.module.sim_args]*rtr
             result = mppool.map_async(simu,args,callback = pool._trajectorize)
             result.wait()
-            if m % pfreq == 0:
-                print 'mpbatch run completed:%d/%d'%(m,many)
+            #if m % pfreq == 0:
+            #    print 'mpbatch run completed:%d/%d'%(m,many)
+            print 'mpbatch run completed:%d/%d'%(m,many)
         return True
 
     # accomplish the same goal as _run_batch but using mpi clustering

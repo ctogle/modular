@@ -1,9 +1,9 @@
 
 <end_criteria>
-	time limit : 0.005
+	time limit : 100.0
 
 <capture_criteria>
-  increment : 0.00005 : time
+  increment : 1.0 : time
 
 <reactions>
 	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
@@ -28,7 +28,7 @@
 
 <multiprocessing>
 	workers : 16
-	multiprocessing : on
+	multiprocessing : off
 
 <clustering>
   distributed : off
@@ -43,6 +43,6 @@
 	metamapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 1000
+	trajectory_count : 10
 
 
