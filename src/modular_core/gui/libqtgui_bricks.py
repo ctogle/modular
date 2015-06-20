@@ -1898,6 +1898,8 @@ class quick_plot(QtGui.QWidget):
         self.cplot_data_types = ['surface_vector','surface_reducing']
         self.vplot_data_types = ['voxel_vector']
         self.cplot_interpolation = 'bicubic'
+        self.cplot_zmin = None
+        self.cplot_zmax = None
         self.plot_type = None
         self.user_xtitle = None
         self.user_ytitle = None
@@ -2121,6 +2123,8 @@ class quick_plot(QtGui.QWidget):
             ydom = data.ydomain
 
             self.cplot_interpolation = data.cplot_interpolation
+            self.cplot_zmin = data.cplot_zmin
+            self.cplot_zmax = data.cplot_zmax
             cdata = [d for d in data.data if d.tag 
                 in self.cplot_data_types and 
                 d.name in data.active_targs]
@@ -2271,7 +2275,8 @@ class quick_plot(QtGui.QWidget):
         y_min, y_max = y.min(), y.max()
         z_min, z_max = surf.min(), surf.max()
 
-        #z_min, z_max = -1.0, 1.0
+        if not self.cplot_zmin is None:z_min = self.cplot_zmin
+        if not self.cplot_zmax is None:z_max = self.cplot_zmax
 
         z_flag = False
         if z_min == z_max:
@@ -2428,9 +2433,10 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         labels_dlg = lgd.change_labels_dialog(page.get_title(),domain,
             page.get_ytitle(),page.max_line_count,page.parent.colors, 
             page.get_targets(),domain,page.x_log,page.y_log,
-            page.parent.cplot_interpolation)
+            page.parent.cplot_interpolation,
+            page.parent.cplot_zmin,page.parent.cplot_zmax)
         if not labels_dlg: return
-        new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp = labels_dlg
+        new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp,czmin,czmax = labels_dlg
         
         #page.set_title(new_title)
         page.parent.plot_title = new_title
@@ -2445,8 +2451,14 @@ class plot_window_toolbar(NavigationToolbar2, QtGui.QToolBar):
         page.set_ytitle()
 
         #page.colors = colors
+        try:czmin = float(czmin)
+        except:czmin = None
+        try:czmax = float(czmax)
+        except:czmax = None
         page.parent.colors = colors
         page.parent.cplot_interpolation = cinterp
+        page.parent.cplot_zmin = czmin
+        page.parent.cplot_zmax = czmax
 
         page.parent.x_log = xlog
         page.parent.y_log = ylog

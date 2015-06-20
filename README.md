@@ -1,3 +1,22 @@
+
+
+python packages required to install and run:
+appdirs
+setuptools
+numpy
+scipy
+matplotlib
+mpi4py
+pyside
+h5py
+
+requirements for gillespiem:
+cython
+
+
+Everthing below here is old and possibly out of date:
+
+
 modular
 =======
 This is a walkthrough for acquiring, installing, testing, and running modular.

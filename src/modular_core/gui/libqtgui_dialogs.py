@@ -203,43 +203,26 @@ class create_obj_dialog(QtGui.QDialog):
 ###################
 class labels_dialog(create_obj_dialog):
 
+    def _def(self,key,dval,**kwargs):
+        if key in self.__dict__.keys():return
+        if key in kwargs.keys():val = kwargs[key]
+        else:val = dval
+        self.__dict__[key] = val
+
     def __init__(self, *args, **kwargs):
-        if 'newtitle' in kwargs.keys():
-            self.newtitle = kwargs['newtitle']
-        else: self.newtitle = 'new title'
+        self._def('newtitle','new title',**kwargs)
+        self._def('newxtitle','new x-title',**kwargs)
+        self._def('newytitle','new y-title',**kwargs)
+        self._def('x_log',False,**kwargs)
+        self._def('y_log',False,**kwargs)
+        self._def('max_line_count',20,**kwargs)
+        self._def('plot_targets',['NO TARGETS'],**kwargs)
+        self._def('domain',None,**kwargs)
+        self._def('cplot_interpolation',None,**kwargs)
+        self._def('cplot_zmin','',**kwargs)
+        self._def('cplot_zmax','',**kwargs)
+        self._def('target',None,**kwargs)
 
-        if 'newxtitle' in kwargs.keys():
-            self.newxtitle = kwargs['newxtitle']
-        else: self.newxtitle = 'new x-title'
-        if 'x_log' in kwargs.keys():
-            self.x_log = kwargs['x_log']
-        else: self.x_log = False
-
-        if 'newytitle' in kwargs.keys():
-            self.newytitle = kwargs['newytitle']
-        else: self.newytitle = 'new y-title'
-        if 'y_log' in kwargs.keys():
-            self.y_log = kwargs['y_log']
-        else: self.y_log = False
-
-        if 'max_line_count' in kwargs.keys():
-            self.max_line_count = kwargs['max_line_count']
-
-        else: self.max_line_count = 20
-        if 'plot_targets' in kwargs.keys():
-            self.plot_targets = kwargs['plot_targets']
-
-        else: self.plot_targets = ['NO TARGETS']
-        if 'domain' in kwargs.keys():
-            self.domain = kwargs['domain']
-
-        else: self.domain = None
-        if 'cplot_interpolation' in kwargs.keys():
-            self.cplot_interpolation = kwargs['cplot_interpolation']
-
-        else: self.cplot_interpolation = None
-        if self.plot_targets: self.target = self.plot_targets[0]
-        else: self.target = None
         colormap = plt.get_cmap('jet')
         if 'colors' in kwargs.keys():self.colors = kwargs['colors']
         else:
@@ -248,12 +231,9 @@ class labels_dialog(create_obj_dialog):
                             len(self.plot_targets) - 1]))]
 
         mason = lgm.standard_mason(parent = self.parent)
-        if 'title' in kwargs.keys(): title = kwargs['title']
-        else: title = 'Change Plot Labels'
-
-        create_obj_dialog.__init__(self, None, mason = mason, 
-                title = title, button_regime = 'apply-cancel', 
-                from_sub = True)
+        title = 'Change Plot Settings'
+        create_obj_dialog.__init__(self,None,mason = mason,title = title,
+                        button_regime = 'apply-cancel',from_sub = True)
         self.set_settables()
 
     def pick_color(self):
@@ -331,19 +311,33 @@ class labels_dialog(create_obj_dialog):
                 labels = [['bicubic', 'bilinear', 'nearest']], 
                 initials = [[self.cplot_interpolation]], 
                 box_labels = ['Color Plot Settings']))
+        self.widg_templates[-1] +=\
+            lgm.interface_template_gui(
+                keys = [['cplot_zmin']], 
+                instances = [[self]], 
+                widgets = ['text'], 
+                box_labels = ['Color Plot zmin'], 
+                initials = [[self.cplot_zmin]])
+        self.widg_templates[-1] +=\
+            lgm.interface_template_gui(
+                keys = [['cplot_zmax']], 
+                instances = [[self]], 
+                widgets = ['text'], 
+                box_labels = ['Color Plot zmax'], 
+                initials = [[self.cplot_zmax]])
         self.set_up_widgets()
 
-def change_labels_dialog(title, x_ax, y_ax, max_lines, 
-        colors, targets, domain, xlog, ylog, cintrp):
+def change_labels_dialog(title,x_ax,y_ax,max_lines,colors,targets,
+                            domain,xlog,ylog,cintrp,czmin,czmax):
     dlg = labels_dialog(newtitle = title, newxtitle = x_ax, 
         newytitle = y_ax, max_line_count = max_lines, colors = colors, 
-                    plot_targets = targets, domain = domain, 
-            x_log = xlog, y_log = ylog, cplot_interpolation = cintrp)
+        plot_targets = targets, domain = domain, x_log = xlog, y_log = ylog, 
+        cplot_interpolation = cintrp, cplot_zmin = czmin, cplot_zmax = czmax)
     made = dlg()
     if made:
-        return (dlg.newtitle, dlg.newxtitle, 
-                dlg.newytitle, dlg.colors, 
-                dlg.x_log, dlg.y_log, dlg.cplot_interpolation)
+        return (dlg.newtitle,dlg.newxtitle,dlg.newytitle,
+                dlg.colors,dlg.x_log,dlg.y_log,
+                dlg.cplot_interpolation,dlg.cplot_zmin,dlg.cplot_zmax)
 
     else: return False
 

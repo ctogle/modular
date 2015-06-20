@@ -170,6 +170,8 @@ class plot_page(lfu.mobject):
         self.plot_bounds = [[None,None],[None,None],[None,None]]
         self.max_line_count = 20 #this should come from the plot_window, but it doesnt
         self.cplot_interpolation = parent.cplot_interpolation
+        self.cplot_zmin = parent.cplot_zmin
+        self.cplot_zmax = parent.cplot_zmax
         
         #Acceptable interpolations are:
         # 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 
@@ -231,6 +233,8 @@ class plot_page(lfu.mobject):
         data.zdomain = self.parent.zdomain
         data.active_targs = self.parent.active_targs
         data.cplot_interpolation = self.parent.cplot_interpolation
+        data.cplot_zmin = self.parent.cplot_zmin
+        data.cplot_zmax = self.parent.cplot_zmax
         data.colors = self.parent.colors
         data.x_log = self.parent.x_log
         data.y_log = self.parent.y_log
@@ -356,6 +360,8 @@ class plot_window(lfu.mobject):
         #    [[None,None],[None,None],[None,None]],**kwargs)
         ptypes = ['lines','color','surface','bars','voxels','tables']
         self._default('cplot_interpolation', 'bicubic', **kwargs)
+        self._default('cplot_zmin', None, **kwargs)
+        self._default('cplot_zmax', None, **kwargs)
         self._default('plot_type', 'lines', **kwargs)
         self._default('plot_types', ptypes, **kwargs)
         self._default('roll_delay', 0.001, **kwargs)
