@@ -56,7 +56,7 @@
   simulations_per_job : 1000
 
 <output_plans>
-	3 : - : reorg_output : pkl : all
+	3 : - : reorg_output : pkl,txt,vtk,plt : all
 	1 : - : correlation_output : none : all
 	2 : - : slices_output : none : all
 	0 : - : ensemble_output : none : all

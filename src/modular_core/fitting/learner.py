@@ -2,7 +2,7 @@ import modular_core.fundamental as lfu
 import modular_core.fitting.routine_abstract as fab
 import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.data.batch_target as dba
-import modular_core.io.liboutput as lo
+import modular_core.io.output as lo
 
 import pdb,os,sys
 import numpy as np

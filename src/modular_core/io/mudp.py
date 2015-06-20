@@ -6,11 +6,26 @@ import time
 
 import pdb
 
+
+
+#####
+##### THIS IS NO UP TO DATE WITH 3.0!!
+#####
+
+
+
+if __name__ == 'modular_core.io.mudp':
+    if lfu.gui_pack is None:lfu.find_gui_pack()
+    lgm = lfu.gui_pack.lgm
+    lgd = lfu.gui_pack.lgd
+    lgb = lfu.gui_pack.lgb
+if __name__ == '__main__':print 'mudp of modular_core.io'
+
 default_udp_port = 9999
 default_buffer_size = 1024
 default_socket_ip = '127.0.0.1'
 
-class receiver(lfu.modular_object_qt):
+class receiver(lfu.mobject):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     #socket_ip = default_socket_ip
     socket_port = default_udp_port
@@ -22,7 +37,7 @@ class receiver(lfu.modular_object_qt):
         if 'default_IP' in kwargs.keys():
             self.socket_ip = kwargs['default_IP']
         else: self.socket_ip = default_socket_ip
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
 
     def listen(self, *args, **kwargs):
         thread.start_new_thread(self.open_socket, args, **kwargs)
@@ -72,10 +87,10 @@ class receiver(lfu.modular_object_qt):
                 instances = [None, [self]], 
                 keys = [None, ['socket_ip']], 
                 bindings = [[self.listen], None]))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
-class transceiver(lfu.modular_object_qt):
+class transceiver(lfu.mobject):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     #socket_ip = default_socket_ip
     socket_port = default_udp_port
@@ -86,7 +101,7 @@ class transceiver(lfu.modular_object_qt):
         if 'default_IP' in kwargs.keys():
             self.socket_ip = kwargs['default_IP']
         else: self.socket_ip = default_socket_ip
-        lfu.modular_object_qt.__init__(self, *args, **kwargs)
+        lfu.mobject.__init__(self, *args, **kwargs)
 
     def speak(self, *args, **kwargs):
         if 'message' in kwargs.keys(): message = kwargs['message']
@@ -120,17 +135,14 @@ class transceiver(lfu.modular_object_qt):
                 instances = [[self]], 
                 keys = [['socket_ip']]))
                 #bind_events = [['returnPressed', 'textEdited']]))
-        lfu.modular_object_qt.set_settables(
+        lfu.mobject.set_settables(
                 self, *args, from_sub = True)
 
-if __name__ == 'modular_core.libudp':
-    if lfu.gui_pack is None: lfu.find_gui_pack()
-    lgm = lfu.gui_pack.lgm
-    lgd = lfu.gui_pack.lgd
-    lgb = lfu.gui_pack.lgb
 
-if __name__ == '__main__':
-    print 'this is a library!'
+
+
+
+
 
 
 

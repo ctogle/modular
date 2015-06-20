@@ -10,8 +10,9 @@ import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.ensemblejobs as mej
 import modular_core.parallel.threadwork as wt
 
-import modular_core.io.liboutput as lo
-import modular_core.io.libfiler as lf
+import modular_core.io.output as lo
+#import modular_core.io.libfiler as lf
+import modular_core.io.mpkl as lpkl
 import modular_core.fitting.fitplan as fpl
 import modular_core.data.datacontrol as ldc
 import modular_core.data.batch_target as dba
@@ -130,14 +131,16 @@ class ensemble(lfu.mobject):
             postproc_data = pdata,routine_data = fdata)
         self._describe_data_pool(data_pool)
         self.data_pool_pkl = self._data_pool_path()
-        lf.save_mobject(data_pool,self.data_pool_pkl)
+        #lf.save_mobject(data_pool,self.data_pool_pkl)
+        lpkl.save_pkl_object(data_pool,self.data_pool_pkl)
         print 'saved data pool:',time.time() - stime
         print '\tsaved at:',self.data_pool_pkl
 
     def _load_data_pool(self):
         print 'loading data pool...'
         stime = time.time()
-        dpool = lf.load_mobject(self.data_pool_pkl)
+        #dpool = lf.load_mobject(self.data_pool_pkl)
+        dpool = lpkl.load_pkl_object(self.data_pool_pkl)
         self._describe_data_pool(dpool)
         print 'loaded data pool:',time.time() - stime
         return dpool
@@ -600,7 +603,8 @@ class ensemble(lfu.mobject):
             self.parent = None
             save_file = self.name + '.ensempkl'
             save_path = os.path.join(save_dir,save_file)
-            lf.save_mobject(self,save_path)
+            #lf.save_mobject(self,save_path)
+            lpkl.save_pkl_object(self,save_path)
             self.parent = manager
             print 'saved ensemble:',self.name
 
@@ -846,7 +850,8 @@ class ensemble_manager(lfu.mobject):
         fidlg = lgd.create_dialog('Choose File','File?','file')
         file_ = fidlg()
         if not file_ is None:
-            newensem = lf.load_mobject(file_)
+            #newensem = lf.load_mobject(file_)
+            newensem = lpkl.load_pkl_object(file_)
             newensem.parent = self
             newensem._rewidget(True)
             #newensem._widget(newensem,self)

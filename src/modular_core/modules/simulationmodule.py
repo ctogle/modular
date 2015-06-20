@@ -4,8 +4,8 @@ import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.fitting.routine_abstract as fab
 import modular_core.postprocessing.process_abstract as lpp
 import modular_core.criteria.abstract as cab
-import modular_core.io.liboutput as lo
-import modular_core.io.libfiler as lf
+import modular_core.io.output as lo
+import modular_core.io.mtxt as ltxt
 
 import pdb,os,sys,types
 from cStringIO import StringIO
@@ -221,7 +221,7 @@ class simulation_module(lfu.mobject):
             self._write_mcfg_run_param_key(rparams,'fit_routines',mcfg)
         self._write_mcfg_run_param_key(rparams,'output_plans',mcfg)
         mcfg = mcfg.getvalue()
-        lf.write_text(mcfg_path,mcfg)
+        ltxt.write_text(mcfg_path,mcfg)
 
     # set state that is changed at most once per pspace location
     # called outside of Pool processes and before self._set_parameters

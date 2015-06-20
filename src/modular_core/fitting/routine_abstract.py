@@ -3,7 +3,7 @@ import modular_core.data.batch_target as dba
 import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.ensemblejobs as mej
-import modular_core.io.liboutput as lo
+import modular_core.io.output as lo
 import modular_core.io.pkl as pk
 
 import pdb,os,sys,types,time,random,traceback

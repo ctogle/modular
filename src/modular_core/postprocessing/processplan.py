@@ -3,7 +3,7 @@ import modular_core.settings as lset
 
 import modular_core.postprocessing.process_abstract as pra
 import modular_core.data.batch_target as dba
-import modular_core.io.liboutput as lo
+import modular_core.io.output as lo
 
 import pdb,types,time,math,os,sys,traceback
 import numpy as np

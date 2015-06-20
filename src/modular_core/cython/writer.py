@@ -1,5 +1,5 @@
 import modular_core.fundamental as lfu
-import modular_core.io.liboutput as lo
+import modular_core.io.output as lo
 
 from distutils.core import setup
 from distutils.extension import Extension

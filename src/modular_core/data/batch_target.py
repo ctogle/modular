@@ -1,7 +1,8 @@
 import modular_core.fundamental as lfu
 import modular_core.data.datacontrol as ldc
 import modular_core.data.single_target as dst
-import modular_core.io.libfiler as lf
+import modular_core.io.mpkl as lpkl
+#import modular_core.io.libfiler as lf
 #import modular_core.io.hdf5 as hdf
 import h5py
 
@@ -39,7 +40,8 @@ class batch_node(ldc.data_mobject):
         if v:print 'saving batch node',self.data_pool_id,'...'
         pa = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
         data = lfu.data_container(top = self.data,children = self.children)
-        lf.save_mobject(data,pa)
+        #lf.save_mobject(data,pa)
+        lpkl.save_pkl_object(data,pa)
         if v:print 'saved batch node',self.data_pool_id
         self.data = pa
         self.children = None
@@ -47,7 +49,8 @@ class batch_node(ldc.data_mobject):
     def _unpkl_data(self,v = False):
         if v:print 'loading batch node',self.data_pool_id,'...'
         datapath = self.data
-        data = lf.load_mobject(datapath)
+        #data = lf.load_mobject(datapath)
+        data = lpkl.load_pkl_object(datapath)
         self.data = data.top
         self.children = data.children
         if v:print 'loaded batch node',self.data_pool_id
