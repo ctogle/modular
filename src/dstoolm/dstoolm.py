@@ -157,99 +157,6 @@ class simulation_module(smd.simulation_module):
         self._write_mcfg_run_param_key(rparams,'species',mcfg)
         smd.simulation_module._write_mcfg(mcfg_path,ensem,mcfg)
 
-    def _ext_special_funcs(self):
-        heavi = heaviside()
-        gnoise = gauss_noise()
-        return [heavi,gnoise]
-
-    def _ext_external_signal_funcs(self):
-        rcnt = len(self.parent.run_params['reactions'])
-        sigfuncs = []
-        for spath in signalpaths.keys():
-            sargs = {
-                'signalpath':spath,
-                'name':signalpaths[spath][0],
-                'domain':signalpaths[spath][1],
-                'rxncount':rcnt,
-                    }
-            sigfunc = external_signal_function(**sargs)
-            sigfuncs.append(sigfunc)
-        return sigfuncs
-
-    def _ext_funcs_run(self,rxnorder = None):
-        ptargs = self.parent.run_params['plot_targets']
-        ccnt = self.parent.simulation_plan._capture_count()
-        cinc = self.parent.simulation_plan._capture_increment()
-        if rxnorder is None:orderedrxns = self.parent.run_params['reactions']
-        else:
-            orderedrxns = self.parent.run_params['reactions']
-            orderedrxns = [orderedrxns[rdx] for rdx in rxnorder]
-        cplan = self.parent.cartographer_plan
-        fplan = self.parent.fitting_plan
-        mappspace = cplan.use_plan
-        fitting = fplan.use_plan
-        runargs = {}
-        if mappspace or fitting:
-            paxes = cplan.parameter_space.axes
-            paxnames = [a.instance.name.strip() for a in paxes]
-            astring = ','.join(paxnames)
-            for px,ax in zip(paxnames,paxes):runargs[px] = ax
-        else:astring = ''
-        if fitting:astring += ',timeout = 30.0'
-        rargs = {
-            'argstring':astring,
-            'runargs':runargs,
-            'capture_count':ccnt,
-            'capture_increment':cinc,
-            'targets':ptargs,
-            'species':self.parent.run_params['species'],
-            'reactions':orderedrxns,
-            'constants':self.parent.run_params['variables'],
-            'functions':self.parent.run_params['functions'],
-            'countreactions':self.countreactions,
-            'use_timeout':fitting,
-                }
-        return run(**rargs)
-
-    # this returns functions for the extension
-    # NOT TO BE CONFUSED WITH RXN RATE FUNCTIONS
-    def _ext_funcs(self,rxnorder = None):
-        runfunc = self._ext_funcs_run(rxnorder)
-        rxns = self.parent.run_params['reactions']
-        funcs = self.parent.run_params['functions']
-        varis = self.parent.run_params['variables']
-        funcnames = funcs.keys()
-        rcnt = len(rxns)
-        for r in rxns:
-            r.statetargets = runfunc.statetargets
-            r.functionnames = funcnames
-            r.variables = varis
-            r.rxncount = rcnt
-        for f in funcnames:
-            funcs[f].statetargets = runfunc.statetargets
-            funcs[f].functionnames = funcnames
-            funcs[f].variables = varis
-            funcs[f].rxncount = rcnt
-        rxnfuncs = [rx._cython_react(x) for x,rx in enumerate(rxns)]
-        rxnvalds = [rx._cython_valid(x) for x,rx in enumerate(rxns)]
-        rxnprops = [rx._cython_propensity(x) for x,rx in enumerate(rxns)]
-        rxnrates = [funcs[fu]._cython(x) for x,fu in enumerate(funcs.keys())]
-        funcs = [runfunc]
-        specials = self._ext_special_funcs()
-        extsignals = self._ext_external_signal_funcs()
-        for es in extsignals:
-            es.statetargets = runfunc.statetargets
-            es.argstring = 'double['+str(len(runfunc.statetargets))+'] state'
-        return specials+extsignals+rxnvalds+rxnprops+rxnrates+rxnfuncs+funcs
-
-    # these are the keywords for the eventual cython module
-    def _ext_kwargs(self,rxnorder = None):
-        ext_kwargs = {
-            'name':self.extensionname,
-            'functions':self._ext_funcs(rxnorder),
-                }
-        return ext_kwargs
-
     def _set_parameters_prepoolinit(self):
         rxns  = self.parent.run_params['reactions']
         funcs = self.parent.run_params['functions']
@@ -290,29 +197,29 @@ class simulation_module(smd.simulation_module):
             for ps in p:speqns[ps] += '+'+term
 
         for speq in speqns:
-            for speq in speqns:
-                speqn = speqns[speq]
-                if speqn.startswith('+'):speqn = speqn.replace('+','',1)
-                if speqn.startswith('-'):speqn = speqn.replace('-','',1)
-                check = False
-                while not check:
-                    check = True
-                    for feqn in fsequations:
-                        if speqn.count(feqn) > 0:
-                            feq = fsequations[feqn]
-                            speqn = speqn.replace(feqn,'('+feq+')',1)
-                            check = False
-                            break
-                check = False
-                while not check:
-                    check = True
-                    for cpar in cparameters:
-                        if speqn.count(cpar) > 0:
-                            cpa = str(cparameters[cpar])
-                            speqn = speqn.replace(cpar,'('+cpa+')',1)
-                            check = False
-                            break
-                speqns[speq] = speqn
+            speqn = speqns[speq]
+            if speqn.startswith('+'):speqn = speqn.replace('+','',1)
+            check = False
+            while not check:
+                check = True
+                for feqn in fsequations:
+                    if speqn.count(feqn) > 0:
+                        feq = fsequations[feqn]
+                        speqn = speqn.replace(feqn,'('+feq+')',1)
+                        check = False
+                        break
+
+            check = False
+            while not check:
+                check = True
+                for cpar in cparameters:
+                    if speqn.count(cpar) > 0:
+                        cpa = str(cparameters[cpar])
+                        speqn = speqn.replace(cpar,'('+cpa+')',1)
+                        check = False
+                        break
+
+            speqns[speq] = speqn
 
         for sp in speqns:
             print 'd',sp,'/dt = ',speqns[sp]
@@ -320,37 +227,13 @@ class simulation_module(smd.simulation_module):
             self.dsequations[specs[sp].name] = speqns[specs[sp].name]
             #self.vsequations.append(specs[sp].name)#??
 
-
-        #self.dsequations['x1'] = '1.0'
-        #self.dsequations['x2'] = '1.0'
-
-        #pdb.set_trace()
-
-        # any plot target needs a diff eq
-        # so a diffeq for each spec/func/vari
-        # the ic for the func depends on system initial state
-        # diff eqs for specs:
-        #  diff eq deps on other specs, funcs, varis
-        # diff eqs for funcs:
-        #  diff eq deps specs, other funcs, varis
-        # diff eqs for varis:
-        #  diff eq deps on nothing - just constant
-
         sargs = (mname,ptrgs,domain,ctcnt,ctinc,self.iconditions,
             self.cparameters,self.vsequations,self.dsequations,self.fsequations)
         self.sim_args = sargs
 
     def _set_parameters(self):
-        cplan = self.parent.cartographer_plan
-        fplan = self.parent.fitting_plan
-        mappspace = cplan.use_plan
-        fitting = fplan.use_plan
-        if mappspace or fitting:
-            paxes = cplan.parameter_space.axes
-            for px in paxes:
-                print('update self.sim_args based on pspace motion')
-                #pdb.set_trace()
-            #pargs = [float(px.instance.__dict__[px.key]) for px in paxes]
+        self._set_parameters_prepoolinit()
+        return
 
     def _reset_parameters(self):
         ensem = self.parent
@@ -424,8 +307,8 @@ def simulate(args):
     #dsargs.algparams = {'init_step':captincr/100.0}
     dsargs.algparams = {'init_step':captincr/100.0}
 
-    #dsys = pdt.Generator.Vode_ODEsystem(dsargs)
-    dsys = pdt.Generator.Radau_ODEsystem(dsargs)
+    dsys = pdt.Generator.Vode_ODEsystem(dsargs)
+    #dsys = pdt.Generator.Radau_ODEsystem(dsargs)
     traj = dsys.compute('demo')
     pts = traj.sample()
 
@@ -526,232 +409,6 @@ class heaviside(cwr.function):
         self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
 
-############################################################################### 
-
-class run(cwr.function):
-
-    def _code_body_initialize(self,coder):
-        scnt = len(self.species)
-        rcnt = len(self.reactions)
-        vcnt = len(self.constants)
-        fcnt = len(self.functions)
-
-        dshape = (self.target_count,self.capture_count)
-        sshape = (1 + scnt + vcnt + fcnt,)
-        cshape = (self.target_count,)
-
-        #coder.write('\n\tprint ')
-        #for ra in self.runargs:
-        #    coder.write(ra+',')
-        #coder.write('\'!\'\n')
-
-        self._nparray(coder,'data',dshape)
-        self._carray(coder,'capture',cshape)
-        self._carray(coder,'state',sshape)
-        for sdex in range(scnt):
-            sp = self.statetargets[sdex+1]
-            spec = self.species[sp]
-            if spec.name in self.runargs:
-                send = spec.name
-            else:send = str(spec.initial)
-            coder.write('\n\tstate['+str(sdex+1)+'] = '+send)
-        for vdex in range(vcnt):
-            va = self.statetargets[vdex+scnt+1]
-            const = self.constants[va]
-            if const.name in self.runargs:
-                vend = const.name
-            else:vend = str(const.value)
-            coder.write('\n\tstate['+str(vdex+scnt+1)+'] = '+vend)
-        for fdex in range(fcnt):
-            fu = self.statetargets[fdex+vcnt+scnt+1]
-            funame = self.functions[fu].name
-            coder.write('\n\t'+funame+'(state)')
-
-        coder.write('\n\tcdef int totalcaptures = '+str(self.capture_count))
-        coder.write('\n\tcdef int capturecount = 0')
-        coder.write('\n\tcdef int rtabledex')
-        coder.write('\n\tcdef int tdex')
-        coder.write('\n\tcdef int cdex')
-        coder.write('\n\tcdef double totalpropensity')
-        coder.write('\n\tcdef double tpinv')
-        coder.write('\n\tcdef double time = 0.0')
-        coder.write('\n\tcdef double lasttime = 0.0')
-        coder.write('\n\tcdef double realtime = 0.0')
-        coder.write('\n\tcdef double del_t = 0.0')
-        coder.write('\n\tcdef double randr')
-        #coder.write('\n\tcdef float imax = float(INT_MAX)')
-
-        coder.write('\n\tcdef int whichrxn = 0')
-        coder.write('\n\tcdef int rxncount = '+str(rcnt))
-        pshape = (rcnt,)
-        if self.countreactions:self._nparray(coder,'reactcounts',pshape)
-        self._carray(coder,'reactiontable',pshape)
-        self._carray(coder,'propensities',pshape)
-        for rdex in range(rcnt):
-            rname = 'rxnpropensity'+str(rdex)
-            coder.write('\n\tpropensities['+str(rdex)+'] = '+rname+'(state)')
-
-        #self._nparray(coder,'tdexes',cshape,dtype = 'numpy.long')
-        self._carray(coder,'tdexes',cshape,dtype = 'int')
-        for tdx in range(self.target_count):
-            statedex = self.statetargets.index(self.targets[tdx])
-            coder.write('\n\ttdexes['+str(tdx)+'] = '+str(statedex))
-        
-    # THIS SHOULD PROBABLY BE ACID TESTED
-    def _gibson_lookup(self,rxns):
-        rcnt = len(rxns)
-        alwayses = [d for d in range(rcnt) if rxns[d].rate_is_function]
-        lookups = [[] for r in rxns]
-        for rdx in range(rcnt):
-            # enumerate the species affected by rxns[rdx]
-            r = rxns[rdx]
-            r.affected_species = []
-            for p in r.produced:
-                found = False
-                for u in r.used:
-                    if u[0] == p[0]:
-                        found = True
-                        if not u[1] == p[1] and not p[0] in r.affected_species:
-                            r.affected_species.append(p[0])
-                if not found and not p[0] in r.affected_species:
-                    r.affected_species.append(p[0])
-            for u in r.used:
-                found = False
-                for p in r.produced:
-                    if p[0] == u[0]:
-                        found = True
-                        if not p[1] == u[1] and not u[0] in r.affected_species:
-                            r.affected_species.append(u[0])
-                if not found and not u[0] in r.affected_species:
-                    r.affected_species.append(u[0])
-            #print 'rxn',r.name,r.affected_species
-            lookups[rdx].extend(alwayses)
-            for rdx2 in range(rcnt):
-                r2 = rxns[rdx2]
-                for u2 in r2.used:
-                    if u2[0] in r.affected_species:
-                        if not rdx2 in lookups[rdx]:
-                            lookups[rdx].append(rdx2)
-        return lookups
-
-    def _code_body_loop(self,coder):
-        scnt = len(self.species)
-        rcnt = len(self.reactions)
-        vcnt = len(self.constants)
-        fcnt = len(self.functions)
-
-        if self.use_timeout:
-            coder.write('\n\n\tcdef float start_time = timemodule.time()')
-            coder.write('\n\tcdef bint timed_out = 0')
-
-        coder.write('\n\n\twhile capturecount < totalcaptures')
-        
-        if self.use_timeout:
-            coder.write(' and not timed_out:')
-            coder.write('\n\t\ttimed_out = (timemodule.time()-start_time) > timeout')
-        else:coder.write(':')
-
-        coder.write('\n\t\ttotalpropensity = 0.0')
-        rcnt = len(self.reactions)
-        for pdex in range(rcnt):
-            coder.write('\n\t\tif rxnvalid'+str(pdex)+'(state):')
-            coder.write('totalpropensity = totalpropensity + ')
-            coder.write('propensities['+str(pdex)+']')
-            coder.write('\n\t\treactiontable['+str(pdex)+'] = totalpropensity')
-
-        coder.write('\n\n\t\tif totalpropensity > 0.0:')
-        coder.write('\n\t\t\ttpinv = 1.0/totalpropensity')
-        coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
-        coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
-        
-        coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
-        coder.write('\n\t\t\trandr = <float>random.random()')
-
-        coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
-        coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
-        coder.write('\n\t\t\t\t\twhichrxn = rtabledex')
-        coder.write('\n\t\t\t\t\tbreak\n')
-
-        coder.write('\n\n\t\telse:')
-        coder.write('\n\t\t\tdel_t = '+str(self.capture_increment))
-        coder.write('\n\t\t\twhichrxn = -1')
-
-        coder.write('\n\n\t\tstate[0] += del_t')
-        coder.write('\n\t\trealtime = state[0]')
-
-        coder.write('\n\t\twhile lasttime < realtime')
-        coder.write(' and capturecount < totalcaptures:')
-
-        coder.write('\n\t\t\tstate[0] = lasttime')
-        coder.write('\n\t\t\tlasttime += '+str(self.capture_increment))
-
-        coder.write('\n')
-        for fdex in range(fcnt):
-            fu = self.statetargets[fdex+vcnt+scnt+1]
-            funame = self.functions[fu].name
-            coder.write('\n\t\t\t'+funame+'(state)')
-
-        coder.write('\n\n\t\t\tfor cdex in range('+str(self.target_count)+'):')
-        coder.write('\n\t\t\t\tdata[cdex,capturecount] = state[tdexes[cdex]]')
-        coder.write('\n\t\t\tcapturecount += 1')
-        coder.write('\n\t\tstate[0] = realtime')
-
-        lookup = self._gibson_lookup(self.reactions)
-        rcnt = len(self.reactions)
-
-        # the lookup for the null reaction is every reaction!!!
-        coder.write('\n\n\t\tif whichrxn == -1:')
-        for rdex in range(rcnt):
-            rname = 'rxnpropensity'+str(rdex)
-            coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
-
-        rwhichrxnmap = range(rcnt)
-        for rdex in rwhichrxnmap:
-            coder.write('\n\t\telif whichrxn == '+str(rdex)+':')
-            coder.write('\n\t\t\trxn'+str(rdex)+'(state)')
-            if self.countreactions:
-                coder.write('\n\t\t\treactcounts['+str(rdex)+'] += 1')
-            for look in lookup[rdex]:
-                rname = 'rxnpropensity'+str(look)
-                coder.write('\n\t\t\tpropensities['+str(look)+']')
-                coder.write(' = '+rname+'(state)')
-
-    def _code_body_finalize(self,coder):
-        if self.use_timeout:coder.write('\n\n\tif timed_out:return None')
-        if self.countreactions:
-            coder.write('\n\n\treturn numpy.array')
-            coder.write('(reactcounts,dtype = numpy.float)\n')
-        #coder.write('\n\n\tprint \'reactcounts\',')
-        #[coder.write('reactcounts['+str(k)+'],') for k in range(len(self.reactions))]
-        #coder.write('"!"')
-        else:coder.write('\n\n\treturn numpy.array(data,dtype = numpy.float)\n')
-
-    def _code_body(self,coder):
-        self._code_body_initialize(coder)
-        self._code_body_loop(coder)
-        self._code_body_finalize(coder)
-        coder.write('\n'+'#'*80+'\n'*10)
-
-    def __init__(self,*args,**kwargs):
-        self._default('countreactions',False,**kwargs)
-        self._default('use_timeout',False,**kwargs)
-        self._default('runargs',{},**kwargs)
-        self._default('name','run',**kwargs)
-        self._default('cytype','cpdef',**kwargs)
-        self._default('capture_count',100,**kwargs)
-        self._default('capture_increment',1,**kwargs)
-        self._default('targets',['time'],**kwargs)
-        self._default('species',[],**kwargs)
-        self._default('reactions',[],**kwargs)
-        self._default('constants',[],**kwargs)
-        self._default('functions',[],**kwargs)
-        self.target_count = len(self.targets)
-        cwr.function.__init__(self,*args,**kwargs)
-        self.statetargets = ['time'] +\
-            lfu.grab_mobj_names(self.species) +\
-            lfu.grab_mobj_names(self.constants) +\
-            lfu.grab_mobj_names(self.functions)
-
 #################################################################################
 
 class species(lfu.run_parameter):
@@ -804,76 +461,6 @@ class species(lfu.run_parameter):
 
 class reaction(lfu.run_parameter):
 
-    def _cython_react_body(self,coder):
-        for u in self.used:
-            uspec,ucnt = u
-            udex = self.statetargets.index(uspec)
-            coder.write('\n\tstate['+str(udex)+'] -= '+str(ucnt))
-        for p in self.produced:
-            pspec,pcnt = p
-            pdex = self.statetargets.index(pspec)
-            coder.write('\n\tstate['+str(pdex)+'] += '+str(pcnt))
-        coder.write('\n')
-
-    def _cython_react(self,dx):
-        cy = cwr.function(
-            name = 'rxn'+str(dx),
-            #argstring = 'double['+str(self.rxncount)+'] state',
-            argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef void',
-            cyoptions = ' nogil')
-        cy._code_body = self._cython_react_body
-        return cy
-
-    def _cython_valid_body(self,coder):
-        for u in self.used:
-            uspec,ucnt = u
-            udex = self.statetargets.index(uspec)
-            coder.write('\n\tif state['+str(udex)+'] < '+str(ucnt)+':')
-            coder.write('return 0')
-        coder.write('\n\treturn 1\n')
-
-    def _cython_valid(self,dx):
-        cy = cwr.function(
-            name = 'rxnvalid'+str(dx),
-            #argstring = 'double['+str(self.rxncount)+'] state',
-            argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef bint',
-            cyoptions = ' nogil')
-        cy._code_body = self._cython_valid_body
-        return cy
-
-    def _cython_propensity_body(self,coder):
-        coder.write('\n\tcdef double scnt')
-        coder.write('\n\tcdef double population = 1.0')
-        for u in self.used:
-            uspec,ucnt = u
-            udex = self.statetargets.index(uspec)
-            coder.write('\n\tscnt = state['+str(udex)+']')
-            for x in range(ucnt):
-                subt = '' if x == 0 else ' - '+str(x)
-                coder.write('\n\tpopulation *= scnt'+subt)
-            if ucnt > 1:coder.write('\n\tpopulation /= '+str(ucnt))
-        try: ratestring = str(float(self.rate))
-        except ValueError:
-            if self.rate in self.functionnames:
-                ratestring = self.rate+'(state)'
-                self.rate_is_function = True
-            else:
-                vdex = self.statetargets.index(self.rate)
-                ratestring = 'state['+str(vdex)+']'
-        coder.write('\n\treturn population * '+ratestring+'\n')
-
-    def _cython_propensity(self,dx):
-        cy = cwr.function(
-            name = 'rxnpropensity'+str(dx),
-            #argstring = 'double['+str(self.rxncount)+'] state',
-            argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef double',
-            cyoptions = ' nogil')
-        cy._code_body = self._cython_propensity_body
-        return cy
-
     def __init__(self,*args,**kwargs):
         self._default('name','a reaction',**kwargs)
         self._default('rate',float(10.0),**kwargs)
@@ -881,9 +468,6 @@ class reaction(lfu.run_parameter):
         self._default('used',[],**kwargs)
         self._default('produced',[],**kwargs)
         lfu.run_parameter.__init__(self,*args,**kwargs)
-
-    def _dsrep(self):
-        pdb.set_trace()
 
     def _string(self):
         def _string_agents(agents):

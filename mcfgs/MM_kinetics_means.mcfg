@@ -5,10 +5,13 @@
 <capture_criteria>
   increment : 0.00005 : time
 
+<variables>
+  mu : 800.0
+
 <reactions>
 	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
 	1 ES_Complex 0.01 -> 1 Enzyme + 1 Substrate : Enzyme Substrate complex dissociation
-	1 ES_Complex 800.0 -> 1 Enzyme + 1 Product : Product formation
+	1 ES_Complex mu -> 1 Enzyme + 1 Product : Product formation
 
 <species>
 	Enzyme : 5000
@@ -23,7 +26,12 @@
 	Substrate
 	Enzyme
 
+<parameter_space>
+	<product_space> 1
+    mu : value : 10,100,1000,10000
+
 <post_processes>
+  extrt : extract : 0 : all : 1
 	means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 20 : ordered
 
 <multiprocessing>
@@ -31,13 +39,15 @@
 	workers : 8
 
 <output_plans>
-	1 : - : mm_means : plt : all
-	0 : - : ensemble_output : none : all
+	2 : - : mm_means : plt : all
+  1 : - : extract_output : plt : all
+	0 : - : ensemble_output : plt : all
 
 <ensemble>
-	mapparameterspace : off
+	mapparameterspace : on
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1
+
 
 
