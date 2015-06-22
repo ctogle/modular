@@ -4,7 +4,7 @@ import modular_core.parameterspace.parameterspaces as lpsp
 
 import modular_core.cython.writer as cwr
 
-import modular_core.io.liboutput as lo
+import modular_core.io.output as lo
 
 import pdb,os,sys,time,re,numpy
 import matplotlib.pyplot as plt
