@@ -320,6 +320,7 @@ class ensemble(lfu.mobject):
 
     #parameter variation, no fitting
     def _run_map(self):
+        self.cartographer_plan._move_to(0)
         self._run_params_to_location_prepoolinit()
         if self.multiprocess_plan.use_plan:
             pcnt = int(self.multiprocess_plan.worker_count)
