@@ -4,7 +4,7 @@ import modular_core.parameterspace.parameterspaces as lpsp
 import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.ensemblejobs as mej
 import modular_core.io.output as lo
-import modular_core.io.pkl as pk
+import modular_core.io.mpkl as pk
 
 import pdb,os,sys,types,time,random,traceback
 

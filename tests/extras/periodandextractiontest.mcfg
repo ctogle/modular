@@ -55,6 +55,9 @@
 
     alphaCFP : 500*heaviside(sin(2*pi*time/T) - 0.9)
 
+    extrawave1 : 50.0*sin(2*pi*time/(2*T)) + 100
+    extrawave2 : 500*heaviside(sin(2*pi*time/T) - 0.9) + 100
+
     alpha_r0 : (p/p0)*alphaR/(1.0+(R/c0)**2)
     alpha_y0 : (p/p0)*A*alphaR/(1.0+(R/c0)**2)
     alpha_C : (p/p0)*alphaCFP
@@ -152,6 +155,9 @@
     C
     Y
     p
+    alphaCFP
+    extrawave1
+    extrawave2
 
 <parameter_space>
 	<product_space> 10
@@ -206,9 +212,9 @@
 <post_processes>
     means : meanfields : 0 : C, Y, R of time : 1000 : ordered
     extrt : extract : 0 : all : 1
-    pfind : period finder : 2 : all : 5
+    pfind : period finder : 2 : all : 20
     pfmeans : meanfields : 3 : C-period,Y-period of time : 10 : ordered
-    meanpfind : period finder : 1 : all : 5
+    meanpfind : period finder : 1 : all : 20
 
 <multiprocessing>
     workers : 16

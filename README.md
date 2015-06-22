@@ -22,7 +22,8 @@ python setup.py build install --user
 
 testing:
 ========
-In the 'tests' folder is a script to verify that typical run cases execute successfully.\\
+In the 'tests' folder is a script to verify that typical run cases execute successfully.
+
 python test_ensemble.py
 
 running modular simulator:
@@ -43,9 +44,8 @@ Using the main gui to run an mcfg:
 
 Make an ensemble (Ctrl+E)
 
-Parse a .mcfg file by using the "Parse mcfg File" button. (Ctrl+M)
-
-	- There are some mcfgs used for testing in ./tests/gillespiemmcfgs
+Parse an mcfg file by using the "Parse mcfg File" button. (Ctrl+M)
+There are some mcfgs used for testing in ./tests/gillespiemmcfgs
 
 Run the ensemble using the "Run Ensemble" button. (Alt+R)
 

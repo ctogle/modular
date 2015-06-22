@@ -85,6 +85,12 @@ class period_finder(lpp.post_process_abstract):
         y = morph.grey_dilation(x,size = w)
         inds = np.argwhere(x == y)
         inds = self.hone(inds,x)
+
+        #plt.plot(t,x)
+        #plt.plot(t,y)
+        #plt.plot([t[i] for i in inds],[x[j] for j in inds])
+        #plt.show()
+
         if not inds:return None,None,None
         time = np.zeros((inds[-1]-inds[0],))
         period = np.zeros((inds[-1]-inds[0],))
