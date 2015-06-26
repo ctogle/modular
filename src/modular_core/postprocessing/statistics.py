@@ -135,13 +135,14 @@ def parse_line(split,ensem,procs,routs):
     targs = split[3].split(' of ')
     means_of = targs[0]
     function_of = targs[1]
-    relevant = lfu.msplit(means_of,',')
+    #relevant = lfu.msplit(means_of,',')
+    relevant = means_of 
     inputs = lpp.parse_process_line_inputs(split[2],procs,routs)
     pargs = {
         'name':split[0],
         'variety':split[1],
         'input_regime':inputs,
-        'means_of':relevant,
+        'mean_of':relevant,
         'function_of':function_of,
         'bin_count':int(split[4]),
         'ordered':split[5].count('unordered') < 1,
