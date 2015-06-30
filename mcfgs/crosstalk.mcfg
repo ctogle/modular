@@ -25,10 +25,12 @@
   gammaa : 0.01
 
 <functions>
-	g1A : (kappa1A*muA)/(K + kappa1A*x1 + kappa2A*x2)
-	g2A : (kappa2A*muA)/(K + kappa1A*x1 + kappa2A*x2)
-	g1X : (kappa1X*muX)/(K + kappa1X*x1 + kappa2X*x2)
-	g2X : (kappa2X*muX)/(K + kappa1X*x1 + kappa2X*x2)
+  gAD : (K + kappa1A*x1 + kappa2A*x2) 
+  gXD : (K + kappa1X*x1 + kappa2X*x2) 
+	g1A : (kappa1A*muA)/gAD
+	g2A : (kappa2A*muA)/gAD
+	g1X : (kappa1X*muX)/gXD
+	g2X : (kappa2X*muX)/gXD
 
 <reactions>
   # production reactions
@@ -56,9 +58,8 @@
 
 <parameter_space>
 	<product_space> 1
-    #lambda1 : value : 2.0-20.0;9
-    lambda1 : value : 10.0
-    lambda2 : value : 2.0-20.0;9
+    lambda1 : value : 2.0-20.0;9
+    lambda2 : value : 10.0
 
     # make degradation orthogonal or leaky or symmetric
     kappa1A : value : 1.0
@@ -73,7 +74,7 @@
     #muA : value : 1.0,10.0,100.0
     muA : value : 10.0
     muX : value : 10.0
-    K : value : 0.000000000001
+    K : value : 0.0001
 
     # slow growing cells dilute slower
     gammaa : value : 0.01
@@ -104,7 +105,6 @@
 	0 : - : ensemble_output : none : all
 
 <ensemble>
-	multiprocessing : on
 	mapparameterspace : on
 	metamapparameterspace : off
 	fitting : off

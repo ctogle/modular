@@ -304,8 +304,10 @@ def simulate(args):
     #dsargs.vars = vardict
     dsargs.varspecs = varspecdict
     #dsargs.fnspecs = fnspecdict
-    #dsargs.algparams = {'init_step':captincr/100.0}
-    dsargs.algparams = {'init_step':captincr/100.0}
+    dsargs.algparams = {
+        'init_step':captincr/10.0,
+        'atol':0.1,
+            }
 
     dsys = pdt.Generator.Vode_ODEsystem(dsargs)
     #dsys = pdt.Generator.Radau_ODEsystem(dsargs)
