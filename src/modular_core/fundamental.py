@@ -150,8 +150,8 @@ default_cache_path = os.path.join(appdirs.user_cache_dir(),'modular_cache')
 def get_cache_path(res = None):
     if user_cache_path is None:cpath = default_cache_path
     else:cpath = user_cache_path
-    if res is None: return cpath
-    else: return os.path.join(cpath,res)
+    if res is None:return cpath
+    else:return os.path.join(cpath,res)
 sys.path.append(get_cache_path())
 
 # change the user cache path, modifying sys.path as needed

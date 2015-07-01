@@ -83,6 +83,9 @@ class ejob(mmcl.mjob):
     # generally expected to be called once per node before
     # running any simulations; this is when gillespiem compiles
     def _prepoolinit(self):
+        print 'updating cache directory per node...'
+        host = MPI.Get_processor_name()
+        lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
         mmcl.silence()
         ensem = self.wargs[0]
         ensem._run_params_to_location_prepoolinit()
