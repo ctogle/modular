@@ -9,7 +9,7 @@ import pdb,sys,math
 import numpy as np
 import scipy.ndimage.morphology as morph
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 ###############################################################################
 ### period_finder measures the period of a signal as a function of time

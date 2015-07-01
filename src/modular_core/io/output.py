@@ -6,7 +6,7 @@ import modular_core.io.mvtk as lvtk
 import modular_core.io.mtxt as ltxt
 
 import pdb,os,sys,time
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 
 if __name__ == 'modular_core.io.output':
