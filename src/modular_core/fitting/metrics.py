@@ -3,8 +3,6 @@ import modular_core.fundamental as lfu
 import numpy as np
 import pdb,math
 
-import matplotlib.pyplot as plt
-
 ###############################################################################
 ###
 ###############################################################################

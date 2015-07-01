@@ -7,9 +7,6 @@ import modular_core.io.output as lo
 import pdb,os,sys
 import numpy as np
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canvas
-import matplotlib.pyplot as plt
-
 ###############################################################################
 # import other fitting routines to use as the "hammer"
 import modular_core.fitting.annealing as fan

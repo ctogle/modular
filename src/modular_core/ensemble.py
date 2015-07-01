@@ -8,7 +8,8 @@ import modular_core.parallel.parallelplan as paral
 import modular_core.settings as lset
 import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.ensemblejobs as mej
-import modular_core.parallel.threadwork as wt
+try:import modular_core.parallel.threadwork as wt
+except ImportError:print 'no worker threads available...'
 
 import modular_core.io.output as lo
 #import modular_core.io.libfiler as lf
@@ -33,10 +34,12 @@ import modular_core.postprocessing.periodfinding as mpf
 import modular_core.postprocessing.extraction as mex
 import modular_core.postprocessing.k_means_clusters as kmc
 
-import modular_core.fitting.explorer as fex
-import modular_core.fitting.annealing as fan
-import modular_core.fitting.measurement as fme
-import modular_core.fitting.learner as fln
+try:import matplotlib.pyplot as plt
+except ImportError:plt = None
+if not plt is None:import modular_core.fitting.explorer as fex
+#import modular_core.fitting.annealing as fan
+#import modular_core.fitting.measurement as fme
+#import modular_core.fitting.learner as fln
 
 import pdb,os,sys,traceback,types,time,imp
 import multiprocessing as mp

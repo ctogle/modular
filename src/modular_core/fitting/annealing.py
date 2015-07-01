@@ -5,7 +5,6 @@ import modular_core.data.batch_target as dba
 
 import pdb,os
 import scipy.interpolate as sp
-import matplotlib.pyplot as plt
 import numpy as np
 
 ###############################################################################
