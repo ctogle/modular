@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import modular_core.fundamental as lfu
-lfu.using_gui = False
+lfu.using_gui = True
 
 from modular_core.ensemble import ensemble_manager
 from modular_core.parallel.mpicluster import listen
@@ -10,10 +10,12 @@ from mpi4py import MPI
 import os,sys,pdb,argparse
 
 def run_gui():
+    lfu.using_gui = True
     lfu.set_gui_pack('modular_core.gui.libqtgui_modular')
     lfu.gui_pack.initialize()
 
 def run_pklplotter():
+    lfu.using_gui = True
     lfu.set_gui_pack('modular_core.gui.libqtgui_pklplotter')
     lfu.gui_pack.initialize()
 

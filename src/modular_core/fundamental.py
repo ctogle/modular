@@ -561,10 +561,13 @@ using_gui = False
 # set global reference to a gui_pack
 def set_gui_pack(pack = None):
     global gui_pack
-    if pack is None and using_gui:
-        pack = 'modular_core.gui.libqtgui'
-        gui_pack = importlib.import_module(pack)
-    else:gui_pack = data_container(lgm = None,lgb = None,lgd = None,lgq = None)
+    if pack is None:pack = 'modular_core.gui.libqtgui'
+    gui_pack = importlib.import_module(pack)
+    #notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
+    #if notpacked and using_gui:
+    #    if pack is None:pack = 'modular_core.gui.libqtgui'
+    #    gui_pack = importlib.import_module(pack)
+    #else:gui_pack = data_container(lgm = None,lgb = None,lgd = None,lgq = None)
 
 # set global reference to gui_pack if it is None
 def check_gui_pack():
