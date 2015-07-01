@@ -8,6 +8,22 @@ import modular_core.postprocessing.process_abstract as lpp
 import pdb,sys,time
 import numpy as np
 
+__doc__ = ''' bins data by time and calculates the mean of each bin
+
+meanfields requires a domain (currently assumed to be time) and a list of targets.
+It also requires a number of bins which is less than or equal to the number of 
+points in its input data set. Lastly, the domain is typically ordered as it is 
+for time, but if this is not the case, a slower binning algorithm should be used.
+meanfields typically operates on simulation data, thus its input is simply '0'.
+
+In an mcfg file, meanfields is specified similarly to the following:
+
+<post_processes>
+    # name : process type : inputs : [targets] of time : bin count : ordered domain
+    means : meanfields : 0 : ES_Complex, Product, Substrate, Enzyme of time : 20 : ordered
+
+'''
+
 ###############################################################################
 ### meanfields calculates means for a set of targets as a function of one target
 ###############################################################################
