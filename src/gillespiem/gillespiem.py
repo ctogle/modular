@@ -278,9 +278,11 @@ class simulation_module(smd.simulation_module):
             writer = cwr.extension(**ext_kwargs)
             writer._write()
             writer._install()
+            self._writer = writer
             print '\ninstallation took:',time.time() - insttime,'seconds\n'
         else:print '\ninstallion was not needed...\n'
-        self.dependencies = [lfu.get_cache_path('gillespiemext_0.so')]
+        #self.dependencies = [lfu.get_cache_path('gillespiemext_0.so')]
+        self.dependencies = [lfu.get_cache_path(self.extensionname)]
 
     def _set_parameters(self):
         module = __import__(self.extensionname)
