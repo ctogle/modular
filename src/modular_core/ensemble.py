@@ -845,8 +845,8 @@ class ensemble_manager(lfu.mobject):
         self._rewidget(True)
         return new
 
-    def _del_ensemble(self):
-        select = self._selected_ensemble()
+    def _del_ensemble(self,select = None):
+        if select is None:select = self._selected_ensemble()
         if select: self.ensembles.remove(select)
         self._rewidget(True)
 

@@ -248,7 +248,8 @@ class batch_node(ldc.data_mobject):
             elif len(bins) > bcnt:
                 c = len(bins)/bcnt
                 newbins = bins[::c]
-                avg = lambda x:(newbins[x-1]+newbins[x])/2.0
+                #avg = lambda x:(newbins[x-1]+newbins[x])/2.0
+                avg = lambda x:newbins[x-1]
                 newbins = np.array([avg(k) for k in range(1,len(newbins))])
                 newvlen = c*vals.shape[2]
                 newvals = np.empty((bcnt,yss.shape[1],newvlen),dtype = np.float)
