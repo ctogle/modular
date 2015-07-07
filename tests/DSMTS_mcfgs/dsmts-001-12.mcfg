@@ -5,9 +5,12 @@
 <capture_criteria>
   increment : 1.0 : time
 
+<functions>
+  Lambda : lambda*0.5*2.0
+
 <variables>
-  Lambda : 1.0
-  Mu : 1.1
+  lambda : 0.1
+  Mu : 0.11
 
 <reactions>
   1 X Lambda -> 2 X : birth of X
@@ -28,7 +31,7 @@
 	workers : 32
 
 <output_plans>
-	1 : - : dsmts-001-03-X : pkl : all
+	1 : - : dsmts-001-12-X : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>

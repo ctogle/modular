@@ -6,15 +6,15 @@
   increment : 1.0 : time
 
 <variables>
-  Lambda : 1.0
-  Mu : 1.1
+  Alpha : 1000.0
+  Mu : 0.1
 
 <reactions>
-  1 X Lambda -> 2 X : birth of X
+  nothing Alpha -> 1 X : immigration of X
   1 X Mu -> nothing : death of X
 
 <species>
-	X : 100
+	X : 0
 
 <plot_targets>
 	time
@@ -28,7 +28,7 @@
 	workers : 32
 
 <output_plans>
-	1 : - : dsmts-001-03-X : pkl : all
+	1 : - : dsmts-002-04-X : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>

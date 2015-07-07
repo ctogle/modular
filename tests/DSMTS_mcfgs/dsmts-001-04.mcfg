@@ -25,10 +25,10 @@
 
 <multiprocessing>
 	multiprocessing : on
-	workers : 8
+	workers : 32
 
 <output_plans>
-	1 : - : dsmts-001-04 : pkl : all
+	1 : - : dsmts-001-04-X : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>

@@ -5,9 +5,12 @@
 <capture_criteria>
   increment : 1.0 : time
 
+<functions>
+  y : 2*X
+
 <variables>
-  Lambda : 1.0
-  Mu : 1.1
+  Lambda : 0.1
+  Mu : 0.11
 
 <reactions>
   1 X Lambda -> 2 X : birth of X
@@ -19,16 +22,19 @@
 <plot_targets>
 	time
   X
+  y
 
 <post_processes>
-	stats : statistics : 0 : X of time : 51 : ordered
+	Xstats : statistics : 0 : X of time : 51 : ordered
+	ystats : statistics : 0 : y of time : 51 : ordered
 
 <multiprocessing>
 	multiprocessing : on
 	workers : 32
 
 <output_plans>
-	1 : - : dsmts-001-03-X : pkl : all
+	2 : - : dsmts-001-19-y : pkl : all
+	1 : - : dsmts-001-19-X : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>
