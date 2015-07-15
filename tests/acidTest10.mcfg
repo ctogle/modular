@@ -1,0 +1,60 @@
+
+<end_criteria>
+	time limit : 100.0
+
+<capture_criteria>
+  increment : 0.1 : time
+
+<variables>
+  alpha : 100.0
+  C : 50.0
+  n : 3
+  g : 1
+  K : 1.0
+  dtau : 5.0
+  kmat : 0.2
+
+<functions>
+  fHill : alpha/(1.0+(r/C)**n)
+  fProt : g
+
+<reactions>
+  ->dtau:fHill->(1)r,
+  (1)r->fProt->,
+  ->dtau:fHill->(1)gu,
+  (1)gu->kmat->(1)gm,
+  (1)gu->fProt->,
+  (1)gm->fProt->
+
+<species>
+  r : 0
+  gu : 0
+  gm : 0
+
+<plot_targets>
+	time
+  r
+  gu
+  gm
+
+<post_processes>
+	stats : statistics : 0 : r of time : 1001 : ordered
+
+<multiprocessing>
+	multiprocessing : on
+	workers : 32
+
+<output_plans>
+	1 : - : acidTest10-r : pkl : all
+	0 : - : ensemble_output : none : all
+
+<ensemble>
+	mapparameterspace : off
+	fitting : off
+	postprocessing : on
+	trajectory_count : 10000
+
+
+
+
+

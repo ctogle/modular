@@ -1,0 +1,387 @@
+  reporting...
+################################################################################
+
+################################################################################
+  ran dsmts tests for gillespiem
+################################################################################
+
+   found the following mcfgs for testing:
+
+    dsmts-001-01.mcfg
+    dsmts-001-03.mcfg
+    dsmts-001-04.mcfg
+    dsmts-001-05.mcfg
+    dsmts-001-07.mcfg
+    dsmts-001-12.mcfg
+    dsmts-001-13.mcfg
+    dsmts-001-14.mcfg
+    dsmts-001-15.mcfg
+    dsmts-001-16.mcfg
+    dsmts-001-19.mcfg
+    dsmts-002-01.mcfg
+    dsmts-002-02.mcfg
+    dsmts-002-04.mcfg
+    dsmts-002-06.mcfg
+    dsmts-003-01.mcfg
+    dsmts-003-02.mcfg
+    dsmts-003-05.mcfg
+    dsmts-003-06.mcfg
+    dsmts-003-07.mcfg
+    dsmts-004-01.mcfg
+    dsmts-004-02.mcfg
+    dsmts-004-03.mcfg
+
+################################################################################
+
+  performed test for mcfg:  dsmts-001-01.mcfg
+
+  passed test dsmts-001-01-X
+    with mean-percent-error:  0.194818557102
+    and stddev-percent-error: 0.380805740251
+
+  passed test dsmts-001-01-X
+    with z-mean-metric value: 2.93603827891
+    and y-stddev-metric value:  1.69977245333
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-03.mcfg
+
+  passed test dsmts-001-03-X
+    with mean-percent-error:  1.13628922138
+    and stddev-percent-error: 1.86519336629
+
+  failed test dsmts-001-03-X
+    with z-mean-metric value: 2.21663395201
+    and y-stddev-metric value:  8.41918992043
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-04.mcfg
+
+  passed test dsmts-001-04-X
+    with mean-percent-error:  0.350211633972
+    and stddev-percent-error: 0.651095866794
+
+  passed test dsmts-001-04-X
+    with z-mean-metric value: 1.96543273528
+    and y-stddev-metric value:  2.92126850573
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-05.mcfg
+
+  passed test dsmts-001-05-X
+    with mean-percent-error:  0.00716405301695
+    and stddev-percent-error: 0.434450872455
+
+  passed test dsmts-001-05-X
+    with z-mean-metric value: 1.38836834203
+    and y-stddev-metric value:  1.94714389115
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-07.mcfg
+
+  passed test dsmts-001-07-X
+    with mean-percent-error:  0.177338087029
+    and stddev-percent-error: 0.446817464278
+
+  passed test dsmts-001-07-X
+    with z-mean-metric value: 1.63948357255
+    and y-stddev-metric value:  1.99376423048
+
+  passed test dsmts-001-07-Sink
+    with mean-percent-error:  0.112738773084
+    and stddev-percent-error: 0.410686027091
+
+  passed test dsmts-001-07-Sink
+    with z-mean-metric value: 2.35935181934
+    and y-stddev-metric value:  1.84041516759
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-12.mcfg
+
+  passed test dsmts-001-12-X
+    with mean-percent-error:  0.0711605313443
+    and stddev-percent-error: 0.547524123163
+
+  passed test dsmts-001-12-X
+    with z-mean-metric value: 1.53091252837
+    and y-stddev-metric value:  2.45530566161
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-13.mcfg
+
+  passed test dsmts-001-13-X
+    with mean-percent-error:  0.156003103486
+    and stddev-percent-error: 0.538916424863
+
+  passed test dsmts-001-13-X
+    with z-mean-metric value: 1.96270617963
+    and y-stddev-metric value:  2.41660175301
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-14.mcfg
+
+  passed test dsmts-001-14-X
+    with mean-percent-error:  0.243215910644
+    and stddev-percent-error: 0.420071157042
+
+  failed test dsmts-001-14-X
+    with z-mean-metric value: 3.30525307789
+    and y-stddev-metric value:  1.88256108563
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-15.mcfg
+
+  passed test dsmts-001-15-X
+    with mean-percent-error:  0.0545722754407
+    and stddev-percent-error: 0.662708336189
+
+  passed test dsmts-001-15-X
+    with z-mean-metric value: 2.04619564781
+    and y-stddev-metric value:  2.95390136231
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-16.mcfg
+
+  passed test dsmts-001-16-X
+    with mean-percent-error:  0.158759699344
+    and stddev-percent-error: 0.297587859333
+
+  passed test dsmts-001-16-X
+    with z-mean-metric value: 1.35925851355
+    and y-stddev-metric value:  1.32887313648
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-001-19.mcfg
+
+  passed test dsmts-001-19-X
+    with mean-percent-error:  0.161188530882
+    and stddev-percent-error: 0.316328417944
+
+  passed test dsmts-001-19-X
+    with z-mean-metric value: 1.99455491052
+    and y-stddev-metric value:  1.41690118311
+
+  passed test dsmts-001-19-y
+    with mean-percent-error:  0.161188530882
+    and stddev-percent-error: 0.316328417944
+
+  passed test dsmts-001-19-y
+    with z-mean-metric value: 1.99455491052
+    and y-stddev-metric value:  1.41690118311
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-002-01.mcfg
+
+  passed test dsmts-002-01-X
+    with mean-percent-error:  0.309740356679
+    and stddev-percent-error: 0.579103201311
+
+  passed test dsmts-002-01-X
+    with z-mean-metric value: 2.58108267609
+    and y-stddev-metric value:  2.59732713739
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-002-02.mcfg
+
+  passed test dsmts-002-02-X
+    with mean-percent-error:  0.0862034494399
+    and stddev-percent-error: 0.466798782283
+
+  passed test dsmts-002-02-X
+    with z-mean-metric value: 2.51987467398
+    and y-stddev-metric value:  2.09246003479
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-002-04.mcfg
+
+  passed test dsmts-002-04-X
+    with mean-percent-error:  0.00916767927055
+    and stddev-percent-error: 0.439774622344
+
+  passed test dsmts-002-04-X
+    with z-mean-metric value: 2.17088662285
+    and y-stddev-metric value:  1.96240730679
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-002-06.mcfg
+
+  passed test dsmts-002-06-X
+    with mean-percent-error:  0.136247265426
+    and stddev-percent-error: 0.592986621729
+
+  failed test dsmts-002-06-X
+    with z-mean-metric value: 3.28316757765
+    and y-stddev-metric value:  2.64405403597
+
+  passed test dsmts-002-06-Source
+    with mean-percent-error:  0.0
+    and stddev-percent-error: 0.0
+
+  passed test dsmts-002-06-Source
+    with z-mean-metric value: 0.0
+    and y-stddev-metric value:  0.0
+
+  passed test dsmts-002-06-Sink
+    with mean-percent-error:  0.261890959825
+    and stddev-percent-error: 0.420772672976
+
+  passed test dsmts-002-06-Sink
+    with z-mean-metric value: 1.68806723261
+    and y-stddev-metric value:  1.87779364934
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-003-01.mcfg
+
+  passed test dsmts-003-01-P
+    with mean-percent-error:  0.068141494645
+    and stddev-percent-error: 0.376597875674
+
+  passed test dsmts-003-01-P
+    with z-mean-metric value: 1.65685945852
+    and y-stddev-metric value:  1.68736822525
+
+  passed test dsmts-003-01-P2
+    with mean-percent-error:  0.0739245555379
+    and stddev-percent-error: 0.376597875674
+
+  passed test dsmts-003-01-P2
+    with z-mean-metric value: 1.65685945852
+    and y-stddev-metric value:  1.68736822525
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-003-02.mcfg
+
+  passed test dsmts-003-02-P
+    with mean-percent-error:  0.0401849270061
+    and stddev-percent-error: 0.513611485597
+
+  passed test dsmts-003-02-P
+    with z-mean-metric value: 2.26076200318
+    and y-stddev-metric value:  2.30283906647
+
+  passed test dsmts-003-02-P2
+    with mean-percent-error:  0.0274036305059
+    and stddev-percent-error: 0.513611485597
+
+  passed test dsmts-003-02-P2
+    with z-mean-metric value: 2.26076200318
+    and y-stddev-metric value:  2.30283906647
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-003-05.mcfg
+
+  passed test dsmts-003-05-P2
+    with mean-percent-error:  0.141922151035
+    and stddev-percent-error: 0.30967024721
+
+  passed test dsmts-003-05-P2
+    with z-mean-metric value: 2.42913697108
+    and y-stddev-metric value:  1.38703173893
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-003-06.mcfg
+
+  passed test dsmts-003-06-P2
+    with mean-percent-error:  0.147036555385
+    and stddev-percent-error: 0.447316040416
+
+  passed test dsmts-003-06-P2
+    with z-mean-metric value: 1.13277473863
+    and y-stddev-metric value:  2.00493233268
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-003-07.mcfg
+
+  passed test dsmts-003-07-P2
+    with mean-percent-error:  0.129467497266
+    and stddev-percent-error: 0.515912037545
+
+  passed test dsmts-003-07-P2
+    with z-mean-metric value: 1.49290019586
+    and y-stddev-metric value:  2.30127713724
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-004-01.mcfg
+
+  passed test dsmts-004-01-X
+    with mean-percent-error:  0.386573274143
+    and stddev-percent-error: 0.440896990596
+
+  passed test dsmts-004-01-X
+    with z-mean-metric value: 1.73651207921
+    and y-stddev-metric value:  1.97609798013
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-004-02.mcfg
+
+  failed test dsmts-004-02-X
+    with mean-percent-error:  50.0107936707
+    and stddev-percent-error: 29.672168458
+
+  failed test dsmts-004-02-X
+    with z-mean-metric value: 477.311429008
+    and y-stddev-metric value:  113.010788613
+
+################################################################################
+
+
+  performed test for mcfg:  dsmts-004-03.mcfg
+
+  failed test dsmts-004-03-X
+    with mean-percent-error:  95.0061759621
+    and stddev-percent-error: 77.74059592
+
+  failed test dsmts-004-03-X
+    with z-mean-metric value: 948.836713345
+    and y-stddev-metric value:  212.527504209
+
+################################################################################
+
+
+################################################################################
+  finished dsmts tests for gillespiem
+passed 21 / 23 tests
+################################################################################
+

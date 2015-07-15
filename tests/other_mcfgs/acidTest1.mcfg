@@ -1,0 +1,55 @@
+
+<end_criteria>
+	time limit : 5.1
+
+<capture_criteria>
+  increment : 0.1 : time
+
+<variables>
+  g : 0.5
+  k : 2.0
+
+<functions>
+  H : x*g+y*k
+  G : x-y
+  B : 1.0
+
+<species>
+  x : 10
+  y : 0
+  z : 5
+  w : 5
+
+<reactions>
+  1 x B -> 2 y : x produces ys
+  nothing k -> 1 z : birth of z
+  1 w g -> nothing : death of w
+
+<plot_targets>
+  time
+  x
+  y
+  z
+  w
+  H
+  G
+  B
+
+<post_processes>
+	stats : statistics : 0 : x of time : 51 : ordered
+
+<multiprocessing>
+	multiprocessing : on
+	workers : 32
+
+<output_plans>
+	1 : - : acidTest1-x : pkl : all
+	0 : - : ensemble_output : none : all
+
+<ensemble>
+	mapparameterspace : off
+	fitting : off
+	postprocessing : on
+	trajectory_count : 10000
+
+
