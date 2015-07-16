@@ -6,8 +6,8 @@
   increment : 0.1 : time
 
 <variables>
-  alpha : 30.0
-  C : 10.0
+  alpha : 10.0
+  C : 1.0
   b : 5.0
   d : 1.0
   g : 1.0
@@ -21,7 +21,7 @@
 <species>
   x : 0
   y : 10
-  z : 0
+  z : 10
   mx : 0
   my : 0
   mz : 0
@@ -56,9 +56,9 @@
 	workers : 32
 
 <output_plans>
-	3 : - : acidTest2-z : pkl : all
-	2 : - : acidTest2-y : pkl : all
-	1 : - : acidTest2-x : pkl : all
+	3 : - : acidTest4-z : pkl : all
+	2 : - : acidTest4-y : pkl : all
+	1 : - : acidTest4-x : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>

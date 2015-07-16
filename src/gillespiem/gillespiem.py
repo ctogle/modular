@@ -83,6 +83,7 @@ class simulation_module(smd.simulation_module):
 
     def __init__(self,*args,**kwargs):
         self._default('optimize_reaction_order',False,**kwargs)
+        #self._default('optimize_reaction_order',True,**kwargs)
         self.run_parameter_keys.extend(
             ['Variables','Functions','Reactions','Species'])
         self.parse_types.extend(
@@ -405,7 +406,8 @@ class external_signal_function(cwr.function):
         self._default('domain','time',**kwargs)
         self._default('signalpath','',**kwargs)
         self._default('rxncount',0,**kwargs)
-        self._default('cytype','cdef double',**kwargs)
+        #self._default('cytype','cdef double',**kwargs)
+        self._default('cytype','cdef inline double',**kwargs)
         self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
         with open(self.signalpath,'r') as handle:
@@ -431,7 +433,7 @@ class gauss_noise(cwr.function):
     def __init__(self,*args,**kwargs):
         self._default('name','gauss_noise',**kwargs)
         self._default('argstring','double value',**kwargs)
-        self._default('cytype','cdef double',**kwargs)
+        self._default('cytype','cdef inline double',**kwargs)
         #self._default('cyoptions',' nogil',**kwargs)
         self._default('SNR',1.0,**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
@@ -447,7 +449,7 @@ class heaviside(cwr.function):
     def __init__(self,*args,**kwargs):
         self._default('name','heaviside',**kwargs)
         self._default('argstring','double value',**kwargs)
-        self._default('cytype','cdef double',**kwargs)
+        self._default('cytype','cdef inline double',**kwargs)
         self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
 
@@ -586,11 +588,12 @@ class run(cwr.function):
 
         coder.write('\n\n\t\tif totalpropensity > 0.0:')
         coder.write('\n\t\t\ttpinv = 1.0/totalpropensity')
-        coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
-        coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
+        #coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
+        #coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
         
         coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
-        coder.write('\n\t\t\trandr = <float>random.random()')
+        #coder.write('\n\t\t\trandr = <float>random.random()')
+        coder.write('\n\t\t\trandr = <float>random.random()*totalpropensity')
 
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
@@ -745,7 +748,7 @@ class reaction(lfu.run_parameter):
             name = 'rxn'+str(dx),
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef void',
+            cytype = 'cdef inline void',
             cyoptions = ' nogil')
         cy._code_body = self._cython_react_body
         return cy
@@ -763,7 +766,7 @@ class reaction(lfu.run_parameter):
             name = 'rxnvalid'+str(dx),
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef bint',
+            cytype = 'cdef inline bint',
             cyoptions = ' nogil')
         cy._code_body = self._cython_valid_body
         return cy
@@ -794,7 +797,7 @@ class reaction(lfu.run_parameter):
             name = 'rxnpropensity'+str(dx),
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef double',
+            cytype = 'cdef inline double',
             cyoptions = ' nogil')
         cy._code_body = self._cython_propensity_body
         return cy
@@ -902,7 +905,7 @@ signalpaths = {}
 class function(lfu.run_parameter):
 
     def _carray(self,coder,name,shape,dtype = 'double'):
-        coder.write('\n\tcdef '+dtype+' '+name+'[')
+        coder.write('\n\tcdef inline '+dtype+' '+name+'[')
         coder.write(','.join([str(s) for s in shape])+']')
 
     def _signal_name(self,signalpath,sdomain):
@@ -936,7 +939,7 @@ class function(lfu.run_parameter):
             name = self.name,
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
-            cytype = 'cdef double',
+            cytype = 'cdef inline double',
             cyoptions = ' nogil')
         cy._code_body = self._cython_body
         if self._ext_signal():
