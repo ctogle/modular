@@ -9,7 +9,7 @@ import pdb,sys,math
 import numpy as np
 import scipy.ndimage.morphology as morph
 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 ###############################################################################
 ### period_finder measures the period of a signal as a function of time
@@ -86,10 +86,10 @@ class period_finder(lpp.post_process_abstract):
         inds = np.argwhere(x == y)
         inds = self.hone(inds,x)
 
-        plt.plot(t,x)
-        plt.plot(t,y)
-        plt.plot([t[i] for i in inds],[x[j] for j in inds])
-        plt.show()
+        #plt.plot(t,x)
+        #plt.plot(t,y)
+        #plt.plot([t[i] for i in inds],[x[j] for j in inds])
+        #plt.show()
 
         if not inds:return None,None,None
         time = np.zeros((inds[-1]-inds[0],))

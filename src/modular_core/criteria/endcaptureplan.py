@@ -1,7 +1,7 @@
 import modular_core.fundamental as lfu
 import modular_core.criteria.abstract as cab
 
-import pdb,sys,os,traceback,time,types
+import pdb,sys,os,traceback,time,types,numpy
 
 if __name__ == 'modular_core.criteria.endcaptureplan':
     lfu.check_gui_pack()
@@ -38,7 +38,7 @@ class endcapture_plan(lfu.plan):
         return cpt
 
     def _capture_count(self):
-        ccnt = int(self._max_time()/self._capture_increment())+1
+        ccnt = int(numpy.round(self._max_time()/self._capture_increment()))+1
         return ccnt
 
     def _capture_increment(self):
@@ -201,41 +201,6 @@ class endcapture_plan(lfu.plan):
 ###############################################################################
 ###############################################################################
 
-
-
-
-
-
-'''#
-class sim_system_external(object):
-
-    # finalize_data_nontrivial will perform necessary handling for
-    #  non 1-1 listed data (surfaces for example)
-    # it will return a tuple of data objects - general output case
-    # args = [dataobject1, ..., dataobjectN, [targetname1, ..., targetnameN]]
-    # dataobject1 should be simplest data case occurring:
-    #  numpy array of dimension 2, of shape (numtargets, numcaptures)
-    # dataobject2 should be no simpler than the second data case:
-    #  numpy array of dimension 3, of shape (x,x,x) where x is arbitrary
-    # support for other data objects will be added as necessary
-    def finalize_data_nontrivial(self, *args, **kwargs):
-
-        def data_case_1(dataobj, targs, **kwargs):
-            tcnt = dataobj.shape[0]
-            subtargs = targs[:tcnt]
-            kwargs['ignore_targets'] = targs[tcnt:]
-            return self.finalize_data(dataobj, subtargs, **kwargs)
-
-        targs = args[-1]
-        final = []
-        for dataobj in args[:-1]:
-            if dim == 2:final.append(data_case_1(dataobj,targs))
-            elif dim == 3:final.append(dataobj)
-            elif dim == 4:final.append(dataobj)
-            elif dim == 5:final.append(dataobj)
-
-        return tuple(final)
-'''#
 
 
 

@@ -137,12 +137,14 @@ class ensemble(lfu.mobject):
         fplan = self.fitting_plan
         if fplan.use_plan:fdata = fplan._data()
         else:fdata = None
-        
+
+        requiresimdata = self._require_simulation_data()
+        if not requiresimdata:dpool = None
+
         data_pool = lfu.data_container(data = dpool, 
             postproc_data = pdata,routine_data = fdata)
         self._describe_data_pool(data_pool)
         self.data_pool_pkl = self._data_pool_path()
-        #lf.save_mobject(data_pool,self.data_pool_pkl)
         lpkl.save_pkl_object(data_pool,self.data_pool_pkl)
         print 'saved data pool:',time.time() - stime
         print '\tsaved at:',self.data_pool_pkl
@@ -150,7 +152,6 @@ class ensemble(lfu.mobject):
     def _load_data_pool(self):
         print 'loading data pool...'
         stime = time.time()
-        #dpool = lf.load_mobject(self.data_pool_pkl)
         dpool = lpkl.load_pkl_object(self.data_pool_pkl)
         self._describe_data_pool(dpool)
         print 'loaded data pool:',time.time() - stime
@@ -249,6 +250,10 @@ class ensemble(lfu.mobject):
 
     # determine if keeping the simulation data is necessary
     def _require_simulation_data(self):
+        # this shall return False only for a bit since the extraction 
+        # post process technically provides this feature properly...
+        return False
+        '''#
         mustout = self.output_plan._must_output()
         mapping = self.cartographer_plan.use_plan
         fitting = self.fitting_plan.use_plan
@@ -273,6 +278,7 @@ class ensemble(lfu.mobject):
         #    print 'skipping simulation data aggregation...'
         #    return False
         return True
+        '''#
 
     # run a specific way depending on the settings of the ensemble
     def _run_specific(self,*args,**kwargs):
@@ -621,9 +627,10 @@ class ensemble(lfu.mobject):
             print 'saved ensemble:',self.name
 
     # run an mcfg without producing the associated output
-    def _run_mcfg(self,mcfg):
+    def _run_mcfg(self,mcfg,num_traj = None):
         self.mcfg_path = mcfg
         self._parse_mcfg()
+        if not num_traj is None:self.num_trajectories = num_traj
         self.output_plan.targeted = self.run_params['plot_targets'][:]
         self.output_plan._target_settables()
         return self._run_specific()

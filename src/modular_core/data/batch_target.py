@@ -405,7 +405,8 @@ class batch_node(ldc.data_mobject):
             if len(data.shape) == 2:datamobj = dst.scalars
             else:return friendly
             for dx in range(data.shape[0]):
-                std = datamobj(name = targets[dx],data = data[dx],marker = 'x')
+                #std = datamobj(name = targets[dx],data = data[dx],marker = 'x')
+                std = datamobj(name = targets[dx],data = data[dx])
                 friendly.append(std)
             self._spruce(friendly)
             self._stow(v = False)
