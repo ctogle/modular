@@ -94,11 +94,13 @@ from cython.view cimport array as cvarray
         if os.path.isfile(extinplace):os.remove(extinplace)
 
         extname = lastname+'.c'
-        extinresrc = lfu.get_resource_path(extname)
+        #extinresrc = lfu.get_resource_path(extname)
+        extinresrc = lfu.get_cache_path(extname)
         if os.path.isfile(extinresrc):os.remove(extinresrc)
 
         extname = lastname+'.pyx'
-        extinresrc = lfu.get_resource_path(extname)
+        #extinresrc = lfu.get_resource_path(extname)
+        extinresrc = lfu.get_cache_path(extname)
         if os.path.isfile(extinresrc):os.remove(extinresrc)
 
         #if self.name in sys.modules.keys():
@@ -138,7 +140,8 @@ from cython.view cimport array as cvarray
         self._default('functions',[],**kwargs)
 
         lfu.mobject.__init__(self,*args,**kwargs)
-        self.filepath = lfu.get_resource_path(self.name+'.pyx')
+        #self.filepath = lfu.get_resource_path(self.name+'.pyx')
+        self.filepath = lfu.get_cache_path(self.name+'.pyx')
 
     # add standard cython header info to pyx file
     def _code_header(self,coder):

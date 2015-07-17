@@ -49,10 +49,10 @@
 
 <multiprocessing>
 	multiprocessing : on
-	workers : 16
+	workers : 32
 
 <clustering>
-  distributed : on
+  distributed : off
   simulations_per_job : 1000
 
 <output_plans>
