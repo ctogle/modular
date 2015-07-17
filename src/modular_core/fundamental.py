@@ -161,6 +161,8 @@ def set_cache_path(cpath = None):
     if current in sys.path:sys.path.remove(current)
     if not cpath is None:user_cache_path = cpath
     sys.path.append(get_cache_path())
+    if not os.path.exists(get_cache_path()):
+        os.mkdir(get_cache_path())
 
 # resolve full resource path from resource filename
 def get_resource_path(res = None):
@@ -561,8 +563,13 @@ using_gui = False
 # set global reference to a gui_pack
 def set_gui_pack(pack = None):
     global gui_pack
-    if pack is None:pack = 'modular_core.gui.libqtgui'
-    gui_pack = importlib.import_module(pack)
+    notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
+    #if pack is None:
+    if notpacked:
+	if using_gui:
+	    pack = 'modular_core.gui.libqtgui'
+    	    gui_pack = importlib.import_module(pack)
+    	else:gui_pack = data_container(lgm = None,lgb = None,lgd = None,lgq = None)
     #notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
     #if notpacked and using_gui:
     #    if pack is None:pack = 'modular_core.gui.libqtgui'

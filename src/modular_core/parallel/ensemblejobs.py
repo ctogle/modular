@@ -1,3 +1,4 @@
+import modular_core.fundamental as lfu
 import modular_core.parallel.mpicluster as mmcl
 import modular_core.data.batch_target as dba
 import modular_core.parameterspace.parameterspaces as lpsp
@@ -86,10 +87,10 @@ class ejob(mmcl.mjob):
         print 'updating cache directory per node...'
         host = MPI.Get_processor_name()
         lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
-        mmcl.silence()
+        #mmcl.silence()
         ensem = self.wargs[0]
         ensem._run_params_to_location_prepoolinit()
-        mmcl.vocalize()
+        #mmcl.vocalize()
         print 'finished prepoolinit work'
 
     # decide how to do work based on self.work string

@@ -34,20 +34,21 @@ import modular_core.postprocessing.periodfinding as mpf
 import modular_core.postprocessing.extraction as mex
 import modular_core.postprocessing.k_means_clusters as kmc
 
+'''#
 import matplotlib.pyplot as plt
 import modular_core.fitting.explorer as fex
 import modular_core.fitting.annealing as fan
 import modular_core.fitting.measurement as fme
 import modular_core.fitting.learner as fln
-
 '''#
+
 try:import matplotlib.pyplot as plt
 except ImportError:plt = None
+except RuntimeError:plt = None
 if not plt is None:import modular_core.fitting.explorer as fex
 #import modular_core.fitting.annealing as fan
 #import modular_core.fitting.measurement as fme
 #import modular_core.fitting.learner as fln
-'''#
 
 import pdb,os,sys,traceback,types,time,imp
 import multiprocessing as mp
