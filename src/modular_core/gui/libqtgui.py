@@ -1,8 +1,16 @@
-import modular_core.fundamental as lfu
 
-import modular_core.gui.libqtgui_masons as lgm
-import modular_core.gui.libqtgui_bricks as lgb
-import modular_core.gui.libqtgui_dialogs as lgd
+lgm = None
+lgb = None
+lgd = None
+def import_guilibs():
+    global lgm,lgb,lgd
+    import modular_core.gui.libqtgui_masons as lgm
+    import modular_core.gui.libqtgui_bricks as lgb
+    import modular_core.gui.libqtgui_dialogs as lgd
+    return lgm,lgb,lgd
+import_guilibs()
+
+import modular_core.fundamental as lfu
 
 import matplotlib
 matplotlib.rcParams['backend.qt4'] = 'PySide'
@@ -29,6 +37,7 @@ class application(QtGui.QApplication):
                     standards = self._standards_)
 
     def initialize(self, *args, **kwargs):
+        import_guilibs()
         self.main_window = gui_window(*args, **kwargs)
 
 class gui_window(QtGui.QMainWindow):

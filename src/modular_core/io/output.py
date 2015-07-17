@@ -131,6 +131,9 @@ class writer_plt(writer_abstract):
         writer_abstract.__init__(self,*args,**kwargs)
 
     def _check_qt_application(self):
+        lgm = lfu.gui_pack.lgm
+        lgd = lfu.gui_pack.lgd
+        lgb = lfu.gui_pack.lgb
         qapp = lgb.QtGui.QApplication
         if qapp.instance() is None:
             app = qapp(sys.argv)

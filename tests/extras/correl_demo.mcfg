@@ -48,11 +48,11 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
-	multiprocessing : off
+	multiprocessing : on
 	workers : 16
 
 <clustering>
-  distributed : off
+  distributed : on
   simulations_per_job : 1000
 
 <output_plans>

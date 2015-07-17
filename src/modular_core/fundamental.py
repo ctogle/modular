@@ -1,5 +1,5 @@
 ### libfundamental is importable from anywhere in modular
-import pdb,os,sys,traceback,time,types,appdirs,importlib
+import pdb,os,sys,traceback,time,types,appdirs,importlib,copy
 import numpy as np
 
 ###############################################################################
@@ -563,13 +563,15 @@ using_gui = False
 # set global reference to a gui_pack
 def set_gui_pack(pack = None):
     global gui_pack
-    notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
+    packed = issubclass(gui_pack.__class__,data_container)
+    #notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
     #if pack is None:
-    if notpacked:
+    if not packed or not pack is None:
 	if using_gui:
-	    pack = 'modular_core.gui.libqtgui'
+            if pack is None:pack = 'modular_core.gui.libqtgui'
     	    gui_pack = importlib.import_module(pack)
     	else:gui_pack = data_container(lgm = None,lgb = None,lgd = None,lgq = None)
+
     #notpacked = issubclass(gui_pack.__class__,data_container) or pack is None
     #if notpacked and using_gui:
     #    if pack is None:pack = 'modular_core.gui.libqtgui'

@@ -181,7 +181,9 @@ def listen(root):
     print 'listener starting',rank,'on',host
     while not quit:
         job = comm.recv(source = root)
-        if job == 'quit':break
+        if job == 'quit':
+            print 'listening node told to quit!'
+            break
         else:
             if job.silent:silence()
             else:vocalize()
@@ -199,10 +201,12 @@ def listen(root):
     print 'listener quit',rank,'on',host
 
 def stop_listeners(root):
+    print 'root is stopping listeners:',root
     comm = MPI.COMM_WORLD
     ncnt = comm.size
     nodes = [x for x in range(ncnt) if not x == root]
     for f in nodes:comm.send('quit',dest = f)
+    print 'root stopped listeners:',root
 
 ###############################################################################
 
