@@ -245,12 +245,14 @@ class batch_node(ldc.data_mobject):
                 print '\nfewer data entries than bins; reduce bin count!\n'
                 #return bins,vals
                 raise ValueError
-            elif len(bins) > bcnt:
+            #elif len(bins) > bcnt:
+            elif len(bins) >= bcnt:
                 c = len(bins)/bcnt
                 newbins = bins[::c]
+                avg = lambda x:newbins[x]
+                newbins = np.array([avg(k) for k in range(len(newbins))])
                 #avg = lambda x:(newbins[x-1]+newbins[x])/2.0
-                avg = lambda x:newbins[x-1]
-                newbins = np.array([avg(k) for k in range(1,len(newbins))])
+                #newbins = np.array([avg(k) for k in range(1,len(newbins))])
                 newvlen = c*vals.shape[2]
                 newvals = np.empty((bcnt,yss.shape[1],newvlen),dtype = np.float)
                 for b in range(bcnt):
@@ -276,9 +278,16 @@ class batch_node(ldc.data_mobject):
                 proxy._trajectory(ch.data)
                 ch._stow(v = False)
             data = proxy.data
+        elif len(dshape) == 2:
+            dshape = (1,)+dshape
+            targs = self.targets
+            proxy = batch_node(dshape = dshape,targets = targs)
+            proxy._trajectory(self.data)
+            data = proxy.data
         else:
             targs = self.targets
             data = self.data
+
         xs = np.empty(shape = (dshape[0],dshape[2]),dtype = np.float)
         yss = np.empty(shape = (dshape[0],len(ys),dshape[2]),dtype = np.float)
         for trajdx in range(dshape[0]):

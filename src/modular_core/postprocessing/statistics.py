@@ -22,7 +22,8 @@ class statistics(lpp.post_process_abstract):
 
     def __init__(self,*args,**kwargs):
         self._default('name','statistics',**kwargs)
-        regs = ['all trajectories','by parameter space']
+        regs = ['all trajectories','by parameter space','per trajectory']
+        #regs = ['all trajectories','by parameter space']
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
 
@@ -34,6 +35,13 @@ class statistics(lpp.post_process_abstract):
         #self.method = self.statistics
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
+    # determine how process is run based on ensemble settings
+    def _regime(self,*args,**kwargs):
+        self.output.flat_data = False
+        if not 'simulation' in self.input_regime:
+            self.regime = 'per trajectory'
+        else:self.regime = 'all trajectories'
+
     def statistics(self,*args,**kwargs):
         pool = args[0]
 
@@ -41,9 +49,6 @@ class statistics(lpp.post_process_abstract):
         bct,orr = self.bin_count,self.ordered
         bins,valss = pool._bin_data(fof,[mof],bct,orr)
         vals = valss[:,0,:]
-
-        #bin_axes,mean_axes = select_for_binning(pool,fof,mof)
-        #bins,vals = bin_scalars(bin_axes,mean_axes,bct,orr)
 
         tcount = len(self.target_list)
         dshape = (tcount,bct)
@@ -56,7 +61,6 @@ class statistics(lpp.post_process_abstract):
         variances = [np.var(val) for val in vals]
         ddexes = range(len(means))
 
-        #data = ldc.scalars_from_labels(self.target_list)
         data[0] = bins
         data[1] = means
         data[2] = medians
@@ -66,13 +70,14 @@ class statistics(lpp.post_process_abstract):
         data[6] = [means[k] - stddevs[k] for k in ddexes]
         data[7] = cov
 
-        #return data
         bnode = self._init_data(dshape,self.target_list)
         bnode._trajectory(data)
         return bnode
 
     def _target_settables(self, *args, **kwargs):
-        self.valid_regimes = ['all trajectories','by parameter space']
+        #self.valid_regimes = ['all trajectories','by parameter space']
+        self.valid_regimes = ['all trajectories',
+            'by parameter space','per trajectory']
         self.valid_inputs = self._valid_inputs(*args, **kwargs)
         capture_targetable = self._targetables(*args, **kwargs)
         if self.mean_of is None and capture_targetable:

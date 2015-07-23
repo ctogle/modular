@@ -35,11 +35,11 @@ class pkl_handler(lfu.mobject):
             outputs.append(newoutp)
             data_.append(dba.batch_node())
             self.capture_targets = []
-            relev = [p for p in pkl_files if p[:p.find('.')] == outp]
+            #relev = [p for p in pkl_files if p[:p.find('.')] == outp]
+            relev = sorted([p for p in pkl_files if p[:p.find('.')] == outp])
             for fi in relev:
                 fipath = os.path.join(self.pkl_files_directory, fi)
                 dat = lpkl.load_pkl_object(fipath)
-                #dat = lf.load_mobject(fipath)
                 ptargets = [d.name for d in dat.data]
                 data_[-1]._add_child(dba.batch_node(data = dat.data))
                 self.capture_targets.extend(ptargets)
