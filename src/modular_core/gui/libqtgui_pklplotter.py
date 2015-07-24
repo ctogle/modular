@@ -14,6 +14,16 @@ lgb = lqg.lgb
 
 import pdb,os,sys
 
+def filenumber(x):
+    front = x.replace('.pkl','')
+    fnum = int(front[front.rfind('.')+1:])
+    return fnum
+
+def sortfiles(files):
+    fnums = [filenumber(x) for x in files]
+    files = list(zip(*sorted(zip(fnums,files)))[1])
+    return files
+
 class pkl_handler(lfu.mobject):
     def __init__(self,*args,**kwargs):
         self.settings_manager = lset.settings_manager(
@@ -36,7 +46,9 @@ class pkl_handler(lfu.mobject):
             data_.append(dba.batch_node())
             self.capture_targets = []
             #relev = [p for p in pkl_files if p[:p.find('.')] == outp]
-            relev = sorted([p for p in pkl_files if p[:p.find('.')] == outp])
+            relev = sortfiles([p for p in pkl_files if p[:p.find('.')] == outp])
+            print('file ordering:')
+            for x in relev:print('\t',x)
             for fi in relev:
                 fipath = os.path.join(self.pkl_files_directory, fi)
                 dat = lpkl.load_pkl_object(fipath)
