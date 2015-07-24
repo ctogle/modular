@@ -168,7 +168,7 @@ def run_tests(n = 10000,plots = False):
     print '\n\treporting...\n'+'#'*80+'\n',report.getvalue()
 
 if __name__ == '__main__':
-    run_tests(100000,False)
+    run_tests(10000,False)
 
 
 

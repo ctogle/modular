@@ -230,6 +230,7 @@ class simulation_module(smd.simulation_module):
             funcs[f].rxncount = rcnt
         rxnfuncs = [rx._cython_react(x) for x,rx in enumerate(rxns)]
         rxnvalds = [rx._cython_valid(x) for x,rx in enumerate(rxns)]
+        rxnvalds = [x for x in rxnvalds if not x is None]
         rxnprops = [rx._cython_propensity(x) for x,rx in enumerate(rxns)]
         rxnrates = [funcs[fu]._cython(x) for x,fu in enumerate(funcs.keys())]
         funcs = [runfunc]
@@ -443,7 +444,7 @@ class gauss_noise(cwr.function):
 class heaviside(cwr.function):
 
     def _code_body(self,coder):
-        coder.write('\n\tif value > 0.0:return 1.0')
+        coder.write('\n\tif value >= 0.0:return 1.0')
         coder.write('\n\telse:return 0.0\n')
 
     def __init__(self,*args,**kwargs):
@@ -525,7 +526,7 @@ class run(cwr.function):
             coder.write('\n\ttdexes['+str(tdx)+'] = '+str(statedex))
         
     # THIS SHOULD PROBABLY BE ACID TESTED
-    def _gibson_lookup(self,rxns):
+    def _gibson_lookup(self,rxns,funcs):
         rcnt = len(rxns)
         alwayses = [d for d in range(rcnt) if rxns[d].rate_is_function]
         lookups = [[] for r in rxns]
@@ -552,7 +553,17 @@ class run(cwr.function):
                 if not found and not u[0] in r.affected_species:
                     r.affected_species.append(u[0])
             #print 'rxn',r.name,r.affected_species
-            lookups[rdx].extend(alwayses)
+
+            #lookups[rdx].extend(alwayses)
+            for alw in alwayses:
+                if funcs[rxns[alw].rate]._depends_on('time',funcs):
+                    lookups[rdx].append(alw)
+                    continue
+                for affs in r.affected_species:
+                    if funcs[rxns[alw].rate]._depends_on(affs,funcs):
+                        lookups[rdx].append(alw)
+                        break
+
             for rdx2 in range(rcnt):
                 r2 = rxns[rdx2]
                 for u2 in r2.used:
@@ -581,7 +592,22 @@ class run(cwr.function):
         coder.write('\n\t\ttotalpropensity = 0.0')
         rcnt = len(self.reactions)
         for pdex in range(rcnt):
-            coder.write('\n\t\tif rxnvalid'+str(pdex)+'(state):')
+            rxn = self.reactions[pdex]
+            uchecks = []
+            for u in rxn.used:
+                uspec,ucnt = u
+                udex = rxn.statetargets.index(uspec)
+                uchecks.append('state['+str(udex)+'] >= '+str(ucnt))
+            if uchecks:ucheckline = '\n\t\tif '+' and '.join(uchecks)+':'
+            else:ucheckline = '\n\t\t'
+            '''
+            coder.write('\n\tif state['+str(udex)+'] < '+str(ucnt)+':')
+            coder.write('return 0')
+            '''
+            #if self.reactions[pdex].requires_validator:
+            #    coder.write('\n\t\tif rxnvalid'+str(pdex)+'(state):')
+            #else:coder.write('\n\t\t')
+            coder.write(ucheckline)
             coder.write('totalpropensity = totalpropensity + ')
             coder.write('propensities['+str(pdex)+']')
             coder.write('\n\t\treactiontable['+str(pdex)+'] = totalpropensity')
@@ -624,14 +650,38 @@ class run(cwr.function):
         coder.write('\n\t\t\tcapturecount += 1')
         coder.write('\n\t\tstate[0] = realtime')
 
-        lookup = self._gibson_lookup(self.reactions)
+        lookup = self._gibson_lookup(self.reactions,self.functions)
         rcnt = len(self.reactions)
 
         # the lookup for the null reaction is every reaction!!!
         coder.write('\n\n\t\tif whichrxn == -1:')
         for rdex in range(rcnt):
-            rname = 'rxnpropensity'+str(rdex)
-            coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
+            #rname = 'rxnpropensity'+str(rdex)
+            #coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rname+'(state)')
+
+            rxn = self.reactions[rdex]
+            uchecks = []
+            for u in rxn.used:
+                uspec,ucnt = u
+                udex = rxn.statetargets.index(uspec)
+                #uchecks.append('state['+str(udex)+']')
+                uline = ['(state['+str(udex)+']-'+str(x)+')' for x in range(ucnt)]
+                uline[0] = uline[0].replace('-0','')
+                if ucnt > 1:uline.append(str(1.0/ucnt))
+                uchecks.append('*'.join(uline))
+
+            try: ratestring = str(float(rxn.rate))
+            except ValueError:
+                if rxn.rate in rxn.functionnames:
+                    ratestring = rxn.rate+'(state)'
+                    rxn.rate_is_function = True
+                else:
+                    vdex = rxn.statetargets.index(rxn.rate)
+                    ratestring = 'state['+str(vdex)+']'
+
+            uchecks.append(ratestring)
+            rxnpropexprsn = '*'.join(uchecks)
+            coder.write('\n\t\t\tpropensities['+str(rdex)+'] = '+rxnpropexprsn)
 
         rwhichrxnmap = range(rcnt)
         for rdex in rwhichrxnmap:
@@ -640,9 +690,32 @@ class run(cwr.function):
             if self.countreactions:
                 coder.write('\n\t\t\treactcounts['+str(rdex)+'] += 1')
             for look in lookup[rdex]:
-                rname = 'rxnpropensity'+str(look)
-                coder.write('\n\t\t\tpropensities['+str(look)+']')
-                coder.write(' = '+rname+'(state)')
+                #rname = 'rxnpropensity'+str(look)
+                #coder.write('\n\t\t\tpropensities['+str(look)+']')
+                #coder.write(' = '+rname+'(state)')
+
+                rxn = self.reactions[look]
+                uchecks = []
+                for u in rxn.used:
+                    uspec,ucnt = u
+                    udex = rxn.statetargets.index(uspec)
+                    uline = ['(state['+str(udex)+']-'+str(x)+')' for x in range(ucnt)]
+                    uline[0] = uline[0].replace('-0','')
+                    if ucnt > 1:uline.append(str(1.0/ucnt))
+                    uchecks.append('*'.join(uline))
+
+                try: ratestring = str(float(rxn.rate))
+                except ValueError:
+                    if rxn.rate in rxn.functionnames:
+                        ratestring = rxn.rate+'(state)'
+                        rxn.rate_is_function = True
+                    else:
+                        vdex = rxn.statetargets.index(rxn.rate)
+                        ratestring = 'state['+str(vdex)+']'
+
+                uchecks.append(ratestring)
+                rxnpropexprsn = '*'.join(uchecks)
+                coder.write('\n\t\t\tpropensities['+str(look)+'] = '+rxnpropexprsn)
 
     def _code_body_finalize(self,coder):
         if self.use_timeout:coder.write('\n\n\tif timed_out:return None')
@@ -762,6 +835,17 @@ class reaction(lfu.run_parameter):
         coder.write('\n\treturn 1\n')
 
     def _cython_valid(self,dx):
+        if True:
+            print 'rxn validators are off!!',self.name
+            self.requires_validator = False
+            return None
+
+
+
+        if len(self.used) == 0:
+            print 'rxn does not require validator!',self.name
+            self.requires_validator = False
+            return None
         cy = cwr.function(
             name = 'rxnvalid'+str(dx),
             #argstring = 'double['+str(self.rxncount)+'] state',
@@ -769,6 +853,7 @@ class reaction(lfu.run_parameter):
             cytype = 'cdef inline bint',
             cyoptions = ' nogil')
         cy._code_body = self._cython_valid_body
+        self.requires_validator = True
         return cy
 
     def _cython_propensity_body(self,coder):
@@ -968,6 +1053,13 @@ class function(lfu.run_parameter):
     def _ext_signal(self):
         if self.func_statement.count('external_signal'):return True
         else:return False
+
+    def _depends_on(self,spec,funcs):
+        for f in funcs:
+            if self.func_statement.count(f) > 0:
+                deps = funcs[f]._depends_on(spec)
+                if deps:return True
+        return self.func_statement.count(spec) > 0
 
     def __init__(self,*args,**kwargs):
         if not 'name' in kwargs.keys():
