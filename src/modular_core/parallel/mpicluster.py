@@ -1,3 +1,5 @@
+import modular_core.fundamental as lfu
+
 import random,time
 
 from mpi4py import MPI
@@ -100,7 +102,10 @@ def host_lookup(root):
     hosts = {}
     passjob = mjob([],'pass')
     for c in range(ncnt):
-        if c == root:hosts['root'] = c
+        if c == root:
+            hosts['root'] = c
+            host = MPI.Get_processor_name()
+            lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
         else:
             comm.send(passjob,dest = c)
             jrk,npr,jid,jshp = comm.recv(source = c)
