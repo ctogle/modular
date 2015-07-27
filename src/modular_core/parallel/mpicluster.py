@@ -181,6 +181,10 @@ def delegate(root,jobs,setup = None,v = True):
 def listen(root):
     comm = MPI.COMM_WORLD
     host = MPI.Get_processor_name()
+
+    print 'updating cache directory per node...'
+    lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+
     rank = comm.rank
     quit = False
     print 'listener starting',rank,'on',host

@@ -99,11 +99,7 @@ class ejob(mmcl.mjob):
         elif self.work == 'aggregate':r = self._aggregate()
         elif self.work == 'plocation':r = self._run_pspace_location()
         elif self.work == 'prepoolinit':r = self._prepoolinit()
-        elif self.work == 'pass':
-            r = None
-            print 'updating cache directory per node...'
-            host = MPI.Get_processor_name()
-            lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+        elif self.work == 'pass':r = None
         else:print 'UNKNOWN WORK REQUEST!',self.work
         self.result = r
 
