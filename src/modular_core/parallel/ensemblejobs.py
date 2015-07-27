@@ -85,6 +85,11 @@ class ejob(mmcl.mjob):
     # running any simulations; this is when gillespiem compiles
     def _prepoolinit(self):
         #mmcl.silence()
+
+        host = MPI.Get_processor_name()
+        lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+        #time.sleep(1)
+
         ensem = self.wargs[0]
         ensem._run_params_to_location_prepoolinit()
         #mmcl.vocalize()
