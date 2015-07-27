@@ -1057,7 +1057,7 @@ class function(lfu.run_parameter):
     def _depends_on(self,spec,funcs):
         for f in funcs:
             if self.func_statement.count(f) > 0:
-                deps = funcs[f]._depends_on(spec)
+                deps = funcs[f]._depends_on(spec,funcs)
                 if deps:return True
         return self.func_statement.count(spec) > 0
 
