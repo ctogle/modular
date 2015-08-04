@@ -43,7 +43,7 @@ class reorganize(lpp.post_process_abstract):
         #self.method = self.data_by_trajectory
         lpp.post_process_abstract.__init__(self,*args,**kwargs)
 
-    def _process(self,*args,**kwargs):
+    def _______process(self,*args,**kwargs):
         cplan = args[0].cartographer_plan
         fplan = args[0].fitting_plan
 
@@ -53,6 +53,7 @@ class reorganize(lpp.post_process_abstract):
         if not cplan.use_plan and not fplan.use_plan:
             self.data = dba.batch_node()
             print 'not mapping p-space\n\treorganize ignored...'
+            return
         else:lpp.post_process_abstract._process(self,*args,**kwargs)
 
     # overloaded to pass pspace into method
@@ -73,11 +74,12 @@ class reorganize(lpp.post_process_abstract):
         pool = args[0]
         trajectory = pool.children
         pspace_trajectory = args[1]
-        if pspace_trajectory is None:
+        mapping = self.parent.parent.cartographer_plan.use_plan
+        #if pspace_trajectory is None:
+        if not mapping:
             print 'not mapping p-space\n\treorganize ignored...'
             bnode = dba.batch_node(dshape = ())
             return bnode
-
         axcnt = len(self.axis_labels)
         t0lnames = trajectory[0].targets
         ptrajdexes = []

@@ -18,51 +18,6 @@ if __name__ == '__main__':print 'process_abstract of modular_core'
 process_types = {}
 
 ###############################################################################
-'''#
-def parse_postproc_line(*args):
-    data = args[0]
-    ensem = args[1]
-    parser = args[2]
-    procs = args[3]
-    routs = args[4]
-    split = [item.strip() for item in data.split(':')]
-    for proc_type in valid_postproc_base_classes:
-        if split: name = split[0]
-        if len(split) > 1:
-            if split[1].strip() == proc_type._tag:
-                _always = ensem.postprocess_plan.always_sourceable
-                proc = proc_type._class(label = name, 
-                    parent = ensem.postprocess_plan, 
-                    always_sourceable = _always)
-                procs.append(proc)
-                    elif proc_type._tag == 'one to one binary operation':
-                        ops = ['/', '*', '+', '-']
-                        li = split[3]
-                        for op in ops:
-                            if op in li: proc.operation = op
-
-                        proc.domain = li[li.find('of') + 2:].strip()
-                        inputs = [item.strip() for item in 
-                            li[:li.rfind('of')].split(proc.operation)]
-                        proc.input_1, proc.input_2 = inputs[0], inputs[1]
-                        #print 'one to one binary operation parsing not done'
-
-                    elif proc_type._tag == 'period finding':
-                        print 'period finding parsing not done'
-
-    ensem.postprocess_plan._add_process(new = proc)
-    if lfu.using_gui(): proc._widget(0, ensem)
-    else: proc._target_settables(0, ensem)
-'''#
-###############################################################################
-###############################################################################
-###############################################################################
-
-
-
-
-
-
 ###############################################################################
 ### post_process_abstract is the base class of general post processes
 ###   subclasses of post_process_abstract provide actual analysis

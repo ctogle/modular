@@ -2291,6 +2291,16 @@ class quick_plot(QtGui.QWidget):
             uneven_flag = False
 
         cmap = plt.get_cmap('jet')
+        try:
+            pc_mesh = ax.imshow(surf, aspect = 'auto', 
+                interpolation = self.cplot_interpolation, 
+                cmap = cmap, vmin = z_min, vmax = z_max, 
+                origin = 'lower', extent = (x_min, x_max, y_min, y_max))
+        except:
+            print 'axes values are not evenly spaced; plot will be boxy'
+            pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
+                shading = 'gouraud', vmin = z_min, vmax = z_max)
+        '''#
         if not uneven_flag:
             pc_mesh = ax.imshow(surf, aspect = 'auto', 
                 interpolation = self.cplot_interpolation, 
@@ -2300,9 +2310,18 @@ class quick_plot(QtGui.QWidget):
             print 'axes values are not evenly spaced; plot will be boxy'
             pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
                 shading = 'gouraud', vmin = z_min, vmax = z_max)
+        '''#
 
         ax.axis([x_min, x_max, y_min, y_max])
         if not z_flag: self.qp_fig.colorbar(pc_mesh)
+
+        curves = 10
+        m = max([max(row) for row in surf])
+        levels = np.arange(0,m,(1/float(curves))*m)
+        #ax.contour(surf,colors = 'white',levels = levels)
+        contour = ax.contour(x,y,surf,colors = 'white',levels = levels)
+        ax.clabel(contour,inline=1,fontsize=10)
+
         self.canvas.draw()
         self.plot_type = 'color'
 

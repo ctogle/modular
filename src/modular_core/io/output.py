@@ -151,6 +151,7 @@ class writer_plt(writer_abstract):
 
     def _get_plt_window(self):
         plot_types = ['color','surface','lines','bars','voxels']
+        lfu.using_gui = True
         if lfu.using_gui and not self._plt_window:
             title = self._window_title()
             cplot_interp_def = lset.get_setting(
