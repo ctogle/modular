@@ -2140,7 +2140,7 @@ class quick_plot(QtGui.QWidget):
                         print 'multiple surface data objects available'
                         print '\tdefaulting to first found:', sdata.name
             else: print 'no surface data objects available!'; return
-            self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab)
+            self.plot_color(sdata, surf_target, xdom, ydom, xlab, ylab, xlog, ylog)
 
         elif ptype == 'surface': self.plot_surface(*args, **kwargs)
         elif ptype == 'bars':
@@ -2262,7 +2262,7 @@ class quick_plot(QtGui.QWidget):
         self.canvas.draw()
         self.plot_type = 'lines'
 
-    def plot_color(self,surf,starget,xdom,ydom,xlab = None,ylab = None):
+    def plot_color(self,surf,starget,xdom,ydom,xlab = None,ylab = None,xlog = False,ylog = False):
         ax = self.pre_plot()
         made_surf = surf._surface(x_ax = xdom,y_ax = ydom,surf_target = starget)
         if not made_surf:
@@ -2291,15 +2291,22 @@ class quick_plot(QtGui.QWidget):
             uneven_flag = False
 
         cmap = plt.get_cmap('jet')
-        try:
-            pc_mesh = ax.imshow(surf, aspect = 'auto', 
-                interpolation = self.cplot_interpolation, 
-                cmap = cmap, vmin = z_min, vmax = z_max, 
-                origin = 'lower', extent = (x_min, x_max, y_min, y_max))
-        except:
-            print 'axes values are not evenly spaced; plot will be boxy'
-            pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
+
+        print('xlog, ylog',xlog,ylog)
+
+        if xlog or ylog:
+            pc_mesh = ax.pcolor(x,y,surf,cmap = cmap, 
                 shading = 'gouraud', vmin = z_min, vmax = z_max)
+        else:
+            try:
+                pc_mesh = ax.imshow(surf, aspect = 'auto', 
+                    interpolation = self.cplot_interpolation, 
+                    cmap = cmap, vmin = z_min, vmax = z_max, 
+                    origin = 'lower', extent = (x_min, x_max, y_min, y_max))
+            except:
+                print 'axes values are not evenly spaced; plot will be boxy'
+                pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
+                    shading = 'gouraud', vmin = z_min, vmax = z_max)
         '''#
         if not uneven_flag:
             pc_mesh = ax.imshow(surf, aspect = 'auto', 
@@ -2322,6 +2329,8 @@ class quick_plot(QtGui.QWidget):
         contour = ax.contour(x,y,surf,colors = 'white',levels = levels)
         ax.clabel(contour,inline=1,fontsize=10)
 
+        if xlog: ax.set_xscale('log')
+        if ylog: ax.set_yscale('log')
         self.canvas.draw()
         self.plot_type = 'color'
 

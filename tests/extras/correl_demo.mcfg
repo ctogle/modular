@@ -1,6 +1,6 @@
 
 <end_criteria>
-	time limit : 800
+	time limit : 780
 
 <capture_criteria>
 	increment : 20 : time
