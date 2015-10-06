@@ -89,9 +89,10 @@ class reducer(base_target):
         for axx,ax in enumerate(axes):
             if ax_slices[axx] is None:in_slices.append([True for v in ax.data])
             else:in_slices.append([(v == ax_slices[axx]) for v in ax.data])
-        in_every_slice = [(not False in row) for row in zip(*in_slices)]
-        crvdata = [crv for crv,ie in zip(curv.data,in_every_slice) if ie]
-        odom = lfu.uniqfy(axes[x_ax_dex].data)
+        in_every = [(not False in row) for row in zip(*in_slices)]
+        crvdata = np.array([crv for crv,ie in zip(curv.data,in_every) if ie])
+        #odom = lfu.uniqfy(axes[x_ax_dex].data)
+        odom = np.array(lfu.uniqfy(axes[x_ax_dex].data))
         subcurv = scalars(override_domain = True,
             name = curv_target,data = crvdata,domain = odom)
         return subcurv
@@ -127,12 +128,12 @@ class reducer(base_target):
                 in_slices.append(
                     [(val == ax_slices[ax_dex]) for val in ax.data])
 
-        in_every_slice = [(False not in row) for row in zip(*in_slices)]
+        in_every = [(False not in row) for row in zip(*in_slices)]
         sub_surf = scalars_from_labels([surf_target])[0]
-        sub_surf.data = [sur for sur,ie in zip(surf.data,in_every_slice) if ie]
+        sub_surf.data = [sur for sur,ie in zip(surf.data,in_every) if ie]
         sub_axes = scalars_from_labels(self.axes)
         for sub_ax,ax in zip(sub_axes,axes):
-            vals = [val for val,ie in zip(ax.data,in_every_slice) if ie]
+            vals = [val for val,ie in zip(ax.data,in_every) if ie]
             sub_ax.data = lfu.uniqfy(vals)
 
         self.reduced = (sub_axes,sub_surf)

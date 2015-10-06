@@ -9,6 +9,7 @@ import numpy as np
 
 import matplotlib
 matplotlib.rcParams['backend.qt4'] = 'PySide'
+matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.use('Qt4Agg')
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backend_bases import NavigationToolbar2
