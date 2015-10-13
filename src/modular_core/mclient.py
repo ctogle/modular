@@ -8,7 +8,20 @@ lgd = lqg.lgd
 lgb = lqg.lgb
 ###
 
-import pdb,os,sys,time,random,multiprocessing,socket
+import pdb,os,sys,time,random,multiprocessing,socket,traceback
+
+def valid_port(nport):
+    if not nport:return False
+    print 'checking validity of port:',nport
+    try:
+        port = int(nport)
+        return True
+    except ValueError:return False
+
+def valid_host(nhost):
+    if not nhost:return False
+    print 'assuming validity of host:',nhost
+    return True
 
 # requests can also be issued from the mservers interface
 class mclient(lfu.mobject):
@@ -33,23 +46,30 @@ class mclient(lfu.mobject):
         self._default('port',defport,**kwargs)
         defhost = lset.get_setting('default_host')
         self._default('host',defhost,**kwargs)
+        self._default('connected',False,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def _connect(self,host,port):
-        print 'mclient opening socket on port:',port
+        print 'mclient connecting to mserver on port:',port
         c = socket.socket()
-        c.connect((host,self.port))
-        self._hw(c)
-        print 'mclient opened socket on port:',port
+        try:
+            c.connect((host,self.port))
+            self._hw(c)
+            self.connected = True
+            print 'mclient successfully connected on port:',port
+        except socket.error:
+            traceback.print_exc(file=sys.stdout)
+            self.connected = False
+            print 'mclient failed to connect on port:',port
         return c
 
     def _disconnect(self,c):
-        if not c is None:
-            print 'PINGGPING'
+      if self.connected:
             p = self._ping(c)
             if p:
                 c.send('kill')
                 c.close() 
+                self.connected = False
             else:print 'server cannot be disconnected...'
 
     def _ping(self,c):
@@ -65,13 +85,18 @@ class mclient(lfu.mobject):
     def _help(self):
         print '#'*40+'\n\tproviding help on client shell usage...\n'+'#'*40
         print '\n\t\toptions for input:'
-        print '\t\t\tquit                   : q'
         print '\t\t\thelp                   : h'
+        print '\t\t\tquit                   : q'
         print '\t\t\tconnect to             : c'
         print '\t\t\tdisconnect from server : d'
         print '\t\t\tping server            : p'
-        print '\t\t\trun mcfg               : r\n'
+        print '\t\t\tquery job status       : s'
+        print '\t\t\tset the host/port      : w'
+        print '\t\t\tissue mcfg job         : r\n'
         print '#'*40+'\n\tend help...\n'+'#'*40
+
+    def _status(self,c):
+        print '\n\t\tmclient status!\n',self.connected
 
     def _listen(self):
         c = self._connect(self.host,self.port)
@@ -79,24 +104,40 @@ class mclient(lfu.mobject):
         print '\n\t\tuse "h" for help...'
         while True:
             do = raw_input('\n\tmclient shell:>\t')
-            if   do == 'q':
+            if   do == 'h':self._help()
+            elif do == 'q':
                 c = self._disconnect(c)
                 break
-            if   do == 'c':c = self._connect(TCP_IP,self.port)
-            if   do == 'd':c = self._disconnect(c)
-            if   do == 'p':
-                p = self._ping(c)
-                print '\tmserver ping result:',p
-            if   do == 'h':self._help()
+            elif do == 'c':
+                if self.connected:print 'mclient is already connected to mserver...'
+                else:c = self._connect(self.host,self.port)
+            elif do == 'd':
+                if self.connected:c = self._disconnect(c)
+                else:print 'mclient is already disconnected from mserver...'
+            elif do == 'p':
+                if self._ping(c):
+                    self.connected = True
+                    print 'client pinged the server...'
+                else:
+                    self.connected = False
+                    print 'client is not connected to server!'
+            elif do == 's':self._status(c)
+            elif do == 'w':
+                nport = raw_input('\n\tnew port? (currently:'+str(self.port)+'):>\t')
+                if valid_port(nport):self.port = nport
+                nhost = raw_input('\n\tnew host? (currently:'+str(self.host)+'):>\t')
+                if valid_host(nhost):self.host = nhost
+                print '\tmclient port:',self.port
+                print '\tmclient host:',self.host
             elif do == 'r':
                 ping = self._ping(c)
-                if ping is False:
-                    print 'client is not connected to server!'
+                if ping is False:print 'client is not connected to server!'
                 else:
-
                     mfi = raw_input('\n\tmcfg filename?:>\t')
 
-                    c.send('\n\tWANT TO RUN MCFG:'+mfi)
+                    c.send('mcfg')
+                    c.send('THE MCFGSTRING!!')
+
                     #if not os.path.exists(self.mcfg_path):
                     #    return
                     #with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()

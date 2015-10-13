@@ -389,7 +389,12 @@ def _work_batch(ensem,key,req):
 #################################################################
 #################################################################
 
-def _listen(commpipe,port,buffersize = 4096):
+# this is target function for a child Process
+# it functions as an interface between a server and its clients
+# it receives requests from clients and in some cases posts replies
+# it communicates the needs of the clients to the server
+# the server will communicate with clients through this process only
+def _listen(commpipe,port,msh = False,buffersize = 4096):
     print 'mserver opening socket on port:',port
     s = socket.socket()
     s.settimeout(0.5)
@@ -401,10 +406,9 @@ def _listen(commpipe,port,buffersize = 4096):
     clientaddrs = []
     clientcnt = 0
     toremove = []
-
-    #s.connect(('127.0.0.1',port))
     commpipe.send(True)
     while True:
+
         # handle requests from the server
         request = commpipe.poll()
         if request is True:
@@ -424,7 +428,7 @@ def _listen(commpipe,port,buffersize = 4096):
             elif request == 'clientcount':commpipe.send(clientcnt)
             else:
                 print 'invalid mshell command:',request
-                print mshell()
+                if msh:print mshell()
 
         # allow new clients to connect
         try:
@@ -434,6 +438,7 @@ def _listen(commpipe,port,buffersize = 4096):
             clients.append(c)
             clientaddrs.append(addr)
             clientcnt += 1
+            print 'connected to client:',addr
         except socket.timeout:
             #print 'server polling shell...'
             pass
@@ -444,14 +449,17 @@ def _listen(commpipe,port,buffersize = 4096):
                 c,addr = clients[cx],clientaddrs[cx]
                 try:
                     data = c.recv(buffersize)
-                    if data == 'kill':
-                        print 'disconnecting client:',addr
-                        #c.close()
-                        toremove.append(cx)
-                    if data == 'ping':c.send('ping!')
+                    if data == 'kill':toremove.append(cx)
+                    elif data == 'ping':c.send('ping!')
+                    elif data == 'mcfg':
+                        mcfgstring = c.recv()
+
+                        print '\n\n\tMSERVER RECEIVED MCFG STRING!!'
+                        print 'mcfgstring:',mcfgstring
+
                     else:
-                        print '\nserver received socket data!',data
-                        print(mshell())
+                        print '\nmserver received client message:',data
+                        if msh:print mshell()
                 except socket.timeout:
                     #print 'server polling shell...'
                     pass
@@ -463,7 +471,7 @@ def _listen(commpipe,port,buffersize = 4096):
             while toremove:
                 torem = toremove.pop(0)
                 clients.pop(torem)
-                clientaddrs.pop(torem)
+                print 'disconnected from client:',clientaddrs.pop(torem)
                 clientcnt -= 1
 
     print 'mserver closing socket...'
@@ -474,12 +482,29 @@ def _listen(commpipe,port,buffersize = 4096):
 # print the line associated with the shell
 def mshell():return '\n\tmserver shell:>\t'
 
-# mserver provides an interface between a collection of
-#   data files directories and metamaps
+# mserver provides an all purpose multi-user simulation server
+# 
+# it maintains a persistent database so that users may 
+#   share and reuse data
+#
+# it serves a set of clients using tcp sockets
+# it uses a set of mworkers to handle the aggregate of requests
+#   which have been received from clients
+#
+# it can be run with or without a gui
+#   without a gui, a shell like interface is provided
+#
+# it functions as a resource manager intelligently dispersing 
+# batches of work until a prioritized list of requests is fulfilled
+#
+# it provides additional run information such as disk usage and running 
+# estimates on the completion time and realtime status updates on jobs
+#
+# a client does not necessarily require modular, just the ability to send
+#   the appropriate tcp messages to a port bound to an mserver
 #
 # a request is effectively a "modular.py some.mcfg" call
 #   it results in output data files from post processes
-#
 # the mserver manages requests which it may receive from clients
 # requests can also be issued from the mservers interface
 class mserver(lfu.mobject):
@@ -489,7 +514,7 @@ class mserver(lfu.mobject):
 
     def _open_comm(self):
         self.instpipe,instsubpipe = multiprocessing.Pipe()
-        instargs = (instsubpipe,self.port)
+        instargs = (instsubpipe,self.port,self.clientserver_mshell)
         self.instprocess = multiprocessing.Process(
                     target = _listen,args = instargs)
         self.instprocess.start()
@@ -551,6 +576,7 @@ class mserver(lfu.mobject):
 
         defport = lset.get_setting('default_port')
         self._default('port',defport,**kwargs)
+        self._default('clientserver_mshell',not lfu.using_gui,**kwargs)
 
         defdatadir = lset.get_setting('default_data_directory')
         self._default('data_directory',defdatadir,**kwargs)
@@ -711,6 +737,7 @@ class mserver(lfu.mobject):
     def get_on_close(self,window):
         def on_close():
             self._kill_workers()
+            self._close_socket()
             window.on_close()
         return on_close
 
