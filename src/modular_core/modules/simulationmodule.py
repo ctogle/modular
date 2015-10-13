@@ -131,6 +131,7 @@ class simulation_module(lfu.mobject):
             mlines = mcfgstring.split('\n')
         else:
             print '_parse_mcfg args are invalid...'
+            pdb.set_trace()
             return
 
         plot_flag = False;targs = params['plot_targets']

@@ -59,6 +59,7 @@ class cartographer_plan(lfu.plan):
         else:axes = []
         self.metamap = mmap.metamap(axes = axes,
             parent = self,mapfile = self.mapfile,
+            mcfgstring = self.parent._mcfg_string(),
             uniqueness = self.parent.module._metamap_uniqueness())
         self.children = [self.metamap]
 
@@ -84,7 +85,16 @@ class cartographer_plan(lfu.plan):
         traj = self.trajectory
         loc = traj[ldex]
         axs = self.parameter_space.axes
+
+        #numtraj = str(self.trajectory[ldex].trajectory_count)
+        maxtime = str(self.parent.simulation_plan._max_time())
+        captinc = str(self.parent.simulation_plan._capture_increment())
         prnt = []
+        #
+        prnt.append('end : '+maxtime)
+        prnt.append('inc : '+captinc)
+        #prnt.append('ntj : '+numtraj)
+        #
         for a,l in zip(axs,loc):
             prnt.append(a.name+' : '+str(l))
         return ' || '.join(prnt)
@@ -94,6 +104,19 @@ class cartographer_plan(lfu.plan):
         loc = traj[ldex]
         locline = [str(l) for l in loc.location]
         return '\t'.join(locline)
+
+    # if the location is not present, add it
+    # return the index of the location in the trajectory
+    def _confirm_location(self,location,goal):
+        arc_len = len(self.trajectory)
+        for locx in range(arc_len):
+            loc = self.trajectory[locx]
+            if location.location == loc.location:
+                loc.trajectory_count = goal
+                return locx
+        self.trajectory.append(location)
+        location.trajectory_count = goal
+        return arc_len
 
     def _set_trajectory(self,newtraj):
         self.trajectory = newtraj

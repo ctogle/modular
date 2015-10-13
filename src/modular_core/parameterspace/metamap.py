@@ -32,6 +32,13 @@ class metalocation(object):
         self.location_string = location_string
         self.simulation_pool = dba.batch_node(metapool = True)
     
+    def _merge(self,other):
+        if not self.location_string == other.location_string:
+            print 'invalid merge operation on metalocations'
+            raise ValueError
+        self.simulation_pool._add_children(
+            other.simulation_pool.children)
+      
     def _log_simulation_data(self,loc_pool):
         # if the shape of this loc_pool matches the shape of any previously
         # logged data pools, merge loc_pool with the existing pool
@@ -56,7 +63,9 @@ class metamap(lfu.mobject):
     def __init__(self,*args,**kwargs):
         self._default('axes',[],**kwargs)
         self._default('location_strings',[],**kwargs)
+        self._default('require_match',True,**kwargs)
         self._default('uniqueness',None,**kwargs)
+        self._default('mcfgstring',None,**kwargs)
         #self._default('mapfile','pspmap.mmap',**kwargs)
         self._default('mapfile',None,**kwargs)
         self._default('mapdir',lfu.get_mapdata_pool_path(),**kwargs)
@@ -75,13 +84,16 @@ class metamap(lfu.mobject):
             if proxy is None:
                 print 'metamap could not unpickle...'
                 pdb.set_trace()
-            if not proxy.uniqueness == self.uniqueness:
+            #if not proxy.uniqueness == self.uniqueness:
+            if self.require_match and not proxy.uniqueness == self.uniqueness:
                 print 'existing metamap file\'s uniqueness does not match!'
                 print 'should prompt for new mapfilename?'
                 print 'skipping metamap load...'
                 self.entries = {}
                 self.location_strings = []
             else:
+                self.mcfgstring = proxy.mcfgstring
+                self.uniqueness = proxy.uniqueness
                 self.entries = proxy.entries
                 self.location_strings = proxy.location_strings
         else:
@@ -100,13 +112,14 @@ class metamap(lfu.mobject):
         pk.save_pkl_object(self,self.mappath)
         self._rewidget(True)
 
-    def _log(self,loc_str,loc_pool):
+    def _log(self,loc_str,loc_pool = None):
         if not loc_str in self.location_strings:
             metaloc = metalocation(loc_str)
             self.entries[loc_str] = metaloc
             self.location_strings.append(loc_str)
         else:metaloc = self.entries[loc_str]
-        metaloc._log_simulation_data(loc_pool)
+        if not loc_pool is None:
+            metaloc._log_simulation_data(loc_pool)
 
     def _recover_location(self,loc_str,num_required = None):
         mloc = self.entries[loc_str]
@@ -129,17 +142,29 @@ class metamap(lfu.mobject):
     # turn the list of location_strings into pspace_locations 
     # to make an interface
     def _location_from_location_string(self,loc_str):
-        locaxs = lfu.msplit(loc_str,'||')
-        locvls = []
+        locaxs,locvls = lfu.msplit(loc_str,'||'),[]
+        end = locaxs.pop(0)
+        inc = locaxs.pop(0)
 
-        try:
-          for lax in locaxs:locvls.append(float(lfu.msplit(lax,':')[-1]))
-        except:pdb.set_trace()
+        print 'in location from loc str call',locaxs
+
+        #try:for lax in locaxs:locvls.append(float(lfu.msplit(lax,':')[-1]))
+        #except:pdb.set_trace()
+        for lax in locaxs:locvls.append(float(lfu.msplit(lax,':')[-1]))
 
         newloc = lpsp.pspace_location(location = locvls)
-        trjcnt = self.entries[loc_str].simulation_pool.children[0].dshape[0]
+        if not loc_str in self.entries:self._log(loc_str)
+        loc_pools = self.entries[loc_str].simulation_pool.children
+        if loc_pools:trjcnt = loc_pools[0].dshape[0]
+        else:trjcnt = 0
         newloc.trajectory_count = trjcnt
         return newloc
+
+    # add location of pspace if not already present 
+    # return the current number of trajectories there
+    def _confirm_location(self,loc_str,goal):
+        loc = self._location_from_location_string(loc_str)
+        return self.parent._confirm_location(loc,goal)
 
     def _selected_arc_dexes(self):
         def fail():

@@ -399,7 +399,7 @@ class parameter_space(lfu.mobject):
     def _move_to(self,location):
         for adx in range(self.dimensions):
             self.axes[adx]._move_to(location[adx])
-    
+
     def _position(self):
         locvals = [ax._value() for ax in self.axes]
         pos = pspace_location(location = locvals)

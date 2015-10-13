@@ -1,0 +1,21 @@
+
+
+
+<connection>
+default_port = 12397
+
+<run options>
+distributed = False
+multiprocessing = True
+worker_processes = 50
+default_output_directory = none
+
+<ensemble defaults>
+default_module = gillespiem
+mcfg_path = none
+
+<data defaults>
+default_data_directory = none
+
+
+

@@ -457,7 +457,7 @@ class ensemble(lfu.mobject):
         simu = self.module.simulation
         sim_args = self.module.sim_args
         if pfreq is None:pfreq = sys.maxint
-        else:print 'batch run completed:%d/%d'%(0,many)
+        else:print 'np batch run completed:%d/%d'%(0,many)
 
         batch = np.zeros(dshape,dtype = np.float)
         for m in range(many):
@@ -465,24 +465,29 @@ class ensemble(lfu.mobject):
             if rundat is None:return
             batch[m,:,:] = rundat[:]
             if m % pfreq == 0 and m > 0:
-                print 'batch run completed:%d/%d'%(m+pfreq,many)
+                print 'np batch run completed:%d/%d'%(m+pfreq,many)
             #print 'batch run completed:%d/%d'%(m+pfreq,many)
         return batch
 
     # run many simulations, adding the data to node pool
     # print the current trajectory/maxtrajectory at frequency pfreq
-    def _run_batch(self,many,pool,pfreq = 100):
+    def _run_batch(self,many,pool,pfreq = None):
         simu = self.module.simulation
         sim_args = self.module.sim_args
+        if pfreq is None:pfreq = sys.maxint
+        else:print 'batch run completed:%d/%d'%(0,many)
+
         #if pfreq is None:pfreq = sys.maxint
         #else:print 'batch run completed:%d/%d'%(0,many)
         for m in range(many):
             rundat = simu(sim_args)
             if rundat is None:return
             pool._trajectory(rundat)
+            if m % pfreq == 0 and m > 0:
+                print 'batch run completed:%d/%d'%(m+pfreq,many)
             #if m % pfreq == 0 and m > 0:
             #    print 'batch run completed:%d/%d'%(m+pfreq,many)
-            print 'batch run completed:%d/%d'%(m,many)
+            #print 'batch run completed:%d/%d'%(m,many)
         return True
 
     # accomplish the same goal as _run_batch but using mp.Pool mppool
@@ -664,6 +669,7 @@ class ensemble(lfu.mobject):
             lgd.message_dialog(None,'Failed to write file!','Problem')
 
     def _mcfg_string(self):
+        if not os.path.exists(self.mcfg_path):return
         with open(self.mcfg_path,'r') as mh:mcfgstring = mh.read()
         return mcfgstring
 
