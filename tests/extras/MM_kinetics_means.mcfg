@@ -1,9 +1,9 @@
 
 <end_criteria>
-	time limit : 100.0
+	time limit : 0.00495
 
 <capture_criteria>
-  increment : 1.0 : time
+  increment : 0.00005 : time
 
 <reactions>
 	1 Enzyme + 1 Substrate 1.0 -> 1 ES_Complex : Enzyme Substrate complex formation
@@ -35,7 +35,7 @@
   simulations_per_job : 1000
 
 <output_plans>
-	1 : - : mm_means : plt : all
+	1 : - : mm_means : pkl : all
 	0 : - : ensemble_output : none : all
 
 <ensemble>
@@ -43,6 +43,6 @@
 	metamapparameterspace : off
 	fitting : off
 	postprocessing : on
-	trajectory_count : 10
+	trajectory_count : 1000
 
 

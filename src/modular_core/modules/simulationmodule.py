@@ -224,6 +224,11 @@ class simulation_module(lfu.mobject):
         mcfg = mcfg.getvalue()
         ltxt.write_text(mcfg_path,mcfg)
 
+    # modify a simulation arguments list 
+    #   to include a chosen random seed
+    def _set_seed(self,rseed,simargs):
+        print 'base class set seed does not set the seed'
+
     # set state that is changed at most once per pspace location
     # called outside of Pool processes and before self._set_parameters
     def _set_parameters_prepoolinit(self):

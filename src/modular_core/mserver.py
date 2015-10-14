@@ -10,6 +10,7 @@ lgd = lqg.lgd
 lgb = lqg.lgb
 
 import pdb,os,sys,time,random,multiprocessing,socket
+from cStringIO import StringIO
 
 
 
@@ -214,36 +215,50 @@ class mworker(lfu.mobject):
 # when a change occurs, inform the workprocess
 def _comm(commpipe,module,mcfgstring):
     print 'comm waiting for required lookup...'
-    required = commpipe.recv()
+    commrequired = commpipe.recv()
     print 'comm received required lookup...'
+
     print 'comm starting worker process...'
     workpipe,worksubpipe = multiprocessing.Pipe()
     workprocess = multiprocessing.Process(
         target = _work,args = (worksubpipe,module,mcfgstring))
     workprocess.start()
-    workpipe.send(required)
+    workpipe.send(commrequired)
     print 'comm started worker process...'
+
     msg = None
     while not msg == 'kill':
-        msg = commpipe.recv()
-        print 'mworker comm received a message:',msg
-        if msg == 'kill':
-            workpipe.send('kill')
-            workprocess.join()
-        elif msg == 'pause':workpipe.send('pause')
-        elif msg == 'resume':workpipe.send('resume')
-        elif msg == 'receive-update':
-            required = commpipe.recv()
-            workpipe.send('receive-update')
-            workpipe.send(required)
-        elif msg == 'provide-update':
-            workpipe.send('provide-update')
-            required = commpipe.recv()
-        elif msg == 'query':
-            workpipe.send('query')
-            reply = workpipe.recv()
-            print 'sending query reply:',reply
-            commpipe.send(reply)
+        # communicate with the server as needed
+        if commpipe.poll():
+            msg = commpipe.recv()
+            print 'mworker comm received a server message:',msg
+            if msg == 'kill':
+                workpipe.send('kill')
+                workprocess.join()
+            elif msg == 'pause':workpipe.send('pause')
+            elif msg == 'resume':workpipe.send('resume')
+            elif msg == 'receive-update':
+                commrequired = commpipe.recv()
+                workpipe.send('receive-update')
+                workpipe.send(commrequired)
+            elif msg == 'provide-update':
+                workpipe.send('provide-update')
+                commrequired = commpipe.recv()
+            elif msg == 'query':
+                request = commpipe.poll()
+                workpipe.send('query')
+                reply = workpipe.recv()
+                print 'sending query reply:',reply
+                commpipe.send(reply)
+        # communicate with the worker as needed
+        elif workpipe.poll():
+            workmsg = workpipe.recv()
+            print 'mworker comm received a worker message:',workmsg
+            if workmsg == 'complete':
+                workpipe.send(commrequired)
+                print 'mworker has completed its work and awaits!'
+        # do nothing for a short period of time
+        else:time.sleep(0.1)
     workpipe.close()
 
 # run in a Process
@@ -309,6 +324,28 @@ def _work(commpipe,module,mcfgstring):
         complete = len(reqkeys) == 0
         if complete:
             print 'mworker awaits further work requests'
+            commpipe.send('complete')
+
+            ##### NEED A WHILE LOOP FOR THE COMPLETE STATE
+            ##### NEED TO BREAK UP ALL THESE STATE FUNCTIONS...
+            request = commpipe.recv()
+            while True:
+                if request == 'kill':return
+                elif request == 'receive-update':
+                    print 'mworker work process receiving updating...'
+                    required = commpipe.recv()
+                    reqkeys = required.keys()
+                elif request == 'provide-update':
+                    print 'mworker work process providing updating...'
+                    commpipe.send(required)
+                elif request == 'query':
+                    queryreply = _form_query_reply(itime,ireq,required)
+                    commpipe.send(queryreply)
+                else:print 'paused worker received ambiguous input:',request
+                request = commpipe.recv()
+            ##### NEED A WHILE LOOP FOR THE COMPLETE STATE
+            ##### NEED TO BREAK UP ALL THESE STATE FUNCTIONS...
+
             required = commpipe.recv()
             reqkeys = required.keys()
         else:
@@ -394,13 +431,19 @@ def _work_batch(ensem,key,req):
 # it receives requests from clients and in some cases posts replies
 # it communicates the needs of the clients to the server
 # the server will communicate with clients through this process only
-def _listen(commpipe,port,msh = False,buffersize = 4096):
-    print 'mserver opening socket on port:',port
+def _listen(commpipe,port,msh = False,buffersize = 4096,msdelim = '\n|::|\n'):
+    mcfgstringqueue = StringIO()
+    logqueue = StringIO()
+    def log(msg):
+        if not msh:print(msg)
+        logqueue.write(msg)
+
+    log('\n\t>\tmserver opening socket on port:'+str(port))
     s = socket.socket()
     s.settimeout(0.5)
     s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
     s.bind(('',port))
-    print 'mserver opened socket on port:',port
+    log('\n\t>\tmserver opened socket on port:'+str(port))
 
     clients = []
     clientaddrs = []
@@ -413,11 +456,14 @@ def _listen(commpipe,port,msh = False,buffersize = 4096):
         request = commpipe.poll()
         if request is True:
             request = commpipe.recv()
-            print '\tmserver request recv',request
+            log('\n\t>\tmserver request recv'+request)
             if request == 'kill':
-                print '\n\tmserver killed...'
+                log('\n\t>\tmserver disconnecting clients...')
                 for c in clients:c.close()
+                log('\n\t>\tmserver disconnected clients...')
                 break
+            elif request == 'log':commpipe.send(logqueue.getvalue())
+            elif request == 'job':commpipe.send(mcfgstringqueue.getvalue())
             elif request == 'who':
                 print '\n\tmserver currently has',clientcnt,'clients connected'
                 if clientcnt:
@@ -426,9 +472,7 @@ def _listen(commpipe,port,msh = False,buffersize = 4096):
                         print '\t\t\t',cx,' : ',clientaddrs[cx]
                 commpipe.send('mshell')
             elif request == 'clientcount':commpipe.send(clientcnt)
-            else:
-                print 'invalid mshell command:',request
-                if msh:print mshell()
+            else:log('\n\t>\tinvalid mserver request:\t'+request)
 
         # allow new clients to connect
         try:
@@ -438,7 +482,7 @@ def _listen(commpipe,port,msh = False,buffersize = 4096):
             clients.append(c)
             clientaddrs.append(addr)
             clientcnt += 1
-            print 'connected to client:',addr
+            log('\n\t>\tconnected to client:\t'+str(addr))
         except socket.timeout:
             #print 'server polling shell...'
             pass
@@ -452,14 +496,12 @@ def _listen(commpipe,port,msh = False,buffersize = 4096):
                     if data == 'kill':toremove.append(cx)
                     elif data == 'ping':c.send('ping!')
                     elif data == 'mcfg':
-                        mcfgstring = c.recv()
-
-                        print '\n\n\tMSERVER RECEIVED MCFG STRING!!'
-                        print 'mcfgstring:',mcfgstring
-
-                    else:
-                        print '\nmserver received client message:',data
-                        if msh:print mshell()
+                        mcfgstring = c.recv(4096)
+                        mcfgstringqueue.write(msdelim)
+                        mcfgstringqueue.write(mcfgstring)
+                        log('\n\t>\tmserver received mcfgstring:')
+                        log(mcfgstring)
+                    else:log('\n\t>\tmserver received client message:\t'+data)
                 except socket.timeout:
                     #print 'server polling shell...'
                     pass
@@ -471,16 +513,14 @@ def _listen(commpipe,port,msh = False,buffersize = 4096):
             while toremove:
                 torem = toremove.pop(0)
                 clients.pop(torem)
-                print 'disconnected from client:',clientaddrs.pop(torem)
+                caddr = clientaddrs.pop(torem)
+                log('\n\t>\tmserver disconnected from mclient:\t'+str(caddr))
                 clientcnt -= 1
 
-    print 'mserver closing socket...'
+    log('\n\t>\tmserver closing socket...')
     s.close()
-    print 'mserver socket closed...'
-    print 'mserver exiting...'
-
-# print the line associated with the shell
-def mshell():return '\n\tmserver shell:>\t'
+    log('\n\t>\tmserver socket closed...\nmserver exiting...\n')
+    log('\n\t>\t\tmserver exited...')
 
 # mserver provides an all purpose multi-user simulation server
 # 
@@ -514,7 +554,8 @@ class mserver(lfu.mobject):
 
     def _open_comm(self):
         self.instpipe,instsubpipe = multiprocessing.Pipe()
-        instargs = (instsubpipe,self.port,self.clientserver_mshell)
+        instargs = (instsubpipe,self.port,self.clientserver_mshell,
+                    self.buffersize,self.mcfgstringdelim)
         self.instprocess = multiprocessing.Process(
                     target = _listen,args = instargs)
         self.instprocess.start()
@@ -522,11 +563,29 @@ class mserver(lfu.mobject):
     def _help(self):
         print '#'*40+'\n\tproviding help on server shell usage...\n'+'#'*40
         print '\n\t\toptions for input:'
-        print '\t\t\tquit         : q'
-        print '\t\t\thelp         : h'
-        print '\t\t\tprint status : s'
-        print '\t\t\tlist clients : w\n'
+        print '\t\t\tquit              : q'
+        print '\t\t\thelp              : h'
+        print '\t\t\tprint server log  : l'
+        print '\t\t\treceive mcfg jobs : r'
+        print '\t\t\tlist clients      : w'
+        print '\t\t\tprint status      : s\n'
         print '#'*40+'\n\tend help...\n'+'#'*40
+
+    def _accept_work(self):
+        self.instpipe.send('job')
+        mcfgstrings = self.instpipe.recv()
+        mcfgs = mcfgstrings.split(self.mcfgstringdelim)
+        if mcfgs:
+            for mcfgstring in mcfgs:
+
+                print 'could accept work????'
+                print mcfgstring
+                print 'was there anything even????'
+
+                if not mcfgstring:continue
+                self._run_mcfgstring(mcfgstring)
+                print '\tmcfg submitted to server...'
+        else:print '\tno mcfgs have been submitted by clients'
 
     def _status(self):
         self.instpipe.send('clientcount')
@@ -540,17 +599,24 @@ class mserver(lfu.mobject):
         self._open_comm()
         ready = self.instpipe.recv()
         print '\n\twelcome to the mserver shell'
-        print '\n\t\tuse "h" for help...'
+        print '\t\tuse "h" for help...'
         while True:                        
-            do = raw_input(mshell())
-            if   do == 'q':break
+            do = raw_input('\n\tmserver shell ::>> ')
+            if   do == 'q':
+                self._kill_workers()
+                self._close_socket()
+                break
             elif do == 'h':self._help()
+            elif do == 'l':
+                self.instpipe.send('log')
+                log = self.instpipe.recv()
+                print '\n'+'#'*50+'\n\tserver log:\n'+'#'*50+'\n'
+                print log
+            elif do == 'r':self._accept_work()
             elif do == 'w':
                 self.instpipe.send('who')
                 ready = self.instpipe.recv()
             elif do == 's':self._status()
-        self.instpipe.send('kill')
-        self.instprocess.join()
     
     # serve on a socket via a gui
     def _serve_socket(self):
@@ -577,9 +643,17 @@ class mserver(lfu.mobject):
         defport = lset.get_setting('default_port')
         self._default('port',defport,**kwargs)
         self._default('clientserver_mshell',not lfu.using_gui,**kwargs)
+        self._default('buffersize',4096,**kwargs)
+        self._default('mcfgstringdelim','\n~!|::|!~\n',**kwargs)
+
 
         defdatadir = lset.get_setting('default_data_directory')
-        self._default('data_directory',defdatadir,**kwargs)
+        self._default('default_data_directory',defdatadir,**kwargs)
+
+        datasources = [defdatadir,lfu.get_mapdata_pool_path()]
+        self._default('data_sources',datasources,**kwargs)
+
+
         defoutpdir = lset.get_setting('default_output_directory')
         self._default('output_directory',defoutpdir,**kwargs)
         self._default('metamaps',[],**kwargs)
@@ -587,21 +661,36 @@ class mserver(lfu.mobject):
         self._default('tickets',{},**kwargs)
         self.mnger = me.ensemble_manager()
         lfu.mobject.__init__(self,*args,**kwargs)
+        self.current_tab_index = 0
 
-    # examine the contents of the data_directory
+    # examine the contents of the data_sources
     # reset the list of metamaps to the list present
     # read each metamap and establish instances for them
-    def _inspect_data(self):
-        print 'inspecting data...'
-        dfiles = os.listdir(self.data_directory)
-        self.hdf5files = [df for df in dfiles if df.endswith('.hdf5')]
-        self.mpklfiles = [df for df in dfiles if df.endswith('.pkl')]
-        if self.mpklfiles:
-            for mpf in self.mpklfiles:
-                worker = self._host_map(mpf)
-        print 'inspected data and found:'
+    def _inspect_sources(self):
+        self.hdf5files = []
+        self.mpklfiles = []
+        for src in self.data_sources:
+            if not os.path.exists(src):
+                print 'data source does not exist... :',src
+            else:self._inspect_source(src)
+        print 'inspected data sources and found:'
         print '\t',len(self.hdf5files),'hdf5 data files'
         print '\t',len(self.mpklfiles),'pkl data files'
+        print 'now hosting',len(self.metamaps),'metamaps'
+
+    def _inspect_source(self,src):
+        print 'inspecting data...'
+        dfiles = os.listdir(src)
+        newhdf5files = [df for df in dfiles if df.endswith('.hdf5')]
+        newmpklfiles = [df for df in dfiles if df.endswith('.pkl')]
+        self.hdf5files.extend(newhdf5files)
+        self.mpklfiles.extend(newmpklfiles)
+        if newmpklfiles:
+            for mpf in newmpklfiles:
+                worker = self._host_map(src,mpf)
+        print 'inspected data source and found:'
+        print '\t',len(newhdf5files),'hdf5 data files'
+        print '\t',len(newmpklfiles),'pkl data files'
         print 'now hosting',len(self.metamaps),'metamaps'
 
     # create the data to manage identity and access of a metamap
@@ -616,11 +705,11 @@ class mserver(lfu.mobject):
     # the mworker should be able to do something similar if told to inspect 
     #   the data directory for possible updates to the available data
     #
-    def _host_map(self,mfile):
+    def _host_map(self,msrc,mfile):
         if type(mfile) == type(''):
             meta = mmap.metamap(
                 require_match = False,parent = self,
-                mapfile = mfile,mapdir = self.data_directory)
+                mapfile = mfile,mapdir = msrc)
         else:meta = mfile
         if meta.uniqueness in self.maprings:
             worker = self.maprings[meta.uniqueness]
@@ -683,21 +772,23 @@ class mserver(lfu.mobject):
             self._run_mcfgstring(mcfgstring)
 
     # run an ensemble given an mcfgstring
+    # determine associated metamap / create if necessary
     def _run_mcfgstring(self,mcfgstring):
-        # determine associated metamap / create if necessary
         ensem = self.mnger._add_ensemble(module = self.module)
-        #ensem.mcfg_path = mcfg
         ensem._parse_mcfg(mcfgstring = mcfgstring)
         ensem.output_plan.targeted = ensem.run_params['plot_targets'][:]
         ensem.output_plan._target_settables()
         metamap = ensem.cartographer_plan.metamap
-        mcfgstring = ensem._mcfg_string()
         metamap.mcfgstring = mcfgstring
-        worker = self._host_map(metamap)
-        return self._run_ensem(worker,ensem)
+
+        #msrc = self.data_directory
+        pdb.set_trace()
+
+        worker = self._host_map(msrc,metamap)
+        return self._run_ensem(worker,ensem,mcfgstring)
 
     # generate a ticket for an ensemble
-    def _run_ensem(self,worker,ensem):
+    def _run_ensem(self,worker,ensem,mcfgstring):
         ticketnumber = random.randint(1000000,9000000)
         ticket = worker._new_request(ticketnumber,ensem)
         self.tickets[ticketnumber] = ticket
@@ -733,6 +824,20 @@ class mserver(lfu.mobject):
                     [self._select_mcfg,self._run_mcfg])]], 
             labels = [['Run mcfg File']])
         return config_text + config_buttons
+
+    def _data_sources_widget(self,*args,**kwargs):
+        window = args[0]
+        directory_templates =\
+            [lgm.interface_template_gui(
+                panel_scrollable = True, 
+                widgets = ['directory_name_box'], 
+                layout = 'horizontal', 
+                keys = [['default_data_directory']], 
+                instances = [[self]], 
+                initials = [[self.default_data_directory,None,os.getcwd()]],
+                labels = [['Choose Default Data Directory']], 
+                box_labels = ['Default Data Directory'])]
+        return directory_templates
 
     def get_on_close(self,window):
         def on_close():
@@ -773,68 +878,77 @@ class mserver(lfu.mobject):
         window = args[0]
         self._sanitize(*args,**kwargs)
         
-        directory_templates = []
-        directory_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['directory_name_box'], 
-                layout = 'horizontal', 
-                keys = [['data_directory']], 
-                instances = [[self]], 
-                initials = [[self.data_directory,None,os.getcwd()]],
-                labels = [['Choose Directory With Data']], 
-                box_labels = ['Data Directory']))
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['panel'], 
-                panel_scrollable = True, 
-                templates = [directory_templates]))
-
+        serverclient_templates = []
         config_file_box_template = self._mcfg_widget(*args,**kwargs)
-        self.widg_templates.append(config_file_box_template)
+        serverclient_templates.append(config_file_box_template)
 
-        self.widg_templates.append(
+        server_templates = []
+        server_templates.append(
             lgm.interface_template_gui(
                 layout = 'horizontal',
                 widgets = ['button_set'], 
-                bindings = [[self._serve_socket,self._close_socket]], 
-                labels = [['Serve Clients On Socket','Close Server Socket']]))
-
-        self.widg_templates.append(
-            lgm.interface_template_gui(
-                widgets = ['button_set'], 
-                bindings = [[self._inspect_data]], 
-                labels = [['Inspect Data Files']]))
-
-        self.widg_templates.append(
+                bindings = [[self._serve_socket,
+                    self._close_socket,self._accept_work]], 
+                labels = [['Serve Clients On Socket',
+                    'Close Server Socket','Accept Client Jobs']]))
+        server_templates.append(
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
                 bindings = [[self._query_workers]], 
                 labels = [['Query Workers']]))
-
-        self.widg_templates.append(
+        server_templates.append(
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
                 bindings = [[self._resume_workers]], 
                 labels = [['Resume Workers']]))
-
-        self.widg_templates.append(
+        server_templates.append(
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
                 bindings = [[self._pause_workers]], 
                 labels = [['Pause Workers']]))
-
-        self.widg_templates.append(
+        server_templates.append(
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
                 bindings = [[self._kill_workers]], 
                 labels = [['Stop Workers']]))
 
-        self.widg_templates.append(
+        client_templates = []
+
+        monitor_templates = []
+
+        data_source_templates = []
+        data_source_templates.append(
             lgm.interface_template_gui(
                 widgets = ['button_set'], 
-                bindings = [[self._settings]], 
-                labels = [['Change Settings']]))
+                bindings = [[self._inspect_sources]], 
+                labels = [['Inspect Data Sources']]))
+        directory_templates = self._data_sources_widget(*args,**kwargs)
+        data_source_templates.append(
+            lgm.interface_template_gui(
+                widgets = ['panel'], 
+                #panel_scrollable = True, 
+                templates = [directory_templates]))
 
+        #self.widg_templates.append(
+        #    lgm.interface_template_gui(
+        #        widgets = ['button_set'], 
+        #        bindings = [[self._settings]], 
+        #        labels = [['Change Settings']]))
+
+        self.widg_templates.append(
+            lgm.interface_template_gui(
+                widgets = ['tab_book'], 
+                handles = [(self,'tab_ref')], 
+                pages = [[
+                    ('ServerClient',serverclient_templates), 
+                    ('Server',server_templates), 
+                    ('Clients',client_templates), 
+                    ('Monitor',monitor_templates), 
+                    ('Data Sources',data_source_templates),
+                        ]], 
+                initials = [[self.current_tab_index]], 
+                instances = [[self]], 
+                keys = [['current_tab_index']]))
         self._toolbars(*args,**kwargs)
         lfu.mobject._widget(self,*args,from_sub = True)
 

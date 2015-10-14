@@ -64,7 +64,7 @@
 <ensemble>
 	skipsimulation : off
 	mapparameterspace : on
-	metamapparameterspace : off
+	metamapparameterspace : on
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000

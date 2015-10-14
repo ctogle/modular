@@ -50,7 +50,7 @@ if not plt is None:import modular_core.fitting.explorer as fex
 #import modular_core.fitting.measurement as fme
 #import modular_core.fitting.learner as fln
 
-import pdb,os,sys,traceback,types,time,imp
+import pdb,os,sys,traceback,types,time,imp,random
 import multiprocessing as mp
 import numpy as np
 import importlib as imp
@@ -160,6 +160,9 @@ class ensemble(lfu.mobject):
 
     def __init__(self,*args,**kwargs):
         self._default('name','ensemble',**kwargs)
+        self._default('ensembleseed',random.randint(0,sys.maxint),**kwargs)
+        self.rgen = random.Random()
+        self.rgen.seed(self.ensembleseed)
         self._default('mcfg_dir',lfu.get_mcfg_path(),**kwargs)
         self._default('mcfg_path','',**kwargs)
         self._default('skip_simulation',False,**kwargs)
@@ -451,17 +454,24 @@ class ensemble(lfu.mobject):
         ncapt = self.simulation_plan._capture_count()
         return (ntraj,ntarg,ncapt,ptargs)
 
+    # return a viable random seed based on the ensembles random seed
+    def _seed(self):
+        rseed = self.rgen.randint(0,sys.maxint)
+        return rseed
+
     # run many simulations, aggregating data in a numpy array
     # print the current trajectory/maxtrajectory at frequency pfreq
     def _run_batch_np(self,many,dshape,pfreq = None):
         simu = self.module.simulation
+        seed = self.module._set_seed
         sim_args = self.module.sim_args
         if pfreq is None:pfreq = sys.maxint
         else:print 'np batch run completed:%d/%d'%(0,many)
 
         batch = np.zeros(dshape,dtype = np.float)
         for m in range(many):
-            rundat = simu(sim_args)
+            rseed = self._seed()
+            rundat = simu(seed(rseed,sim_args))
             if rundat is None:return
             batch[m,:,:] = rundat[:]
             if m % pfreq == 0 and m > 0:
@@ -480,7 +490,9 @@ class ensemble(lfu.mobject):
         #if pfreq is None:pfreq = sys.maxint
         #else:print 'batch run completed:%d/%d'%(0,many)
         for m in range(many):
-            rundat = simu(sim_args)
+            rseed = self._seed()
+            rundat = simu(seed(rseed,sim_args))
+            #rundat = simu(sim_args)
             if rundat is None:return
             pool._trajectory(rundat)
             if m % pfreq == 0 and m > 0:
@@ -494,6 +506,8 @@ class ensemble(lfu.mobject):
     def _run_mpbatch(self,mppool,many,pool,pfreq = 100):
         pcnt = int(self.multiprocess_plan.worker_count)
         simu = self.module.simulation
+        seed = self.module._set_seed
+        sim_args = self.module.sim_args
         m = 0
         #print 'mpbatch run completed:%d/%d'%(0,many)
         while m < many:
@@ -501,9 +515,8 @@ class ensemble(lfu.mobject):
             if mleft >= pcnt:rtr = pcnt
             else:rtr = mleft % pcnt
             m += rtr
-
             mppool._initializer()
-            args = [self.module.sim_args]*rtr
+            args = [seed(self._seed(),sim_args[:]) for x in range(rtr)]
             result = mppool.map_async(simu,args,callback = pool._trajectorize)
             result.wait()
             #if m % pfreq == 0:
@@ -819,6 +832,7 @@ class ensemble_manager(lfu.mobject):
 
     def __init__(self,name = 'ensemble.manager',**kwargs):
         self._default('ensembles',[],**kwargs)
+        self._default('ensembleseeds',[],**kwargs)
         self._default('worker_threads',[],**kwargs)
         lfu.mobject.__init__(self,
             name = name,children = self.ensembles)

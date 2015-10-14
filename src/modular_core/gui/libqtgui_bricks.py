@@ -405,9 +405,7 @@ def create_panel(templates, mason, collapses = False, layout = 'grid',
     for dex, template in enumerate(templates):
         try:
             scroll_flag = template.panel_scrollable
-            print 'scroll_flag', scroll_flag
             memory = template.panel_scroll_memory
-
         except AttributeError: memory = None
         if hasattr(template, 'mason'): temp_mason = template.mason
         else: temp_mason = mason

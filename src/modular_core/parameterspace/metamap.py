@@ -4,7 +4,7 @@ import modular_core.data.batch_target as dba
 import modular_core.parameterspace.parameterspaces as lpsp
 
 from cStringIO import StringIO
-import pdb,os,sys,traceback
+import pdb,os,sys,traceback,random
 
 if __name__ == 'modular_core.parameterspace.metamap':
     lfu.check_gui_pack()
@@ -74,10 +74,12 @@ class metamap(lfu.mobject):
         lfu.mobject.__init__(self,**kwargs)
         self._load()
 
+    def _uniquemapname(self):
+        metanumber = random.randint(1000000,9000000)
+        return 'metamap.'+str(metanumber)+'.pkl'
+
     def _load(self):
-        if self.mapfile is None:
-            print 'no metamap to load...'
-            return
+        if self.mapfile is None:self.mapfile = self._uniquemapname()
         self.mappath = os.path.join(self.mapdir,self.mapfile)
         if os.path.isfile(self.mappath):
             proxy = pk.load_pkl_object(self.mappath)
@@ -97,6 +99,7 @@ class metamap(lfu.mobject):
                 self.entries = proxy.entries
                 self.location_strings = proxy.location_strings
         else:
+            print 'no metamap to load...'
             self.entries = {}
             self.location_strings = []
         self._rewidget(True)
