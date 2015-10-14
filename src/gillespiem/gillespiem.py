@@ -189,10 +189,14 @@ class simulation_module(smd.simulation_module):
         runargs = {}
         if mappspace or fitting:
             paxes = cplan.parameter_space.axes
-            paxnames = [a.instance.name.strip() for a in paxes]
+
+            paxnames = ['rseed']
+            for a in paxes:paxnames.append(a.instance.name.strip())
+            #paxnames = [a.instance.name.strip() for a in paxes]
+
             astring = ','.join(paxnames)
             for px,ax in zip(paxnames,paxes):runargs[px] = ax
-        else:astring = ''
+        else:astring = 'rseed'
         if fitting:astring += ',timeout = 30.0'
         rargs = {
             'argstring':astring,
@@ -254,6 +258,12 @@ class simulation_module(smd.simulation_module):
         self.extensionname = lo.increment_filename(self.extensionname)
         self.extensionname = self.extensionname.replace('.','_',1)
 
+    # modify a simulation arguments list 
+    #   to include a chosen random seed
+    def _set_seed(self,rseed,simargs):
+        simargs[1] = rseed
+        return simargs
+
     def _set_parameters_prepoolinit(self):
         if not self.extensionname in sys.modules.keys():
             insttime = time.time()
@@ -292,10 +302,11 @@ class simulation_module(smd.simulation_module):
         fplan = self.parent.fitting_plan
         mappspace = cplan.use_plan
         fitting = fplan.use_plan
+        pargs = [None]
         if mappspace or fitting:
             paxes = cplan.parameter_space.axes
-            pargs = [float(px.instance.__dict__[px.key]) for px in paxes]
-        else:pargs = []
+            for px in paxes:
+                pargs.append(float(px.instance.__dict__[px.key]))
         if fitting:pargs.append(3)
         self.sim_args = [module.run]+pargs
 
@@ -494,6 +505,8 @@ class run(cwr.function):
             fu = self.statetargets[fdex+vcnt+scnt+1]
             funame = self.functions[fu].name
             coder.write('\n\t'+funame+'(state)')
+
+        coder.write('\n\trandom.seed(rseed)')
 
         coder.write('\n\tcdef int totalcaptures = '+str(self.capture_count))
         coder.write('\n\tcdef int capturecount = 0')
@@ -1057,7 +1070,7 @@ class function(lfu.run_parameter):
     def _depends_on(self,spec,funcs):
         for f in funcs:
             if self.func_statement.count(f) > 0:
-                deps = funcs[f]._depends_on(spec)
+                deps = funcs[f]._depends_on(spec,funcs)
                 if deps:return True
         return self.func_statement.count(spec) > 0
 
