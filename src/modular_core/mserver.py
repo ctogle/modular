@@ -3,7 +3,6 @@ import modular_core.settings as lset
 import modular_core.ensemble as me
 import modular_core.mworker as mwk
 import modular_core.parameterspace.metamap as mmap
-import modular_core.data.batch_target as dba
 
 import modular_core.gui.libqtgui as lqg
 lgm = lqg.lgm
@@ -101,7 +100,9 @@ def _listen(commpipe,port,msh = False,buffersize = 4096,msdelim = '\n|::|\n'):
                         users[cx] = u
                         c.send('ping!')
                     elif data == 'mcfg':
-                        mcfgstring = c.recv(4096)
+                        c.settimeout(10.0)
+                        mcfgstring = c.recv(10000)
+                        c.settimeout(0.5)
                         mcfgstringqueue.write(msdelim)
                         mcfgstringqueue.write(mcfgstring)
                         log('\n\t>\tmserver received mcfgstring:')
@@ -216,24 +217,27 @@ class mserver(lfu.mobject):
                     break
 
     def _help(self):
-        print '#'*40+'\n\tproviding help on server shell usage...\n'+'#'*40
+        print '\n'+'#'*40+'\n\tproviding help on server shell usage...\n'+'#'*40
         print '\n\t\toptions for input:'
-        print '\t\t\tquit                 : q'
-        print '\t\t\thelp                 : h'
-        print '\t\t\tprint server log     : l'
-        print '\t\t\tinspect data sources : i'
-        print '\t\t\treceive mcfg jobs    : w'
-        print '\t\t\tpause workers        : p'
-        print '\t\t\tresume workers       : r'
-        print '\t\t\tlist clients         : c'
-        print '\t\t\tprint status         : s\n'
+        print '\t\t\tquit                   : q'
+        print '\t\t\thelp                   : h'
+        print '\t\t\tprint server log       : l'
+        print '\t\t\tinspect data sources   : i'
+        print '\t\t\treceive mcfg jobs      : w'
+        print '\t\t\tdismiss completed jobs : d'
+        print '\t\t\tpause workers          : p'
+        print '\t\t\tresume workers         : r'
+        print '\t\t\tlist clients           : c'
+        print '\t\t\tprint status           : s\n'
         print '#'*40+'\n\tend help...\n'+'#'*40
 
     def _status(self):
         self.ipipe.send('clientcount')
         clientcnt = self.ipipe.recv()
-        print '#'*40+'\n\tproviding status of server...\n'+'#'*40
+        workercnt = self.workercnt
+        print '\n'+'#'*40+'\n\tproviding status of server...\n'+'#'*40
         print '\n\t',clientcnt,'clients are currently connected\n'
+        print '\n\t',workercnt,'workers are currently running\n'
         print '\n\tworker query:\n'
         self._query_workers()
         print '#'*40+'\n\tend status report...\n'+'#'*40
@@ -258,6 +262,7 @@ class mserver(lfu.mobject):
                 print log
             elif do == 'i':self._inspect_sources()
             elif do == 'w':self._accept_work()
+            elif do == 'd':self._dismiss_work()
             elif do == 'p':self._pause_workers()
             elif do == 'r':self._resume_workers()
             elif do == 'c':
@@ -317,6 +322,7 @@ class mserver(lfu.mobject):
         self._default('output_directory',defoutpdir,**kwargs)
         self._default('metamaps',[],**kwargs)
         self._default('maprings',{},**kwargs)
+        self._default('workercnt',0,**kwargs)
         self._default('tickets',{},**kwargs)
         self.mnger = me.ensemble_manager()
         lfu.mobject.__init__(self,*args,**kwargs)
@@ -405,6 +411,7 @@ class mserver(lfu.mobject):
         self.metamaps.append(metamap)
         newworker = mwk.mworker(self.module,mcfgstring,metamap)
         self.maprings[metamap.uniqueness] = newworker
+        self.workercnt += 1
         return newworker
 
     # start an mworker
@@ -442,6 +449,15 @@ class mserver(lfu.mobject):
         else:
             for mwuq in self.maprings:
                 self.maprings[mwuq]._query_all()
+            time.sleep(0.1)
+
+    # remove completed work from mworkers
+    def _dismiss_work(self):
+        print 'completed work is being dismissed...'
+        if not self.maprings:print 'no workers to query...\n'
+        else:
+            for mwuq in self.maprings:
+                mwstatus = self.maprings[mwuq]._update()
             time.sleep(0.1)
 
     #############################################################

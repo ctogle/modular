@@ -131,6 +131,12 @@ from cython.view cimport array as cvarray
     # calculate the code for an extension and write it to a safe place
     def _write(self):
         self.code = self._code()
+        if os.path.exists(self.filepath):
+            with open(self.filepath,'r') as fh:
+                existing = fh.read()
+            if existing == self.code:
+                print 'existing cython code is identical...'
+                return
         with open(self.filepath,'w') as fh:fh.write(self.code)
 
     def __init__(self,*args,**kwargs):

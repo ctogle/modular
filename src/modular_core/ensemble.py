@@ -323,7 +323,7 @@ class ensemble(lfu.mobject):
 
     # use the fitting_plan to perform simulations
     def _run_fitting(self):
-        dpool = dba.batch_node()
+        dpool = dba.batch_node(rnum = self._seed())
         if not self.cartographer_plan.parameter_space:
             print '\nfitting requires a parameter space!\n'
         dpool = self.fitting_plan(self,dpool)
@@ -337,7 +337,7 @@ class ensemble(lfu.mobject):
         for lstr in mmap.location_strings:
             loc_pool = mmap._recover_location(lstr)
             self.postprocess_plan._enact_processes(zeroth,loc_pool)
-        return dba.batch_node()
+        return dba.batch_node(rnum = self._seed())
 
     #parameter variation, no fitting
     def _run_map(self):
@@ -361,7 +361,7 @@ class ensemble(lfu.mobject):
         usepplan = self.postprocess_plan.use_plan
         if usepplan:self.postprocess_plan._init_processes(arc)
 
-        data_pool = dba.batch_node(metapool = meta)
+        data_pool = dba.batch_node(metapool = meta,rnum = self._seed())
         arc_dex = 0
         while arc_dex < arc_length:
             loc_pool = self._run_pspace_location(arc_dex,mppool,meta)
@@ -392,7 +392,7 @@ class ensemble(lfu.mobject):
         prej = mej.setup_node_setup_mjob(self)
         mmcl.delegate(comm.rank,jobs,setup = prej)
 
-        dpool = dba.batch_node()
+        dpool = dba.batch_node(rnum = self._seed())
         return dpool
 
     # use current parameters like a single position trajectory
@@ -403,7 +403,7 @@ class ensemble(lfu.mobject):
         lpsp.trajectory_set_counts(cplan.trajectory,self.num_trajectories)
         data_pool = self._run_map()
         if requiresimdata:return data_pool._split_child()
-        else:return dba.batch_node()
+        else:return dba.batch_node(rnum = self._seed())
 
     # if mapping, ldex is the pspace location index, else ldex is None
     # if not ldex is None, move to the necessary location in pspace
@@ -422,8 +422,9 @@ class ensemble(lfu.mobject):
             mmap = cplan.metamap
 
         if not traj_cnt == 0:
-            loc_pool = dba.batch_node(metapool = meta,
-                    dshape = dshape,targets = ptargets)
+            loc_pool = dba.batch_node(
+                metapool = meta,rnum = self._seed(),
+                dshape = dshape,targets = ptargets)
             if ldex:cplan._move_to(ldex)
             if self.multiprocess_plan.use_plan:mppool._initializer()
             else:self._run_params_to_location()

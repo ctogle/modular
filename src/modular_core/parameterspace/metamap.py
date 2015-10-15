@@ -66,7 +66,6 @@ class metamap(lfu.mobject):
         self._default('require_match',True,**kwargs)
         self._default('uniqueness',None,**kwargs)
         self._default('mcfgstring',None,**kwargs)
-        #self._default('mapfile','pspmap.mmap',**kwargs)
         self._default('mapfile',None,**kwargs)
         self._default('mapdir',lfu.get_mapdata_pool_path(),**kwargs)
         self.mappath = self.mapdir[:]

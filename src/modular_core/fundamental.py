@@ -312,6 +312,9 @@ def parse_range_di(rng):
     interval = float(rng[rng.rfind(';')+1:])
     front = float(rng[:rng.find('-')])
     back = float(rng[rng.find('-')+1:rng.find(';')])
+
+    #pdb.set_trace()
+
     return np.linspace(front,back,interval)
 
 def parse_range_dni(rng):
@@ -329,6 +332,7 @@ def parse_range_ndni(rng):
 #     x - y ; z       #from x to y with z values
 #     x - y           #from x to y with int(y-x) values
 #     x,y,...,z       #from x to z with all values specified in between
+#     x - y ; log ; z
 def parse_range(rng):
     if '-' in rng and ';' in rng:return parse_range_di(rng)
     elif '-' in rng and not ';' in rng:return parse_range_dni(rng)

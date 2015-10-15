@@ -21,10 +21,11 @@ if __name__ == '__main__':print 'batch_target of modular_core'
 ###############################################################################
 
 pool_ids = [0]
-def pool_id():
+def pool_id(r = None):
+    if r is None:r = random.random()
     newid = int(time.time()) + pool_ids[-1] + 1
     pool_ids.append(newid)
-    return 'data_pool.'+str(random.random())+'.node.' + str(newid) + '.hdf5'
+    return 'data_pool.'+str(r)+'.node.' + str(newid) + '.hdf5'
 
 ###############################################################################
 ###############################################################################
@@ -164,7 +165,8 @@ class batch_node(ldc.data_mobject):
         self._default('pspace_axes',None,**kwargs)
         self._default('targets',None,**kwargs)
         self._default('surface_targets',None,**kwargs)
-        self.data_pool_id = pool_id()
+        self._default('rnum',random.randint(1000000,9000000),**kwargs)
+        self.data_pool_id = pool_id(self.rnum)
         self.data_pool_ids = []
 
         if hasattr(self.data,'shape'):
