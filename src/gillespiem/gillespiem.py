@@ -188,14 +188,13 @@ class simulation_module(smd.simulation_module):
         fitting = fplan.use_plan
         runargs = {}
         if mappspace or fitting:
-            paxes = cplan.parameter_space.axes
-
-            paxnames = ['rseed']
+            paxes,paxnames = cplan.parameter_space.axes,[]
             for a in paxes:paxnames.append(a.instance.name.strip())
-            #paxnames = [a.instance.name.strip() for a in paxes]
-
-            astring = ','.join(paxnames)
             for px,ax in zip(paxnames,paxes):runargs[px] = ax
+
+            paxnames.insert(0,'rseed')
+            astring = ','.join(paxnames)
+
         else:astring = 'rseed'
         if fitting:astring += ',timeout = 30.0'
         rargs = {
@@ -420,7 +419,7 @@ class external_signal_function(cwr.function):
         self._default('rxncount',0,**kwargs)
         #self._default('cytype','cdef double',**kwargs)
         self._default('cytype','cdef inline double',**kwargs)
-        self._default('cyoptions',' nogil',**kwargs)
+        #self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
         with open(self.signalpath,'r') as handle:
             signal = handle.readlines()
@@ -462,7 +461,7 @@ class heaviside(cwr.function):
         self._default('name','heaviside',**kwargs)
         self._default('argstring','double value',**kwargs)
         self._default('cytype','cdef inline double',**kwargs)
-        self._default('cyoptions',' nogil',**kwargs)
+        #self._default('cyoptions',' nogil',**kwargs)
         cwr.function.__init__(self,*args,**kwargs)
 
 ############################################################################### 
@@ -487,6 +486,7 @@ class run(cwr.function):
         self._nparray(coder,'data',dshape)
         self._carray(coder,'capture',cshape)
         self._carray(coder,'state',sshape)
+        coder.write('\n\tstate[0] = 0.0')
         for sdex in range(scnt):
             sp = self.statetargets[sdex+1]
             spec = self.species[sp]
@@ -835,7 +835,8 @@ class reaction(lfu.run_parameter):
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef inline void',
-            cyoptions = ' nogil')
+                )
+            #cyoptions = ' nogil')
         cy._code_body = self._cython_react_body
         return cy
 
@@ -864,7 +865,8 @@ class reaction(lfu.run_parameter):
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef inline bint',
-            cyoptions = ' nogil')
+                )
+            #cyoptions = ' nogil')
         cy._code_body = self._cython_valid_body
         self.requires_validator = True
         return cy
@@ -896,7 +898,8 @@ class reaction(lfu.run_parameter):
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef inline double',
-            cyoptions = ' nogil')
+                )
+            #cyoptions = ' nogil')
         cy._code_body = self._cython_propensity_body
         return cy
 
@@ -1038,7 +1041,8 @@ class function(lfu.run_parameter):
             #argstring = 'double['+str(self.rxncount)+'] state',
             argstring = 'double['+str(len(self.statetargets))+'] state',
             cytype = 'cdef inline double',
-            cyoptions = ' nogil')
+                )
+            #cyoptions = ' nogil')
         cy._code_body = self._cython_body
         if self._ext_signal():
             for esig in range(self.func_statement.count('external_signal')):
