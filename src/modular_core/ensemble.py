@@ -483,6 +483,7 @@ class ensemble(lfu.mobject):
     # print the current trajectory/maxtrajectory at frequency pfreq
     def _run_batch(self,many,pool,pfreq = None):
         simu = self.module.simulation
+        seed = self.module._set_seed
         sim_args = self.module.sim_args
         if pfreq is None:pfreq = sys.maxint
         else:print 'batch run completed:%d/%d'%(0,many)
@@ -832,8 +833,8 @@ class ensemble_manager(lfu.mobject):
 
     def __init__(self,name = 'ensemble.manager',**kwargs):
         self._default('ensembles',[],**kwargs)
-        self._default('ensembleseeds',[],**kwargs)
         self._default('worker_threads',[],**kwargs)
+        self.rgen = random.Random()
         lfu.mobject.__init__(self,
             name = name,children = self.ensembles)
 
@@ -863,9 +864,15 @@ class ensemble_manager(lfu.mobject):
         [thread.abort() for thread in self.worker_threads]
         self.worker_threads = []
 
+    # return a viable random seed based on the managers random seed
+    def _seed(self):
+        rseed = self.rgen.randint(0,sys.maxint)
+        return rseed
+
     def _add_ensemble(self,module = None):
         modopts = self._module_options()
-        new = ensemble(parent = self,
+        eseed = self._seed()
+        new = ensemble(parent = self,ensembleseed = eseed,
             module_options = modopts,module = module)
         if new.cancel_make: return
         else: self.ensembles.append(new)

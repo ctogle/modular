@@ -23,6 +23,10 @@ def valid_host(nhost):
     print 'assuming validity of host:',nhost
     return True
 
+# NEED A CONCEPT OF A USER FOR RELOGGING IN LATER
+# NEED TO GET JOB RELATED REPLY FOR STATUS QUERY
+# NEED TO BE ABLE TO LOOK AT AN MCFG IN STDOUT BEFORE SENDING
+
 # requests can also be issued from the mservers interface
 class mclient(lfu.mobject):
 
@@ -37,6 +41,8 @@ class mclient(lfu.mobject):
         self._default('port',defport,**kwargs)
         defhost = lset.get_setting('default_host')
         self._default('host',defhost,**kwargs)
+        defuser = lset.get_setting('default_user')
+        self._default('user',defuser,**kwargs)
         self._default('connected',False,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
@@ -68,7 +74,7 @@ class mclient(lfu.mobject):
     def _ping(self,c):
         if not c is None:
             try:
-                c.send('ping')
+                c.send('ping:'+self.user)
                 p = c.recv(1024)
                 if p == '':p = False
                 return p
@@ -90,7 +96,8 @@ class mclient(lfu.mobject):
 
     def _status(self,c):
         print '#'*40+'\n\tproviding status of client...\n'+'#'*40
-        print '\n\tclient is using port:',self.port
+        print '\n\tclient is serving user:',self.user
+        print '\tclient is using port:',self.port
         if self.connected:
             print '\tclient is connected to server:',self.host,'\n'
         else:print '\tclient is not connected to server:',self.host,'\n'

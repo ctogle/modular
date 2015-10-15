@@ -183,6 +183,9 @@ class batch_node(ldc.data_mobject):
         if self.metapool:prepath = lfu.get_mapdata_pool_path()
         else:prepath = lfu.get_data_pool_path()
         dpath = os.path.join(prepath,self.data_pool_id)
+        if not os.path.exists(prepath):
+            print 'data pool must exist... this does not:',prepath
+            raise ValueError
         return dpath
 
     #def _init_data(self,fop = 'w'):

@@ -133,6 +133,7 @@ class metamap(lfu.mobject):
             loc_pool = loc_pool._subset_pool(num_required)
         return loc_pool
 
+    # determine the current count of trajectories at a location
     def _trajectory_count(self,loc_str,dshape):
         if loc_str in self.location_strings:
             mloc = self.entries[loc_str]

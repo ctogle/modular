@@ -65,6 +65,7 @@
 	skipsimulation : off
 	mapparameterspace : on
 	metamapparameterspace : on
+  metamappath : metamap.8159921.pkl
 	fitting : off
 	postprocessing : on
 	trajectory_count : 1000

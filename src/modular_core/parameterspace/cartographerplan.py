@@ -85,16 +85,12 @@ class cartographer_plan(lfu.plan):
         traj = self.trajectory
         loc = traj[ldex]
         axs = self.parameter_space.axes
-
         #numtraj = str(self.trajectory[ldex].trajectory_count)
         maxtime = str(self.parent.simulation_plan._max_time())
         captinc = str(self.parent.simulation_plan._capture_increment())
         prnt = []
-        #
         prnt.append('end : '+maxtime)
         prnt.append('inc : '+captinc)
-        #prnt.append('ntj : '+numtraj)
-        #
         for a,l in zip(axs,loc):
             prnt.append(a.name+' : '+str(l))
         return ' || '.join(prnt)
