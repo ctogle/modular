@@ -630,6 +630,7 @@ class run(cwr.function):
         #coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         #coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
         
+        #coder.write('\n\t\t\tdel_t = -1.0*log(1.0-<float>random.random())*tpinv')
         coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
         #coder.write('\n\t\t\trandr = <float>random.random()')
         coder.write('\n\t\t\trandr = <float>random.random()*totalpropensity')
