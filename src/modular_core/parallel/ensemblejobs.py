@@ -87,7 +87,12 @@ class ejob(mmcl.mjob):
         #mmcl.silence()
 
         host = MPI.Get_processor_name()
-        lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+        currcache = lfu.get_cache_path()
+        if not currcache.endswith(host):
+            lfu.set_cache_path(os.path.join(currcache,host))
+        currcache = lfu.get_cache_path()
+        if not os.path.exists(currcache):
+            os.mkdir(currcache)
         #time.sleep(1)
 
         ensem = self.wargs[0]
@@ -206,14 +211,14 @@ def setup_ensemble_mjobs(ensem,trj_per_job = None):
 
     arc_dex = 0
     if trj_per_job is None:trj_per_job = traj_cnt/ncores
-    mmcl.silence()
+    #mmcl.silence()
     while arc_dex < arc_length:
         spargs = (mjobs,zjobs,mnger,ensem.module_name,
             mcfgstring,arc,arc_dex,trj_per_job,meta)
         setup_pspace_mjobs(*spargs)
         arc_dex += 1
         print 'make some jobs for this location:%d/%d'%(arc_dex,arc_length)
-    mmcl.vocalize()
+    #mmcl.vocalize()
 
     mjobs.extend(zjobs)
     aggr_args = (ensem,arc_length)
@@ -279,14 +284,14 @@ def setup_ensemble_mjobs_maponly(ensem):
 
     mjobs = []
     arc_dex = 0
-    mmcl.silence()
+    #mmcl.silence()
     while arc_dex < arc_length:
         spargs = (mjobs,mnger,ensem.module_name,
                     mcfgstring,arc,arc_dex,meta)
         setup_pspace_mjob_maponly(*spargs)
         arc_dex += 1
         print 'make job for this location:%d/%d'%(arc_dex,arc_length)
-    mmcl.vocalize()
+    #mmcl.vocalize()
 
     aggr_args = (ensem,arc_length)
     pspl_jdxs = [x for x in range(arc_length)]

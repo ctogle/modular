@@ -155,14 +155,15 @@ def get_cache_path(res = None):
 sys.path.append(get_cache_path())
 
 # change the user cache path, modifying sys.path as needed
-def set_cache_path(cpath = None):
+def set_cache_path(cpath = None,makeifmissing = True):
     global user_cache_path
     current = get_cache_path()
     if current in sys.path:sys.path.remove(current)
     if not cpath is None:user_cache_path = cpath
     sys.path.append(get_cache_path())
-    if not os.path.exists(get_cache_path()):
-        os.mkdir(get_cache_path())
+    if makeifmissing:
+        if not os.path.exists(get_cache_path()):
+            os.mkdir(get_cache_path())
 
 # resolve full resource path from resource filename
 def get_resource_path(res = None):

@@ -105,7 +105,7 @@ def host_lookup(root):
         if c == root:
             hosts['root'] = c
             host = MPI.Get_processor_name()
-            lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+            #lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
         else:
             comm.send(passjob,dest = c)
             jrk,npr,jid,jshp = comm.recv(source = c)
@@ -183,7 +183,10 @@ def listen(root):
     host = MPI.Get_processor_name()
 
     print 'updating cache directory per node...'
-    lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host))
+    #lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host),False)
+    currcache = lfu.get_cache_path()
+    if not currcache.endswith(host):
+        lfu.set_cache_path(os.path.join(currcache,host),False)
 
     rank = comm.rank
     quit = False
