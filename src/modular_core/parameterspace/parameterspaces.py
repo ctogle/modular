@@ -104,21 +104,35 @@ def trimmed_space(axes):
     pspace = parameter_space(axes = trimmed_axes)
     return pspace
 
-def parse_pspace(plines,ensem):
-    def read_steps(rng):
-        if ';' in rng:return float(rng[rng.rfind(';')+1:])
-        else:return 10
+def parse_axis(al,incs,rngs,rngbnds):
+    rp,rpat,subrngs = al[0],al[1],al[2:]
+    #rp,rpat = parse_axis(axline,increments,rngs,rng_bounds)
+    rvals,rbnds = [],[0,0]
+    for subr in subrngs:
+        subvals = lfu.parse_range(subr)
+        subvmin,subvmax = min(subvals),max(subvals)
+        if subvmin < rbnds[0]:rbnds[0] = subvmin
+        if subvmax > rbnds[1]:rbnds[1] = subvmax
+        rvals.extend(subvals)
+    rinc = 10
+    incs.append(rinc)
+    rngs.append(rvals)
+    rngbnds.append(rbnds)
+    return rp,rpat
 
+def parse_pspace(plines,ensem):
     header = plines[0]
     if header[0].count('<product_space>'):variety = 'product'
     elif header[0].count('<zip_space>'):variety = 'zip'
     elif header[0].count('<fitting_space>'):variety = 'fitting'
 
     axis_lines = plines[1:]
-    rparams,attrs,rngs = zip(*axis_lines)
-    increments = [read_steps(rng) for rng in rngs]
-    rngs = [lfu.parse_range(rng) for rng in rngs]
-    rng_bounds = [[rng[0],rng[-1]] for rng in rngs]
+    rparams,attrs = [],[]
+    increments,rngs,rng_bounds = [],[],[]
+    for axline in axis_lines:
+        rp,rpat = parse_axis(axline,increments,rngs,rng_bounds)
+        rparams.append(rp)
+        attrs.append(rpat)
 
     pspaxes = ensem.cartographer_plan._run_parameter_axes(rparams,attrs)
     for rdx in range(len(rparams)):

@@ -309,13 +309,27 @@ def clamp_periodic(val, min_, max_):
 def msplit(st,de = ':'):
     return [l.strip() for l in st.split(de)]
 
+###############################################################################
+### functions for parsing ranges of numbers of various formats
+###############################################################################
+
+def parse_range_dim(rng):
+    mod = rng[rng.rfind(';')+1:]
+    rng = rng[:rng.rfind(';')]
+    interval = float(rng[rng.rfind(';')+1:])
+    front = float(rng[:rng.find('-')])
+    back = float(rng[rng.find('-')+1:rng.find(';')])
+    if mod == 'log':
+        return np.exp(np.linspace(np.log(front),np.log(back),interval))
+    else:
+        print 'unidentified parse_range modifier:',mod
+        raise ValueError
+    return np.linspace(front,back,interval)
+
 def parse_range_di(rng):
     interval = float(rng[rng.rfind(';')+1:])
     front = float(rng[:rng.find('-')])
     back = float(rng[rng.find('-')+1:rng.find(';')])
-
-    #pdb.set_trace()
-
     return np.linspace(front,back,interval)
 
 def parse_range_dni(rng):
@@ -335,10 +349,21 @@ def parse_range_ndni(rng):
 #     x,y,...,z       #from x to z with all values specified in between
 #     x - y ; log ; z
 def parse_range(rng):
-    if '-' in rng and ';' in rng:return parse_range_di(rng)
-    elif '-' in rng and not ';' in rng:return parse_range_dni(rng)
-    elif not '-' in rng and not ';' in rng:return parse_range_ndni(rng)
-    else:print 'unsupported parse_range input format:',rng
+    rspl = msplit(rng,';')
+    scnt = len(rspl)
+    scsv = '-' in rspl[0]
+    if scnt == 1:
+        if scsv:parsed = parse_range_dni(rng)
+        else:parsed = parse_range_ndni(rng)
+    elif scnt == 2:parsed = parse_range_di(rng)
+    elif scnt == 3:parsed = parse_range_dim(rng)
+    else:
+        print 'unsupported parse_range input format:',rng
+        raise ValueError
+    return parsed
+
+###############################################################################
+###############################################################################
 
 # return a list of all things found in a list of lists of things
 def flatten(unflat_list):

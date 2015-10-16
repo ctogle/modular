@@ -1,10 +1,8 @@
 
 modular:
 ========
-modular_core is a python package that provides a framework for running 
-arbitrary simulations and analyzing their results. 
-It provides basic infrastructure for plotting results and 
-outputting results for other programs to consume as well.
+modular_core is a python package that provides a framework for 
+running arbitrary simulations and analyzing their results. 
 
 installation:
 =============
