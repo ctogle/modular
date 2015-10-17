@@ -59,6 +59,7 @@ class mworker(lfu.mobject):
         self.metamap = metamap
         self.tickets = []
         self.required = {}
+        self.reqkeys = []
         self.log = StringIO()
         lfu.mobject.__init__(self,*args,**kwargs)
 
@@ -78,7 +79,7 @@ class mworker(lfu.mobject):
     # NOTE: set self.mcfgstring before calling this...
     def _start(self):
         self._open_comm()
-        self.commpipe.send(self.required)
+        self.commpipe.send((self.required,self.reqkeys))
         self.status = 'working'
 
     # stop working on all tickets
@@ -100,13 +101,17 @@ class mworker(lfu.mobject):
     def _update(self):
         self.commpipe.send('provide-update')
         self.status = 'updating'
-        updated = self.commpipe.recv()
+        upreqs = self.commpipe.recv()
+        upkeys = self.commpipe.recv()
 
         print 'must compare update results'
         print 'older'
         print self.required
         print 'newer'
-        print updated
+        print upreqs
+        print upkeys
+
+        self.status = 'working'
 
     # provide an estimate on completion time on the required list
     def _query(self):
@@ -161,6 +166,7 @@ class mworker(lfu.mobject):
         for req in newticket.required:
             if not req[1] in self.required:
                 self.required[req[1]] = ['normal',[newticket.number],[req[0]]]
+                self.reqkeys.append(req[1])
             else:
                 self.required[req[1]][1].append(newticket.number)
                 self.required[req[1]][2].append(req[0])
@@ -240,7 +246,7 @@ def _comm(commpipe,module,mcfgstring):
     sys.stdout = logqueue
 
     print 'comm waiting for required lookup...'
-    creqs = commpipe.recv()
+    creqs,ckeys = commpipe.recv()
     print 'comm received required lookup...'
 
     print 'comm starting worker process...'
@@ -248,102 +254,78 @@ def _comm(commpipe,module,mcfgstring):
     workprocess = multiprocessing.Process(
         target = _work,args = (worksubpipe,module,mcfgstring))
     workprocess.start()
-    workpipe.send(creqs)
+    workpipe.send((creqs,ckeys))
+    #workpipe.send(ckeys)
     print 'comm started worker process...'
 
     while True:
-        instr = _comm_server_poll(commpipe,workpipe,creqs)
+        instr = _comm_server_poll(commpipe,workpipe,creqs,ckeys)
         if instr is False:
             workpipe.send('kill')
             workprocess.join()
             break
-        else:reqs = instr
+        else:creqs,ckeys = instr
 
-        '''#
-        # communicate with the server as needed
-        if commpipe.poll():
-            msg = commpipe.recv()
-            print 'mworker comm received a server message:',msg
-            if msg == 'kill':
-                workpipe.send('kill')
-                workprocess.join()
-            #elif msg == 'log':
-            elif msg == 'pause':workpipe.send('pause')
-            elif msg == 'resume':workpipe.send('resume')
-            elif msg == 'receive-update':
-                commrequired = commpipe.recv()
-                workpipe.send('receive-update')
-                workpipe.send(commrequired)
-            elif msg == 'provide-update':
-                workpipe.send('provide-update')
-                workupdate = workpipe.recv()
-
-                print 'make ccommrequired reflect workupdate...'
-                commrequired = workupdate
-
-                commpipe.send(commrequired)
-            elif msg == 'query':
-                #request = commpipe.poll()
-                workpipe.send('query')
-                reply = workpipe.recv()
-                print 'sending query reply:',reply
-                commpipe.send(reply)
-            elif msg == 'state':
-                workpipe.send('state')
-                reply = workpipe.recv()
-                print 'sending statequery reply:',reply
-                commpipe.send(reply)
-        '''#
-
-        # communicate with the worker as needed
-        '''#
         if workpipe.poll():
-            workmsg = workpipe.recv()
-            print 'mworker comm received a worker message:',workmsg
-            if workmsg == 'done':
-                workpipe.send('okay')
-                #workpipe.send(creqs)
-                print 'mworker has completed its work and awaits!'
-        '''#
+          workmsg = workpipe.recv()
+          print 'mworker comm received a worker message:',workmsg
+          if workmsg == 'done':
+            workpipe.send('okay')
+            #workpipe.send(creqs)
+            print 'mworker has completed its work and awaits!'
 
     workpipe.close()
     sys.stdout = sys.__stdout__
 
 # the mworker comm process polls the server for input...
-def _comm_server_poll(commpipe,workpipe,creqs):
+def _comm_server_poll(commpipe,workpipe,creqs,ckeys):
     r = commpipe.poll()
     while r:
         r = commpipe.recv()
-        print 'mworker comm received a server message:',r
+
         if r == 'kill':return False
+
         #elif r == 'log':
+
         elif r == 'pause':workpipe.send('pause')
+
         elif r == 'resume':workpipe.send('resume')
+
         elif r == 'receive-update':
             creqs = commpipe.recv()
+            ckeys = commpipe.recv()
             workpipe.send('receive-update')
             workpipe.send(creqs)
+            workpipe.send(ckeys)
+
         elif r == 'provide-update':
             workpipe.send('provide-update')
-            workupdate = workpipe.recv()
+            workreq = workpipe.recv()
+            workkey = workpipe.recv()
 
             print 'make ccreqs reflect workupdate...'
-            creqs = workupdate
+            creqs = workreq
+            ckeys = workkey
 
             commpipe.send(creqs)
+            commpipe.send(ckeys)
+
         elif r == 'query':
             #request = commpipe.poll()
             workpipe.send('query')
             reply = workpipe.recv()
             print 'sending query reply:',reply
             commpipe.send(reply)
+
         elif r == 'state':
             workpipe.send('state')
             reply = workpipe.recv()
             print 'sending statequery reply:',reply
             commpipe.send(reply)
+
         r = commpipe.poll()
-    return creqs
+
+    return creqs,ckeys
 
 # run in a Process
 # perform 5 basic functions on the worker process
@@ -375,14 +357,12 @@ def _work(commpipe,module,mcfgstring):
     # the worker will effectively merge them, so they can eventually be removed
     # once the worker has successfully written what represents their union
 
-    print "\nmultithread mworker has started working\n"
-
-    reqs = commpipe.recv()
-    rkys = reqs.keys()
+    reqs,rkys = commpipe.recv()
     reqs['workerdata'] = {
         'reqcnt':len(rkys),
         'starttime':time.time()}
 
+    print "\nmultithread mworker has started working\n"
     while True:
         instr = _work_comm_poll(commpipe,reqs,rkys)
         if instr is False:break
@@ -410,18 +390,23 @@ def _work_comm_wait(commpipe,reqs,rkys):
         time.sleep(0.1)
 
         if r == 'kill':return False
+
         elif r == 'receive-update':
             print 'mworker work process receiving update...'
-            reqs = commpipe.recv()
-            rkys = reqs.keys()
+            reqs,rkys = commpipe.recv()
+
         elif r == 'provide-update':
             print 'mworker work process providing update...'
-            commpipe.send(reqs)
+            commpipe.send((reqs,rkys))
+
         elif r == 'query':
             qrep = _form_query_reply(reqs,rkys)
             commpipe.send(qrep)
+
         elif r == 'state':commpipe.send('done')
+
         else:print 'paused worker received ambiguous input:',r
+
     return reqs,rkys
 
 # handle any requests from the server
@@ -432,21 +417,26 @@ def _work_comm_poll(commpipe,reqs,rkys):
     while r:
         r = commpipe.recv()
         print 'work request recv',r
+
         if r == 'kill':
             print 'mworker work process killed...'
             return False
+
         elif r == 'pause':
             reqs,rkys =_work_pause(commpipe,reqs,rkys)
+
         elif r == 'receive-update':
             print 'mworker work process receiving updating...'
-            reqs = commpipe.recv()
-            rkys = reqs.keys()
+            reqs,kys = commpipe.recv()
+
         elif r == 'provide-update':
             print 'mworker work process providing updating...'
-            commpipe.send(reqs)
+            commpipe.send((reqs,rkys))
+
         elif r == 'query':
             qrep = _form_query_reply(reqs,rkys)
             commpipe.send(qrep)
+
         elif r == 'state':commpipe.send('working')
 
         r = commpipe.poll()
@@ -456,7 +446,7 @@ def _work_comm_poll(commpipe,reqs,rkys):
 # based on priorities, choose the next job to simulate
 # NOTE: should avoid selecting 'workerdata' entry
 def _pick_job(reqs,rkys):
-    return 1
+    return 0
 
 # the effective working state of the worker
 # NOTE: called when ready to perform work
@@ -481,22 +471,29 @@ def _work_pause(commpipe,reqs,rkys):
     print 'mworker work process paused...'
     while True:
         r = commpipe.recv()
+
         if r == 'resume':
             print 'mworker work process resumed...'
             break
+
         elif r == 'kill':return
+
         elif r == 'receive-update':
             print 'mworker work process receiving updating...'
-            reqs = commpipe.recv()
-            rkys = reqs.keys()
+            reqs,rkys = commpipe.recv()
+
         elif r == 'provide-update':
             print 'mworker work process providing updating...'
-            commpipe.send(reqs)
+            commpipe.send((reqs,rkys))
+
         elif r == 'query':
             qrep = _form_query_reply(reqs,rkys)
             commpipe.send(qrep)
+            
         elif r == 'state':commpipe.send('paused')
+
         else:print 'paused worker received ambiguous input:',r
+
     return reqs,rkys
 
 # convert a number in seconds to minutes
