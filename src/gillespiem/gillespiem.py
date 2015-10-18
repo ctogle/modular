@@ -630,10 +630,10 @@ class run(cwr.function):
         #coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         #coder.write('\n\t\t\t\treactiontable[rtabledex] *= tpinv')
         
-        #coder.write('\n\t\t\tdel_t = -1.0*log(1.0-<float>random.random())*tpinv')
-        coder.write('\n\t\t\tdel_t = -1.0*log(<float>random.random())*tpinv')
-        #coder.write('\n\t\t\trandr = <float>random.random()')
-        coder.write('\n\t\t\trandr = <float>random.random()*totalpropensity')
+        #coder.write('\n\t\t\tdel_t = -1.0*log(1.0-random.random())*tpinv')
+        coder.write('\n\t\t\tdel_t = -1.0*log(random.random())*tpinv')
+        #coder.write('\n\t\t\trandr = random.random()')
+        coder.write('\n\t\t\trandr = random.random()*totalpropensity')
 
         coder.write('\n\t\t\tfor rtabledex in range(rxncount):')
         coder.write('\n\t\t\t\tif randr < reactiontable[rtabledex]:')
