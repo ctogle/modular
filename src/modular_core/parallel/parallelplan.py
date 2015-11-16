@@ -33,6 +33,7 @@ class parallel_plan(lfu.plan):
         self.distributed = lset.get_setting('distributed')
         self._default('cluster_node_ips',[],**kwargs)
         self._default('simulations_per_job',1000,**kwargs)
+        self._default('home_mounted',False,**kwargs)
         lfu.plan.__init__(self,*args,**kwargs)
 
     def _widget(self,*args,**kwargs):

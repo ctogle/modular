@@ -4,6 +4,7 @@ import modular_core.data.single_target as mst
 
 import matplotlib,os,numpy,glob
 import matplotlib.pyplot as plt
+matplotlib.rcParams['pdf.fonttype'] = 42
 
 import pdb
 
@@ -127,11 +128,11 @@ class msubplot(lfu.mobject):
         self._default('ylab',None,**kwargs)
         self._default('zlab',None,**kwargs)
         self._default('plabsize',18,**kwargs)
-        self._default('xlabsize',16,**kwargs)
-        self._default('ylabsize',16,**kwargs)
-        self._default('zlabsize',16,**kwargs)
-        self._default('xticksize',16,**kwargs)
-        self._default('yticksize',16,**kwargs)
+        self._default('xlabsize',20,**kwargs)
+        self._default('ylabsize',20,**kwargs)
+        self._default('zlabsize',20,**kwargs)
+        self._default('xticksize',20,**kwargs)
+        self._default('yticksize',20,**kwargs)
         self._default('xlog',False,**kwargs)
         self._default('ylog',False,**kwargs)
         self._default('zlog',False,**kwargs)
@@ -417,15 +418,19 @@ class mplotheat(mplottarg):
         #    extent = self.minmax())
         #####
 
-        if not minz == maxz:self.msub.mplot.figure.colorbar(cmesh)
-
-        curves = 10
-        levels = numpy.arange(self.z.min(),self.z.max(),
-            (1/float(curves))*(self.z.max()-self.z.min()))
-        #ax.contour(surf,colors = 'white',levels = levels)
-        contour = ax.contour(self.x,self.y,self.z,
-            colors = 'white',levels = levels)
-        ax.clabel(contour,inline=1,fontsize=10)
+        if not minz == maxz:
+            cb = self.msub.mplot.figure.colorbar(cmesh)
+            cb.set_label('',fontsize=16)
+            for tick in cb.ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(16)
+        if False:
+            curves = 10
+            levels = numpy.arange(self.z.min(),self.z.max(),
+                (1/float(curves))*(self.z.max()-self.z.min()))
+            #ax.contour(surf,colors = 'white',levels = levels)
+            contour = ax.contour(self.x,self.y,self.z,
+                colors = 'white',levels = levels)
+            ax.clabel(contour,inline=1,fontsize=10)
 
 # represents one line in a plot
 class mplotline(mplottarg):

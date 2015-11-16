@@ -8,7 +8,8 @@ import modular_core.mserver as msrv
 import modular_core.mclient as mcli
 lfu.using_gui = False
 
-from modular_core.parallel.mpicluster import listen
+#from modular_core.parallel.mpicluster import listen
+from modular_core.parallel.mpicluster import listen_node
 from modular_core.parallel.mpicluster import stop_listeners
 from mpi4py import MPI
 
@@ -78,7 +79,8 @@ if __name__ == '__main__':
                 if os.path.isfile(fi):run_mcfg(mo,fi)
                 else:print 'file',fi,'is not a file!'
                 stop_listeners(root)
-            else:listen(root)
+            else:listen_node(root)
+            #else:listen(root)
     else:run_gui()
 
 

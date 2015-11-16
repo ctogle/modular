@@ -77,8 +77,9 @@ def find_mjob(jobs,job_id):
 
 def select_mjob(jobs,jcnt):
     for jdx in range(jcnt):
-        if jobs[jdx]._ready():
-            return jdx
+        j = jobs[jdx]
+        if not hasattr(j,'_ready'):return jdx
+        elif j._ready():return jdx
 
 def wait_for_mjob(root,jobs):
     comm = MPI.COMM_WORLD
@@ -91,7 +92,8 @@ def wait_for_mjob(root,jobs):
         j._release(jobs)
     else:
         jresult = comm.recv(source = jrk)
-        jresult._release(jobs)
+        if hasattr(jresult,'_release'):
+            jresult._release(jobs)
     return jrk
 
 ###############################################################################
@@ -139,41 +141,71 @@ def delegate(root,jobs,setup = None,v = True):
     if v is False:silence()
 
     hosts = host_lookup(root)
-    if not setup is None:delegate_per_node(hosts,setup)
+    if not setup is None:
+        print 'performing setup jobs...'
+        delegate_per_node(hosts,setup)
+        print 'performed setup jobs...'
 
     passjob = mjob([],'pass')
     passjob.silent = True
     remaining_jobs = jobs[:]
-    for j in jobs:j._initialize(jobs)
     jobcount = len(jobs)
     jobstodo = jobcount
     jobsdone = 0
-    while jobsdone < jobcount:
-        swap = []
-        for f in free:
-            if jobstodo > 0:
-                jdx = select_mjob(remaining_jobs,jobstodo)
-                if jdx is None:break
-                j = remaining_jobs.pop(jdx)
-                if v is False:j.silent = True
-                else:j.silent = False
-                if j.root_only:
-                    print 'executing root only job:',j.job_id
-                    j._work()
-                    comm.send(passjob,dest = f)
-                else:
-                    j.selfdex = jobs.index(j)
-                    comm.send(j,dest = f)
-                swap.append(f)
-                jobstodo -= 1
-            else:break
-        for f in swap:
-            free.remove(f)
-            occp.append(f)
-        jrank = wait_for_mjob(root,jobs)
-        free.append(jrank)
-        occp.remove(jrank)
-        jobsdone += 1
+    if jobcount:
+
+        #usingmjobs = hasattr(jobs[0],'_initialize')
+
+        for j in jobs:
+            if hasattr(j,'_initialize'):
+                j._initialize(jobs)
+
+        while jobsdone < jobcount:
+            swap = []
+            for f in free:
+                if jobstodo > 0:
+
+                    ###
+                    ###
+                    ###
+                    ###
+
+                    jdx = select_mjob(remaining_jobs,jobstodo)
+                    #if usingmjobs:jdx = select_mjob(remaining_jobs,jobstodo)
+                    #else:jdx = 0
+
+                    if jdx is None:break
+                    j = remaining_jobs.pop(jdx)
+
+                    #if usingmjobs:
+                    if isinstance(j,mjob):
+                        if v is False:j.silent = True
+                        else:j.silent = False
+                        if j.root_only:
+                            print 'executing root only job:',j.job_id
+                            j._work()
+                            comm.send(passjob,dest = f)
+                        else:
+                            j.selfdex = jobs.index(j)
+                            comm.send(j,dest = f)
+
+                    else:comm.send(j,dest = f)
+
+                    ###
+                    ###
+                    ###
+                    ###
+
+                    swap.append(f)
+                    jobstodo -= 1
+                else:break
+            for f in swap:
+                free.remove(f)
+                occp.append(f)
+            jrank = wait_for_mjob(root,jobs)
+            free.append(jrank)
+            occp.remove(jrank)
+            jobsdone += 1
     if v is False:vocalize()
 
 ###############################################################################
@@ -182,7 +214,7 @@ def listen(root):
     comm = MPI.COMM_WORLD
     host = MPI.Get_processor_name()
 
-    print 'updating cache directory per node...'
+    print 'updating cache directory per core...'
     #lfu.set_cache_path(os.path.join(lfu.get_cache_path(),host),False)
     currcache = lfu.get_cache_path()
     if not currcache.endswith(host):
@@ -210,6 +242,57 @@ def listen(root):
         comm.send((job.rank,npreply,job.job_id,jshape),dest = root)
         if npreply:comm.Send([job.result,MPI.FLOAT],dest = root)
         else:comm.send(job,dest = root)
+    print 'listener quit',rank,'on',host
+
+# analogous to listen but used for home_mounted = True case...
+# job is an mcfg, a range of parameter space locations, and a random integer
+# when the job is complete, a metamap which has been generated should 
+# be sent back to the root
+# the root merges the metamaps it receives and 
+# runs higher order post processing and output
+def listen_node(root):
+    comm = MPI.COMM_WORLD
+    host = MPI.Get_processor_name()
+    rank = comm.rank
+
+    print 'updating cache directory...'
+    currcache = lfu.get_cache_path()
+    if not currcache.endswith(host):
+        lfu.set_cache_path(os.path.join(currcache,host),False)
+
+    quit = False
+    print 'node listener starting',rank,'on',host
+    while not quit:
+        job = comm.recv(source = root)
+        if job == 'quit':
+            print 'listening node told to quit!'
+            break
+
+        elif isinstance(job,mjob):
+            if job.silent:silence()
+            else:vocalize()
+            print 'rank:',rank,'received job:',job.job_id,'with work:',job.work
+            job._work()
+            print 'rank:',rank,'finished job:',job.job_id,'with work:',job.work
+            print 'rank:',rank,'sending reply...'
+            job.rank = rank
+            job.host = host
+            npreply = job._np_reply()
+            if npreply:jshape = job.result.shape
+            else:jshape = None
+            comm.send((job.rank,npreply,job.job_id,jshape),dest = root)
+            if npreply:comm.Send([job.result,MPI.FLOAT],dest = root)
+            else:comm.send(job,dest = root)
+
+        else:
+            job_id,jobwork = job
+
+            print 'rank:',rank,'received job:',job
+            print 'rank:',rank,'finished job:',job
+
+            comm.send((rank,False,job_id,None),dest = root)
+            comm.send(job,dest = root)
+
     print 'listener quit',rank,'on',host
 
 def stop_listeners(root):

@@ -33,7 +33,7 @@
 	x2
 
 <parameter_space>
-	<product_space> 500
+	<product_space> 1000
     mu     : value : 10.0
 		K      : value : 0.000000000000001
 		lambda1 : value : 2.0-10.0;5
@@ -48,12 +48,13 @@
 	reorg : reorganize : 2 : all
 
 <multiprocessing>
-	multiprocessing : on
+	multiprocessing : off
 	workers : 32
 
 <clustering>
-  distributed : off
+  distributed : on
   simulations_per_job : 1000
+  home_mounted : on
 
 <output_plans>
 	3 : - : reorg_output : pkl : all

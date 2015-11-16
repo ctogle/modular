@@ -15,7 +15,7 @@ class ejob(mmcl.mjob):
 
     # produce a numpy array of trajectory data
     def _runbatch(self,*args):
-        ensem,trjcnt,tgcnt,cptcnt = args
+        ensem,trjcnt,tgcnt,cptcnt,meta = args
         dshape = (trjcnt,tgcnt,cptcnt)
         r = ensem._run_batch_np(trjcnt,dshape,pfreq = None)
         return r
@@ -76,8 +76,14 @@ class ejob(mmcl.mjob):
     # this bypasses much communication which is necessary
     # to break up work at a single pspace location
     def _run_pspace_location(self):
-        r = self._runbatch(*self.wargs[:-1])
+        r = self._runbatch(*self.wargs)
         self.inputs = [r]
+
+        #if meta:
+        #    print 'should record metamap data...'
+        #    cplan = ensem.cartographer_plan
+        #    cplan._record_persistent(ldex,loc_pool)
+
         z = self._zeroth()
         return z
 
@@ -273,6 +279,7 @@ def setup_ensemble_mjobs_maponly(ensem):
         lpsp.trajectory_set_counts(trj,ntrj)
 
     meta = False
+    #meta = cplan.maintain_pspmap
 
     arc = cplan.trajectory
     arc_length = len(arc)

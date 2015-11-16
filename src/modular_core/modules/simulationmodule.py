@@ -47,6 +47,8 @@ class simulation_module(lfu.mobject):
             ensem.multiprocess_plan.distributed = lfu.coerce_string_bool(value)
         elif which == 'simulations_per_job':
             ensem.multiprocess_plan.simulations_per_job = int(value)
+        elif which == 'home_mounted':
+            ensem.multiprocess_plan.home_mounted = lfu.coerce_string_bool(value)
 
     def _parse_mcfg_ensemble(li,ensem,parser,procs,routs,targs):
         which,value = lfu.msplit(li)

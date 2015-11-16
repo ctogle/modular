@@ -377,8 +377,46 @@ class ensemble(lfu.mobject):
             mppool.join()
         return data_pool
 
+    ###########################################################################
+    ###
+    ### is the home folder mounted on every node
+    ###   if so, _run_mpi_node is valid
+    ###     create a metamap in the root process
+    ###     this includes parameter space locations, trajectory counts, 
+    ###       and in this case filenames are generated
+    ###     sets of these are passed to one process on each node
+    ###     each set is given to a subprocess managed by multiprocessing
+    ###     the simulation run function and strings of parameter locations
+    ###       and a number of trajectories are sent to each node
+    ###     
+    ###     give each node an mcfg and a subspace of parameter space 
+    ###       for which it is responsible
+    ###     create an ensemble from the mcfg and limit its parameter space 
+    ###       to the relevant subspace region
+    ###     run simulations and zero order processes using mppool based on 
+    ###       the processor count on that node
+    ###     both are saved somewhere in the home folder in separate hdf5 files
+    ###     the file names are the message sent back 
+    ###     the root core waits until all nodes complete their work
+    ###       compiling a metamap based on 
+    ###   else, _run_mpi_proc is the only option
+    ###     each core is given ensemble job objects as is currently implemented
+    ###     data is not saved to disk but instead zero order post process results
+    ###     are sent across the network to the root core
+    ###
+    ###########################################################################
+
     # use mpi to distribute work across a network
     def _run_distributed(self):
+        mplan = self.multiprocess_plan
+        if mplan.home_mounted:dpool = self._run_mpi_node()
+        else:dpool = self._run_mpi_proc()
+        return dpool
+
+    ###########################################################################
+    ### use the root to communicate with every worker core
+    ###########################################################################
+    def _run_mpi_proc(self):
         comm = MPI.COMM_WORLD
 
         mplan = self.multiprocess_plan
@@ -386,14 +424,87 @@ class ensemble(lfu.mobject):
         if self.cartographer_plan.use_plan:t = 0
         else:t = None
         ntraj = self._run_init_ntraj(t)
+
+        prej = mej.setup_node_setup_mjob(self)
+        hosts = mmcl.host_lookup(comm.rank)
+        print 'performing setup jobs...'
+        mmcl.delegate_per_node(hosts,prej)
+        print 'performed setup jobs...'
+
+        host = MPI.Get_processor_name()
+        currcache = lfu.get_cache_path()
+        if not currcache.endswith(host):
+            lfu.set_cache_path(os.path.join(currcache,host))
+
         if ntraj == simulations_per_job:
             jobs = mej.setup_ensemble_mjobs_maponly(self)
         else:jobs = mej.setup_ensemble_mjobs(self,simulations_per_job)
-        prej = mej.setup_node_setup_mjob(self)
-        mmcl.delegate(comm.rank,jobs,setup = prej)
+        mmcl.delegate(comm.rank,jobs)
 
         dpool = dba.batch_node(rnum = self._seed())
         return dpool
+
+    ###########################################################################
+    ### use the root to communicate with a subroot core on each node 
+    ### the subroot cores talk to local cores as needed
+    ### subroot cores are responsible for constructing 
+    ###   a portion of a metamap
+    ###########################################################################
+    def _run_mpi_node(self):
+        # only the root core runs this function... one core should be 
+        # listening on each node, which will be the subroot of the node
+
+        comm = MPI.COMM_WORLD
+
+        mplan = self.multiprocess_plan
+        simulations_per_job = mplan.simulations_per_job
+        if self.cartographer_plan.use_plan:t = 0
+        else:t = None
+        ntraj = self._run_init_ntraj(t)
+
+        prej = mej.setup_node_setup_mjob(self)
+        hosts = mmcl.host_lookup(comm.rank)
+        print 'performing setup jobs...'
+        mmcl.delegate_per_node(hosts,prej)
+        print 'performed setup jobs...'
+
+        host = MPI.Get_processor_name()
+        currcache = lfu.get_cache_path()
+        if not currcache.endswith(host):
+            lfu.set_cache_path(os.path.join(currcache,host))
+
+        #pplan = self.postprocess_plan
+        #cplan = self.cartographer_plan
+        #pspace = cplan.parameter_space
+        #mappspace = cplan.use_plan and pspace
+        #if not mappspace:
+        #    pspace = cplan._parameter_space([])
+        #    trj,ntrj = cplan.trajectory,ensem.num_trajectories
+        #    lpsp.trajectory_set_counts(trj,ntrj)
+        #arc = cplan.trajectory
+        #arc_length = len(arc)
+        #if pplan.use_plan:pplan._init_processes(arc)
+        
+        #self.module._increment_extensionname()
+
+        if ntraj == simulations_per_job:
+            jobs = mej.setup_ensemble_mjobs_maponly(self)
+        else:jobs = mej.setup_ensemble_mjobs(self,simulations_per_job)
+
+        #jobs = [(0,'a'),(1,'b'),(2,'c')]
+
+        #prej = mej.setup_node_setup_mjob(self)
+        #mmcl.delegate(comm.rank,jobs,setup = prej)
+
+        #if ntraj == simulations_per_job:
+        #    jobs = mej.setup_ensemble_mjobs_maponly(self)
+        #else:jobs = mej.setup_ensemble_mjobs(self,simulations_per_job)
+        mmcl.delegate(comm.rank,jobs)
+
+        dpool = dba.batch_node(rnum = self._seed())
+        return dpool
+
+    ###########################################################################
 
     # use current parameters like a single position trajectory
     def _run_nonmap(self):
