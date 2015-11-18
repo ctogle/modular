@@ -41,7 +41,6 @@ class batch_node(ldc.data_mobject):
         if v:print 'saving batch node',self.data_pool_id,'...'
         pa = os.path.join(lfu.get_data_pool_path(),self.data_pool_id)
         data = lfu.data_container(top = self.data,children = self.children)
-        #lf.save_mobject(data,pa)
         lpkl.save_pkl_object(data,pa)
         if v:print 'saved batch node',self.data_pool_id
         self.data = pa
@@ -50,7 +49,6 @@ class batch_node(ldc.data_mobject):
     def _unpkl_data(self,v = False):
         if v:print 'loading batch node',self.data_pool_id,'...'
         datapath = self.data
-        #data = lf.load_mobject(datapath)
         data = lpkl.load_pkl_object(datapath)
         self.data = data.top
         self.children = data.children
@@ -69,6 +67,10 @@ class batch_node(ldc.data_mobject):
     def _unhdf5_data(self,v = False):
         if v:print 'loading batch node',self.data_pool_id,'...'
         dpath = self.data
+        if not os.path.isfile(dpath):
+            print 'hdffile %s not found' % dpath
+        if not os.access(dpath,os.R_OK):
+            print 'hdffile %s not readable' % dpath
         self.hdffile = h5py.File(dpath,'r',libver = 'latest')
         self.data = self.hdffile['data']
         if v:print 'loaded batch node',self.data_pool_id

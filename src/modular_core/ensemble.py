@@ -335,6 +335,9 @@ class ensemble(lfu.mobject):
         zeroth = self.postprocess_plan._init_processes(arc)
         mmap = self.cartographer_plan.metamap
         for lstr in mmap.location_strings:
+
+            print 'lusterlstr',lstr
+
             loc_pool = mmap._recover_location(lstr)
             self.postprocess_plan._enact_processes(zeroth,loc_pool)
         return dba.batch_node(rnum = self._seed())
@@ -946,7 +949,8 @@ class ensemble_manager(lfu.mobject):
     def __init__(self,name = 'ensemble.manager',**kwargs):
         self._default('ensembles',[],**kwargs)
         self._default('worker_threads',[],**kwargs)
-        self.rgen = random.Random()
+        self.rgen = random.SystemRandom()
+
         lfu.mobject.__init__(self,
             name = name,children = self.ensembles)
 

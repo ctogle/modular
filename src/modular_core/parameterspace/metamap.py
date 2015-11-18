@@ -46,8 +46,8 @@ class metalocation(object):
         for sp in self.simulation_pool.children:
             if not sp.dshape[1:] == loc_pool.dshape[1:]:continue
             if not sp.targets == loc_pool.targets:continue
+            if loc_pool._stowed():loc_pool._recover(v = False)
             sp._merge_data(loc_pool)
-            print 'merged some data...'
             return
         self.simulation_pool._add_child(loc_pool)
         self.simulation_pool._stow_child(-1,v = False)
@@ -236,7 +236,6 @@ class metamap(lfu.mobject):
             sp = sps[0]
             sp._recover()
             for cdx in range(count):
-                print 'cdx',cdx
                 site_pool = dba.batch_node(
                     dshape = sp.dshape[1:],targets = sp.targets)
                 site_data = sp.data[cdx]
