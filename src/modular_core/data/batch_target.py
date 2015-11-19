@@ -106,6 +106,7 @@ class batch_node(ldc.data_mobject):
         if v:print 'recovered batch node',self.data_pool_id,'...'
 
     def _stow_child(self,dex,v = True):
+        if dex is None:dex = -1
         which = self.children[dex]
         which._stow(v = v)
         self.data_pool_ids.append(which.data_pool_id)
@@ -128,9 +129,14 @@ class batch_node(ldc.data_mobject):
         for dex in range(len(self.children)):
             self._recover_child(dex,v = v)
 
-    def _add_child(self,node = None):
+    def _add_child(self,node = None,chx = None):
         if node is None:node = batch_node(parent = self)
-        self.children.append(node)
+        if chx is None:self.children.append(node)
+        else:
+            if chx >= len(self.children):
+                for x in range(chx+1-len(self.children)):
+                    self.children.append(None)
+            self.children[chx] = node
         return node
 
     def _add_children(self,nodes):

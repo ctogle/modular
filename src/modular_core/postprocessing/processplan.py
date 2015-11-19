@@ -47,7 +47,7 @@ class post_process_plan(lfu.plan):
         return zeroth
 
     # run process proc
-    def _enact_process(self,proc,pool):
+    def _enact_process(self,proc,pool,arcx = None):
         print 'performing post process:',proc.name
         stime = time.time()
         ptraj = self.psp_trajectory
@@ -64,23 +64,23 @@ class post_process_plan(lfu.plan):
                 presult = method(pchild,ptraj)
                 pchild._stow(v = False)
                 if not presult is None:
-                    proc.data._add_child(presult)
-                    proc.data._stow_child(-1,v = False)
+                    proc.data._add_child(presult,chx = arcx)
+                    proc.data._stow_child(arcx,v = False)
         elif proc.regime == 'all trajectories':
             presult = method(pool,ptraj)
             if not presult is None:
-                proc.data._add_child(presult)
-                proc.data._stow_child(-1,v = False)
+                proc.data._add_child(presult,chx = arcx)
+                proc.data._stow_child(arcx,v = False)
         print 'process regime:',proc.regime
         runtime = time.time() - stime
         print 'finished post process:',proc.name,'in',runtime
 
     # for node pool run processes procs and append to each
     # procs' result
-    def _enact_processes(self,procs,pool):
+    def _enact_processes(self,procs,pool,arcx = None):
         ptraj = self.psp_trajectory
         pool._recover(v = False)
-        for process in procs:self._enact_process(process,pool)
+        for process in procs:self._enact_process(process,pool,arcx)
         pool._stow(v = False)
 
     # enact this processplans zeroth processes
