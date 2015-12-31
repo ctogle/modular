@@ -1,3 +1,5 @@
+import logging
+
 import modular_core as mc
 import modular_core.fundamental as lfu
 import modular_core.criteria.endcaptureplan as lsc
@@ -9,7 +11,7 @@ import modular_core.settings as lset
 import modular_core.parallel.mpicluster as mmcl
 import modular_core.parallel.ensemblejobs as mej
 try:import modular_core.parallel.threadwork as wt
-except ImportError:print 'no worker threads available...'
+except ImportError:logging.log(1,'no worker threads available...')
 
 import modular_core.io.output as lo
 #import modular_core.io.libfiler as lf
@@ -29,6 +31,7 @@ import modular_core.postprocessing.pspace_reorganize as rog
 import modular_core.postprocessing.conditional as cdl
 import modular_core.postprocessing.correlation as crl
 import modular_core.postprocessing.measurebin as bms
+import modular_core.postprocessing.bistability as bis
 import modular_core.postprocessing.slices as slc
 import modular_core.postprocessing.periodfinding as mpf
 import modular_core.postprocessing.extraction as mex

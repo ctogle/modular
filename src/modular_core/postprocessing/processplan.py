@@ -5,7 +5,7 @@ import modular_core.postprocessing.process_abstract as pra
 import modular_core.data.batch_target as dba
 import modular_core.io.output as lo
 
-import pdb,types,time,math,os,sys,traceback
+import pdb,types,time,math,os,sys,traceback,logging
 import numpy as np
 #np.seterr(divide = 'raise')
 
@@ -48,7 +48,8 @@ class post_process_plan(lfu.plan):
 
     # run process proc
     def _enact_process(self,proc,pool,arcx = None):
-        print 'performing post process:',proc.name
+        #print 'performing post process:',proc.name
+        logging.log(10,'performing post process:',proc.name)
         stime = time.time()
         ptraj = self.psp_trajectory
         method = proc.__getattribute__(proc.method)
@@ -71,9 +72,11 @@ class post_process_plan(lfu.plan):
             if not presult is None:
                 proc.data._add_child(presult,chx = arcx)
                 proc.data._stow_child(arcx,v = False)
-        print 'process regime:',proc.regime
+        #print 'process regime:',proc.regime
+        #logging.log(10,'process regime:',proc.regime)
         runtime = time.time() - stime
-        print 'finished post process:',proc.name,'in',runtime
+        #print 'finished post process:',proc.name,'in',runtime
+        logging.log(10,'finished post process:',proc.name,'in',runtime)
 
     # for node pool run processes procs and append to each
     # procs' result

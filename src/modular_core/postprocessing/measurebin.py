@@ -67,7 +67,7 @@ class binmeasure(lpp.post_process_abstract):
         bins = np.array(bins)
 
         for subdx,submeas in enumerate(measurements):
-            bincounts,bins = np.histogram(submeas,bins = bins)
+            bincounts,bins = np.histogram(submeas,bins = bins,density = True)
             data[subdx+1] = bincounts
 
         avg = lambda x:(bins[x-1]+bins[x])/2.0
@@ -84,7 +84,7 @@ class binmeasure(lpp.post_process_abstract):
         self.valid_regimes = ['all trajectories','by parameter space']
         self.valid_inputs = self._valid_inputs(*args,**kwargs)
         capture_targetable = self._targetables(*args,**kwargs)
-        self.target_list = ['bins']+[t+' counts' for t in self.targets]
+        self.target_list = ['bins']+[t+'-counts' for t in self.targets]
         self.capture_targets = self.target_list
         lpp.post_process_abstract._target_settables(self,*args,**kwargs)
 
@@ -106,7 +106,7 @@ class binmeasure(lpp.post_process_abstract):
 class measurement_steady_state_count(lfu.mobject):
 
     def __init__(self,*args,**kwargs):
-        self._default('window',0.2,**kwargs)
+        self._default('window',0.1,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     def __call__(self,*args,**kwargs):

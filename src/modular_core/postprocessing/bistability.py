@@ -41,37 +41,51 @@ class bistability(lpp.post_process_abstract):
     def bistable(self,*args,**kwargs):
         pool = args[0]
 
-        pdb.set_trace()
+        # pool.data.dshape = (#targets,#bins of input distribution)
+        # assuming there are two peaks in the distribution, measure several quantities
+        # integrate over each peak and compare probs of being in each
+        # measure the distance between the peaks in bin space
+
+        # identify peak centers
+        # identify peak bounds in bin space
+        # sum the density function to get the integral over the peak
+
+        def getmidpoint(bins):        
+            mx = raw_input('give me the midpoint in bin space!')
+            try:return int(mx)
+            except ValueError:
+                print 'damnit you idiot:',mx
+                return
+
+        def bistab(bins,data):        
+          
+            # use data to identify values in bins that correspond to features
+
+            mx = getmidpoint(bins)
+            peak1 = data[:mx]
+            peak2 = data[mx:]
+            prob1 = peak1.sum()
+            prob2 = peak2.sum()
+
+            pdb.set_trace()
+
+            return meas
 
         tcount = len(self.target_list)
-        dshape = (tcount,self.bin_count)
+        dshape = (tcount-1,1)
         data = np.zeros(dshape,dtype = np.float)
-        bins,valss = pool._bin_data(
-            self.function_of,self.targets,
-            self.bin_count,self.ordered)
-        kcount = len(self.targets)
+        bins = pool.data[pool.targets.index(self.function_of)]
 
-        '''#
-        cc = self.cluster_count
-        def kdist(bindvals):        
-            kmeans = vq.kmeans(bindvals,cc)
-            cposs,distortion = kmeans
-            try:kmeasure = abs(cposs[1]-cposs[0]),distortion
-            except:
-                print 'POSSIBLE KMEANS ERROR...'
-                kmeasure = (0.0,distortion)
-                #pdb.set_trace()
-            return kmeasure
-        '''#
+        for dtx in range(tcount-1):
+            dt = self.targets[dtx]
+            dtdat = pool.data[pool.targets.index(dt)]
 
-        for dex in range(valss.shape[1]):
-            vals = valss[:,dex,:]
+            meas = bistab(bins,dtdat)
+            data[self.targets.index(dt)] = meas
 
-            #cdiff,cdist = zip(*[kdist(vals[x]) for x in range(vals.shape[0])])
-            #data[dex+1] = cdiff[:]
-            #data[dex+kcount+1] = cdist[:]
+            pdb.set_trace()
 
-        data[0] = bins
+        #data[0] = bins
 
         bnode = self._init_data(dshape,self.target_list)
         bnode._trajectory(data)
@@ -126,8 +140,8 @@ def parse_line(split,ensem,procs,routs):
         'dater_ids':relevant+[function_of],
         'targets':relevant,
         'function_of':function_of,
-        'bin_count':int(split[4]),
-        'ordered':split[5].count('unordered') < 1,
+        #'bin_count':int(split[4]),
+        #'ordered':split[5].count('unordered') < 1,
             }
     return pargs
 
