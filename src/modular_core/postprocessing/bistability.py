@@ -5,13 +5,158 @@ import modular_core.data.single_target as dst
 import modular_core.data.batch_target as dba
 import modular_core.postprocessing.process_abstract as lpp
 
-import pdb,sys,math
+import pdb,sys,math,traceback,random,time
 import numpy as np
 import scipy.cluster.vq as vq
 
 ###############################################################################
 ### bistability characterizes the bistable qualities of a single trajectory
 ###############################################################################
+
+import matplotlib.pyplot as plt
+
+def bell_pair(x,m1,m2,s1,s2,a1,a2):
+    g1 = a1*np.exp(-0.5*((x-m1)/s1)**2)
+    g2 = a2*np.exp(-0.5*((x-m2)/s2)**2)
+    penalty = 0.0
+    penalty += (g1.sum() + g2.sum() - 1.0)**8
+    penalty += (1.0/(0.00001 + (abs(m1-m2)/math.sqrt(s1*s2))))**8
+    return g1 + g2 + penalty
+
+
+
+
+def measure(f,x,y,guess):
+    fofy = f(x,*guess)
+    m = (fofy - y)**2
+    return m
+        
+def reflect(p,a,b):
+    if p < a:p = a + (a - p)
+    if p > b:p = b - (p - b)
+    return p
+        
+def wraparound(p,a,b):
+    if p < a:p = b - (a - p)
+    if p > b:p = a + (p - b)
+    return p
+
+def step(x,guess,minmaxes,temp,delta = None):
+    def move(p,d = None,mm = None):
+        if mm is None:xmin,xmax = x.min(),x.max()
+        else:xmin,xmax = mm
+        maxstepsize = temp*(xmax-xmin)/3.0
+        stepsize = random.random()*maxstepsize
+        if d is None:delp = random.choice((-1,1))*stepsize
+        else:delp = np.sign(d)*stepsize
+        newp = newp = p + delp
+        #newp = reflect(newp,xmin,xmax)
+        newp = wraparound(newp,xmin,xmax)
+        return newp
+    roll = lambda : random.random() > 0.5
+    if delta is None:delta = tuple(None for x in guess)
+    newguess = tuple(move(p,d,mm) if roll() else p for p,d,mm in zip(guess,delta,minmaxes))
+    return newguess
+
+def simanneal(f,x,y,guess,minmaxes):
+    deltaguess = tuple(0 for x in guess)
+    attempt = 0;attempts = 100000;lastplot = 0;tolerance = 0.0001;mdist = 1.0
+
+    heatdomain = np.linspace(0,attempts,attempts)
+    heatcurve = np.exp(-3.0*heatdomain/heatdomain.max())
+    temp = heatcurve[attempt]
+
+    metric = measure(f,x,y,guess)  
+    steppedguess = step(x,guess,minmaxes,temp)
+    while attempt < attempts and metric.sum() > tolerance:
+        temp = heatcurve[attempt]
+        attempt += 1
+        lastplot += 1
+        steppedmetric = measure(f,x,y,steppedguess)
+        mdist = metric.sum()-steppedmetric.sum()
+        if mdist > 0.0:
+            deltaguess = tuple(g1-g2 for g1,g2 in zip(steppedguess,guess))
+
+
+            '''
+            print 'better?',attempt,steppedmetric.sum(),metric.sum()
+            if lastplot > 20000:
+                plt.plot(x,y,color = 'black')
+                plt.plot(x,f(x,*steppedguess),color = 'green')
+                plt.plot(x,f(x,*guess),color = 'red')
+                plt.show()
+                lastplot = 0
+            '''
+
+
+            guess = steppedguess
+            metric = steppedmetric
+            steppedguess = step(x,guess,minmaxes,temp,deltaguess)
+        else:steppedguess = step(x,guess,minmaxes,temp)
+
+
+    print 'better?!!!',attempt,guess,metric.sum()
+
+
+    return guess
+
+def trimspace(f,x,y,guess,minmaxes):
+    def trim(p,m):
+        r = (m[1]-m[0])/3
+        m0 = m[0] if p-m[0] < r else p - r
+        m1 = m[1] if m[1]-p < r else p + r
+        return m0,m1
+    newminmaxes = tuple(trim(g,m) for g,m in zip(guess,minmaxes))
+    return newminmaxes
+
+
+
+
+def simanneal_iter(f,x,y,n,g,m):
+
+    for dn in range(n):
+        g = simanneal(f,x,y,g,m)
+        if dn < n - 1:
+            print 'pretrim',m
+            m = trimspace(f,x,y,g,m)
+            print 'posttrim',m
+
+    print 'sim anneal'
+    plt.plot(x,y,color = 'black')
+    plt.plot(x,f(x,*g),color = 'red')
+    plt.show()
+
+    return g
+
+
+
+
+def findmidx(x,y,g):
+    def nearest(x,a):
+        dels = [abs(v - a) for v in x]
+        return dels.index(min(dels))
+    x1,x2 = g[0],g[1]
+    i1 = nearest(x,x1)
+    i2 = nearest(x,x2)
+    if i1 < i2:mx = nearest(y[i1:i2],y[i1:i2].min())+i1
+    elif i2 < i1:mx = nearest(y[i2:i1],y[i2:i1].min())+i2
+    else:mx = i1
+    return mx
+
+    #if g[0] < g[1]:mx = nearest(x,g[0]+g[2]*5)
+    #else:mx = nearest(x,g[1]+g[3]*5)
+    #return mx
+
+    #x1,x2 = g[0],g[1]
+    #i1 = nearest(x,x1)
+    #i2 = nearest(x,x2)
+    #mx = int((i1+i2)/2.0)
+    #return mx
+
+
+
+
+
 
 class bistability(lpp.post_process_abstract):
 
@@ -41,52 +186,57 @@ class bistability(lpp.post_process_abstract):
     def bistable(self,*args,**kwargs):
         pool = args[0]
 
-        # pool.data.dshape = (#targets,#bins of input distribution)
-        # assuming there are two peaks in the distribution, measure several quantities
-        # integrate over each peak and compare probs of being in each
-        # measure the distance between the peaks in bin space
-
-        # identify peak centers
-        # identify peak bounds in bin space
-        # sum the density function to get the integral over the peak
-
-        def getmidpoint(bins):        
-            mx = raw_input('give me the midpoint in bin space!')
-            try:return int(mx)
-            except ValueError:
-                print 'damnit you idiot:',mx
-                return
-
         def bistab(bins,data):        
-          
-            # use data to identify values in bins that correspond to features
 
-            mx = getmidpoint(bins)
-            peak1 = data[:mx]
-            peak2 = data[mx:]
-            prob1 = peak1.sum()
-            prob2 = peak2.sum()
+            stime = time.time()
+            minmaxes = (
+                (0,bins.max()),(0,bins.max()),
+                (0,bins.max()/5.0),(0,bins.max()/5.0),
+                (0.0001,1.0),(0.0001,1.0))
 
-            pdb.set_trace()
+            guess = tuple((a+b)/2.0 for a,b in minmaxes)
 
-            return meas
+            fits = simanneal_iter(bell_pair,bins,data,1,guess,minmaxes)
 
-        tcount = len(self.target_list)
-        dshape = (tcount-1,1)
+            #plt.show()
+            
+            md,m1,m2,s1,s2 = abs(fits[0]-fits[1]),fits[0],fits[1],fits[2],fits[3]
+
+            penalty = abs(m1-m2)/math.sqrt(s1*s2)
+            if penalty > 10.0:
+                print 'FLAG ON THE PLAY!'
+                return -1,-1,-1
+
+            else:
+                mx = findmidx(bins,data,fits)
+                peak1 = data[:mx]
+                peak2 = data[mx:]
+                prob1 = peak1.sum()
+                prob2 = peak2.sum()
+
+                print 'fits',fits,time.time()-stime,prob1,prob2
+
+            return md,prob1,prob2
+
+        tcount = len(self.targets)
+        dshape = (len(self.target_list),1)
         data = np.zeros(dshape,dtype = np.float)
         bins = pool.data[pool.targets.index(self.function_of)]
 
         for dtx in range(tcount-1):
             dt = self.targets[dtx]
             dtdat = pool.data[pool.targets.index(dt)]
+            diff,low,high = bistab(bins,dtdat)
+            data[self.target_list.index(dt+':distance')] = diff
+            data[self.target_list.index(dt+':low')] = low
+            data[self.target_list.index(dt+':high')] = high
 
-            meas = bistab(bins,dtdat)
-            data[self.targets.index(dt)] = meas
 
-            pdb.set_trace()
+        #plt.show()
 
-        #data[0] = bins
 
+        dumx = np.zeros(1,dtype = np.float)
+        data[0] = dumx
         bnode = self._init_data(dshape,self.target_list)
         bnode._trajectory(data)
         return bnode
@@ -100,8 +250,10 @@ class bistability(lpp.post_process_abstract):
         if self.function_of is None and capture_targetable:
             self.function_of = capture_targetable[0]
 
-        diff_targets = [item+':max-min' for item in self.targets]
-        self.target_list = [self.function_of]+diff_targets
+        los_targets = [item+':low' for item in self.targets]
+        his_targets = [item+':high' for item in self.targets]
+        diff_targets = [item+':distance' for item in self.targets]
+        self.target_list = [self.function_of]+diff_targets+los_targets+his_targets
 
         self.capture_targets = self.target_list
         self.output.targeted = lfu.intersect_lists(

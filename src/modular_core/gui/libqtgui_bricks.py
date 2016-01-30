@@ -2219,6 +2219,7 @@ class quick_plot(QtGui.QWidget):
             if hasattr(da, 'linestyle'):styles[d] = da.linestyle
             if hasattr(da, 'color'):colors[d] = da.color
             if hasattr(da, 'marker'):marks[d] = da.marker
+            if len(da.data) == 1:marks[d] = 'o'
         if not type(xs) is types.ListType:xs = [xs]*len(ys)
 
         xs_, ys_ = [], []

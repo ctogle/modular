@@ -32,6 +32,7 @@ import modular_core.postprocessing.conditional as cdl
 import modular_core.postprocessing.correlation as crl
 import modular_core.postprocessing.measurebin as bms
 import modular_core.postprocessing.bistability as bis
+import modular_core.postprocessing.bistability_events as bise
 import modular_core.postprocessing.slices as slc
 import modular_core.postprocessing.periodfinding as mpf
 import modular_core.postprocessing.extraction as mex
