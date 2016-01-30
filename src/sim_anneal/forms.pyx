@@ -1,8 +1,18 @@
+# cython: profile=True
+
+import math
+cimport numpy as np
 import numpy as np
 
-def exponential(x,a,b):
+# make an exponential class to avoid some computations
+
+cpdef exponential(x,float a,float b):
     e = a*np.exp(b*x/x.max())
     return e
+
+cpdef bell(x,float m1,float s1,float a1):
+    g = a1*np.exp(-0.5*((x-m1)/s1)**2)
+    return g
 
 def bell_pair(x,m1,m2,s1,s2,a1,a2):
     g1 = a1*np.exp(-0.5*((x-m1)/s1)**2)
