@@ -5,12 +5,22 @@ import numpy as np
 
 
 
-cpdef least_squares(fofy,y):
-    #m = (fofy - y)**2
-    m = np.zeros(fofy.shape,dtype = np.float)
-    for x in range(fofy.size):
-        m[x] = (fofy[x] - y[x])*(fofy[x] - y[x])       
+
+
+cdef double least_squares_c(double[:] fofy,double[:] y):
+    cdef int x
+    cdef int l = fofy.size
+    cdef double dm
+    cdef double m = 0.0
+    for x in range(l):
+        dm = fofy[x] - y[x]
+        m = m + dm*dm
     return m
+
+cpdef double least_squares(double[:] fofy,double[:] y):
+    return least_squares_c(fofy,y)
+
+
 
 
 
