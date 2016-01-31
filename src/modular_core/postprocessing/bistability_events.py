@@ -63,10 +63,12 @@ def seek_events(x,y,h,ahy,alo):
     else:events = [(ds[j],us[j]) for j in range(tcnt)]
     measurements = measure_events(x,y,events,ilow)
 
-    #plt.plot(x,y)
-    #for ex,e in enumerate(events):
-    #    plt.plot([x[e[0]],x[e[1]]],[h+2.0*ex,h+2.0*ex])
-    #plt.show()
+    if not ilow:
+        print 'SHIIIIT'
+        plt.plot(x,y)
+        for ex,e in enumerate(events):
+            plt.plot([x[e[0]],x[e[1]]],[h+2.0*ex,h+2.0*ex])
+        plt.show()
 
     return measurements
 
@@ -109,8 +111,17 @@ class bistability_events(lpp.post_process_abstract):
             thresh = self.threshold*dtdat.max()
             ahy,alo = approximate_hylo(dtdat)
             for tjx in range(pool.dshape[0]):
-                dtjdat = dtdat[tjx]
-                events.extend(seek_events(domain,dtjdat,thresh,ahy,alo))
+                ilow,fhy = None,None
+                for i in range(pool.dshape[2]-transx):
+                    if dtdat[tjx,i] < alo:ilow = i
+                    elif dtdat[tjx,i] > ahy:fhy = i
+                    if ilow and fhy:break
+                if not fhy:continue
+                if not ilow:continue
+                dtjdom = domain[ilow:]
+                dtjdat = dtdat[tjx,ilow:]
+                if dtjdat[0] >= dtjdat.mean():continue
+                events.extend(seek_events(dtjdom,dtjdat,thresh,ahy,alo))
 
             meandt = np.mean([e[0] for e in events])
             meanhy = np.mean([e[2] for e in events])
