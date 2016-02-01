@@ -18,59 +18,7 @@ def plot(x,f,a,g,r):
 
 class test_anneal(unittest.TestCase):
 
-    def atest_mmkinetics(self):
-        import sim_anneal.modular_annealer as mann
-
-        #mcfg = os.path.join(os.getcwd(),'MM_kinetics_means.mcfg')
-        #emng = mce.ensemble_manager()
-        #ensm = emng._add_ensemble('gillespiem')
-        #ensm.mcfg_path = mcfg
-        #ensm._parse_mcfg()
-        #ensm._run_mcfg(mcfg)
-        ann = mann.annealer()
-
-
-        pdb.set_trace()
-
-
-        bounds = ((-1000.0,1000.0),(0.0,1000.0))
-        actual = (1.0,0.01,800.0,5000,10000,0,100)
-        guess = (1.0,0.01,800.0,5000,100,0,100)
-        maxiter = 100000
-        tolerance = 0.0001
-
-        def d(b,c):
-            ensm.cartographer_plan._move_to(0)
-            ensm._run_params_to_location_prepoolinit()
-            ensm._run_params_to_location()
-            rinit = ensm._run_init()
-            dshp = tuple(x for x in rinit if type(x) == type(1))
-            trgs = rinit[-1]
-            data = ensm._run_batch_np(100,dshp)
-
-            pdb.set_trace()
-
-            y,bins = numpy.histogram(data,density = True,bins = 100)
-            x = numpy.array([(bins[j-1]+bins[j])/2.0 for j in range(1,bins.size)])
-            return x,y
-
-        def f(x,b,c):
-            a = 1/(2*numpy.pi*c**2)**(0.5)
-            return a*numpy.exp(-0.5*((x-b)/c)**2)
-    
-        x,y = d(*actual)
-        res = sa.simanneal(f,x,y,guess,bounds,maxiter,tolerance)
-
-        #plt.plot(x,y,color = 'r')
-        #plt.plot(x,f(x,*res),color = 'g')
-        #plt.plot(x,f(x,*guess),color = 'b')
-        #plt.show()
-
-        error = tuple(abs((r-a)/a) for r,a in zip(res,actual))
-        print 'mmkinetics error:',max(error)
-        self.assertTrue(max(error) < 0.01)
-
-    def atest_distribution(self):
+    def test_distribution(self):
         bounds = ((-1000.0,1000.0),(0.0,1000.0))
         actual = (20.0,10.0)
         guess = (1.0,1.0)
@@ -90,10 +38,10 @@ class test_anneal(unittest.TestCase):
         x,y = d(*actual)
         res = sa.simanneal(f,x,y,guess,bounds,maxiter,tolerance)
 
-        #plt.plot(x,y,color = 'r')
-        #plt.plot(x,f(x,*res),color = 'g')
-        #plt.plot(x,f(x,*guess),color = 'b')
-        #plt.show()
+        plt.plot(x,y,color = 'r')
+        plt.plot(x,f(x,*res),color = 'g')
+        plt.plot(x,f(x,*guess),color = 'b')
+        plt.show()
 
         error = tuple(abs((r-a)/a) for r,a in zip(res,actual))
         print 'distribution error:',max(error)
@@ -185,7 +133,7 @@ class test_anneal(unittest.TestCase):
         res = sa.simanneal(f,x,b,guess,bounds,maxiter,tolerance,True)
         return res
 
-    def atest_bell(self):
+    def test_bell(self):
         actual = (20.0,10.0,8.0)
         guess = (-1.0,1.0,0.1)
         domain = numpy.linspace(-100,100,200)
@@ -195,7 +143,7 @@ class test_anneal(unittest.TestCase):
         print 'bell error:',max(error)
         self.assertTrue(max(error) < 0.01)
 
-    def atest_bell_buff(self):
+    def test_bell_buff(self):
         actual = (20.0,10.0,8.0)
         guess = (-1.0,1.0,0.1)
         domain = numpy.linspace(-100,100,200)
@@ -205,7 +153,7 @@ class test_anneal(unittest.TestCase):
         print 'bell buffered error:',max(error)
         self.assertTrue(max(error) < 0.01)
 
-    def atest_bell_profile(self):
+    def test_bell_profile(self):
         actual = (20.0,10.0,8.0)
         guess = (-1.0,1.0,0.1)
         domain = numpy.linspace(-100,100,200)
@@ -213,7 +161,7 @@ class test_anneal(unittest.TestCase):
         print 'bell profile stats:',s.total_tt
         s.strip_dirs().sort_stats('time').print_stats()
 
-    def atest_bell_buff_profile(self):
+    def test_bell_buff_profile(self):
         actual = (20.0,10.0,8.0)
         guess = (-1.0,1.0,0.1)
         domain = numpy.linspace(-100,100,200)

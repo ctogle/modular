@@ -27,9 +27,8 @@ class test_anneal(unittest.TestCase):
     def expo_buff(self,x,b,p,i):
         f = sf.exponential_buffered
         s = x.size
-        e = numpy.e
         for j in range(i):
-            f(s,e,x,b,*p)
+            f(s,x,b,*p)
         return b
 
     #def bell(self,x,actual,guess):

@@ -1,9 +1,14 @@
 # cython: profile=True
+# cython: wraparound=False
+# cython: boundscheck=False
+# cython: nonecheck=False
 
 cimport numpy as np
 import numpy as np
 
 
+
+__doc__ = '''fast versions of some common metrics'''
 
 
 
@@ -18,6 +23,7 @@ cdef double least_squares_c(double[:] fofy,double[:] y):
     return m
 
 cpdef double least_squares(double[:] fofy,double[:] y):
+    '''return the sum of the squared residuals between fofy and y'''
     return least_squares_c(fofy,y)
 
 
