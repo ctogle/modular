@@ -5,6 +5,8 @@ import pspace
 import matplotlib.pyplot as plt
 import numpy as np
 
+import pdb
+
 
 
 __doc__ = '''typical entry point for annealing'''
@@ -71,24 +73,23 @@ class annealer(object):
         self.f,self.x,self.y = f,x,y
         self.initial,self.bounds = i,b
         
-        self.__def('iterations',10000,**kws)
-        self.__def('tolerance',0.0001,**kws)
+        self.__def('iterations',100000,**kws)
+        self.__def('tolerance',0.000000001,**kws)
         self.__def('buffered',False,**kws)
+        self.__def('heatrate',10.0,**kws)
 
         self.psp = pspace.pspace(self.bounds,self.initial)
-
-        self.heat()
+        self.heat(self.heatrate)
 
         if self.buffered:
             self.buff()
             self.meas = self.measure_buffered
         else:self.meas = self.measure
 
-    def heat(self):
+    def heat(self,b):
         '''initialize an appropriate temperature curve'''
-        a,b = 1.0,-3.0
         hx = np.linspace(0,self.iterations,self.iterations)
-        self.hc = a*np.exp(b*hx/hx.max())
+        self.hc = np.exp(-1.0*b*hx/hx.max())
         return self.hc
 
     def buff(self):
@@ -115,6 +116,7 @@ class annealer(object):
 
     def anneal(self):
         '''perform the annealing loop'''
+        self.heat(self.heatrate)
         m = self.meas(self.psp.initial)
         sg = self.psp.step(self.hc[0])
 
@@ -134,21 +136,21 @@ class annealer(object):
             sg = self.psp.step(self.hc[j],dg)
             j += 1
 
-        #if j < self.iterations:print 'exited early:',j,'/',self.iterations
+        if j < self.iterations:print 'exited early:',j,'/',self.iterations
         #else:print 'didnt exited early:',j,'/',self.iterations
 
         return self.psp.current
 
-    '''
-    def simanneal_iter(f,x,y,n,g,m):
-        for dn in range(n):
-            g = simanneal(f,x,y,g,m)
-            if dn < n - 1:
-                print 'pretrim',m
-                m = pspace.trimspace(f,x,y,g,m)
-                print 'posttrim',m
-        return g
-    '''
+    def anneal_iter(self,i):
+        '''perform a loop of annealing and pspace trimming'''
+        for j in range(i):
+            best = self.anneal()
+            if j == i - 1:break
+            self.heatrate += 2*(j+1)
+            self.psp.move_initial(best)
+            self.psp.trim()
+        return best
+
 
 
 

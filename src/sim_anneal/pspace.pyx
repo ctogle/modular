@@ -35,14 +35,15 @@ class pspace(object):
     
     def span(self,a):
         '''provide the maximum step size for axis a'''
-        return (self.bounds[a][1]-self.bounds[a][0])/3.0
+        spansizer = 1.0
+        return (self.bounds[a][1]-self.bounds[a][0])/spansizer
 
     def delta(self):
         '''find the delta step between the last and current positions'''
         dg = tuple(g1-g2 for g1,g2 in zip(self.current,self.last))
         return dg
 
-    def trim(self,g,b):
+    def trim(self):
         '''trim the bounds of the space based on the current position'''
         def trim(p,m):
             r = (m[1]-m[0])/3
@@ -51,6 +52,11 @@ class pspace(object):
             return m0,m1
         self.bounds = tuple(trim(g,m) for g,m in zip(self.current,self.bounds))
         return self
+
+    def move_initial(self,ni):
+        '''set and return the inital position in the parameter space'''
+        self.initial = ni[:]
+        return self.initial
 
     def __init__(self,bounds,initial,discrete = None):
         self.dims = len(bounds)
@@ -79,10 +85,21 @@ class pspace(object):
         p = wraparound(p,b[0],b[1])
         return p
 
+    def step_roll(self,d = None):
+        '''determine if an axis should change during a step'''
+        #if d is None:m = random.random > 0.5
+        #else:m = True
+        m = random.random > 0.5
+        return m
+
     def step_axis(self,a,t,d = None):
         '''provide a new parameter value for axis index a'''
-        if random.random() > 0.5:delp = 0
+        if not self.step_roll(d):delp = 0
         else:delp = self.step_direction(d)*t*random.random()*self.spans[a]
+
+        #if not d is None:
+        #    delp *= 0.01
+
         p = self.current[a] + delp
         return self.step_boundary(p,self.bounds[a])
 
