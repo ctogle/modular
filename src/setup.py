@@ -10,8 +10,7 @@ import numpy
 pkgs = ['sim_anneal']
 exts = [
     Extension('sim_anneal.pspace',['sim_anneal/pspace.pyx']),
-    Extension('sim_anneal.metric',['sim_anneal/metric.pyx']),
-    Extension('sim_anneal.forms' ,['sim_anneal/forms.pyx'])]
+    Extension('sim_anneal.metric',['sim_anneal/metric.pyx'])]
 setup(name = 'sim_anneal',version = '1.0',description = 'simulated annealing implementation',
     author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/sim_anneal',
     license = 'MIT License',long_description = '''simple simulated annealing implementation''',

@@ -1,23 +1,15 @@
 import metric
 import pspace
-#import forms
 
 import matplotlib.pyplot as plt
 import numpy as np
+import random,inspect
 
 import pdb
 
 
 
 __doc__ = '''typical entry point for annealing'''
-
-
-
-def simanneal(f,x,y,g,b,i,tol,buf = False):
-    '''use an annealer object to return the best fit parameters'''
-    ann = annealer(f,x,y,g,b,
-        iterations = i,tolerance = tol,buffered = buf)
-    return ann.anneal()
 
 
 
@@ -74,7 +66,7 @@ class annealer(object):
         self.initial,self.bounds = i,b
         
         self.__def('iterations',100000,**kws)
-        self.__def('tolerance',0.000000001,**kws)
+        self.__def('tolerance',0.00001,**kws)
         self.__def('buffered',False,**kws)
         self.__def('heatrate',10.0,**kws)
 
@@ -85,6 +77,10 @@ class annealer(object):
             self.buff()
             self.meas = self.measure_buffered
         else:self.meas = self.measure
+
+        if len(y.shape) == 1:self.metric = metric.least_squares
+        elif len(y.shape) == 2:self.metric = metric.least_squares_2d
+        else:raise ValueError
 
     def heat(self,b):
         '''initialize an appropriate temperature curve'''
@@ -100,13 +96,13 @@ class annealer(object):
     def measure_buffered(self,g):
         '''measure a parameter space location using a buffered method'''
         self.f(self.x.size,self.x,self.measurebuffer,*g)
-        m = metric.least_squares(self.measurebuffer,self.y)  
+        m = self.metric(self.measurebuffer,self.y)  
         return m
 
     def measure(self,g):
         '''measure a parameter space location'''
         fofy = self.f(self.x,*g)
-        m = metric.least_squares(fofy,self.y)  
+        m = self.metric(fofy,self.y)  
         return m
 
     def complete(self,j,m):
@@ -114,22 +110,25 @@ class annealer(object):
         complete = j >= self.iterations or m < self.tolerance
         return complete
 
+    def better(self,best,new):
+        '''determine if the newest measurement is more fit than the best measurement'''
+        return new < best
+
+    # measurement, pspace step, completion test, fitness test
     def anneal(self):
         '''perform the annealing loop'''
         self.heat(self.heatrate)
         m = self.meas(self.psp.initial)
         sg = self.psp.step(self.hc[0])
-
         j = 0
         while not self.complete(j,m):
             sm = self.meas(sg)
-            if sm < m:
+            if self.better(m,sm):
                 m = sm
-
                 dg = self.psp.delta()
                 self.psp.move(sg)
 
-                #print 'iteration:',j,'/',self.iterations
+                print 'iteration:',j,'/',self.iterations
                 #self.plot(g)
 
             else:dg = None
@@ -150,6 +149,41 @@ class annealer(object):
             self.psp.move_initial(best)
             self.psp.trim()
         return best
+
+def run(f,x,y,b = None,i = None,it = 1,**ekwgs):
+    '''
+    utility function to fit parameter for f,x,y
+    return the best fit parameters given:
+
+    param f : function to fit with
+    param x : domain to fit over
+    param y : input data to fit to
+    param b : parameters bounds (can be None)
+    param i : initial parameters (can be None)
+    '''
+    if b is None:
+        dim = len(inspect.getargspec(f)[0])-1
+        b = tuple(bound(f,x,10**3,j,dim) for j in range(dim))
+    if i is None:i = tuple(sum(bd)/2.0 for bd in b)
+    anlr = annealer(f,x,y,i,b,**ekwgs)
+    result = anlr.anneal_iter(it)
+    return result
+
+# determine the proper boundary of an axis 
+def bound(f,x,d,ax,dim):
+    '''construct boundaries for f considering parity of each axis'''
+    r = random.random
+    ap = tuple(r() for j in range(dim))
+    an = tuple(r if j != ax else -r for j,r in enumerate(ap))
+    if (f(x,*ap) == f(x,*an)).all():b = (0,d)
+    else:b = (-d,d)
+    return b
+
+# return a random position in parameter space
+def random_position(bounds):
+    '''create a random position given bounds'''
+    rpos = tuple(b[0]+random.random()*(b[1]-b[0]) for b in bounds)
+    return rpos
 
 
 

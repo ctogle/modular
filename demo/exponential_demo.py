@@ -30,22 +30,6 @@ def summarize(f,x,initial,actual,result):
 
 d = 2.0
 
-# return the best fit parameters given:
-#   f - function to fit with
-#   x - domain to fit over
-#   y - input data to fit to
-#   b - parameters bounds (can be None)
-#   i - initial parameters (can be None)
-def run(f,x,y,b = None,i = None,**ekwgs):
-    if b is None:
-        dim = len(inspect.getargspec(f)[0])-1
-        b = tuple(bound(f,x,10**d,j,dim) for j in range(dim))
-    if i is None:i = tuple(sum(bd)/2.0 for bd in b)
-    annealer = sa.annealer(f,x,y,i,b,**ekwgs)
-    #result = annealer.anneal()
-    result = annealer.anneal_iter(10)
-    return result
-
 # using a randomized actual data set...
 # return the best fit parameters given:
 #   f - function to fit with
@@ -55,27 +39,13 @@ def run(f,x,y,b = None,i = None,**ekwgs):
 def run_func(f,x,b = None,i = None,**ekwgs):
 
     dim = len(inspect.getargspec(f)[0])-1
-    bounds = tuple(bound(f,x,10**d,j,dim) for j in range(dim))
-    actual = random_position(bounds)
+    bounds = tuple(sa.bound(f,x,10**d,j,dim) for j in range(dim))
+    actual = sa.random_position(bounds)
     y = f(x,*actual)
 
-    result = run(f,x,y,b,i,**ekwgs)
+    result = sa.run(f,x,y,b,i,**ekwgs)
     summary = summarize(f,x,i,actual,result)
     return result,summary
-
-# determine the proper boundary of an axis 
-def bound(f,x,d,ax,dim):
-    r = random.random
-    ap = tuple(r() for j in range(dim))
-    an = tuple(r if j != ax else -r for j,r in enumerate(ap))
-    if (f(x,*ap) == f(x,*an)).all():b = (0,d)
-    else:b = (-d,d)
-    return b
-
-# return a random position in parameter space
-def random_position(bounds):
-    rpos = tuple(b[0]+random.random()*(b[1]-b[0]) for b in bounds)
-    return rpos
 
 
 

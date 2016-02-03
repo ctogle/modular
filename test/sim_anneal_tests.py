@@ -4,7 +4,7 @@ import sim_anneal.forms as sf
 import profiling
 
 import matplotlib.pyplot as plt
-import unittest,random,numpy,os
+import unittest,random,numpy,os,time
 
 import pdb
 
@@ -12,18 +12,29 @@ import pdb
 
 def plot(x,f,a,g,r):
     plt.plot(x,f(x,*a),color = 'g',label = 'actual')
-    plt.plot(x,f(x,*g),color = 'b',label = 'initial')
-    plt.plot(x,f(x,*r),color = 'r',label = 'result')
+    plt.plot(x,f(x,*g),color = 'b',label = 'initial',linestyle = '--')
+    plt.plot(x,f(x,*r),color = 'r',label = 'result',linestyle = '--')
     plt.show()
+
+expo = lambda x,a,b : a*numpy.exp(b*x)
+bell = lambda x,a,b,c : a*numpy.exp(-0.5*((x-b)/c)**2.0)
 
 class test_anneal(unittest.TestCase):
 
+    def runf(self,f,x,y,a,g,b,**kws):
+        t = time.time()
+        res = sa.run(f,x,y,b,g,**kws)
+        error = tuple(abs((r-a)/a)*100.0 for r,a in zip(res,a))
+        return res,error,time.time()-t
+
+    def check(self,s,e,t,error_cutoff = 1.0,rtime_cutoff = 10.0):
+        me = max(e)
+        print s+' error:',e,me
+        print s+' run time:',t
+        self.assertTrue(me < error_cutoff)
+        self.assertTrue(t < rtime_cutoff)
+
     def test_distribution(self):
-        bounds = ((-1000.0,1000.0),(0.0,1000.0))
-        actual = (20.0,10.0)
-        guess = (1.0,1.0)
-        maxiter = 100000
-        tolerance = 0.0001
 
         def d(b,c):
             data = numpy.random.normal(b,c,10000)
@@ -35,139 +46,52 @@ class test_anneal(unittest.TestCase):
             a = 1/(2*numpy.pi*c**2)**(0.5)
             return a*numpy.exp(-0.5*((x-b)/c)**2)
     
-        x,y = d(*actual)
-        res = sa.simanneal(f,x,y,guess,bounds,maxiter,tolerance)
+        a = (20.0,10.0)
+        i = (0.0,1.0)
+        b = tuple((0,100) for z in range(len(a)))
+        x,y = d(*a)
+        ags = (f,x,y,a,i,b)
+        kws = {
+            'iterations':100000,
+            'tolerance':0.0001}
 
-        plt.plot(x,y,color = 'r')
-        plt.plot(x,f(x,*res),color = 'g')
-        plt.plot(x,f(x,*guess),color = 'b')
-        plt.show()
-
-        error = tuple(abs((r-a)/a) for r,a in zip(res,actual))
-        print 'distribution error:',max(error)
-        self.assertTrue(max(error) < 0.01)
-
-    ###########################################################################
-    ### exponential tests
-    ###########################################################################
-
-    def run_expo(self,x,actual,guess,bounds,maxiter,tolerance):
-        f = sf.exponential
-        y = f(x,*actual)
-        res = sa.simanneal(f,x,y,guess,bounds,maxiter,tolerance)
-        return res
-
-    def run_expo_buff(self,x,actual,guess,bounds,maxiter,tolerance):
-        f = sf.exponential_buffered
-        b = numpy.zeros(x.shape,x.dtype)
-        f(x.size,x,b,*actual)
-        res = sa.simanneal(f,x,b,guess,bounds,maxiter,tolerance,True)
-        return res
-
-    def expo(self,x,a,g,b,i,t):
-        res = self.run_expo(x,a,g,b,i,t)
-        error = tuple(abs((r-a)/a) for r,a in zip(res,a))
-        #plot(domain,sf.exponential,actual,guess,res)
-        return max(error)
-
-    def expo_buff(self,x,a,g,b,i,t):
-        res = self.run_expo_buff(x,a,g,b,i,t)
-        error = tuple(abs((r-a)/a) for r,a in zip(res,a))
-        #plot(domain,sf.exponential,actual,guess,res)
-        return max(error)
-
-    def expo_profile(self,x,a,g,b,i,t):
-        s = profiling.profile_function(self.run_expo,x,a,g,b,i,t)
-        return s
-
-    def expo_buff_profile(self,x,a,g,b,i,t):
-        s = profiling.profile_function(self.run_expo_buff,x,a,g,b,i,t)
-        return s
+        dist_res,dist_error,dist_rtime = self.runf(*ags,**kws)
+        self.check('dist',dist_error,dist_rtime)
+        plot(x,f,a,i,dist_res)
 
     def test_expo(self):
-        actual = (5.0,-5.0)
-        guess = (1.0,1.0)
-        domain = numpy.linspace(0,1000,1000)
-        bounds = ((-1000.0,1000.0),(-1000.0,1000.0))
-        maxiter = 100000
-        tolerance = 0.0001      
-        eargs = (domain,actual,guess,bounds,maxiter,tolerance)
+        a = (5.0,-5.0)
+        i = (0.0,0.0)
+        x = numpy.linspace(0,10,100)
+        b = tuple((-100,100) for z in range(len(a)))
 
-        expo_error = self.expo(*eargs)
-        expo_buff_error = self.expo_buff(*eargs)
-        expo_s = self.expo_profile(*eargs)
-        expo_buff_s = self.expo_buff_profile(*eargs)
+        y = expo(x,*a)
 
-        print 'exponential error:',expo_error
-        print 'exponential buffered error:',expo_buff_error
-        print 'exponential profile stats:',expo_s.total_tt
-        print 'exponential buffered profile stats:',expo_buff_s.total_tt
+        ags = (expo,x,y,a,i,b)
+        kws = {
+            'iterations':10000,
+            'tolerance':0.0001}
 
-        self.assertTrue(expo_error < 0.01)
-        self.assertTrue(expo_buff_error < 0.01)
-        self.assertTrue(expo_s.total_tt < 10.0)
-        self.assertTrue(expo_buff_s.total_tt < 10.0)
-        expo_s.strip_dirs().sort_stats('time').print_stats()
-        expo_buff_s.strip_dirs().sort_stats('time').print_stats()
-
-    ###########################################################################
-    ###########################################################################
-    ###########################################################################
-
-    def bell(self,x,actual,guess):
-        bounds = ((-1000.0,1000.0),(0.0,1000.0),(-1000.0,1000.0))
-        maxiter = 100000
-        tolerance = 0.0001
-        f = sf.bell
-        y = f(x,*actual)
-        res = sa.simanneal(f,x,y,guess,bounds,maxiter,tolerance)
-        return res
-
-    def bell_buff(self,x,actual,guess):
-        bounds = ((-1000.0,1000.0),(0.0,1000.0),(-1000.0,1000.0))
-        maxiter = 100000
-        tolerance = 0.0001
-        f = sf.bell_buffered
-        b = numpy.zeros(x.shape,x.dtype)
-        f(x.size,x,b,*actual)
-        res = sa.simanneal(f,x,b,guess,bounds,maxiter,tolerance,True)
-        return res
+        expo_res,expo_error,expo_rtime = self.runf(*ags,**kws)
+        self.check('expo',expo_error,expo_rtime)
+        plot(x,expo,a,i,expo_res)
 
     def test_bell(self):
-        actual = (20.0,10.0,8.0)
-        guess = (-1.0,1.0,0.1)
-        domain = numpy.linspace(-100,100,200)
-        res = self.bell(domain,actual,guess)
-        #plot(domain,sf.bell,actual,guess,res)
-        error = tuple(abs((r-a)/a) for r,a in zip(res,actual))
-        print 'bell error:',max(error)
-        self.assertTrue(max(error) < 0.01)
+        a = (5.0,-3.0,10)
+        i = (0,0,1)
+        x = numpy.linspace(-100,100,100)
+        b = tuple((-100,100) for z in range(len(a)))
 
-    def test_bell_buff(self):
-        actual = (20.0,10.0,8.0)
-        guess = (-1.0,1.0,0.1)
-        domain = numpy.linspace(-100,100,200)
-        res = self.bell_buff(domain,actual,guess)
-        #plot(domain,sf.bell,actual,guess,res)
-        error = tuple(abs((r-a)/a) for r,a in zip(res,actual))
-        print 'bell buffered error:',max(error)
-        self.assertTrue(max(error) < 0.01)
+        y = bell(x,*a)
 
-    def test_bell_profile(self):
-        actual = (20.0,10.0,8.0)
-        guess = (-1.0,1.0,0.1)
-        domain = numpy.linspace(-100,100,200)
-        s = profiling.profile_function(self.bell,domain,actual,guess)
-        print 'bell profile stats:',s.total_tt
-        s.strip_dirs().sort_stats('time').print_stats()
+        ags = (bell,x,y,a,i,b)
+        kws = {
+            'iterations':100000,
+            'tolerance':0.0001}
 
-    def test_bell_buff_profile(self):
-        actual = (20.0,10.0,8.0)
-        guess = (-1.0,1.0,0.1)
-        domain = numpy.linspace(-100,100,200)
-        s = profiling.profile_function(self.bell_buff,domain,actual,guess)
-        print 'bell buffered profile stats:',s.total_tt
-        s.strip_dirs().sort_stats('time').print_stats()
+        bell_res,bell_error,bell_rtime = self.runf(*ags,**kws)
+        self.check('bell',bell_error,bell_rtime)
+        plot(x,bell,a,i,bell_res)
 
 if __name__ == '__main__':unittest.main()
 
