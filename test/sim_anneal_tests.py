@@ -1,8 +1,6 @@
 import sim_anneal.anneal as sa
 import sim_anneal.forms as sf
 
-import profiling
-
 import matplotlib.pyplot as plt
 import unittest,random,numpy,os,time
 
