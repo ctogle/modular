@@ -17,16 +17,18 @@ def plot(f,x,i,a,b):
     plt.show()
 
 # summarize the results of a round of fitting
-def summarize(f,x,initial,actual,result):
-    error = tuple(abs((r-a)/a) for r,a in zip(result,actual))
-    percenterror = np.round(max(error)*100.0,3)
+def summarize(f,x,initial,actual,result,derror):
+    perror = tuple(abs((r-a)/a) for r,a in zip(result,actual))
+    percentperror = np.round(max(perror)*100.0,3)
+    percentderror = np.round(derror,3)
     print '-'*50
-    print 'fit percentage error:',percenterror
+    print 'fit percentage perror:',percentperror
+    print 'fit percentage derror:',percentderror
     print 'actual:',actual
     print 'result:',result
     print '-'*50
     if 'p' in sys.argv:plot(f,x,initial,actual,result)
-    return percenterror
+    return percentperror
 
 d = 2.0
 
@@ -43,8 +45,8 @@ def run_func(f,x,b = None,i = None,**ekwgs):
     actual = sa.random_position(bounds)
     y = f(x,*actual)
 
-    result = sa.run(f,x,y,b,i,**ekwgs)
-    summary = summarize(f,x,i,actual,result)
+    result,derror = sa.run(f,x,y,b,i,**ekwgs)
+    summary = summarize(f,x,i,actual,result,derror)
     return result,summary
 
 

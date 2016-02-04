@@ -12,6 +12,21 @@ __doc__ = '''fast versions of some common metrics'''
 
 
 
+cdef double percent_error_c(double[:] fofy,double[:] y):
+    cdef int x
+    cdef int l = fofy.size
+    cdef double dm
+    cdef double m = 0.0
+    cdef double eps = (max(y)+0.0001)/1000.0
+    for x in range(l):
+        dm = abs((fofy[x]/(eps + y[x])) - 1.0)
+        m = m + dm
+    return m/l
+
+cpdef double percent_error(double[:] fofy,double[:] y):
+    '''return the sum of the percent error between fofy and y'''
+    return percent_error_c(fofy,y)
+
 cdef double least_squares_c(double[:] fofy,double[:] y):
     cdef int x
     cdef int l = fofy.size

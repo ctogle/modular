@@ -69,8 +69,9 @@ class annealer(object):
         self.__def('tolerance',0.00001,**kws)
         self.__def('buffered',False,**kws)
         self.__def('heatrate',10.0,**kws)
+        self.__def('discrete',None,**kws)
 
-        self.psp = pspace.pspace(self.bounds,self.initial)
+        self.psp = pspace.pspace(self.bounds,self.initial,self.discrete)
         self.heat(self.heatrate)
 
         if self.buffered:
@@ -136,19 +137,36 @@ class annealer(object):
             j += 1
 
         if j < self.iterations:print 'exited early:',j,'/',self.iterations
-        #else:print 'didnt exited early:',j,'/',self.iterations
+        else:print 'didnt exited early:',j,'/',self.iterations
 
-        return self.psp.current
+        err = metric.percent_error(self.f(self.x,*self.psp.current),self.y)
+        return self.psp.current,err
 
     def anneal_iter(self,i):
         '''perform a loop of annealing and pspace trimming'''
         for j in range(i):
-            best = self.anneal()
+            best,err = self.anneal()
             if j == i - 1:break
             self.heatrate += 2*(j+1)
             self.psp.move_initial(best)
             self.psp.trim()
-        return best
+        return best,err
+
+    def anneal_auto(self,i):
+        '''perform a smart loop of annealing and pspace trimming'''
+        for j in range(i):
+            best,err = self.anneal()
+            #if j == i - int(i/2.0):
+            if j == i - 3:
+                self.psp.become_continuous()
+                print 'BECOME CONTINOUS!'
+            if j == i - 1:break
+            self.heatrate += 2*(j+1)
+            self.psp.move_initial(best)
+            print 'pretrim',self.psp.bounds
+            self.psp.trim()
+            print 'posttrim',self.psp.bounds
+        return best,err
 
 def run(f,x,y,b = None,i = None,it = 1,**ekwgs):
     '''
@@ -166,8 +184,9 @@ def run(f,x,y,b = None,i = None,it = 1,**ekwgs):
         b = tuple(bound(f,x,10**3,j,dim) for j in range(dim))
     if i is None:i = tuple(sum(bd)/2.0 for bd in b)
     anlr = annealer(f,x,y,i,b,**ekwgs)
-    result = anlr.anneal_iter(it)
-    return result
+    #result,error = anlr.anneal_iter(it)
+    result,error = anlr.anneal_auto(it)
+    return result,error
 
 # determine the proper boundary of an axis 
 def bound(f,x,d,ax,dim):
