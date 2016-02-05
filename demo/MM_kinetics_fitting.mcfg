@@ -34,9 +34,9 @@
 
 <parameter_space>
 	<fitting_space> #
-			k_f   : value : 0.0001-1000.0
-			k_r   : value : 0.000001-10.0
-			k_cat : value : 0.001-10000.0
+			k_f   : value : 0.001-1000.0
+			k_r   : value : 0.001-1000.0
+			k_cat : value : 0.001-1000.0
 
 <output_plans>
 	0 : - : ensemble_output : none : all

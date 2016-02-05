@@ -78,10 +78,10 @@ def run_ensem(e,**kws):
     a = (1.0,0.01,800.0)
     y = f(x,*a)
 
-    kws['it'] = 20
-    kws['iterations'] = 100000
-    kws['heatrate'] = 20.0
-    kws['discrete'] = True
+    #kws['it'] = 20
+    kws['iterations'] = 10000
+    kws['heatrate'] = 10.0
+    #kws['discrete'] = True
     return run_test(f,x,y,a,b,i,**kws)
 
 
