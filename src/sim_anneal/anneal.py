@@ -81,6 +81,8 @@ class annealer(object):
 
         if len(y.shape) == 1:self.metric = metric.least_squares
         elif len(y.shape) == 2:self.metric = metric.least_squares_2d
+        if len(y.shape) == 1:self.error = metric.percent_error
+        elif len(y.shape) == 2:self.error = metric.percent_error_2d
         else:raise ValueError
 
     def heat(self,b):
@@ -139,7 +141,7 @@ class annealer(object):
         if j < self.iterations:print 'exited early:',j,'/',self.iterations
         else:print 'didnt exited early:',j,'/',self.iterations
 
-        err = metric.percent_error(self.f(self.x,*self.psp.current),self.y)
+        err = self.error(self.f(self.x,*self.psp.current),self.y)
         return self.psp.current,err
 
     def anneal_iter(self,i):
@@ -184,8 +186,11 @@ def run(f,x,y,b = None,i = None,it = 1,**ekwgs):
         b = tuple(bound(f,x,10**3,j,dim) for j in range(dim))
     if i is None:i = tuple(sum(bd)/2.0 for bd in b)
     anlr = annealer(f,x,y,i,b,**ekwgs)
+
+    result,error = anlr.anneal()
     #result,error = anlr.anneal_iter(it)
-    result,error = anlr.anneal_auto(it)
+    #result,error = anlr.anneal_auto(it)
+
     return result,error
 
 # determine the proper boundary of an axis 

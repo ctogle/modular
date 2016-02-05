@@ -31,23 +31,8 @@ def orderofmag(v):
 
 def logspan(f,c,n = 10):
     '''create an acceptable discrete sequence for an axis'''
-    lspan = tuple(np.linspace(f,c,n))
+    lspan = tuple(np.exp(np.linspace(np.log(f),np.log(c),n)))
     return lspan
-
-    '''
-    if f < 0:front = tuple(-10**j for j in range(orderofmag(f)+1))[::-1]
-    #elif f == 0:front = tuple(10**-j for j in range(f0))[::-1]
-    else:
-        pdb.set_trace()
-
-    if c > 0:
-        back = tuple(10**j for j in range(orderofmag(c)+1))
-    else:
-        pdb.set_trace()
-
-    lspan = front + (0,) + back
-    return lspan
-    '''
 
 def trim_continuous(p,m):
     '''return trimmed bounds for a continuous axis based on the current position'''

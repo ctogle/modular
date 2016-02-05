@@ -27,6 +27,15 @@ cpdef double percent_error(double[:] fofy,double[:] y):
     '''return the sum of the percent error between fofy and y'''
     return percent_error_c(fofy,y)
 
+cpdef double percent_error_2d(np.ndarray[double,ndim = 2] fofy,np.ndarray[double,ndim = 2] y):
+    '''
+    return the sum of the percent error between fofy and y if fofy and y are 2d
+    '''
+    total = 0.0
+    for j in range(fofy.shape[0]):
+        total += percent_error_c(fofy[j],y[j])
+    return total
+
 cdef double least_squares_c(double[:] fofy,double[:] y):
     cdef int x
     cdef int l = fofy.size
