@@ -333,10 +333,11 @@ def parse_range_di(rng):
     return np.linspace(front,back,interval)
 
 def parse_range_dni(rng):
-    interval = 1.0
+    interval = 2.0
     front = float(rng[:rng.find('-')])
     back = float(rng[rng.find('-')+1:])+1.0
-    return np.linspace(front,back,interval)
+    ret = np.linspace(front,back,interval)
+    return ret
 
 def parse_range_ndni(rng):
     return [float(v) for v in msplit(rng,',')]

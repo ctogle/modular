@@ -19,6 +19,12 @@ import matplotlib.pyplot as plt
 
 def measure_event(x,y,e,ilow,e0):
     dt = x[e[1]]-x[e[0]]
+
+    if e[1] - e[0] < 50:
+        print 'TOO SHORT'
+        return
+    else:print 'wtff',e[1]-e[0]
+
     mt = x[e[0]]+dt/2.0
     if ilow:
         hy = y[e[0]:e[1]].mean()
@@ -32,12 +38,13 @@ def measure_events(x,y,events,ilow):
     e0 = events[0][0]
     measurements = []
     for e in events:
-        measurements.append(measure_event(x,y,e,ilow,e0))
+        m = measure_event(x,y,e,ilow,e0)
+        if not m is None:measurements.append(m)
     return measurements
 
 def approximate_hylo(y):
 
-    hy,lo = 20,10
+    hy,lo = 30,10
     #pdb.set_trace()
 
     return hy,lo
@@ -63,12 +70,19 @@ def seek_events(x,y,h,ahy,alo):
     else:events = [(ds[j],us[j]) for j in range(tcnt)]
     measurements = measure_events(x,y,events,ilow)
 
+    '''
     if not ilow:
-        print 'SHIIIIT'
+    #if True:
+        print 'measure',len(measurements)
         plt.plot(x,y)
         for ex,e in enumerate(events):
-            plt.plot([x[e[0]],x[e[1]]],[h+2.0*ex,h+2.0*ex])
+            if e[1]-e[0] > 50:
+                plt.plot( 
+                    [x[e[0]],x[e[1]]],[h+2.0*ex,h+2.0*ex],
+                    linewidth = 5.0)
+                    #linestyle = 'o',linewidth = 5.0)
         plt.show()
+    '''
 
     return measurements
 
@@ -85,7 +99,7 @@ class bistability_events(lpp.post_process_abstract):
         self._default('valid_regimes',regs,**kwargs)
         self._default('regime','all trajectories',**kwargs)
 
-        self._default('transient_length',0.25,**kwargs)
+        self._default('transient_length',0.1,**kwargs)
         self._default('threshold',0.2,**kwargs)
 
         self._default('function_of',None,**kwargs)
@@ -110,23 +124,35 @@ class bistability_events(lpp.post_process_abstract):
             dtdat = pool.data[:,pdx,transx:]
             thresh = self.threshold*dtdat.max()
             ahy,alo = approximate_hylo(dtdat)
+            ilows,fhys = [],[]
             for tjx in range(pool.dshape[0]):
                 ilow,fhy = None,None
                 for i in range(pool.dshape[2]-transx):
                     if dtdat[tjx,i] < alo:ilow = i
                     elif dtdat[tjx,i] > ahy:fhy = i
                     if ilow and fhy:break
-                if not fhy:continue
-                if not ilow:continue
+                if not fhy or not ilow:continue
+                else:
+                    ilows.append(ilow)
+                    fhys.append(fhy)
                 dtjdom = domain[ilow:]
                 dtjdat = dtdat[tjx,ilow:]
                 if dtjdat[0] >= dtjdat.mean():continue
                 events.extend(seek_events(dtjdom,dtjdat,thresh,ahy,alo))
-
-            meandt = np.mean([e[0] for e in events])
-            meanhy = np.mean([e[2] for e in events])
-            meanlo = np.mean([e[3] for e in events])
-            probhy = meandt/(domain[-1]-domain[0])
+            if len(events) > 5:
+                dtms = [e[0] for e in events]
+                meandt = np.mean(dtms)
+                totldt = sum(dtms)
+                meanhy = np.mean([e[2] for e in events])
+                meanlo = np.mean([e[3] for e in events])
+            else:
+                if ilows:meandt = 0.0
+                else:meandt = domain[-1]-domain[0]
+                totldt = meandt
+                meanhy = -1.0
+                meanlo = -1.0
+            print 'ecnt',len(events)
+            probhy = totldt/(pool.dshape[0]*(domain[-1]-domain[0]))
             problo = 1.0 - probhy
             data[self.target_list.index(dt+':dt')] = meandt
             data[self.target_list.index(dt+':high')] = meanhy

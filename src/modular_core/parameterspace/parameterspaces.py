@@ -111,9 +111,14 @@ def parse_axis(al,incs,rngs,rngbnds):
     for subr in subrngs:
         subvals = lfu.parse_range(subr)
         subvmin,subvmax = min(subvals),max(subvals)
-        if subvmin < rbnds[0]:rbnds[0] = subvmin
-        if subvmax > rbnds[1]:rbnds[1] = subvmax
+        rbnds[0] = subvmin
+        rbnds[1] = subvmax
+        #if subvmin < rbnds[0]:rbnds[0] = subvmin
+        #if subvmax > rbnds[1]:rbnds[1] = subvmax
         rvals.extend(subvals)
+
+        #pdb.set_trace()
+
     rinc = 10
     incs.append(rinc)
     rngs.append(rvals)
