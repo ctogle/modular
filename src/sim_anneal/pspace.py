@@ -58,6 +58,7 @@ class pspace(object):
         self.current = ng
         dczip = zip(self.discrete,self.current)
         self.disc_loc = tuple(locate(d,c) if d else None for d,c in dczip)
+        self.trajectory.append(self.current[:])
         return self.current
     
     def span(self,a):
@@ -94,7 +95,7 @@ class pspace(object):
         self.discrete = self.nonedg
         self.disc_loc = None
 
-    def __init__(self,bounds,initial,discrete = None):
+    def __init__(self,bounds,initial,discrete = None,axes = None,trajectory = None):
         self.dims = len(bounds)
         
         self.bounds = bounds
@@ -115,6 +116,11 @@ class pspace(object):
             self.disc_loc = tuple(locate(d,c) for d,c in dczip)
 
         self.spans = tuple(self.span(x) for x in range(self.dims))
+        if axes is None:self.axes = tuple(str(k) for k in range(self.dims))
+        else:self.axes = axes
+
+        if trajectory is None:self.trajectory = [self.initial[:]]
+        else:self.trajectory = trajectory
 
     def step_direction(self,d = None):
         '''provide a sign for a new parameter value'''
