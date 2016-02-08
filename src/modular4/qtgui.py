@@ -92,6 +92,17 @@ class mwindow(QtGui.QMainWindow):
         content = QtGui.QVBoxLayout()
         return content
 
+class pwindow(mwindow):
+
+    def content(self,**kws):
+        def f():print('bindcalled')
+        fs = ((f,),('clicked',),('BIND',))
+        bs = buttons(*fs)
+        tree = tree_book(**kws)
+        ws = [tree]+bs
+        content = layout(ws,'v')
+        return content
+
 ###############################################################################
 ### custom widget classes
 ###############################################################################
@@ -104,18 +115,20 @@ class mwidget(QtGui.QWidget,mb.mobject):
 plt_figure = None
 def init_figure():
     global plt_figure
-    if mmpi.size() == 0 and mmpi.root():
+    if mmpi.size() == 1 and mmpi.root():
         plt_figure = plt.figure()
 
 class mpltwidget(mwidget):
     
     def show(self):
-        print('mpltwidget show')
+        #print('mpltwidget show')
         mwidget.show(self.update())
+        return self
 
     def hide(self):
-        print('mpltwidget hide')
+        #print('mpltwidget hide')
         mwidget.hide(self)
+        return self
 
     def update(self):
         print('mpltwidget should update its plot!')
@@ -161,8 +174,8 @@ class mpltwidget(mwidget):
         self._def('colormap',plt.get_cmap('jet'),**kws)
         mwidget.__init__(self)
         self.kws = kws
-        self.fig = plt_figure
 
+        self.fig = plt_figure
         self.canvas = figure_canvas(self.fig)
         self.toolbar = mwidget()
 
@@ -195,7 +208,6 @@ class tree_book(mwidget):
         titems,tpages = [],[]
         for x in range(len(pages)):
             pgd,pgt,pge = pages[x]
-            #top = QtGui.QTreeWidgetItem(None,[pge['header']])
             top = QtGui.QTreeWidgetItem(None,[str(pge)])
             main_page = mwidget()
             titems.append(top)
@@ -211,18 +223,13 @@ class tree_book(mwidget):
                 bottom = QtGui.QTreeWidgetItem(top,[subh])
                 titems.append(bottom)
                 pkws = {
-                    'xdomain' : 'time',
-                    'ydomain' : None,
-                    'zdomain' : None,
-                    'entry' : subpg,
-                    'header' : subh,
+                    'xdomain' : 'time','ydomain' : None,'zdomain' : None,
+                    'entry' : subpg,'header' : subh,
                         }
                 sub_page = mpltwidget(**pkws)
                 tpages.append(sub_page)
             self.tree.addTopLevelItem(top)
-        for page in tpages:
-            self.split.addWidget(page)
-            page.hide()
+        for page in tpages:self.split.addWidget(page.hide())
         self.tree_items = titems
         self.tree_pages = tpages
         self.set_page(self.page)

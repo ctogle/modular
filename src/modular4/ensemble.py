@@ -23,10 +23,7 @@ class ensemble(mb.mobject):
         top,smod = self.simmodules[self.module]
         self.simmodule = __import__(top).__dict__[smod]
         self.home = os.path.join(os.getcwd(),self.name)
-
         if not os.path.exists(self.home):os.makedirs(self.home)
-
-        pdb.set_trace()
 
     def initialize_measurements(self):
         z,nz = [],[]

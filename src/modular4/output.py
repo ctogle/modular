@@ -1,5 +1,6 @@
 import modular4.base as mb
-import modular4.plotting as mplt
+import modular4.qtgui as mg
+import multiprocessing
 
 import numpy,os,cPickle
 
@@ -23,15 +24,19 @@ class moutput(mb.mobject):
 
     def openplt(self,wt,**kws):
         kws['window_title'] = wt
-        pltprocess = mplt.plt_window(**kws)
-        self._processes.append(pltprocess)
-        return pltprocess
+        if self.plt_multiprocessed:
+            proc = multiprocessing.Process
+            pltprocess = proc(target = mg.runapp,args = (mg.pwindow,kws))
+            pltprocess.start()
+            self._processes.append(pltprocess)
+        else:mg.runapp(mg.pwindow,kws)
 
     def join(self):
         for p in self._processes:
             p.join()
 
     def __init__(self,*ags,**kws):
+        self._def('plt_multiprocessed',True,**kws)
         self._def('path',None,**kws)
         self._def('filename',None,**kws)
         self._def('modes',[],**kws)
