@@ -8,13 +8,20 @@ import pdb
 
 
 
+def run_set_modules():
+    if mmpi.root():
+        print('setmodulesloop')
+        pdb.set_trace()
+
 def run_gui():
-    print('mainuserloop')
-    pdb.set_trace()
+    if mmpi.root():
+        print('mainuserloop')
+        pdb.set_trace()
 
 def run_pklplotter():
-    print('pltuserloop')
-    pdb.set_trace()
+    if mmpi.root():
+        print('pltuserloop')
+        pdb.set_trace()
 
 def run_mcfg(mcfg):
     s = time.time()
@@ -27,11 +34,9 @@ def run_mcfg(mcfg):
         for o in r:o()
 
 if __name__ == '__main__':
-    if '--modules' in sys.argv:
-        print('setmodulesloop')
-    if '--plt' in sys.argv:run_pkl_plotter()
+    if '--modules' in sys.argv:run_set_modules()
+    if '--plt' in sys.argv:run_pklplotter()
     elif len(sys.argv) > 1:
-        print('runmcfgloop')
         mcfg = os.path.join(os.getcwd(),sys.argv[1])
         if not os.path.isfile(mcfg):
             print('COULD NOT LOCATE MCFG: %s' % mcfg)

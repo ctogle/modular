@@ -229,7 +229,9 @@ class tree_book(mwidget):
                 sub_page = mpltwidget(**pkws)
                 tpages.append(sub_page)
             self.tree.addTopLevelItem(top)
-        for page in tpages:self.split.addWidget(page.hide())
+        for page in tpages:
+            self.split.addWidget(page)
+            page.hide()
         self.tree_items = titems
         self.tree_pages = tpages
         self.set_page(self.page)
@@ -250,7 +252,6 @@ class tree_book(mwidget):
 
     def __init__(self,**kws):
         mwidget.__init__(self,**kws)
-
         self._def('pages',[],**kws)
         self._def('page',0,**kws)
         self._def('header','treebookheader',**kws)

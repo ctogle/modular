@@ -16,7 +16,7 @@ setup(name = 'modular4',version = '4.0',description = 'minimal modular simulator
     author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/modular4',
     license = 'MIT License',long_description = '''modular4: minimal modular simulator''',
     cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
-    scripts = ['../mrun.py'],packages = pkgs,ext_modules = exts,py_modules = [])
+    scripts = ['../mrun.sh'],packages = pkgs,ext_modules = exts,py_modules = [])
 
 
 
