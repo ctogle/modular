@@ -296,7 +296,15 @@ class simulation_module(smd.simulation_module):
         self.dependencies = [lfu.get_cache_path(self.extensionname)]
 
     def _set_parameters(self):
-        module = __import__(self.extensionname)
+        try:
+            module = __import__(self.extensionname)
+            mrun = module.run
+        except ImportError:
+            mrun = None
+            pdb.set_trace()
+        #module = __import__(self.extensionname)
+        #mrun = module.run
+
         cplan = self.parent.cartographer_plan
         fplan = self.parent.fitting_plan
         mappspace = cplan.use_plan
@@ -307,7 +315,7 @@ class simulation_module(smd.simulation_module):
             for px in paxes:
                 pargs.append(float(px.instance.__dict__[px.key]))
         if fitting:pargs.append(3)
-        self.sim_args = [module.run]+pargs
+        self.sim_args = [mrun]+pargs
 
     def _reset_parameters(self):
         if self.extensionname in sys.modules.keys():
