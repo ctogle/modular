@@ -22,7 +22,8 @@ class ensemble(mb.mobject):
         top,smod = self.simmodules[self.module]
         self.simmodule = __import__(top).__dict__[smod]
         self.home = os.path.join(os.getcwd(),self.name)
-        if not os.path.exists(self.home):os.makedirs(self.home)
+        if mmpi.root() and not os.path.exists(self.home):
+            os.makedirs(self.home)
 
     def initialize_measurements(self):
         z,nz = [],[]
@@ -106,14 +107,21 @@ class ensemble(mb.mobject):
             result.append(mo.output(o,d,t,home = self.home))
         return result
 
-    def measure_data_zeroth(self,goalindex,**kws):
+    def measure_data_zeroth(self,goalindex,
+            precalced = None,returnonly = False,locd = None):
         pmp = self.pspacemap
-        locd,locp,loct = pmp.data[goalindex],pmp.goal[goalindex],self.targets
+        if locd is None:locd = pmp.data[goalindex]
+        locp,loct = pmp.goal[goalindex],self.targets
+        nzds = []
         for mx in range(len(self.zeroth)):
             m = self.zeroth[mx]
             zd = self.zerothdata[mx][1]
             for x in range(goalindex+1-len(zd)):zd.append([])
-            zd[goalindex].append(m(locd,loct,locp,**kws))
+            if precalced:nzd = precalced[mx]
+            else:nzd = m(locd,loct,locp)
+            if returnonly:nzds.append(nzd)
+            else:zd[goalindex].append(nzd)
+        return nzds
 
     def measure_data_nonzeroth(self,**kws):
         zero,goal,axes = self.zerothdata,self.pspacemap.goal,self.pspace.axes
@@ -171,10 +179,10 @@ class ensemble(mb.mobject):
                 if not r is None and int(r) in occp:
                     px,pdata = mmpi.pollrecv(r)
                     free.append(r);occp.remove(r);done.append(px)
-                    print('result from worker: %i : %s' % (r,pdata.shape))
+                    print('result from worker: %i' % r)
                     self.pspacemap.set_location(px)
-                    self.pspacemap.add_data(pdata)
-                    self.measure_data_zeroth(px)
+                    #self.pspacemap.add_data(pdata)
+                    self.measure_data_zeroth(px,precalced = pdata)
         self.measure_data_nonzeroth()
         mmpi.broadcast('halt')
         print('dispatch halting: %i' % mmpi.rank())
@@ -191,8 +199,8 @@ class ensemble(mb.mobject):
                 simf = self.simmodule.overrides['prepare'](self)
             elif m == 'exec':
                 j = mmpi.pollrecv()
-                r = (j,self.run_location(j,simf))
-                #self.measure_data_zeroth(px)
+                r = self.run_location(j,simf)
+                r = (j,self.measure_data_zeroth(j,returnonly = True,locd = r))
                 mmpi.broadcast(mmpi.rank(),0)
                 mmpi.broadcast(r,0)
                 print('listener sent result: %s' % str(j))
