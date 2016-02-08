@@ -56,7 +56,7 @@ class simmodule(object):
 
     def prepare(e):
         dshape,extname = e.pspacemap.dshape[1:],'gillespiem4ext'
-        simfunc = gw.get_simulator(e,extname,install = e.installs())
+        simfunc = gw.get_simulator(e,extname,install = e.perform_installation)
         simmodule.overrides['simulate'] = simfunc
         return simfunc
 
