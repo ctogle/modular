@@ -1,5 +1,4 @@
 import modular4.base as mb
-import modular4.qtgui as mg
 import multiprocessing
 
 import numpy,os,cPickle
@@ -15,14 +14,15 @@ class moutput(mb.mobject):
     moutput is a result container class
     '''
 
-    def loadpkl(self,fp,**kws):
-        with open(fp,'rb') as h:data = cPickle.load(h)
-        return data
-
     def savepkl(self,fp,**kws):
+        kws['MODULARDATA'] = True
+        mstr = ','.join(self.modes)
+        tstr = ','.join(self.targets)
+        kws['ol'] = (self.path,self.filename,mstr,tstr)
         with open(fp,'wb') as h:cPickle.dump(kws,h)
 
     def openplt(self,wt,**kws):
+        import modular4.qtgui as mg
         kws['window_title'] = wt
         if self.plt_multiprocessed:
             proc = multiprocessing.Process
@@ -62,12 +62,17 @@ class moutput(mb.mobject):
                 print('unkown output mode: %s' % md)
                 raise ValueError
 
-def output(ol,data,targs,**mokws):
+def output(ol = None,data = None,targs = None,**mokws):
+    if 'ol' in mokws:ol = mokws['ol']
     olpath,olfile,olmodes,oltargs = ol
     if not oltargs == 'all':
         oltargs = [x.strip() for x in oltargs.split(',')]
-        oltargs = [t for t in oltargs if t in targs]
-    else:oltargs = targs[:]
+        if targs:oltargs = [t for t in oltargs if t in targs]
+    else:
+        if targs:oltargs = targs[:]
+        else:
+            print('unknown output request')
+            raise ValueError
     if not os.path.exists(olpath):
         if 'home' in mokws and os.path.exists(mokws['home']):
             olpath = mokws['home']
@@ -76,30 +81,40 @@ def output(ol,data,targs,**mokws):
     mokws['filename'] = olfile
     mokws['modes'] = [x.strip() for x in olmodes.split(',')]
     mokws['targets'] = oltargs
-    if type(data) == type(()):
-        print 'by parameter space'
-        mindex,mdata,mextra = data
-        if len(mdata) == 1: #only one page (one location)
-            mdat,mtgs,mloc = mdata[0]
-            pages = [(mdat,mtgs,mloc)]
-        else: #many pages (many locations)
-            pgcnt = len(mdata)
-            pages = [None for x in range(pgcnt)]
-            for locx in range(pgcnt):
-                locdata = mdata[locx]
-                if len(locdata) != 1: #many traj per location
-                    pages[locx] = locdata
-                else: #one traj per location
-                    pages[locx] = locdata[0]
-        mokws['pages'] = pages
-        moup = moutput(**mokws)
-    elif hasattr(data,'shape'):
-        mokws['pages'] = [(d,targs) for d in data]
-        moup = moutput(**mokws)
+    if 'pages' in mokws:return moutput(**mokws)
     else:
-        print 'unknown output request'
-        raise ValueError
-    return moup
+        if type(data) == type(()):
+            mindex,mdata,mextra = data
+            if len(mdata) == 1: #only one page (one location)
+                mdat,mtgs,mloc = mdata[0]
+                pages = [(mdat,mtgs,mloc)]
+            else: #many pages (many locations)
+                pgcnt = len(mdata)
+                pages = [None for x in range(pgcnt)]
+                for locx in range(pgcnt):
+                    locdata = mdata[locx]
+                    if len(locdata) != 1: #many traj per location
+                        pages[locx] = locdata
+                    else: #one traj per location
+                        pages[locx] = locdata[0]
+            mokws['pages'] = pages
+            return moutput(**mokws)
+        elif hasattr(data,'shape'):
+            mokws['pages'] = [(d,targs) for d in data]
+            return moutput(**mokws)
+        else:
+            print('unknown output request')
+            raise ValueError
+
+def loadpkl(fp,**kws):
+    with open(fp,'rb') as h:data = cPickle.load(h)
+    if not 'MODULARDATA' in data:
+        print('non modular data file accessed...')
+    elif data['MODULARDATA']:
+        kws['ol'] = data['ol']
+        kws['pages'] = data['pages']
+        moup = output(**kws)
+        return moup
 
                                                  
 

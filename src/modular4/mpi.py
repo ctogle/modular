@@ -6,6 +6,7 @@ def root():return MPI.COMM_WORLD.rank == mpiroot
 def rank():return MPI.COMM_WORLD.rank
 def size():return MPI.COMM_WORLD.size
 def comm():return MPI.COMM_WORLD
+def host():return MPI.Get_processor_name()
 
 def broadcast(m,*dests):
     if size() == 1:return
@@ -37,6 +38,18 @@ def passrecv(r = None):
     if r is None:r = MPI.ANY_SOURCE
     m = comm().Iprobe(source = r)
     if m:return comm().recv(source = r)
+
+# return a dict of ranks organized by hosts
+def hosts():
+    hs = {'root' : mpiroot}
+    for c in range(size()):
+        if c == mpiroot:continue
+        else:
+            broadcast('host',c)
+            h = pollrecv(c)
+            if h in hs.keys():hs[h].append(c)
+            else:hs[h] = [c]
+    return hs
 
     
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import modular4.ensemble as me
+import modular4.output as mo
 import modular4.mpi as mmpi
 
 import sys,os,time,numpy
@@ -11,17 +12,31 @@ import pdb
 def run_set_modules():
     if mmpi.root():
         print('setmodulesloop')
-        pdb.set_trace()
+        raise NotImplementedError
 
 def run_gui():
     if mmpi.root():
         print('mainuserloop')
-        pdb.set_trace()
+        raise NotImplementedError
 
 def run_pklplotter():
     if mmpi.root():
-        print('pltuserloop')
-        pdb.set_trace()
+        s = time.time()
+        sdate = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(s))
+        print('begin loadpkl at %s' % sdate)
+        p,r = os.getcwd(),[]
+        fs = os.listdir(p)
+        for f in fs:
+            if f.endswith('.pkl'):
+                o = mo.loadpkl(os.path.join(p,f))
+                o.modes = ['plt']
+                r.append(mo.loadpkl(os.path.join(p,f)))
+        t = time.time()-s
+        print('ran loadpkl in %f seconds' % numpy.round(t,3))
+        import modular4.qtgui as mg
+        mg.init_figure()
+        if mmpi.root():
+            for o in r:o()
 
 def run_mcfg(mcfg):
     s = time.time()

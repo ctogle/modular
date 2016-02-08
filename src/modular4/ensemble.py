@@ -3,7 +3,6 @@ import modular4.mcfg as mcfg
 import modular4.pspacemap as pmp
 import modular4.measurement as eme
 import modular4.output as mo
-import modular4.qtgui as mg
 import modular4.mpi as mmpi
 import numpy,random,time,os
 
@@ -40,10 +39,6 @@ class ensemble(mb.mobject):
         self.zerothdata = [(z[x]._eindex,[],{}) for x in range(len(z))]
         self.nonzerothdata = [(nz[x]._eindex,[],{}) for x in range(len(nz))]
 
-    def installs(self):
-        print('do i install things?? %i' % mmpi.rank())
-        return mmpi.root()
-
     def set_targets(self,targets):
         for x in range(len(self.targets)):self.targets.pop(x)
         for t in targets:self.targets.append(t)
@@ -59,6 +54,7 @@ class ensemble(mb.mobject):
         self._def('outputs',[],**kws)
         self._def('capture',None,**kws)
         self._def('end',None,**kws)
+        self._def('perform_installation',mmpi.root(),**kws)
         self._def('rgen',random.Random(),**kws)
         self.rgen.seed(random.getrandbits(100))
         self.prepare()
@@ -86,7 +82,11 @@ class ensemble(mb.mobject):
         return self
 
     def output(self):
-        mg.init_figure()
+        try:
+            import modular4.qtgui as mg
+            mg.init_figure()
+        except ImportError:print('failed to import gui...')
+
         result = []
         for ox in range(len(self.outputs)):
             o = self.outputs[ox]
@@ -124,13 +124,6 @@ class ensemble(mb.mobject):
                     nonzmeasurement = m(zero,axes,goal,**kws)
                     self.nonzerothdata[mx][1].append(nonzmeasurement)
 
-    def run(self):
-        if mmpi.root():
-            if mmpi.size() == 1:r = self.run_basic()
-            else:r = self.run_dispatch()
-        else:r = self.run_listen()
-        return r
-
     def run_location(self,px,simf):
         trajcnt,targcnt,captcnt,p = self.pspacemap.set_location(px)
         d = numpy.zeros((trajcnt,targcnt,captcnt),dtype = numpy.float)
@@ -138,6 +131,13 @@ class ensemble(mb.mobject):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
         return d
+
+    def run(self):
+        if mmpi.root():
+            if mmpi.size() == 1:r = self.run_basic()
+            else:r = self.run_dispatch()
+        else:r = self.run_listen()
+        return r
 
     def run_basic(self):
         simf = self.simmodule.overrides['prepare'](self)
@@ -151,6 +151,11 @@ class ensemble(mb.mobject):
     def run_dispatch(self):
         print('dispatch beginning: %i' % mmpi.rank())
         simf = self.simmodule.overrides['prepare'](self)
+        hosts = mmpi.hosts()
+        for h in hosts:
+            print('hostlookup: %s : %s' % (h,str(hosts[h])))
+            if not h == 'root' and not h == mmpi.host():
+                mmpi.broadcast('prom',hosts[h][0])
         mmpi.broadcast('prep')
         todo,done = [x for x in range(len(self.pspacemap.goal))],[]
         free,occp = [x for x in range(mmpi.size())],[]
@@ -180,6 +185,8 @@ class ensemble(mb.mobject):
         m = mmpi.pollrecv()
         while True:
             if m == 'halt':break
+            elif m == 'host':mmpi.broadcast(mmpi.host(),0)
+            elif m == 'prom':self.perform_installation = True
             elif m == 'prep':
                 simf = self.simmodule.overrides['prepare'](self)
             elif m == 'exec':
