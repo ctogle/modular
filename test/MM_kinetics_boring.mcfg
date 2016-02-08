@@ -1,0 +1,48 @@
+
+<end>
+	time limit : 0.005
+
+<capture>
+	increment : 0.00005 : time
+
+<variables>
+  k_r : 1.0
+  k_f : 0.01
+  k_cat : 800.0
+
+<species>
+	E : 5000
+	S : 10000
+	ES : 0
+	P : 100
+
+<reactions>
+	1 E + 1 S k_r -> 1 ES : ES complex formation
+	1 ES k_f -> 1 E + 1 S : ES complex dissociation
+	1 ES k_cat -> 1 E + 1 P : P formation
+
+<targets>
+	time
+	ES
+	P
+	S
+	E
+
+<outputs>
+	0 : - : ensemble_output : pkl : all
+
+<parameterspace> 
+  <map> : 100
+    E : 1000,10000 : 5000 : 10
+    S : 1000,10000 : 5000 : 10
+
+<ensemble>
+	multiprocessing : off
+	mapparameterspace : off
+	fitting : off
+	postprocessing : off
+	trajectory_count : 1
+
+
+
+

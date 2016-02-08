@@ -1,0 +1,67 @@
+
+<end>
+	time limit : 800
+
+<capture>
+	increment : 20 : time
+
+<variables>
+	mu : 10.0
+	K : 0.000000000000001
+	lambda1 : 5
+	lambda2 : 5
+	gamma : 0.01
+
+<functions>
+	g : mu/(K + x1 + x2)
+
+<reactions>
+	null lambda1 -> 1 x1 : formation of x1 (rate is lambda1)
+	null lambda2 -> 1 x2 : formation of x2 (rate is lambda2)
+	1 x1 gamma -> null : dilution of x1 (rate is gamma)
+	1 x2 gamma -> null : dilution of x2 (rate is gamma)
+	1 x1 g -> null : degradation of x1 (rate is g1)
+	1 x2 g -> null : degradation of x2 (rate is g2)
+
+<species>
+	x2 : 10
+	x1 : 10
+
+<targets>
+	time
+	x2
+	x1
+
+<parameterspace>
+	<map> : 100
+		lambda1 : 2.0,8.0  : 2.0 : 4
+		lambda2 : 2.0,8.0  : 2.0 : 4
+		mu      : 8.0,12.0 : 8.0 : 2
+
+<measurements>
+  # process : inputshape : someinfo : #bins : transient
+
+  # measure correlation of x1,x2 vs time for each trajectory
+  correlation : 0;trajectory : x1 and x2 of time : 5 : 0.8
+
+  # measure correlation of x1,x2 vs time for each pspace location
+  correlation : 0;location : x1 and x2 of time : 5 : 0.8
+
+  # reorganize all targets of input 1 by parameter space
+	reorganize : 1;parameterspace : all
+
+<outputs>
+	none : ensemble_output : pkl,plt : all
+	none : correl1_output : pkl,plt : all
+	none : correl2_output : pkl,plt : all
+	none : reorg_output : pkl,plt : all
+
+<ensemble>
+	multiprocessing : on
+	mapparameterspace : on
+	fitting : off
+	postprocessing : on
+	trajectory_count : 100
+
+
+

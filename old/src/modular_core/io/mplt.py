@@ -2,7 +2,7 @@ import modular_core.fundamental as lfu
 import modular_core.io.mpkl as lpkl
 import modular_core.data.single_target as mst
 
-import matplotlib,os,numpy,glob
+import matplotlib,os,numpy,glob,re
 import matplotlib.pyplot as plt
 matplotlib.rcParams['pdf.fonttype'] = 42
 
@@ -144,6 +144,7 @@ class msubplot(lfu.mobject):
         self._default('zmax',None,**kwargs)
         self._default('legend',True,**kwargs)
         self._default('legendloc',1,**kwargs)
+        self._default('hascolorbaralready',False,**kwargs)
         lfu.mobject.__init__(self,*args,**kwargs)
 
     # given x and y (strings), add a request for this target
@@ -311,7 +312,11 @@ class msubplot(lfu.mobject):
         self.extract()
 
         self.ax = self.mplot.figure.add_subplot(self.loc)
-        for ptarg in self.plottargets:ptarg.render(self.ax)
+        for ptarg in self.plottargets:
+
+            print 'whatupg',ptarg
+
+            ptarg.render(self.ax)
         xb,xt,yb,yt,zb,zt = self.minmaxes()
         self.ax.set_xlim([xb,xt])
         self.ax.set_ylim([yb,yt])
@@ -393,6 +398,7 @@ class mplotheat(mplottarg):
 
     def __init__(self,msubplot,x,y,z,req,*args,**kwargs):
         mplottarg.__init__(self,msubplot,req,*args,**kwargs)
+        self._default('interpolation','nearest',**kwargs)
         self.inp(x,y,z,req)
 
     # get the min/max of the x/y data of this plot target
@@ -404,8 +410,23 @@ class mplotheat(mplottarg):
 
     # add a matplotlib color object to an axis for this target
     def render(self,ax):
+        #minx,maxx,miny,maxy,minz,maxz = self.msub.minmaxes()
+        minx,maxx,miny,maxy,minz,maxz = self.minmax()
+        extent = (minx,maxx,miny,maxy)
         minx,maxx,miny,maxy,minz,maxz = self.msub.minmaxes()
-        cmesh = ax.pcolor(self.x,self.y,self.z,vmin = minz,vmax = maxz)
+
+        if self.interpolation == 'nearest':
+            cmesh = ax.pcolor(self.x,self.y,self.z,vmin = minz,vmax = maxz)
+        else:
+            # IF XLOG OR YLOG THIS WILL FAIL HORRIBLY!
+
+            #extent = (minx,maxx,miny,maxy)
+            #extent = (0,45,0,500)
+            #print 'EXTTTTENT',extent
+
+            cmesh = ax.imshow(self.z,vmin = minz,vmax = maxz,
+                aspect = 'auto',interpolation = self.interpolation,
+                origin = 'lower',extent = extent)
 
         #    #cmap = cmap,shading = 'gouraud',vmin = z_min,vmax = z_max)
         #####
@@ -418,11 +439,12 @@ class mplotheat(mplottarg):
         #    extent = self.minmax())
         #####
 
-        if not minz == maxz:
+        if not minz == maxz and not self.msub.hascolorbaralready:
             cb = self.msub.mplot.figure.colorbar(cmesh)
             cb.set_label('',fontsize=16)
             for tick in cb.ax.xaxis.get_major_ticks():
                 tick.label.set_fontsize(16)
+            self.msub.hascolorbaralready = True
         if False:
             curves = 10
             levels = numpy.arange(self.z.min(),self.z.max(),
@@ -451,7 +473,12 @@ class mplotline(mplottarg):
                     if len(y.axis_values[axx].data) > 1:
                         bax = ax.replace(' : value','')
                         if bax in self.name:
-                            nmsp = lfu.msplit(self.name,'=')
+
+                            #nmsp = lfu.msplit(self.name,'=')
+
+                            nmsp = re.split('(=|,)',self.name)
+                            nmsp = [x.strip() for x in nmsp if not x == '=' or x == ',']
+
                             nv = nmsp[nmsp.index(bax)+1]
                             try:nv = float(nv)
                             except:nv = ''
