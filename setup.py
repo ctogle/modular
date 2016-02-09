@@ -2,7 +2,7 @@
 cd ./src/
 ./setup.py
 
-cd ./gillespiem/src/
+cd ./gillespiem4/src/
 ./setup.py
 
 cd ../../../
