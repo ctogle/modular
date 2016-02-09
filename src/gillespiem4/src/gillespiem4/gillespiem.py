@@ -16,7 +16,7 @@ class simmodule(object):
         return ss
 
     def parse_reactions(p,r):
-        reg = lambda x : (int(x[:x.find(' ')]),x[x.rfind(' '):])
+        reg = lambda x : (int(x[:x.find(' ')]),x[x.rfind(' '):].strip())
         rs = []
         for l in r:
             rx,rn = l.split(':')
@@ -27,8 +27,8 @@ class simmodule(object):
             rate = lleft[lleft.rfind(' ')+1:]
             left[-1] = left[-1].replace(rate,'')
             null = ('','nothing','null')              
-            used = tuple(reg(x.strip()) for x in left if not x in null)
-            prod = tuple(reg(x.strip()) for x in right if not x in null)
+            used = tuple(reg(x.strip()) for x in left if not x.strip() in null)
+            prod = tuple(reg(x.strip()) for x in right if not x.strip() in null)
             rs.append((rate,used,prod,rn.strip()))
         return rs
 
