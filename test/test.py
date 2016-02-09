@@ -15,12 +15,12 @@ class test_ensemble(unittest.TestCase):
     cr_mcfg = os.path.join(os.getcwd(),'mcfgs','correl_demo.mcfg')
 
     def test_parse_run_correl(self):
-        r = me.ensemble(name = 'correl_ensemble').parse_mcfg(self.cr_mcfg).run()
+        r = me.ensemble(name = 'correl_ensemble_test').parse_mcfg(self.cr_mcfg).run()
         for o in r:o()
         for o in r:o.join()
 
     def test_parse_run_mmkinetics(self):
-        r = me.ensemble(name = 'mm_ensemble').parse_mcfg(self.mm_mcfg).run()
+        r = me.ensemble(name = 'mm_ensemble_test').parse_mcfg(self.mm_mcfg).run()
         for o in r:o()
         for o in r:o.join()
 
