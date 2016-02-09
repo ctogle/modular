@@ -1,4 +1,5 @@
 import modular4.base as mb
+import modular4.mpi as mmpi
 import multiprocessing
 
 import numpy,os,cPickle
@@ -22,6 +23,9 @@ class moutput(mb.mobject):
         with open(fp,'wb') as h:cPickle.dump(kws,h)
 
     def openplt(self,wt,**kws):
+        if mmpi.size() > 1:
+            print('cannot openplt while using mpi!')
+            return
         import modular4.qtgui as mg
         kws['window_title'] = wt
         if self.plt_multiprocessed:

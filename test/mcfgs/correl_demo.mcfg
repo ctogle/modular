@@ -51,7 +51,7 @@
 	reorganize : 1;parameterspace : all
 
 <outputs>
-	none : ensemble_output : pkl,plt : all
+	none : ensemble_output : pkl : all
 	none : correl1_output : pkl,plt : all
 	none : correl2_output : pkl,plt : all
 	none : reorg_output : pkl,plt : all

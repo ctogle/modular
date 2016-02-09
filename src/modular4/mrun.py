@@ -24,8 +24,10 @@ def run_pklplotter():
         s = time.time()
         sdate = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(s))
         print('begin loadpkl at %s' % sdate)
-        p,r = os.getcwd(),[]
+        if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):p = sys.argv[1]
+        else:p = os.getcwd()
         fs = os.listdir(p)
+        r = []
         for f in fs:
             if f.endswith('.pkl'):
                 o = mo.loadpkl(os.path.join(p,f))

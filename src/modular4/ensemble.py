@@ -87,7 +87,6 @@ class ensemble(mb.mobject):
             import modular4.qtgui as mg
             mg.init_figure()
         except ImportError:print('failed to import gui...')
-
         result = []
         for ox in range(len(self.outputs)):
             o = self.outputs[ox]
@@ -181,7 +180,6 @@ class ensemble(mb.mobject):
                     free.append(r);occp.remove(r);done.append(px)
                     print('result from worker: %i' % r)
                     self.pspacemap.set_location(px)
-                    #self.pspacemap.add_data(pdata)
                     self.measure_data_zeroth(px,precalced = pdata)
         self.measure_data_nonzeroth()
         mmpi.broadcast('halt')
