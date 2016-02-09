@@ -33,10 +33,10 @@
 	x1
 
 <parameterspace>
-	<map> : 100
-		lambda1 : 2.0,8.0  : 2.0 : 4
-		lambda2 : 2.0,8.0  : 2.0 : 4
-		mu      : 8.0,12.0 : 8.0 : 2
+	<map> : 1000
+		lambda1 : 1.0,10.0  : 1.0 : 10
+		lambda2 : 1.0,10.0  : 1.0 : 10
+		#mu      : 8.0,12.0 : 8.0 : 2
 
 <measurements>
   # process : inputshape : someinfo : #bins : transient
@@ -45,12 +45,12 @@
   correlation : 0;location : x1 and x2 of time : 5 : 0.0
 
   # reorganize all targets of input 1 by parameter space
-	reorganize : 1;parameterspace : all
+	bypspace : 1;parameterspace : all
 
 <outputs>
 	none : ensemble_output : none : all
 	none : correl1_output : pkl : all
-	none : reorg_output : pkl : all
+	none : bypsp_output : pkl : all
 
 <ensemble>
 	multiprocessing : on

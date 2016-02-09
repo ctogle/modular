@@ -32,7 +32,7 @@ def run_pklplotter():
             if f.endswith('.pkl'):
                 o = mo.loadpkl(os.path.join(p,f))
                 o.modes = ['plt']
-                r.append(mo.loadpkl(os.path.join(p,f)))
+                r.append(o)
         t = time.time()-s
         print('ran loadpkl in %f seconds' % numpy.round(t,3))
         import modular4.qtgui as mg
@@ -59,6 +59,7 @@ if __name__ == '__main__':
             print('COULD NOT LOCATE MCFG: %s' % mcfg)
         else:run_mcfg(mcfg)
     else:run_gui()
+
 
 
 

@@ -10,8 +10,6 @@ import pdb
 
 
 
-
-
 class ensemble(mb.mobject):
 
     simmodules = {
@@ -24,6 +22,7 @@ class ensemble(mb.mobject):
         self.home = os.path.join(os.getcwd(),self.name)
         if mmpi.root() and not os.path.exists(self.home):
             os.makedirs(self.home)
+        mb.load_measurements(eme.parsers,eme.measurement)
 
     def initialize_measurements(self):
         z,nz = [],[]
@@ -137,6 +136,7 @@ class ensemble(mb.mobject):
         for x in range(trajcnt):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
+        print('rank %i ran location: %i' % (mmpi.rank(),px))
         return d
 
     def run(self):
