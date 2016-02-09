@@ -19,7 +19,7 @@ class test_ensemble(unittest.TestCase):
         for o in r:o()
         for o in r:o.join()
 
-    def test_parse_run_mmkinetics(self):
+    def ___test_parse_run_mmkinetics(self):
         r = me.ensemble(name = 'mm_ensemble_test').parse_mcfg(self.mm_mcfg).run()
         for o in r:o()
         for o in r:o.join()
