@@ -41,20 +41,16 @@
 <measurements>
   # process : inputshape : someinfo : #bins : transient
 
-  # measure correlation of x1,x2 vs time for each trajectory
-  correlation : 0;trajectory : x1 and x2 of time : 5 : 0.8
-
   # measure correlation of x1,x2 vs time for each pspace location
-  correlation : 0;location : x1 and x2 of time : 5 : 0.8
+  correlation : 0;location : x1 and x2 of time : 5 : 0.0
 
   # reorganize all targets of input 1 by parameter space
 	reorganize : 1;parameterspace : all
 
 <outputs>
-	none : ensemble_output : pkl : all
-	none : correl1_output : pkl,plt : all
-	none : correl2_output : pkl,plt : all
-	none : reorg_output : pkl,plt : all
+	none : ensemble_output : none : all
+	none : correl1_output : pkl : all
+	none : reorg_output : pkl : all
 
 <ensemble>
 	multiprocessing : on

@@ -62,9 +62,7 @@ class moutput(mb.mobject):
             fp = os.path.join(p,f+'.'+md)
             if md == 'pkl':self.savepkl(fp,pages = pgs)
             elif md == 'plt':self.openplt(f,pages = pgs)
-            else:
-                print('unkown output mode: %s' % md)
-                raise ValueError
+            else:print('unkown output mode: %s' % md)
 
 def output(ol = None,data = None,targs = None,**mokws):
     if 'ol' in mokws:ol = mokws['ol']

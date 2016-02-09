@@ -153,7 +153,7 @@ class measurement_bypspace(measurement):
         dvals = [[] for x in range(len(self.dtargets))]
         for isrc in self.input_sources:
             for tx in range(len(traj)):
-                mtdat = zdata[isrc][1][tx]
+                mtdat = zdata[isrc-1][1][tx]
                 if len(mtdat) != 1:
                     print 'unknown situation'
                     raise ValueError
