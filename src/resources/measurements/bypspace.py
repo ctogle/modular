@@ -5,7 +5,7 @@ import math,numpy
 
 
 
-class measurement_bypspace(mme.measurement):
+class bypspace(mme.measurement):
 
     tag = 'bypspace'
 
@@ -16,7 +16,7 @@ class measurement_bypspace(mme.measurement):
             'input_scheme' : ls[1],
             'targets' : [x.strip() for x in ls[2].split(',')],
                 }
-        return measurement_bypspace(**kws)
+        return bypspace(**kws)
 
     def __init__(self,*ags,**kws):
         mme.measurement.__init__(self,*ags,**kws)

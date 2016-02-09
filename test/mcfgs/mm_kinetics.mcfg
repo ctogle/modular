@@ -28,8 +28,12 @@
 	S
 	E
 
+<measurements>
+  means : 0;location : E,S,ES,P of time : 101 : 0.0
+
 <outputs>
-	0 : - : ensemble_output : pkl : all
+	none : ensemble_output : none : all
+	none : means_output : pkl : all
 
 <parameterspace> 
   <map> : 100
@@ -37,12 +41,6 @@
     S : 1000,10000 : 5000 : 10
 
 <ensemble>
-	multiprocessing : off
-	mapparameterspace : off
-	fitting : off
-	postprocessing : off
-	trajectory_count : 1
-
 
 
 

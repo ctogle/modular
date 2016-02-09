@@ -33,7 +33,7 @@
 	x1
 
 <parameterspace>
-	<map> : 1000
+	<map> : 100
 		lambda1 : 1.0,10.0  : 1.0 : 10
 		lambda2 : 1.0,10.0  : 1.0 : 10
 		#mu      : 8.0,12.0 : 8.0 : 2
@@ -53,11 +53,6 @@
 	none : bypsp_output : pkl : all
 
 <ensemble>
-	multiprocessing : on
-	mapparameterspace : on
-	fitting : off
-	postprocessing : on
-	trajectory_count : 100
 
 
 
