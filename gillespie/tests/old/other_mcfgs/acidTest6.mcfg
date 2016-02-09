@@ -1,0 +1,61 @@
+
+<end_criteria>
+	time limit : 100.0
+
+<capture_criteria>
+  increment : 0.1 : time
+
+<variables>
+  mu : 1.0
+  lambda1 : 3.0
+  lambda2 : 1.5
+  eta : 1e8
+  kappa : 5.0
+
+<functions>
+  etaF : eta/(1.0+kappa)
+  kappaF : kappa
+  muF : mu
+
+<species>
+  P : 5
+  x1 : 0
+  x2 : 0
+  P1 : 0
+  P2 : 0
+
+<reactions>
+  nothing lambda1 -> 1 x1 : production of x1
+  nothing lambda2 -> 1 x2 : production of x2
+  1 x1 + 1 P eta -> 1 P1 : formation of P1
+  1 x2 + 1 P eta -> 1 P2 : formation of P2
+  1 P1 kappa -> 1 x1 + 1 P : deformation of P1
+  1 P2 kappa -> 1 x2 + 1 P : deformation of P2
+  1 P1 mu -> 1 P : degradation of P1
+  1 P2 mu -> 1 P : degradation of P2
+
+<plot_targets>
+  time
+  x1
+  x2
+
+<post_processes>
+	stats : statistics : 0 : x1 of time : 1001 : ordered
+	stats : statistics : 0 : x2 of time : 1001 : ordered
+
+<multiprocessing>
+	multiprocessing : on
+	workers : 32
+
+<output_plans>
+	2 : - : acidTest6-x2 : pkl : all
+	1 : - : acidTest6-x1 : pkl : all
+	0 : - : ensemble_output : none : all
+
+<ensemble>
+	mapparameterspace : off
+	fitting : off
+	postprocessing : on
+	trajectory_count : 10000
+
+

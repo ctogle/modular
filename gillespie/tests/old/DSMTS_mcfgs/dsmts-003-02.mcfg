@@ -1,0 +1,44 @@
+
+<end_criteria>
+	time limit : 50.0
+
+<capture_criteria>
+  increment : 1.0 : time
+
+<variables>
+  k1 : 0.0002
+  k2 : 0.004
+
+<reactions>
+  2 P k1 -> 1 P2 : dimerization of P
+  1 P2 k2 -> 2 P : de-dimerization of P
+
+<species>
+	P : 1000
+	P2 : 0
+
+<plot_targets>
+	time
+  P
+  P2
+
+<post_processes>
+	Pstats : statistics : 0 : P of time : 51 : ordered
+	P2stats : statistics : 0 : P2 of time : 51 : ordered
+
+<multiprocessing>
+	multiprocessing : on
+	workers : 32
+
+<output_plans>
+	2 : - : dsmts-003-02-P2 : pkl : all
+	1 : - : dsmts-003-02-P : pkl : all
+	0 : - : ensemble_output : none : all
+
+<ensemble>
+	mapparameterspace : off
+	fitting : off
+	postprocessing : on
+	trajectory_count : 10000
+
+

@@ -1,0 +1,46 @@
+
+<end_criteria>
+	time limit : 50.0
+
+<capture_criteria>
+  increment : 1.0 : time
+
+<functions>
+  y : 2*X
+
+<variables>
+  Lambda : 0.1
+  Mu : 0.11
+
+<reactions>
+  1 X Lambda -> 2 X : birth of X
+  1 X Mu -> nothing : death of X
+
+<species>
+	X : 100
+
+<plot_targets>
+	time
+  X
+  y
+
+<post_processes>
+	Xstats : statistics : 0 : X of time : 51 : ordered
+	ystats : statistics : 0 : y of time : 51 : ordered
+
+<multiprocessing>
+	multiprocessing : on
+	workers : 32
+
+<output_plans>
+	2 : - : dsmts-001-19-y : pkl : all
+	1 : - : dsmts-001-19-X : pkl : all
+	0 : - : ensemble_output : none : all
+
+<ensemble>
+	mapparameterspace : off
+	fitting : off
+	postprocessing : on
+	trajectory_count : 10000
+
+
