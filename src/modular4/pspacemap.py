@@ -10,6 +10,16 @@ import pdb
 
 class pspacemap(mb.mobject):
 
+    def prepare(self,sim_data_scheme = 'raw'):
+        if sim_data_scheme == 'raw':
+            print('numpy.array will contain simulation data...')
+            goaldshape = (len(self.goal),)+self.dshape
+            self.data = numpy.zeros(goaldshape,dtype = numpy.float)
+        elif sim_data_scheme == 'hdf5':
+            print('hdf5 support has yet to be implemented...')
+            raise NotImplementedError
+        else:print('no data scheme provided to pspacemap...')
+
     def __init__(self,psp,traj,tcnt,ccnt,targs,**kws):
         self.pspace = psp
         self.targets = targs
@@ -17,12 +27,7 @@ class pspacemap(mb.mobject):
         self.captcount = ccnt
         self.goal = traj
         self.dshape = (self.trajcount,len(self.targets),self.captcount)
-
         self.completed = {}
-
-        # replace this with hdf5 file
-        goaldshape = (len(self.goal),)+self.dshape
-        self.data = numpy.zeros(goaldshape,dtype = numpy.float)
 
     def set_location(self,x):
         self.pspace.move(self.goal[x])
@@ -52,12 +57,12 @@ class pspacemap(mb.mobject):
                 self.data[self.goalindex,:,:,:] = d
             elif d.shape[0] < self.data[self.goalindex].shape[0]:
                 print('must implement data assimilation...')
-                raise ValueError
+                raise NotImplementedError
                 #self.data[self.goalindex,self.completed[pkey],:,:] = d
             self.completed[pkey] += d.shape[0]
         else:
             print('must implement data assimilation...')
-            raise ValueError
+            raise NotImplementedError
             
 
 

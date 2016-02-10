@@ -58,6 +58,11 @@ class ensemble(mb.mobject):
         return self
 
     def __init__(self,*ags,**kws):
+        '''
+        ensemble class constructor (all inputs are keywords):
+        param name : string to identify with this ensemble object
+        param module : string to identify which simulation module this ensemble should use
+        '''
         self._def('name','ensemble',**kws)
         self._def('module','gillespiem',**kws)
         self._def('simmodule',None,**kws)
@@ -91,6 +96,9 @@ class ensemble(mb.mobject):
             pmpags = (pspace,trajectory,trajcount,captcount,self.targets)
             self.pspacemap = pmp.pspacemap(*pmpags)
         self.initialize_measurements()
+        if mmpi.size() == 1:datascheme = 'raw'
+        else:datascheme = 'none'
+        self.pspacemap.prepare(datascheme)
         self.simparameters = {}
         for mp in module_parsers:
             if mp in einput:
@@ -107,8 +115,12 @@ class ensemble(mb.mobject):
         for ox in range(len(self.outputs)):
             o = self.outputs[ox]
             if ox == 0:
-                t,n = self.targets[:],None
-                d = self.pspacemap.get_data(t,n)
+                if mmpi.size() > 1:
+                    print('cannot access simulation data from a parameter scan while using mpi!')
+                    continue
+                else:
+                    t,n = self.targets[:],None
+                    d = self.pspacemap.get_data(t,n)
             else:
                 m = self.measurements[ox-1]
                 t = m.targets[:]
@@ -126,7 +138,7 @@ class ensemble(mb.mobject):
             precalced = None,returnonly = False,locd = None):
 	'''perform measurements which depend only on the simulation data'''
         pmp = self.pspacemap
-        if locd is None:locd = pmp.data[goalindex]
+        if precalced is None and locd is None:locd = pmp.data[goalindex]
         locp,loct = pmp.goal[goalindex],self.targets
         nzds = []
         for mx in range(len(self.zeroth)):
