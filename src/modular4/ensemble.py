@@ -78,7 +78,9 @@ class ensemble(mb.mobject):
             self.pspacemap = pmp.pspacemap(*pmpags)
         self.initialize_measurements()
         self.simparameters = {}
-        for mp in module_parsers:self.simparameters[mp] = einput[mp]
+        for mp in module_parsers:
+            if mp in einput:
+                self.simparameters[mp] = einput[mp]
         return self
 
     def output(self):

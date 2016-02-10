@@ -38,25 +38,19 @@ class means(mme.measurement):
         for i in inputs:cinputs.append(i+'-mean')
         if not self.bindomain in inputs:x = inputs[0]
         else:x = self.bindomain
-
-        pdb.set_trace()
-
-        y,z = self.correldomain
-        if not y in inputs or not z in inputs:
-            print 'correlation targets are not found in input targets'
-            raise ValueError
-        cinputs = [x,y+','+z+'-correlation',y+','+z+'-pvalue']
-
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     def measure(self,data,targs,psploc,**kws):
         verify = lambda v : self.fillvalue if math.isnan(v) else v
 
-        y,z = self.correldomain
+        b,v = self.bin_data(data,targs,self.bindomain,self.meandomain,self.bincount)
 
-        b,v = self.bin_data(data,targs,self.bindomain,[y,z],self.bincount)
+
+        pdb.set_trace()
+
 
         cpvs = numpy.array([correl(v[k,0,:],v[k,1,:]) for k in range(b.size)])
+        mnvs = numpy.array([numpy.mean(v[k,j,:]) for k in range(b.size)])
 
         data = numpy.array([b,
             [verify(val) for val in cpvs[:,0]],
