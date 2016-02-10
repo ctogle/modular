@@ -9,18 +9,16 @@
 
 PY_GOMODULE="modular4.mrun"
 
-while test $# -gt 0
-do
-    case "$2" in
-        --mpi) mpiexec --nooversubscribe --hostfile "$3" python -m "${PY_GOMODULE}" "$@"
-            ;;
-        --np) mpiexec -n "$3" python -m "${PY_GOMODULE}" "$@"
-            ;;
-        *) python -m "${PY_GOMODULE}" "$@"
-            ;;
-    esac
-    shift
-done
+if [ $# -gt 2 ] ; then 
+    if [ "$2" = "--mpi" ] ; then
+        echo "mpi run using a hostfile"
+        mpiexec --nooversubscribe --hostfile "$3" python -m "${PY_GOMODULE}" "$1"
+    elif [ "$2" = "--np" ] ; then 
+        echo "mpi run bound to this machine"
+        mpiexec -n "$3" python -m "${PY_GOMODULE}" "$1"
+    fi
+else python -m "${PY_GOMODULE}" "$@"
+fi 
 
 exit 0
 
