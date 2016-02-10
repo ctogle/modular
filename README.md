@@ -15,12 +15,13 @@ Install modular, sim_anneal, and gillespiem with:
 -------------------------------------------------------------------------------
 To run the tests and view the test results:
 
-cd tests/
+Change to the tests directory
+cd ./tests/
 
- # to run the test
+Run the test
 ./test.py
 
- # to view the test results
+View the test results
 ../mrun.sh ./correl_ensemble_test/ --plt
 
 
@@ -28,11 +29,13 @@ cd tests/
 
 
 -------------------------------------------------------------------------------
-Two other ways to run an mcfg
+Three ways to run an mcfg
 
 ../mrun.sh mcfgs/correl_demo.mcfg
 
-../mrun.sh mcfgs/correl_demo.mcfg mpi
+../mrun.sh mcfgs/correl_demo.mcfg --np #processes
+
+../mrun.sh mcfgs/correl_demo.mcfg --mpi "path/to/a/hostfile"
 
 
 
