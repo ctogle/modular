@@ -18,6 +18,7 @@ def resource_files(res_files = [],srsrc_dir = './resources/'):
 
 def run_setup(*ags):
     pkgs = [
+<<<<<<< HEAD
         'modular4',
             ]
     exts = []
@@ -30,6 +31,16 @@ def run_setup(*ags):
         cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
         data_files = [(rsrc_dir,rsrc_files)],
         scripts = ['../mrun.sh'],packages = pkgs,ext_modules = exts,py_modules = [])
+=======
+        'gillespiem4'
+            ]
+    exts = []
+    setup(script_args = ags,name = 'gillespiem4',version = '4.0',description = 'gillespiem4 simulator',
+        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/gillespiem4',
+        license = 'MIT License',long_description = '''gillespiem4 simulator''',
+        cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
+        scripts = [],packages = pkgs,ext_modules = exts,py_modules = [])
+>>>>>>> 9dfe86d19bf1e6e18851abb422c313c78bbfe856
 
 if __name__ == '__main__':run_setup('build','install','--user')
 
