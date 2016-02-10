@@ -3,7 +3,7 @@
 # usage:
 # 1  ./mrun.sh 
 # 2  ./mrun.sh <path/to/some.mcfg>
-# 3  ./mrun.sh <path/to/some.mcfg> --mp <number_of_processes>
+# 3  ./mrun.sh <path/to/some.mcfg> --np <number_of_processes>
 # 4  ./mrun.sh <path/to/some.mcfg> --mpi <path/to/some/hostfile>
 # 5  for other mpi usages, simply combine mpiexec with usage case 2 in a separate script
 
@@ -16,7 +16,7 @@ do
             ;;
         --np) mpiexec -n "$3" python -m "${PY_GOMODULE}" "$@"
             ;;
-        --*) echo "bad option $1"
+        *) python -m "${PY_GOMODULE}" "$@"
             ;;
     esac
     shift
