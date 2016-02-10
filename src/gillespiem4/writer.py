@@ -286,6 +286,9 @@ def func_from_source(extdir,extname,src):
     return ext.gillespie_run
 
 def get_simulator(e,name,install = True):
+
+    print('aAMAMAMAMAM',e.home)
+
     if install:
         src = write_simulator(e,name)
         simfunc = func_from_source(e.home,name,src.getvalue())
