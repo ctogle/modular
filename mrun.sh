@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
 
 # usage:
-#   ./mrun.sh 
-#   ./mrun.sh "path/to/some.mcfg"
-#   ./mrun.sh "path/to/some.mcfg" mpi
+# 1  ./mrun.sh 
+# 2  ./mrun.sh <path/to/some.mcfg>
+# 3  ./mrun.sh <path/to/some.mcfg> --mp <number_of_processes>
+# 4  ./mrun.sh <path/to/some.mcfg> --mpi <path/to/some/hostfile>
+# 5  for other mpi usages, simply combine mpiexec with usage case 2 in a separate script
 
 PY_GOMODULE="modular4.mrun"
 
-if [ "$2" = "mpi" ] ; then
-    echo "performing mpirun of modular!"
-    mpiexec --nooversubscribe --hostfile ~/dev/hostfile python -m "${PY_GOMODULE}" "$@"
-    echo "finished mpirun of modular!"
-else
-    python -m "${PY_GOMODULE}" "$@"
-fi
+while test $# -gt 0
+do
+    case "$2" in
+        --mpi) mpiexec --nooversubscribe --hostfile "$3" python -m "${PY_GOMODULE}" "$@"
+            ;;
+        --np) mpiexec -n "$3" python -m "${PY_GOMODULE}" "$@"
+            ;;
+        --*) echo "bad option $1"
+            ;;
+    esac
+    shift
+done
 
-
+exit 0
 

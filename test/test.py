@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import unittest
 
 import modular4.ensemble as me
@@ -5,9 +6,6 @@ import modular4.ensemble as me
 import pdb,os,sys
 
 
-
-class test_mobject(unittest.TestCase):
-    pass
 
 class test_ensemble(unittest.TestCase):
 
