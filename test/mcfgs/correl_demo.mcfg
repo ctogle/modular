@@ -45,7 +45,7 @@
   correlation : 0;location : x1 and x2 of time : 5 : 0.0
 
   # reorganize all targets of input 1 by parameter space
-	bypspace : 1;parameterspace : all
+  bypspace : 1;parameterspace : all
 
 <outputs>
 	none : ensemble_output : none : all

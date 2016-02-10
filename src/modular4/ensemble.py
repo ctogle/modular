@@ -11,12 +11,23 @@ import pdb
 
 
 class ensemble(mb.mobject):
+    '''
+    ensemble uses a simulation module and an mcfg to execute measurements of simulation data
+    it provides support for mpi, allowing multicore simulation potentially on a cluster
+    it intelligently minimizes data on disk and in memory to accomplish potentially very large parameter scans 
+    it performs measurements of the simulation data, 
+        and of other measurements forming a hierarchy as specified in the mcfg file
+    after simulation and measurement, it provides output using an instance of modular.moutput
+    this object can provide among other forms of output, a plotting window interface for data from ensemble instances
+    the data can be stored later and viewed using this interface by using the '--plt' command line option
+    '''
 
     simmodules = {
         'gillespiem' : ('gillespiem4','simmodule'), 
             }
 
     def prepare(self):
+	'''import simulation module, establish self.home directory, and load available measurements'''
         top,smod = self.simmodules[self.module]
         self.simmodule = __import__(top).__dict__[smod]
         self.home = os.path.join(os.getcwd(),self.name)
@@ -25,6 +36,7 @@ class ensemble(mb.mobject):
         mb.load_measurements(eme.parsers,eme.measurement)
 
     def initialize_measurements(self):
+	'''prepare measurement and data objects for post simulation measurements'''
         z,nz = [],[]
         for mx in range(len(self.measurements)):
             m = self.measurements[mx]
@@ -40,6 +52,7 @@ class ensemble(mb.mobject):
         self.nonzerothdata = [(nz[x]._eindex,[],{}) for x in range(len(nz))]
 
     def set_targets(self,targets):
+	'''utility method for modifying self.targets'''
         for x in range(len(self.targets)):self.targets.pop(x)
         for t in targets:self.targets.append(t)
         return self
@@ -60,6 +73,7 @@ class ensemble(mb.mobject):
         self.prepare()
 
     def parse_mcfg(self,mcfgfile,**minput):
+	'''parse an mcfg file and prepare the ensemble for simulation'''
         if hasattr(self.simmodule,'parsers'):
             module_parsers = self.simmodule.parsers
         else:module_parsers = {}
@@ -84,6 +98,7 @@ class ensemble(mb.mobject):
         return self
 
     def output(self):
+	'''generate output for the simulation data and measurement results'''
         try:
             import modular4.qtgui as mg
             mg.init_figure()
@@ -109,6 +124,7 @@ class ensemble(mb.mobject):
 
     def measure_data_zeroth(self,goalindex,
             precalced = None,returnonly = False,locd = None):
+	'''perform measurements which depend only on the simulation data'''
         pmp = self.pspacemap
         if locd is None:locd = pmp.data[goalindex]
         locp,loct = pmp.goal[goalindex],self.targets
@@ -124,6 +140,7 @@ class ensemble(mb.mobject):
         return nzds
 
     def measure_data_nonzeroth(self,**kws):
+	'''perform measurements which depend on other measurements only'''
         zero,goal,axes = self.zerothdata,self.pspacemap.goal,self.pspace.axes
         for mx in range(len(self.nonzeroth)):
             m = self.nonzeroth[mx]
@@ -133,6 +150,7 @@ class ensemble(mb.mobject):
                     self.nonzerothdata[mx][1].append(nonzmeasurement)
 
     def run_location(self,px,simf):
+	'''generate and return the simulation data associated with a location in parameter space'''
         trajcnt,targcnt,captcnt,p = self.pspacemap.set_location(px)
         d = numpy.zeros((trajcnt,targcnt,captcnt),dtype = numpy.float)
         for x in range(trajcnt):
@@ -142,6 +160,7 @@ class ensemble(mb.mobject):
         return d
 
     def run(self):
+	'''main entry point to run an ensemble'''
         if mmpi.root():
             if mmpi.size() == 1:r = self.run_basic()
             else:r = self.run_dispatch()
@@ -149,6 +168,7 @@ class ensemble(mb.mobject):
         return r
 
     def run_basic(self):
+	'''run simulations using a single core'''
         simf = self.simmodule.overrides['prepare'](self)
         for px in range(len(self.pspacemap.goal)):
             pdata = self.run_location(px,simf)
@@ -158,6 +178,7 @@ class ensemble(mb.mobject):
         return self.output()
 
     def run_dispatch(self):
+        '''run a dispatcher process that issues work to nonroot processes running self.run_listen'''
         print('dispatch beginning: %i' % mmpi.rank())
         simf = self.simmodule.overrides['prepare'](self)
         hosts = mmpi.hosts()
@@ -189,14 +210,14 @@ class ensemble(mb.mobject):
         return self.output()
 
     def run_listen(self):
+        '''run a listener process that performs work for a root running self.run_distpatch'''
         print('listener beginning: %i' % mmpi.rank())
         m = mmpi.pollrecv()
         while True:
             if m == 'halt':break
             elif m == 'host':mmpi.broadcast(mmpi.host(),0)
-            elif m == 'prom':self.perform_installation = True
-            elif m == 'prep':
-                simf = self.simmodule.overrides['prepare'](self)
+            elif m == 'prom':self.perform_installation = False
+            elif m == 'prep':simf = self.simmodule.overrides['prepare'](self)
             elif m == 'exec':
                 j = mmpi.pollrecv()
                 r = self.run_location(j,simf)
@@ -207,6 +228,14 @@ class ensemble(mb.mobject):
             else:print('listener received unknown message: %s' % m)
             m = mmpi.pollrecv()
         print('listener halting: %i' % mmpi.rank())
+
+    def run_single(self):
+	'''
+	run a single location of the parameter space in an isolated process, 
+	saving the results for another process to consume
+	'''
+	print('run_single is not implemented')
+
 
 
 
