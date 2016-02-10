@@ -167,8 +167,11 @@ from cython.view cimport array as cvarray
 
 def write_simulator(e,name):
     sps = e.simparameters
-    ss,rs = sps['species'],sps['reactions']
-    vs,fs = sps['variables'],sps['functions']
+    ss,rs,vs,fs = [],[],[],[]
+    if 'species' in sps:ss = sps['species']
+    if 'reactions' in sps:rs = sps['reactions']
+    if 'variables' in sps:vs = sps['variables']
+    if 'functions' in sps:fs = sps['functions']
     scnt,rcnt,vcnt,fcnt = len(ss),len(rs),len(vs),len(fs)
     statetargets = ('time',) + tuple(s[0] for s in ss) +\
         tuple(v[0] for v in vs) + tuple(f[0] for f in fs)
