@@ -40,6 +40,15 @@ def run_pklplotter():
         if mmpi.root():
             for o in r:o()
 
+def run_serial(mcfg):
+    s = time.time()
+    try:locx,dfile = int(sys.argv[3]),sys.argv[4]
+    except:
+        print('serial submission called with invalid inputs!')
+        raise ValueError
+    r = me.ensemble(datascheme = 'none').parse_mcfg(mcfg).run_serial(locx,dfile)
+    t = time.time()-s
+
 def run_mcfg(mcfg):
     s = time.time()
     sdate = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(s))
@@ -57,7 +66,9 @@ if __name__ == '__main__':
         mcfg = os.path.join(os.getcwd(),sys.argv[1])
         if not os.path.isfile(mcfg):
             print('COULD NOT LOCATE MCFG: %s' % mcfg)
-        else:run_mcfg(mcfg)
+        else:
+            if '--serial' in sys.argv:run_serial(mcfg)
+            else:run_mcfg(mcfg)
     else:run_gui()
 
 

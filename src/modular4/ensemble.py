@@ -4,7 +4,8 @@ import modular4.pspacemap as pmp
 import modular4.measurement as eme
 import modular4.output as mo
 import modular4.mpi as mmpi
-import numpy,random,time,os
+
+import numpy,random,time,os,sys,cPickle,subprocess,stat
 
 import pdb
 
@@ -72,6 +73,7 @@ class ensemble(mb.mobject):
         self._def('outputs',[],**kws)
         self._def('capture',None,**kws)
         self._def('end',None,**kws)
+        self._def('datascheme','raw',**kws)
         self._def('perform_installation',mmpi.root(),**kws)
         self._def('rgen',random.Random(),**kws)
         self.rgen.seed(random.getrandbits(100))
@@ -96,13 +98,13 @@ class ensemble(mb.mobject):
             pmpags = (pspace,trajectory,trajcount,captcount,self.targets)
             self.pspacemap = pmp.pspacemap(*pmpags)
         self.initialize_measurements()
-        if mmpi.size() == 1:datascheme = 'raw'
-        else:datascheme = 'none'
-        self.pspacemap.prepare(datascheme)
+        if mmpi.size() > 1:self.datascheme = 'none'
+        self.pspacemap.prepare(self.datascheme)
         self.simparameters = {}
         for mp in module_parsers:
             if mp in einput:
                 self.simparameters[mp] = einput[mp]
+        self.mcfgfile = mcfgfile
         return self
 
     def output(self):
@@ -174,7 +176,12 @@ class ensemble(mb.mobject):
     def run(self):
 	'''main entry point to run an ensemble'''
         if mmpi.root():
-            if mmpi.size() == 1:r = self.run_basic()
+            if mmpi.size() == 1:
+                if len(sys.argv) > 2:
+                    self.processes = 0
+                    self.processcount = int(sys.argv[2])
+                    r = self.run_dispatch_serial()
+                else:r = self.run_basic()
             else:r = self.run_dispatch()
         else:r = self.run_listen()
         return r
@@ -241,12 +248,75 @@ class ensemble(mb.mobject):
             m = mmpi.pollrecv()
         print('listener halting: %i' % mmpi.rank())
 
-    def run_single(self):
+    def run_dispatch_serial(self):
+        '''
+        run a serial submission dispatcher process that issues work to
+        disconnect processes and waits for their results to appear
+        '''
+        print('serial dispatch beginning: %i' % mmpi.rank())
+        simf = self.simmodule.overrides['prepare'](self)
+        dfdir = os.path.join(self.home,'tempdata')
+        if not os.path.exists(dfdir):os.makedirs(dfdir)
+        scriptfile = os.path.join(dfdir,'tempscript.sh')
+        dfbase = '.'.join(['pspacedata','$','pkl'])
+        dfs = []
+        for x in range(len(self.pspacemap.goal)):
+            dfname = dfbase.replace('$',str(x))
+            dfs.append(os.path.join(dfdir,dfname))
+        unstarted,ready,complete = dfs[:],[],[]
+
+        def new(f):
+            if not f.endswith('.pkl'):return False
+            elif not f in dfs:return False
+            elif f in complete:return False
+            else:return True
+
+        while len(complete) < len(dfs):
+            if unstarted and self.processes < self.processcount:
+                df = unstarted.pop(0)
+                self.run_serial_process(dfs.index(df),df,scriptfile)
+                self.processes += 1
+            elif ready:
+                for df in ready:
+                    with open(df,'rb') as h:px,pr = cPickle.load(h)
+                    self.pspacemap.set_location(px)
+                    self.measure_data_zeroth(px,precalced = pr)
+                    complete.append(df)
+                for x in range(len(ready)):ready.pop(0)
+            else:
+                newfiles = [os.path.join(dfdir,f) for f in os.listdir(dfdir)]
+                for nf in newfiles:
+                    if new(nf):
+                        self.processes -= 1
+                        ready.append(nf)
+                time.sleep(0.01)
+        self.measure_data_nonzeroth()
+        print('serial dispatch finished: %i' % mmpi.rank())
+        return self.output()
+
+    def run_serial_process(self,locx,dfile,scriptfile):
 	'''
-	run a single location of the parameter space in an isolated process, 
-	saving the results for another process to consume
+        deploy a process which executes a serial job using self.run_serial
+	this process saves the results at the provided data filename
 	'''
-	print('run_single is not implemented')
+        ags = [sys.executable,'-m','modular4.mrun',self.mcfgfile,'--serial',str(locx),dfile]
+        locscript = scriptfile.replace('.sh','.'+str(locx)+'.sh')
+        with open(locscript,'w') as h:h.write(' '.join(ags))
+        st = os.stat(locscript)
+        os.chmod(locscript,st.st_mode | stat.S_IEXEC)
+        #p = subprocess.Popen(['qsub',scriptfile])
+        p = subprocess.Popen(['bash',locscript])
+
+    def run_serial(self,px,dfile):
+        '''
+        execute the work of pspace location px 
+        and save the zeroth measurements in dfile
+        '''
+        self.perform_installation = False
+        simf = self.simmodule.overrides['prepare'](self)
+        sr = self.run_location(px,simf)
+        pr = (px,self.measure_data_zeroth(px,returnonly = True,locd = sr))
+        with open(dfile,'wb') as h:cPickle.dump(pr,h)
 
 
 
