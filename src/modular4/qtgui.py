@@ -57,23 +57,37 @@ def layout(widgets = [],orientation = 'v'):
     for w in widgets:l.addWidget(w)
     return l
 
-def splitter(widgets = [],orientation = 'v',label = 'mwidgetsplitter'):
+def splitter(widgets = [],orientation = 'v',boxlabel = 'mwidgetsplitter'):
     if orientation == 'v':o = QtCore.Qt.Vertical
     elif orientation == 'h':o = QtCore.Qt.Horizontal
     split = QtGui.QSplitter(o)
     for w in widgets:split.addWidget(w)
-    return bound(label,layout((split,)))
+    return bound(boxlabel,layout((split,)))
 
-def buttons(funcs,events,labels,label = 'mwidgetbuttons',ori = 'v'):
+def buttons(funcs,events,labels,boxlabel = 'mwidgetbuttons',ori = 'v'):
     bs = []
     for bx in range(len(funcs)):
         f,e,l = funcs[bx],events[bx],labels[bx]
         b = QtGui.QPushButton(l)
         b.__getattribute__(e).connect(f)
         bs.append(b)
-    return mwidget(layout(bs,ori),label)
+    return mwidget(layout(bs,ori),boxlabel)
 
-def checks(tlist,labels,master = True,callback = None,label = 'mwidgetchecks',ori = 'v'):
+def check(label,initial,callback,boxlabel = 'mwidgetcheck',ori = 'v'):
+    '''
+    create a widget containing a single check box which calls a function when toggled
+    '''
+    c = QtGui.QCheckBox(label)
+    if initial:c.setCheckState(QtCore.Qt.Checked)
+    else:c.setCheckState(QtCore.Qt.Unchecked)
+    togg = lambda i : callback((False,True,True),i)
+    c.stateChanged.connect(togg)
+    return mwidget(layout((c,),ori),boxlabel)
+
+def checks(tlist,labels,master = True,callback = None,boxlabel = 'mwidgetchecks',ori = 'v'):
+    '''
+    create a widget containing a set of check boxes which add/remove items from a list
+    '''
     qck,quck = QtCore.Qt.Checked,QtCore.Qt.Unchecked
     tlisto = tlist[:]
     def togg(c,t):
@@ -92,7 +106,7 @@ def checks(tlist,labels,master = True,callback = None,label = 'mwidgetchecks',or
     if callback:
         for c,l in zip(cs,labels):c.stateChanged.connect(callback)
     #if master:cs.insert(0,create_master(cs))
-    return mwidget(layout(cs,ori),label)
+    return mwidget(layout(cs,ori),boxlabel)
 
 '''
     def create_master(checks):
@@ -119,7 +133,7 @@ def checks(tlist,labels,master = True,callback = None,label = 'mwidgetchecks',or
         return master
 '''
 
-def selector(labels,initial,callback,label = 'mwidgetselector'):
+def selector(labels,initial,callback,boxlabel = 'mwidgetselector'):
     def pick():
         c = sel.currentIndex()
         callback(lcopy,c)
@@ -128,9 +142,9 @@ def selector(labels,initial,callback,label = 'mwidgetselector'):
     for l in labels:sel.addItem(l)
     sel.currentIndexChanged.connect(pick)
     sel.setCurrentIndex(labels.index(initial))
-    return mwidget(layout((sel,)),label)
+    return mwidget(layout((sel,)),boxlabel)
 
-def radios(labels,initial,callback,label = 'mwidgetradios',ori = 'v'):
+def radios(labels,initial,callback,boxlabel = 'mwidgetradios',ori = 'v'):
     def pick(x):
         f = lambda : callback(lcopy,x)
         return f
@@ -138,7 +152,7 @@ def radios(labels,initial,callback,label = 'mwidgetradios',ori = 'v'):
     rads = [QtGui.QRadioButton(l) for l in labels]
     rads[labels.index(initial)].setChecked(True)
     for rx in range(len(rads)):rads[rx].clicked.connect(pick(rx))
-    return mwidget(layout(rads,ori),label)
+    return mwidget(layout(rads,ori),boxlabel)
 
 ###############################################################################
 ### classes useful for making applications
@@ -339,26 +353,34 @@ class mpltwidget(mwidget):
         mwidget.hide(self)
         return self
 
+    def calc_lines_callback(self,ax,d,t,x,ys):
+        print('calc_lines_callback!')
+        #ax.plot([500,500],[-1,1],linewidth = 5.0,marker = 'o',color = 'b')
+        return ax
+
+    def calc_color_callback(self,ax,d,t,x,y,z):
+        print('calc_color_callback!')
+        return ax
+
     def update(self):
         print('mpltwidget should update its plot!')
         ax = self.clear_ax()
         x,y,z = self.xdomain,self.ydomain,self.zdomain
         d,t = self.kws['entry']
         if self.plottype == 'lines':
-            ax = self.calc_lines_plot(ax,d,t,x,self._targets,z)
+            ax = self.calc_lines_callback(ax,d,t,x,self._targets)
+            ax = self.calc_lines_plot(ax,d,t,x,self._targets)
         elif self.plottype == 'color':
+            ax = self.calc_color_callback(ax,d,t,x,y,z)
             ax = self.calc_color_plot(ax,d,t,x,y,z)
         else:
             print('unknown plottype: %s' % self.plottype)
             raise ValueError
-
-        #if xlog:ax.set_xscale('log')
-        #if ylog:ax.set_yscale('log')
-
+        if self.xlog:ax.set_xscale('log')
+        if self.ylog:ax.set_yscale('log')
         leg = ax.legend()
         if leg:leg.draggable()
         else:print('legend was None...')
-
         self.canvas.draw()
         return self
 
@@ -369,7 +391,7 @@ class mpltwidget(mwidget):
         ax.grid(True)
         return ax
 
-    def calc_lines_plot(self,ax,dt,ts,x,ys,z):
+    def calc_lines_plot(self,ax,dt,ts,x,ys):
         def get(t):
             tx = ts.index(t)
             return dt[tx],ts[tx]
@@ -385,30 +407,60 @@ class mpltwidget(mwidget):
         return ax
 
     def calc_color_plot(self,ax,dt,ts,x,y,z):
-        def get(t):
-            tx = ts.index(t)
-            return dt[tx],ts[tx]
+        axes = self.axisnames
+        axvs = self.axisvalues
+        axds = self.axisdefaults
 
-        dx,xt = get(x)
-        dy,yt = get(y)
-        dz,zt = get(z)
-
-        print('should make a color plot instead!')
-        ds = numpy.zeros((len(dx),len(dy)),dtype = numpy.float)
-        ds[2,:] += 13
-        ds[:,3] += 10
-        
+        axss,inss = axds[:],[]
+        axss[axes.index(x)],axss[axes.index(y)] = None,None
+        for axx in range(len(axes)):
+            if axss[axx] is None:inss.append([1 for v in axvs[axx]])
+            else:inss.append([1 if v == axds[axx] else 0 for v in axvs[axx]])
+        in_every = [(0 not in row) for row in zip(*inss)]
+        surf = [sur for sur,ie in zip(dt[ts.index(z)],in_every) if ie]
+        saxs = [[v for v,i in zip(axvs[a],in_every) if i] for a in range(len(axes))]
+        saxs = [mb.uniq(sax) for sax in saxs]
+        dx = numpy.array(mb.uniq(axvs[axes.index(x)]),dtype = numpy.float)
+        dy = numpy.array(mb.uniq(axvs[axes.index(y)]),dtype = numpy.float)
+        ds = numpy.array(surf,dtype = numpy.float)
+        ds = ds.reshape(len(dx),len(dy))
+        if axes.index(x) < axes.index(y):ds = ds.transpose()
+        xyminmaxes = (dx.min(),dx.max(),dy.min(),dy.max())
         minz,maxz = ds.min(),ds.max()
-        pckws = {
-            'shading':'gouraud',
-            'cmap':self.colormap, 
-            'vmin':minz, 
-            'vmax':maxz, 
-                }
-        pc_mesh = ax.pcolor(dx,dy,ds,**pckws)
+
+        if self.xlog or self.ylog:
+            pckws = {
+                'shading':'gouraud','cmap':self.colormap,'vmin':minz,'vmax':maxz, 
+                    }
+            pc_mesh = ax.pcolor(dx,dy,ds,**pckws)
+        else:
+            imkws = {
+                'aspect':'auto','interpolation':self.colorplot_interpolation,'origin':'lower',
+                'extent':xyminmaxes,'cmap':self.colormap,'vmin':minz,'vmax':maxz, 
+                    }
+            pc_mesh = ax.imshow(ds,**imkws)
+
+        #print 'axes values are not evenly spaced; plot will be boxy'
+        #pc_mesh = ax.pcolormesh(x,y,surf,cmap = cmap, 
+        #    shading = 'gouraud', vmin = z_min, vmax = z_max)
+
         self.fig.colorbar(pc_mesh)
-        ax.axis((dx.min(),dx.max(),dy.min(),dy.max()))
+        ax.axis(xyminmaxes)
         return ax
+
+    def _axisslice_widgets(self):
+        def slice_callback(a):
+            def f(ls,c):
+                self.axisdefaults[a] = self.axisvalues[a][c]
+                self.update()
+            return f
+        axslices = []
+        for axx in range(len(self.axisnames)):
+            ls = tuple(str(v) for v in mb.uniq(self.axisvalues[axx]))
+            si = str(self.axisdefaults[axx])
+            cb = slice_callback(axx)
+            axslices.append(selector(ls,si,cb,boxlabel = self.axisnames[axx]))
+        return mwidget(layout(axslices),'Parameter Space Axes')
 
     def _defbind(self,k):
         def b(ls,c):
@@ -421,28 +473,44 @@ class mpltwidget(mwidget):
         self._def('xdomain',None,**kws)
         self._def('ydomain',None,**kws)
         self._def('zdomain',None,**kws)
+        self._def('xlog',False,**kws)
+        self._def('ylog',False,**kws)
+        self._def('axisnames',[],**kws)
+        self._def('axisvalues',[],**kws)
+        self._def('axisdefaults',None,**kws)
         self._def('maxlinecount',20,**kws)
+        self._def('colorplot_interpolation','nearest',**kws)
         self._def('colormap',plt.get_cmap('jet'),**kws)
         self._def('plottypes',('lines','color'),**kws)
         self._def('plottype','lines',**kws)
         mwidget.__init__(self)
         self.kws = kws
         self._targets = self.kws['entry'][1][:]
+        if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
+            self.axisnames = self.kws['aux']['pspaceaxes']
+            d,t = self.kws['entry']
+            axxs = tuple(t.index(a) for a in self.axisnames)
+            self.axisvalues = [d[a] for a in axxs]
+            self.axisdefaults = [vs[0] for vs in self.axisvalues] 
 
         self.fig = plt_figure
         self.canvas = figure_canvas(self.fig)
         self.toolbar = plttoolbar(self.canvas)
 
+        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
+        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
         tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
         rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
+        axs = self._axisslice_widgets()
         bts = buttons((self.update,),('clicked',),('Update Plot',),'')
-        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'X-Domain')
-        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'Y-Domain')
+        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
+        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
         zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
+        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
+        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
         left = mwidget(layout((bts,xsel,ysel,zsel)),'')
-        hsplit = mwidget(splitter((left,tcs,rds),'h',''),'')
+        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
         vsplit = splitter((hsplit,mwidget(layout((self.canvas,self.toolbar)),'')),'v','')
-
         self.setLayout(vsplit)
         self.setBackgroundRole(QtGui.QPalette.Window)
   
@@ -469,7 +537,8 @@ class tree_book(mwidget):
         titems,tpages,tops,bottoms = [],[],[],[]
         for x in range(len(pages)):
             pgd,pgt,pge = pages[x]
-            top = QtGui.QTreeWidgetItem(None,[pge['header']])
+            #top = QtGui.QTreeWidgetItem(None,[pge['header']])
+            top = QtGui.QTreeWidgetItem(None,['pspace page: %i' % x])
             tops.append(top)
             main_page = mwidget()
             titems.append(top)
@@ -477,7 +546,7 @@ class tree_book(mwidget):
             if len(pgd.shape) == 2:
                 subs = (((pgd,pgt),'single'),)
             elif len(pgd.shape) == 3:
-                subs = tuple(((pgd[x],pgt),str(x)) for x in range(pgd.shape[0]))
+                subs = tuple(((pgd[x],pgt),'trajectory: %i' % x) for x in range(pgd.shape[0]))
             else:
                 print('unknown tree widget scenario')
                 raise ValueError
@@ -488,7 +557,7 @@ class tree_book(mwidget):
                 t1 = subpg[1][0]
                 pkws = {
                     'xdomain':t1,'ydomain':t1,'zdomain':t1,
-                    'entry':subpg,'header':subh,
+                    'entry':subpg,'header':subh,'aux':pge,
                         }
                 sub_page = mpltwidget(**pkws)
                 tpages.append(sub_page)
@@ -506,11 +575,6 @@ class tree_book(mwidget):
         self.split = QtGui.QSplitter(QtCore.Qt.Horizontal)
         self.tree = QtGui.QTreeWidget()
         self.split.addWidget(self.tree)
-
-        #self.selector.currentIndexChanged.connect(self.change_page)
-        #self.tree.itemCollapsed.connect(self.remember_collapsed)
-        #self.tree.itemExpanded.connect(self.remember_expanded)
-
         self.tree.currentItemChanged.connect(self._change_page)
         self._header(self.header)
         self._pages(self.pages)
@@ -521,7 +585,6 @@ class tree_book(mwidget):
         self._def('pages',[],**kws)
         self._def('page',0,**kws)
         self._def('header','treebookheader',**kws)
-
         wgs = self._widgets()
         self._layout = layout(wgs,'h')
         self.setLayout(self._layout)

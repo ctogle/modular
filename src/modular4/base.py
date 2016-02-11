@@ -35,7 +35,15 @@ def load_measurements(parsers,base_measurement_class):
     print('loaded measurements:')
     for p in parsers:print('>>> :\t%s' % p)
 
-    
+def uniq(u):
+    '''return an ordered subsequence of a sequence without duplicates'''
+    r = []
+    for ud in u:
+        if not ud in r:
+            r.append(ud)
+    return r
+
+
 
 
 

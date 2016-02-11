@@ -2,6 +2,8 @@ import modular4.measurement as mme
 import math,numpy
 from scipy.stats import pearsonr as correl
 
+import pdb
+
 
 
 
@@ -33,9 +35,6 @@ class correlation(mme.measurement):
         self._def('correldomain',None,**kws)
 
     def set_targets(self,inputs,pspace):
-        cinputs = []
-        for i in inputs:
-            cinputs.append(i+'-correlation')
         if not self.bindomain in inputs:x = inputs[0]
         else:x = self.bindomain
         y,z = self.correldomain

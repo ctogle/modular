@@ -28,7 +28,12 @@ class ensemble(mb.mobject):
             }
 
     def prepare(self):
-	'''import simulation module, establish self.home directory, and load available measurements'''
+        '''
+        import simulation module, establish self.home directory, and load available measurements
+        '''
+        if self.rgenseed is None:
+            self.rgenseed = random.getrandbits(100)
+        self.rgen.seed(self.rgenseed+mmpi.rank())
         top,smod = self.simmodules[self.module]
         self.simmodule = __import__(top).__dict__[smod]
         self.home = os.path.join(os.getcwd(),self.name)
@@ -37,7 +42,9 @@ class ensemble(mb.mobject):
         mb.load_measurements(eme.parsers,eme.measurement)
 
     def initialize_measurements(self):
-	'''prepare measurement and data objects for post simulation measurements'''
+        '''
+        prepare measurement and data objects for post simulation measurements
+        '''
         z,nz = [],[]
         for mx in range(len(self.measurements)):
             m = self.measurements[mx]
@@ -53,7 +60,9 @@ class ensemble(mb.mobject):
         self.nonzerothdata = [(nz[x]._eindex,[],{}) for x in range(len(nz))]
 
     def set_targets(self,targets):
-	'''utility method for modifying self.targets'''
+        '''
+        utility method for modifying self.targets
+        '''
         for x in range(len(self.targets)):self.targets.pop(x)
         for t in targets:self.targets.append(t)
         return self
@@ -73,14 +82,16 @@ class ensemble(mb.mobject):
         self._def('outputs',[],**kws)
         self._def('capture',None,**kws)
         self._def('end',None,**kws)
+        self._def('rgenseed',None,**kws)
         self._def('datascheme','raw',**kws)
         self._def('perform_installation',mmpi.root(),**kws)
         self._def('rgen',random.Random(),**kws)
-        self.rgen.seed(random.getrandbits(100))
         self.prepare()
 
     def parse_mcfg(self,mcfgfile,**minput):
-	'''parse an mcfg file and prepare the ensemble for simulation'''
+        '''
+        parse an mcfg file and prepare the ensemble for simulation
+        '''
         if hasattr(self.simmodule,'parsers'):
             module_parsers = self.simmodule.parsers
         else:module_parsers = {}
@@ -108,7 +119,9 @@ class ensemble(mb.mobject):
         return self
 
     def output(self):
-	'''generate output for the simulation data and measurement results'''
+        '''
+        generate output for the simulation data and measurement results
+        '''
         try:
             import modular4.qtgui as mg
             mg.init_figure()
@@ -138,7 +151,9 @@ class ensemble(mb.mobject):
 
     def measure_data_zeroth(self,goalindex,
             precalced = None,returnonly = False,locd = None):
-	'''perform measurements which depend only on the simulation data'''
+        '''
+        perform measurements which depend only on the simulation data
+        '''
         pmp = self.pspacemap
         if precalced is None and locd is None:locd = pmp.data[goalindex]
         locp,loct = pmp.goal[goalindex],self.targets
@@ -154,17 +169,26 @@ class ensemble(mb.mobject):
         return nzds
 
     def measure_data_nonzeroth(self,**kws):
-	'''perform measurements which depend on other measurements only'''
-        zero,goal,axes = self.zerothdata,self.pspacemap.goal,self.pspace.axes
-        for mx in range(len(self.nonzeroth)):
-            m = self.nonzeroth[mx]
+        '''
+        perform measurements which depend on other measurements only
+        '''
+        zd,nzd = self.zerothdata,self.nonzerothdata
+        zm,nzm = self.zeroth,self.nonzeroth
+        gl,axs = self.pspacemap.goal,self.pspace.axes
+        for mx in range(len(nzm)):
+            m = nzm[mx]
             for ishp in m.input_shapes:
                 if ishp == 'parameterspace':
-                    nonzmeasurement = m(zero,axes,goal,**kws)
+                    mms = tuple(self.measurements[i-1] for i in m.input_sources)
+                    zero = tuple(zd[zx] for zx in range(len(zd)) if zm[zx] in mms)
+                    nzero = tuple(nzd[zx] for zx in range(len(nzd)) if nzm[zx] in mms)
+                    nonzmeasurement = m(zero+nzero,axs,gl,**kws)
                     self.nonzerothdata[mx][1].append(nonzmeasurement)
 
     def run_location(self,px,simf):
-	'''generate and return the simulation data associated with a location in parameter space'''
+        '''
+        generate and return the simulation data associated with a location in parameter space
+        '''
         trajcnt,targcnt,captcnt,p = self.pspacemap.set_location(px)
         d = numpy.zeros((trajcnt,targcnt,captcnt),dtype = numpy.float)
         for x in range(trajcnt):
@@ -174,7 +198,9 @@ class ensemble(mb.mobject):
         return d
 
     def run(self):
-	'''main entry point to run an ensemble'''
+        '''
+        main entry point to run an ensemble
+        '''
         if mmpi.root():
             if mmpi.size() == 1:
                 if len(sys.argv) > 2:
@@ -187,7 +213,9 @@ class ensemble(mb.mobject):
         return r
 
     def run_basic(self):
-	'''run simulations using a single core'''
+        '''
+        run simulations using a single core
+        '''
         simf = self.simmodule.overrides['prepare'](self)
         for px in range(len(self.pspacemap.goal)):
             pdata = self.run_location(px,simf)
@@ -197,7 +225,9 @@ class ensemble(mb.mobject):
         return self.output()
 
     def run_dispatch(self):
-        '''run a dispatcher process that issues work to nonroot processes running self.run_listen'''
+        '''
+        run a dispatcher process that issues work to nonroot processes running self.run_listen
+        '''
         print('dispatch beginning: %i' % mmpi.rank())
         simf = self.simmodule.overrides['prepare'](self)
         hosts = mmpi.hosts()
@@ -229,7 +259,9 @@ class ensemble(mb.mobject):
         return self.output()
 
     def run_listen(self):
-        '''run a listener process that performs work for a root running self.run_distpatch'''
+        '''
+        run a listener process that performs work for a root running self.run_distpatch
+        '''
         print('listener beginning: %i' % mmpi.rank())
         m = mmpi.pollrecv()
         while True:
@@ -295,10 +327,10 @@ class ensemble(mb.mobject):
         return self.output()
 
     def run_serial_process(self,locx,dfile,scriptfile):
-	'''
+        '''
         deploy a process which executes a serial job using self.run_serial
-	this process saves the results at the provided data filename
-	'''
+          this process saves the results at the provided data filename
+        '''
         ags = [sys.executable,'-m','modular4.mrun',self.mcfgfile,'--serial',str(locx),dfile]
         locscript = scriptfile.replace('.sh','.'+str(locx)+'.sh')
         with open(locscript,'w') as h:h.write(' '.join(ags))

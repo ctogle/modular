@@ -3,13 +3,13 @@
 	time limit : 800
 
 <capture>
-	increment : 20 : time
+	increment : 1 : time
 
 <variables>
-	mu : 10.0
-	K : 0.000000000000001
-	lambda1 : 5
-	lambda2 : 5
+	mu : 15.0
+	K : 0.00001
+	lambda1 : 5.0
+	lambda2 : 5.0
 	gamma : 0.01
 
 <functions>
@@ -33,10 +33,10 @@
 	x1
 
 <parameterspace>
-	<map> : 100
-		lambda1 : 1.0,10.0  : 1.0 : 10
-		lambda2 : 1.0,10.0  : 1.0 : 10
-		#mu      : 8.0,12.0 : 8.0 : 2
+	<map> : 500
+		lambda1 : 8.0,12.0  : 8.0 : 5
+		lambda2 : 8.0,12.0  : 8.0 : 5
+		mu      : 10.0,20.0 : 10.0 : 2
 
 <measurements>
   # process : inputshape : someinfo : #bins : transient
@@ -49,10 +49,8 @@
 
 <outputs>
 	none : ensemble_output : none : all
-	none : correl1_output : pkl : all
+	none : correl_output : pkl : all
 	none : bypsp_output : pkl : all
-
-<ensemble>
 
 
 

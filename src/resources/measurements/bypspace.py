@@ -37,9 +37,9 @@ class bypspace(mme.measurement):
     def measure(self,zdata,axes,traj,**kws):
         ptrajaxvals = zip(*traj)
         dvals = [[] for x in range(len(self.dtargets))]
-        for isrc in self.input_sources:
+        for isrc in range(len(self.input_sources)):
             for tx in range(len(traj)):
-                mtdat = zdata[isrc-1][1][tx]
+                mtdat = zdata[isrc][1][tx]
                 if len(mtdat) != 1:
                     print 'unknown situation'
                     raise ValueError
@@ -54,7 +54,7 @@ class bypspace(mme.measurement):
         for x in range(len(axes)):odata[x+1] = numpy.array(ptrajaxvals[x])
         for x in range(len(self.dtargets)):
             odata[x+len(axes)+1] = numpy.array(dvals[x])
-        return odata,self.targets,{'header':'pypspace'}
+        return odata,self.targets,{'pspaceaxes':axes}
 
 
 
