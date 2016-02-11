@@ -7,6 +7,7 @@ Version 4 of modular simulator framework
 Install modular, sim_anneal, and gillespiem with:
 
 ./setup.py
+
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -24,6 +25,7 @@ Run the test:
 View the test results:
 
 ../mrun.sh ./correl_ensemble_test/ --plt
+
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -45,4 +47,5 @@ Running an mcfg creates a directory in the current working directory containing
 results among other files generated during the run. To view output data:
 
 mrun.sh /path/to/output/files/ --plt
+
 -------------------------------------------------------------------------------
