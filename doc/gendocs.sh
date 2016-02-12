@@ -4,6 +4,7 @@
 pydoc -w modular4
 pydoc -w modular4.base
 pydoc -w modular4.ensemble
+pydoc -w modular4.fitting
 pydoc -w modular4.mcfg
 pydoc -w modular4.measurement
 pydoc -w modular4.mpi

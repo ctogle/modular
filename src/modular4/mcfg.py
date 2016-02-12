@@ -1,3 +1,4 @@
+import modular4.base as mb
 import sim_anneal.pspace as psp
 
 import numpy as np
@@ -55,7 +56,7 @@ def parse_pspace(parser,lines):
     axes,bnds,init,disc = zip(*tuple(parse_axis(l) for l in lines))
     sp = psp.pspace(bnds,init,disc,axes)
     if intent == '<map>':traj = list(it.product(*sp.discrete))
-    elif intent == '<fit>':pdb.set_trace()
+    elif intent == '<fit>':traj = [sp.initial[:]]
     else:traj = None
     return sp,traj,trajcount
 

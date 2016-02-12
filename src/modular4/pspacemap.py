@@ -36,6 +36,10 @@ class pspacemap(mb.mobject):
         if not pkey in self.completed:self.completed[pkey] = 0
         return self.trajcount,len(self.targets),self.captcount,pkey
 
+    def new_location(self,loc):
+        self.goal.append(loc)
+        return len(self.goal)-1
+
     def get_data(self,ts = None,tc = None):
         if tc is None:tc = self.trajcount
         if ts is None:ts = self.targets[:]
