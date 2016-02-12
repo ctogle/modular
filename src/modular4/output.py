@@ -24,7 +24,7 @@ class moutput(mb.mobject):
 
     def openplt(self,wt,**kws):
         if mmpi.size() > 1:
-            print('cannot openplt while using mpi!')
+            mb.log(5,'cannot openplt while using mpi!')
             return
         import modular4.qtgui as mg
         kws['window_title'] = wt
@@ -62,7 +62,7 @@ class moutput(mb.mobject):
             fp = os.path.join(p,f+'.'+md)
             if md == 'pkl':self.savepkl(fp,pages = pgs)
             elif md == 'plt':self.openplt(f,pages = pgs)
-            else:print('unkown output mode: %s' % md)
+            else:mb.log(5,'unkown output mode: %s' % md)
 
 def output(ol = None,data = None,targs = None,**mokws):
     if 'ol' in mokws:ol = mokws['ol']
@@ -73,7 +73,7 @@ def output(ol = None,data = None,targs = None,**mokws):
     else:
         if targs:oltargs = targs[:]
         else:
-            print('unknown output request')
+            mb.log(5,'unknown output request')
             raise ValueError
     if not os.path.exists(olpath):
         if 'home' in mokws and os.path.exists(mokws['home']):
@@ -105,13 +105,13 @@ def output(ol = None,data = None,targs = None,**mokws):
             mokws['pages'] = [(d,targs) for d in data]
             return moutput(**mokws)
         else:
-            print('unknown output request')
+            mb.log(5,'unknown output request')
             raise ValueError
 
 def loadpkl(fp,**kws):
     with open(fp,'rb') as h:data = cPickle.load(h)
     if not 'MODULARDATA' in data:
-        print('non modular data file accessed...')
+        mb.log(5,'non modular data file accessed...')
     elif data['MODULARDATA']:
         kws['ol'] = data['ol']
         kws['pages'] = data['pages']

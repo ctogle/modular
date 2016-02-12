@@ -20,9 +20,9 @@ import pdb
 ###############################################################################
 
 def runapp(windowclass,kws):
-    print('opening window : %s' % windowclass)
+    mb.log(5,'opening window',windowclass)
     mapp(windowclass,**kws).exec_()
-    print('closed window : %s' % windowclass)
+    mb.log(5,'closed window',windowclass)
 
 def convert_pixel_space(w,h):
     good_w,good_h = 1920.0,1080.0
@@ -207,11 +207,16 @@ class pwindow(mwindow):
 
 class mwidget(QtGui.QWidget,mb.mobject):
 
-    def __init__(self,lay = None,lab = '',**kws):
+    def __init__(self,lay = None,lab = '',scroll = False,**kws):
         QtGui.QWidget.__init__(self)
         if not lay is None:
             if lab:lay = bound(lab,lay)
-            self.setLayout(lay)
+            if scroll:
+                scroll = QtGui.QScrollArea()
+                scroll.setBackgroundRole(QtGui.QPalette.Window)
+                scroll.setWidget(mwidget(lay))
+                self.setLayout(layout((scroll,)))
+            else:self.setLayout(lay)
 
 class plttoolbar(NavigationToolbar2,QtGui.QToolBar):
 
@@ -329,7 +334,7 @@ class plttoolbar(NavigationToolbar2,QtGui.QToolBar):
         if fname:
             try:
                 self.canvas.print_figure(six.text_type(fname[0]))
-                print('saved figure at: %s' % fname)
+                mb.log(5,'saved figure at',fname)
             except Exception as e:
                 QtGui.QMessageBox.critical(
                     self,'error saving file',str(e),
@@ -363,7 +368,7 @@ class mpltwidget(mwidget):
         return ax
 
     def update(self):
-        print('mpltwidget should update its plot!')
+        mb.log(5,'mpltwidget should update its plot!')
         ax = self.clear_ax()
         x,y,z = self.xdomain,self.ydomain,self.zdomain
         d,t = self.kws['entry']
@@ -374,13 +379,13 @@ class mpltwidget(mwidget):
             ax = self.calc_color_callback(ax,d,t,x,y,z)
             ax = self.calc_color_plot(ax,d,t,x,y,z)
         else:
-            print('unknown plottype: %s' % self.plottype)
+            mb.log(5,'unknown plottype',self.plottype)
             raise ValueError
         if self.xlog:ax.set_xscale('log')
         if self.ylog:ax.set_yscale('log')
         leg = ax.legend()
         if leg:leg.draggable()
-        else:print('legend was None...')
+        else:mb.log(5,'legend was None...')
         self.canvas.draw()
         return self
 
@@ -407,10 +412,7 @@ class mpltwidget(mwidget):
         return ax
 
     def calc_color_plot(self,ax,dt,ts,x,y,z):
-        axes = self.axisnames
-        axvs = self.axisvalues
-        axds = self.axisdefaults
-
+        axes,axvs,axds = self.axisnames,self.axisvalues,self.axisdefaults
         axss,inss = axds[:],[]
         axss[axes.index(x)],axss[axes.index(y)] = None,None
         for axx in range(len(axes)):
@@ -462,10 +464,27 @@ class mpltwidget(mwidget):
             axslices.append(selector(ls,si,cb,boxlabel = self.axisnames[axx]))
         return mwidget(layout(axslices),'Parameter Space Axes')
 
+    def _domain_target_ptype_widgets(self):
+        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
+        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
+        tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
+        rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
+        if self.axisnames:axs = self._axisslice_widgets()
+        else:axs = mwidget() # this seems less than ideal... creates a dead space
+        bts = buttons((self.update,),('clicked',),('Update Plot',),'')
+        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
+        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
+        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
+        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
+        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
+        left = mwidget(layout((bts,xsel,ysel,zsel)),'')
+        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
+        return hsplit
+
     def _defbind(self,k):
         def b(ls,c):
             self.__setattr__(k,ls[c])
-            print('set pltwidget attribute: %s : %s' % (k,str(ls[c])))
+            mb.log(5,'set pltwidget attribute: %s : %s' % (k,str(ls[c])))
             self.update()
         return b
 
@@ -484,6 +503,9 @@ class mpltwidget(mwidget):
         self._def('plottypes',('lines','color'),**kws)
         self._def('plottype','lines',**kws)
         mwidget.__init__(self)
+        self.fig = plt_figure
+        self.canvas = figure_canvas(self.fig)
+        self.toolbar = plttoolbar(self.canvas)
         self.kws = kws
         self._targets = self.kws['entry'][1][:]
         if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
@@ -492,26 +514,9 @@ class mpltwidget(mwidget):
             axxs = tuple(t.index(a) for a in self.axisnames)
             self.axisvalues = [d[a] for a in axxs]
             self.axisdefaults = [vs[0] for vs in self.axisvalues] 
-
-        self.fig = plt_figure
-        self.canvas = figure_canvas(self.fig)
-        self.toolbar = plttoolbar(self.canvas)
-
-        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
-        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
-        tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
-        rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
-        axs = self._axisslice_widgets()
-        bts = buttons((self.update,),('clicked',),('Update Plot',),'')
-        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
-        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
-        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
-        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
-        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
-        left = mwidget(layout((bts,xsel,ysel,zsel)),'')
-        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
+        hsplit = self._domain_target_ptype_widgets()
         vsplit = splitter((hsplit,mwidget(layout((self.canvas,self.toolbar)),'')),'v','')
-        self.setLayout(vsplit)
+        self.setLayout(layout((mwidget(vsplit,'',True),)))
         self.setBackgroundRole(QtGui.QPalette.Window)
   
 class tree_book(mwidget):
@@ -548,7 +553,7 @@ class tree_book(mwidget):
             elif len(pgd.shape) == 3:
                 subs = tuple(((pgd[x],pgt),'trajectory: %i' % x) for x in range(pgd.shape[0]))
             else:
-                print('unknown tree widget scenario')
+                mb.log(5,'unknown tree widget scenario')
                 raise ValueError
             for subpg,subh in subs:
                 bottom = QtGui.QTreeWidgetItem(top,[subh])

@@ -43,11 +43,11 @@ class measurement(mb.mobject):
                     yss[trajdx][ys.index(targ)][:] = data[trajdx][targdx]
 
         if not x == 'time':
-            print('must bin by time')
+            mb.log(5,'must bin by time')
             raise ValueError
         bins = xs[0].copy()
         if bins.size < bcnt:
-            print('\nfewer data entries than bins; reduce bin count!\n')
+            mb.log(5,'fewer data entries than bins; reduce bin count!')
             raise ValueError
 
         vals = yss.transpose((2,1,0))

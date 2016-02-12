@@ -10,9 +10,8 @@ import pdb
 
 
 def parse_missing(parser,lines):
-    print '\nno parser method supplied for parser "%s"' % parser
-    for l in lines:print '>>>> :\t'+l
-    print '-'*50+'\n'
+    mb.log(5,'no parser method supplied for parser',parser)
+    for l in lines:mb.log(5,'>>>> :\t'+l)
     return lines
 
 def parse_end(parser,lines):
@@ -38,9 +37,9 @@ def parse_outputs(parser,lines):
     parsed = [tuple(x.strip() for x in l.split(':')) for l in lines]
     return parsed
 
-def parse_ensemble(parser,lines):
-    print 'need real parser...',parser,lines
-    return lines
+#def parse_ensemble(parser,lines):
+#    print 'need real parser...',parser,lines
+#    return lines
 
 def parse_pspace(parser,lines):
     def parse_axis(a):
@@ -88,7 +87,7 @@ parsers = {
     'targets' : parse_targets,
     'measurements' : parse_measurements,
     'outputs' : parse_outputs,
-    'ensemble' : parse_ensemble,
+    #'ensemble' : parse_ensemble,
     'parameterspace' : parse_pspace,
         }
 

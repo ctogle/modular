@@ -20,10 +20,13 @@
 <tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
 <td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="appdirs.html">appdirs</a><br>
 <a href="inspect.html">inspect</a><br>
+</td><td width="25%" valign=top><a href="logging.html">logging</a><br>
+<a href="modular4.mpi.html">modular4.mpi</a><br>
 </td><td width="25%" valign=top><a href="os.html">os</a><br>
 <a href="pdb.html">pdb</a><br>
 </td><td width="25%" valign=top><a href="sys.html">sys</a><br>
-</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<a href="time.html">time</a><br>
+</td></tr></table></td></tr></table><p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#ee77aa">
 <td colspan=3 valign=bottom>&nbsp;<br>
@@ -44,7 +47,9 @@
 <td colspan=3 valign=bottom>&nbsp;<br>
 <font color="#000000" face="helvetica, arial"><a name="mobject">class <strong>mobject</strong></a>(<a href="__builtin__.html#object">__builtin__.object</a>)</font></td></tr>
     
-<tr><td bgcolor="#ffc8d8"><tt>&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>base&nbsp;class&nbsp;for&nbsp;all&nbsp;modular4&nbsp;classes<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
 <td width="100%">Data descriptors defined here:<br>
 <dl><dt><strong>__dict__</strong></dt>
 <dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
@@ -59,7 +64,19 @@
 <font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
     
 <tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
-<td width="100%"><dl><dt><a name="-config_path"><strong>config_path</strong></a>(f<font color="#909090">=None</font>)</dt></dl>
- <dl><dt><a name="-load_measurements"><strong>load_measurements</strong></a>(parsers, base_measurement_class)</dt></dl>
-</td></tr></table>
+<td width="100%"><dl><dt><a name="-clock"><strong>clock</strong></a>(t<font color="#909090">=None</font>)</dt><dd><tt>return&nbsp;the&nbsp;current&nbsp;date&nbsp;and&nbsp;time&nbsp;in&nbsp;a&nbsp;formatted&nbsp;string</tt></dd></dl>
+ <dl><dt><a name="-config_path"><strong>config_path</strong></a>(f<font color="#909090">=None</font>)</dt><dd><tt>return&nbsp;the&nbsp;configuration&nbsp;path&nbsp;associated&nbsp;with&nbsp;modular4<br>
+if&nbsp;a&nbsp;file&nbsp;is&nbsp;provided,&nbsp;return&nbsp;this&nbsp;file&nbsp;concatenated&nbsp;onto&nbsp;the&nbsp;configuration&nbsp;path</tt></dd></dl>
+ <dl><dt><a name="-load_measurements"><strong>load_measurements</strong></a>(parsers, base_measurement_class)</dt><dd><tt>look&nbsp;for&nbsp;measurement&nbsp;classes&nbsp;to&nbsp;import</tt></dd></dl>
+ <dl><dt><a name="-log"><strong>log</strong></a>(level, msg, *args)</dt><dd><tt>logging&nbsp;utility&nbsp;function</tt></dd></dl>
+ <dl><dt><a name="-uniq"><strong>uniq</strong></a>(u)</dt><dd><tt>return&nbsp;an&nbsp;ordered&nbsp;subsequence&nbsp;of&nbsp;a&nbsp;sequence&nbsp;without&nbsp;duplicates</tt></dd></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>loglevels</strong> = {0: 10, 1: 20, 2: 30, 3: 40, 4: 50, 5: 60}<br>
+<strong>logstring</strong> = '&gt;&gt;log&lt;&lt;|%1i|&gt;&gt;'</td></tr></table>
 </body></html>

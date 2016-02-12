@@ -501,9 +501,13 @@ Data descriptors inherited from Shiboken.Object:<br>
 Methods defined here:<br>
 <dl><dt><a name="mpltwidget-__init__"><strong>__init__</strong></a>(self, **kws)</dt></dl>
 
+<dl><dt><a name="mpltwidget-calc_color_callback"><strong>calc_color_callback</strong></a>(self, ax, d, t, x, y, z)</dt></dl>
+
 <dl><dt><a name="mpltwidget-calc_color_plot"><strong>calc_color_plot</strong></a>(self, ax, dt, ts, x, y, z)</dt></dl>
 
-<dl><dt><a name="mpltwidget-calc_lines_plot"><strong>calc_lines_plot</strong></a>(self, ax, dt, ts, x, ys, z)</dt></dl>
+<dl><dt><a name="mpltwidget-calc_lines_callback"><strong>calc_lines_callback</strong></a>(self, ax, d, t, x, ys)</dt></dl>
+
+<dl><dt><a name="mpltwidget-calc_lines_plot"><strong>calc_lines_plot</strong></a>(self, ax, dt, ts, x, ys)</dt></dl>
 
 <dl><dt><a name="mpltwidget-clear_ax"><strong>clear_ax</strong></a>(self, proj<font color="#909090">=None</font>)</dt></dl>
 
@@ -1192,7 +1196,7 @@ Data descriptors inherited from <a href="modular4.base.html#mobject">modular4.ba
 </dl>
 <hr>
 Methods defined here:<br>
-<dl><dt><a name="mwidget-__init__"><strong>__init__</strong></a>(self, lay<font color="#909090">=None</font>, lab<font color="#909090">=''</font>, **kws)</dt></dl>
+<dl><dt><a name="mwidget-__init__"><strong>__init__</strong></a>(self, lay<font color="#909090">=None</font>, lab<font color="#909090">=''</font>, scroll<font color="#909090">=False</font>, **kws)</dt></dl>
 
 <hr>
 Data and other attributes defined here:<br>
@@ -4976,16 +4980,17 @@ Data descriptors inherited from <a href="modular4.base.html#mobject">modular4.ba
     
 <tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
 <td width="100%"><dl><dt><a name="-bound"><strong>bound</strong></a>(label, lay)</dt></dl>
- <dl><dt><a name="-buttons"><strong>buttons</strong></a>(funcs, events, labels, label<font color="#909090">='mwidgetbuttons'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
- <dl><dt><a name="-checks"><strong>checks</strong></a>(tlist, labels, master<font color="#909090">=True</font>, callback<font color="#909090">=None</font>, label<font color="#909090">='mwidgetchecks'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
+ <dl><dt><a name="-buttons"><strong>buttons</strong></a>(funcs, events, labels, boxlabel<font color="#909090">='mwidgetbuttons'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
+ <dl><dt><a name="-check"><strong>check</strong></a>(label, initial, callback, boxlabel<font color="#909090">='mwidgetcheck'</font>, ori<font color="#909090">='v'</font>)</dt><dd><tt>create&nbsp;a&nbsp;widget&nbsp;containing&nbsp;a&nbsp;single&nbsp;check&nbsp;box&nbsp;which&nbsp;calls&nbsp;a&nbsp;function&nbsp;when&nbsp;toggled</tt></dd></dl>
+ <dl><dt><a name="-checks"><strong>checks</strong></a>(tlist, labels, master<font color="#909090">=True</font>, callback<font color="#909090">=None</font>, boxlabel<font color="#909090">='mwidgetchecks'</font>, ori<font color="#909090">='v'</font>)</dt><dd><tt>create&nbsp;a&nbsp;widget&nbsp;containing&nbsp;a&nbsp;set&nbsp;of&nbsp;check&nbsp;boxes&nbsp;which&nbsp;add/remove&nbsp;items&nbsp;from&nbsp;a&nbsp;list</tt></dd></dl>
  <dl><dt><a name="-convert_pixel_space"><strong>convert_pixel_space</strong></a>(w, h)</dt></dl>
  <dl><dt><a name="-init_figure"><strong>init_figure</strong></a>()</dt></dl>
  <dl><dt><a name="-layout"><strong>layout</strong></a>(widgets<font color="#909090">=[]</font>, orientation<font color="#909090">='v'</font>)</dt></dl>
- <dl><dt><a name="-radios"><strong>radios</strong></a>(labels, initial, callback, label<font color="#909090">='mwidgetradios'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
+ <dl><dt><a name="-radios"><strong>radios</strong></a>(labels, initial, callback, boxlabel<font color="#909090">='mwidgetradios'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
  <dl><dt><a name="-runapp"><strong>runapp</strong></a>(windowclass, kws)</dt></dl>
- <dl><dt><a name="-selector"><strong>selector</strong></a>(labels, initial, callback, label<font color="#909090">='mwidgetselector'</font>)</dt></dl>
+ <dl><dt><a name="-selector"><strong>selector</strong></a>(labels, initial, callback, boxlabel<font color="#909090">='mwidgetselector'</font>)</dt></dl>
  <dl><dt><a name="-sortto"><strong>sortto</strong></a>(l1, l2)</dt></dl>
- <dl><dt><a name="-splitter"><strong>splitter</strong></a>(widgets<font color="#909090">=[]</font>, orientation<font color="#909090">='v'</font>, label<font color="#909090">='mwidgetsplitter'</font>)</dt></dl>
+ <dl><dt><a name="-splitter"><strong>splitter</strong></a>(widgets<font color="#909090">=[]</font>, orientation<font color="#909090">='v'</font>, boxlabel<font color="#909090">='mwidgetsplitter'</font>)</dt></dl>
 </td></tr></table><p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#55aa55">

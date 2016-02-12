@@ -125,13 +125,13 @@ class ensemble(mb.mobject):
         try:
             import modular4.qtgui as mg
             mg.init_figure()
-        except ImportError:print('failed to import gui...')
+        except ImportError:mb.log(5,'could not import gui...')
         result = []
         for ox in range(len(self.outputs)):
             o = self.outputs[ox]
             if ox == 0:
                 if mmpi.size() > 1:
-                    print('cannot access simulation data from a parameter scan while using mpi!')
+                    mb.log(5,'cannot access simulation data from a pspace scan while using mpi...')
                     continue
                 else:
                     t,n = self.targets[:],None
@@ -194,7 +194,7 @@ class ensemble(mb.mobject):
         for x in range(trajcnt):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
-        print('rank %i ran location: %i' % (mmpi.rank(),px))
+        mb.log(5,'rank %i ran location: %i' % (mmpi.rank(),px))
         return d
 
     def run(self):
@@ -228,11 +228,11 @@ class ensemble(mb.mobject):
         '''
         run a dispatcher process that issues work to nonroot processes running self.run_listen
         '''
-        print('dispatch beginning: %i' % mmpi.rank())
+        mb.log(5,'dispatch beginning: %i' % mmpi.rank())
         simf = self.simmodule.overrides['prepare'](self)
         hosts = mmpi.hosts()
         for h in hosts:
-            print('hostlookup: %s : %s' % (h,str(hosts[h])))
+            mb.log(5,'hostlookup: %s : %s' % (h,str(hosts[h])))
             if not h == 'root' and not h == mmpi.host():
                 mmpi.broadcast('prom',hosts[h][0])
         mmpi.broadcast('prep')
@@ -250,19 +250,19 @@ class ensemble(mb.mobject):
                 if not r is None and int(r) in occp:
                     px,pdata = mmpi.pollrecv(r)
                     free.append(r);occp.remove(r);done.append(px)
-                    print('result from worker: %i' % r)
+                    mb.log(5,'result from worker: %i' % r)
                     self.pspacemap.set_location(px)
                     self.measure_data_zeroth(px,precalced = pdata)
         self.measure_data_nonzeroth()
         mmpi.broadcast('halt')
-        print('dispatch halting: %i' % mmpi.rank())
+        mb.log(5,'dispatch halting: %i' % mmpi.rank())
         return self.output()
 
     def run_listen(self):
         '''
         run a listener process that performs work for a root running self.run_distpatch
         '''
-        print('listener beginning: %i' % mmpi.rank())
+        mb.log(5,'listener beginning: %i' % mmpi.rank())
         m = mmpi.pollrecv()
         while True:
             if m == 'halt':break
@@ -275,17 +275,17 @@ class ensemble(mb.mobject):
                 r = (j,self.measure_data_zeroth(j,returnonly = True,locd = r))
                 mmpi.broadcast(mmpi.rank(),0)
                 mmpi.broadcast(r,0)
-                print('listener sent result: %s' % str(j))
-            else:print('listener received unknown message: %s' % m)
+                mb.log(5,'listener sent result: %s' % str(j))
+            else:mb.log(5,'listener received unknown message: %s' % m)
             m = mmpi.pollrecv()
-        print('listener halting: %i' % mmpi.rank())
+        mb.log(5,'listener halting: %i' % mmpi.rank())
 
     def run_dispatch_serial(self):
         '''
         run a serial submission dispatcher process that issues work to
         disconnect processes and waits for their results to appear
         '''
-        print('serial dispatch beginning: %i' % mmpi.rank())
+        mb.log(5,'serial dispatch beginning: %i' % mmpi.rank())
         simf = self.simmodule.overrides['prepare'](self)
         dfdir = os.path.join(self.home,'tempdata')
         if not os.path.exists(dfdir):os.makedirs(dfdir)
@@ -323,7 +323,7 @@ class ensemble(mb.mobject):
                         ready.append(nf)
                 time.sleep(0.01)
         self.measure_data_nonzeroth()
-        print('serial dispatch finished: %i' % mmpi.rank())
+        mb.log(5,'serial dispatch finished: %i' % mmpi.rank())
         return self.output()
 
     def run_serial_process(self,locx,dfile,scriptfile):
