@@ -88,50 +88,45 @@ def checks(tlist,labels,master = True,callback = None,boxlabel = 'mwidgetchecks'
     '''
     create a widget containing a set of check boxes which add/remove items from a list
     '''
-    qck,quck = QtCore.Qt.Checked,QtCore.Qt.Unchecked
-    tlisto = tlist[:]
+    qck,quck = QtCore.Qt.CheckState.Checked,QtCore.Qt.CheckState.Unchecked
     def togg(c,t):
-        def f(i):
-            if t in tlist:
-                tlist.remove(t)
-                c.setCheckState(QtCore.Qt.Unchecked)
-            else:
-                tlist.append(t)
-                c.setCheckState(QtCore.Qt.Checked)
-            sortto(tlisto,tlist)
+        if not t in tlist:
+            tlist.append(t)
+            c.setCheckState(qck)
+        elif t in tlist:
+            tlist.remove(t)
+            c.setCheckState(quck)
+        sortto(tlisto,tlist)
+        if tlisto == tlist:m.setCheckState(qck)
+        else:m.setCheckState(quck)
+    def flipall():
+        def f():
+            s = m.checkState()
+            for lx in range(len(labels)):
+                c,t = cs[lx+1],tlisto[lx]
+                if not c.checkState() is s:
+                    togg(c,t)
         return f
+    def toggle(c,t):
+        def f():togg(c,t)
+        return f
+    tlisto = tlist[:]
+    if labels is tlist:labels = tlist[:]
     cs = [QtGui.QCheckBox(l) for l in labels]
-    for c,l in zip(cs,labels):c.setCheckState(qck if l in tlist else quck)
-    for c,l in zip(cs,labels):c.stateChanged.connect(togg(c,l))
-    if callback:
-        for c,l in zip(cs,labels):c.stateChanged.connect(callback)
-    #if master:cs.insert(0,create_master(cs))
+    for c,l in zip(cs,labels):
+        c.setCheckState(qck if l in tlist else quck)
+        c.clicked.connect(toggle(c,l))
+        if callback:c.clicked.connect(callback)
+    if master:
+        m = QtGui.QCheckBox('All')
+        m.setCheckState(qck)
+        for l in labels:
+            if not l in tlist:
+                m.setCheckState(quck)
+                break
+        m.clicked.connect(flipall())
+        cs.insert(0,m)
     return mwidget(layout(cs,ori),boxlabel)
-
-'''
-    def create_master(checks):
-
-        def flip_all(integer):
-            [check.stateChanged.emit(integer) for check in checks]
-            if integer == 0:
-                [check.setCheckState(QtCore.Qt.Unchecked) 
-                                    for check in checks]
-
-            if integer == 2:
-                [check.setCheckState(QtCore.Qt.Checked) 
-                                for check in checks]
-
-        def find_initial_state():
-            state_bool = not (False in [check.checkState() 
-                                    for check in checks])
-            if state_bool: return QtCore.Qt.Checked
-            else: return QtCore.Qt.Unchecked
-
-        master = QtGui.QCheckBox('All')
-        master.setCheckState(find_initial_state())
-        master.stateChanged.connect(flip_all)
-        return master
-'''
 
 def selector(labels,initial,callback,boxlabel = 'mwidgetselector'):
     def pick():
@@ -175,10 +170,8 @@ class mwindow(QtGui.QMainWindow):
             x,y = convert_pixel_space(300,300)
             x_size,y_size = convert_pixel_space(512,512)
             geo = (x,y,x_size,y_size)
-
-        #try: self.setWindowIcon(lgb.create_icon(standards['window_icon']))
-        #except KeyError: pass
-
+        gearicon = QtGui.QIcon(mb.config_path('gear.png'))
+        self.setWindowIcon(gearicon)
         self.setWindowTitle(wt)
         self.setGeometry(*geo)
 
@@ -349,26 +342,26 @@ def init_figure():
 class mpltwidget(mwidget):
     
     def show(self):
-        #print('mpltwidget show')
         mwidget.show(self.update())
         return self
 
-    def hide(self):
-        #print('mpltwidget hide')
-        mwidget.hide(self)
-        return self
+    #def hide(self):
+    #    mwidget.hide(self)
+    #    return self
 
     def calc_lines_callback(self,ax,d,t,x,ys):
-        print('calc_lines_callback!')
+        #print('calc_lines_callback!')
         #ax.plot([500,500],[-1,1],linewidth = 5.0,marker = 'o',color = 'b')
         return ax
 
     def calc_color_callback(self,ax,d,t,x,y,z):
-        print('calc_color_callback!')
+        #print('calc_color_callback!')
         return ax
 
     def update(self):
-        mb.log(5,'mpltwidget should update its plot!')
+        if not self._targets:
+            mb.log(5,'mpltwidget should update its plot but has no targets!')
+            return self
         ax = self.clear_ax()
         x,y,z = self.xdomain,self.ydomain,self.zdomain
         d,t = self.kws['entry']
