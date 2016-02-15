@@ -29,16 +29,15 @@
 	E
 
 <measurements>
-  means : 0;location : E,S,ES,P of time : 101 : 0.0
+  statistics : 0;location : E,S,ES,P of time : 100 : 0.0
 
 <outputs>
 	none : ensemble_output : none : all
-	none : means_output : pkl : all
+	none : statistics_output : pkl : all
 
 <parameterspace> 
-  <map> : 100
-    E : 1000,10000 : 5000 : 10
-    S : 1000,10000 : 5000 : 10
+  <map> : 500
+    E : 5000,10000 : 1000 : 6
 
 
 

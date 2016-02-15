@@ -41,7 +41,6 @@ class measurement(mb.mobject):
                 if targ == x:xs[trajdx][:] = data[trajdx][targdx]
                 if targ in ys:
                     yss[trajdx][ys.index(targ)][:] = data[trajdx][targdx]
-
         if not x == 'time':
             mb.log(5,'must bin by time')
             raise ValueError
@@ -49,7 +48,6 @@ class measurement(mb.mobject):
         if bins.size < bcnt:
             mb.log(5,'fewer data entries than bins; reduce bin count!')
             raise ValueError
-
         vals = yss.transpose((2,1,0))
         cx = len(bins)/bcnt
         b = bins[::cx]
@@ -59,6 +57,10 @@ class measurement(mb.mobject):
         for bx in range(bcnt):
             for tx in range(yss.shape[1]):
                 v[bx][tx] = vals[bx*cx:(bx+1)*cx,tx].reshape((1,newvlen))
+        vpb = v.shape[0]/b.shape[0]
+        if not int(vpb) == float(vpb):
+            mb.log(5,'incompatible bin count for end/capture specification')
+            raise ValueError
         return b,v
 
     def measure(self,data,targs,psp,**kws):

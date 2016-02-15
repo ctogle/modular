@@ -194,7 +194,7 @@ class ensemble(mb.mobject):
         for x in range(trajcnt):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
-        #mb.log(5,'rank %i ran location: %i' % (mmpi.rank(),px))
+        mb.log(5,'rank %i ran location: %i' % (mmpi.rank(),px))
         return d
 
     def run(self):
