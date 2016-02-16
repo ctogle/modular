@@ -343,6 +343,7 @@ class mpltwidget(mwidget):
     
     def show(self):
         mwidget.show(self.update())
+        print('force check states to match parent._targets')
         return self
 
     #def hide(self):
@@ -487,6 +488,7 @@ class mpltwidget(mwidget):
         self._def('zdomain',None,**kws)
         self._def('xlog',False,**kws)
         self._def('ylog',False,**kws)
+        self._def('inherit_targets',True,**kws)
         self._def('axisnames',[],**kws)
         self._def('axisvalues',[],**kws)
         self._def('axisdefaults',None,**kws)
@@ -500,7 +502,9 @@ class mpltwidget(mwidget):
         self.canvas = figure_canvas(self.fig)
         self.toolbar = plttoolbar(self.canvas)
         self.kws = kws
-        self._targets = self.kws['entry'][1][:]
+        if self.inherit_targets:
+            self._targets = self.kws['parent']._targets
+        else:self._targets = self.kws['entry'][1][:]
         if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
             self.axisnames = self.kws['aux']['pspaceaxes']
             d,t = self.kws['entry']
@@ -549,6 +553,9 @@ class tree_book(mwidget):
                 mb.log(5,'unknown tree widget scenario')
                 raise ValueError
             for subpg,subh in subs:
+                for t in subpg[1]:
+                    if not t in self._targets:
+                        self._targets.append(t)
                 bottom = QtGui.QTreeWidgetItem(top,[subh])
                 bottoms.append(bottom)
                 titems.append(bottom)
@@ -556,6 +563,7 @@ class tree_book(mwidget):
                 pkws = {
                     'xdomain':t1,'ydomain':t1,'zdomain':t1,
                     'entry':subpg,'header':subh,'aux':pge,
+                    'parent':self,
                         }
                 sub_page = mpltwidget(**pkws)
                 tpages.append(sub_page)
@@ -583,6 +591,7 @@ class tree_book(mwidget):
         self._def('pages',[],**kws)
         self._def('page',0,**kws)
         self._def('header','treebookheader',**kws)
+        self._def('_targets',[],**kws)
         wgs = self._widgets()
         self._layout = layout(wgs,'h')
         self.setLayout(self._layout)

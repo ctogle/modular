@@ -38,9 +38,9 @@
 
     # translation parameters
     beta1 : 100.0
-    nu1    : 1.25
+    nu1   : 1.25
     beta2 : 100.0
-    nu2    : 1.25
+    nu2   : 1.25
 
 
     # complex formation
@@ -103,17 +103,19 @@
     kappa12 : eta_pro
     kappa22 : 1.0 - eta_pro
 
-    Mu1 : mu1/(epsilon + kappa11*mod1degtargs + kappa21*mod2degtargs)
-    Mu2 : mu2/(epsilon + kappa12*mod1degtargs + kappa22*mod2degtargs)
-    G1 : kappa11*Mu1 + kappa12*Mu2
-    G2 : kappa21*Mu1 + kappa22*Mu2
+    Mu1 : mu1 / (epsilon + kappa11 * mod1degtargs + kappa21 * mod2degtargs)
+    Mu2 : mu2 / (epsilon + kappa12 * mod1degtargs + kappa22 * mod2degtargs)
+    G1 : kappa11 * Mu1 + kappa12 * Mu2
+    G2 : kappa21 * Mu1 + kappa22 * Mu2
 
 
     # dilution rates
-    Gamma1 : gamma/(1.0 + 2*b_c1*T_total1)
-    Gamma2 : gamma/(1.0 + 2*b_c2*T_total2)
+    #Gamma1 : gamma/(1.0 + b_c1*T_total1)
+    #Gamma2 : gamma/(1.0 + b_c2*T_total2)
 
-    #Gamma : gamma/(1.0 + b_c1 * T_total1 + b_c2 * T_total2)
+    Gamma1 : gamma/(1.0 + b_c1 * T_total1 + b_c2 * T_total2)
+    Gamma2 : Gamma1
+
     #Gamma  : gamma/(1.0 + b_c1 * T_total1)
     #Gamma2 : gamma/(1.0 + b_c2 * T_total2)
 
@@ -134,23 +136,23 @@
 
 <reactions>
     # transcription
+    nothing lambda_ta1 -> 1 t1 + 1 a1 : productioof toxin/antitoxin mRNAs of module1
     nothing lambda_ta2 -> 1 t2 + 1 a2 : productioof toxin/antitoxin mRNAs of module2
+
+
+    # translation
+    1 a1 alpha_a1 -> 1 a1 + 1 A1 : translation of antitoxin mRNA of module1
+    1 t1 alpha_t1 -> 1 t1 + 1 T1 : translation of toxin mRNA of module1
     1 a2 alpha_a2 -> 1 a2 + 1 A2 : translation of antitoxin mRNA of module2
     1 t2 alpha_t2 -> 1 t2 + 1 T2 : translation of toxin mRNA of module2
 
 
-    # translation
-    nothing lambda_ta1 -> 1 t1 + 1 a1 : productioof toxin/antitoxin mRNAs of module1
-    1 a1 alpha_a1 -> 1 a1 + 1 A1 : translation of antitoxin mRNA of module1
-    1 t1 alpha_t1 -> 1 t1 + 1 T1 : translation of toxin mRNA of module1
-
-
     # complex formation
     2 T1 k_C -> 1 TT1 : toxin dimer formation of module1
-    2 T2 k_C -> 1 TT2 : toxin dimer formation of module2
     1 TT1 + 1 A1  k_C -> 1 C1 : formation of TTA complex of module 1 
-    1 TT2 + 1 A2  k_C -> 1 C2 : formation of TTA complex of module 2
     2 C1 k_C -> 1 CC1 : formation of TTAATT complex of module 1
+    2 T2 k_C -> 1 TT2 : toxin dimer formation of module2
+    1 TT2 + 1 A2  k_C -> 1 C2 : formation of TTA complex of module 2
     2 C2 k_C -> 1 CC2 : formation of TTAATT complex of module 2
 
 
@@ -202,8 +204,9 @@
 
 
 <parameterspace>
-	<map> : 500
+	<map> : 100
     eta_pro : 0.0,0.5 : 0.0 : 2
+
     #eta_clv : 0.0,0.5 : 0.0 : 2
 
     #omega1 : 0.1,0.5 : 0.25 : 5
@@ -222,8 +225,8 @@
     none : ensemble_output    : pkl  : all
     none : bistability_output : none : all
     none : bistabreorg_output : pkl  : all
-    none : correlation_output : pkl  : all
-    none : correlreorg_output : pkl  : all
+    none : correlation_output : none : all
+    none : correlreorg_output : none : all
 
 
 
