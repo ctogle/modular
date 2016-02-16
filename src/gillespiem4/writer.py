@@ -86,8 +86,14 @@ def write_rxnpropensity(rxn,stargets,funcs):
         uchecks.append('*'.join(uline))
     try: ratestring = str(float(rxn[0]))
     except ValueError:
-        if rxn[0] in funcs:ratestring = rxn[0]+'(state)'
-        else:ratestring = 'state['+str(stargets.index(rxn[0]))+']'
+        found = False
+        for f in funcs:
+            if rxn[0] in f[0]:
+                ratestring = rxn[0]+'(state)'
+                found = True
+                break
+        if not found:
+            ratestring = 'state['+str(stargets.index(rxn[0]))+']'
     uchecks.append(ratestring)
     rxnpropexprsn = '*'.join(uchecks)
     return rxnpropexprsn
@@ -181,8 +187,8 @@ def write_simulator(e,name):
     agstring = ','.join(('rseed',)+e.pspace.axes)
 
     src = StringIO()
-    write_cython_functions(src,fs,statetargets)
     src.write(header)
+    write_cython_functions(src,fs,statetargets)
     src.write('\n'*10+'#'*80+'\n')
     src.write('\ncpdef gillespie_run('+agstring+'):')
     write_nparray(src,'data',dshape)
