@@ -190,7 +190,7 @@ class mwindow(QtGui.QMainWindow):
 class pwindow(mwindow):
 
     def content(self,**kws):
-        tree = tree_book(**kws)
+        tree = plttree_book(**kws)
         content = layout((tree,),'v')
         return content
 
@@ -219,6 +219,9 @@ class plttoolbar(NavigationToolbar2,QtGui.QToolBar):
         defitems = ('Pan','Zoom','Save')
         toolitems = [t for t in titems if t[0] in defitems]
     else:toolitems = []
+
+    def dynamic_update(self):
+        self.canvas.draw()
 
     def pan(self,*ags):
         super(plttoolbar,self).pan(*ags)
@@ -390,22 +393,24 @@ class mpltwidget(mwidget):
         ax.grid(True)
         return ax
 
-    def calc_lines_plot(self,ax,dt,ts,x,ys):
-        def get(t):
-            tx = ts.index(t)
-            return dt[tx],ts[tx]
-        ymin,ymax = sys.float_info.max,-sys.float_info.max
-        dx,xt = get(x)
+    def reduce_x(self,ax,dt,ts,x,ys):
+        print('reduce_x: 'x,ys)
+        axes,axvs,axds = self.axisnames,self.axisvalues,self.axisdefaults
+        axss,inss = axds[:],[]
+        axss[axes.index(x)] = None
+        for axx in range(len(axes)):
+            if axss[axx] is None:inss.append([1 for v in axvs[axx]])
+            else:inss.append([1 if v == axds[axx] else 0 for v in axvs[axx]])
+        in_every = [(0 not in row) for row in zip(*inss)]
+        dx = numpy.array([j for j,ie in zip(dt[ts.index(x)],in_every) if ie])
+        dys = []
         for y in ys:
-            if y in self._targets:
-                dy,yt = get(y)
-                if dy.min() < ymin:ymin = dy.min()
-                if dy.max() > ymax:ymax = dy.max()
-                ax.plot(dx,dy,label = yt)
-        ax.axis((dx.min(),dx.max(),ymin,ymax))
-        return ax
+            dy = numpy.array([j for j,ie in zip(dt[ts.index(y)],in_every) if ie])
+            dys.append(dy)
+        return dx,dys
 
-    def calc_color_plot(self,ax,dt,ts,x,y,z):
+    def reduce_xy(self,ax,dt,ts,x,y,z):
+        print('reduce_xy: 'x,y,z)
         axes,axvs,axds = self.axisnames,self.axisvalues,self.axisdefaults
         axss,inss = axds[:],[]
         axss[axes.index(x)],axss[axes.index(y)] = None,None
@@ -414,13 +419,37 @@ class mpltwidget(mwidget):
             else:inss.append([1 if v == axds[axx] else 0 for v in axvs[axx]])
         in_every = [(0 not in row) for row in zip(*inss)]
         surf = [sur for sur,ie in zip(dt[ts.index(z)],in_every) if ie]
-        saxs = [[v for v,i in zip(axvs[a],in_every) if i] for a in range(len(axes))]
-        saxs = [mb.uniq(sax) for sax in saxs]
         dx = numpy.array(mb.uniq(axvs[axes.index(x)]),dtype = numpy.float)
         dy = numpy.array(mb.uniq(axvs[axes.index(y)]),dtype = numpy.float)
         ds = numpy.array(surf,dtype = numpy.float)
         ds = ds.reshape(len(dx),len(dy))
         if axes.index(x) < axes.index(y):ds = ds.transpose()
+        return dx,dy,ds
+
+    def calc_lines_plot(self,ax,dt,ts,x,ys):
+        ymin,ymax = sys.float_info.max,-sys.float_info.max
+        if self.reduce_lines and x in self.axisnames:
+            dx,dys = self.reduce_x(ax,dt,ts,x,ys)
+            for dy,y in zip(dys,ys):
+                if y in self._targets:
+                    if dy.min() < ymin:ymin = dy.min()
+                    if dy.max() > ymax:ymax = dy.max()
+                    ax.plot(dx,dy,label = y)
+            ax.axis((dx.min(),dx.max(),ymin,ymax))
+            return ax
+        else:
+            dx = dt[ts.index(x)]
+            for y in ys:
+                if y in self._targets:
+                    dy = dt[ts.index(y)]
+                    if dy.min() < ymin:ymin = dy.min()
+                    if dy.max() > ymax:ymax = dy.max()
+                    ax.plot(dx,dy,label = y)
+            ax.axis((dx.min(),dx.max(),ymin,ymax))
+            return ax
+
+    def calc_color_plot(self,ax,dt,ts,x,y,z):
+        dx,dy,ds = self.reduce_xy(ax,dt,ts,x,y,z)
         xyminmaxes = (dx.min(),dx.max(),dy.min(),dy.max())
         minz,maxz = ds.min(),ds.max()
 
@@ -492,6 +521,7 @@ class mpltwidget(mwidget):
         self._def('axisnames',[],**kws)
         self._def('axisvalues',[],**kws)
         self._def('axisdefaults',None,**kws)
+        self._def('reduce_lines',False,**kws)
         self._def('maxlinecount',20,**kws)
         self._def('colorplot_interpolation','nearest',**kws)
         self._def('colormap',plt.get_cmap('jet'),**kws)
@@ -506,6 +536,7 @@ class mpltwidget(mwidget):
             self._targets = self.kws['parent']._targets
         else:self._targets = self.kws['entry'][1][:]
         if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
+            self.reduce_lines = True
             self.axisnames = self.kws['aux']['pspaceaxes']
             d,t = self.kws['entry']
             axxs = tuple(t.index(a) for a in self.axisnames)
@@ -516,7 +547,7 @@ class mpltwidget(mwidget):
         self.setLayout(layout((mwidget(vsplit,'',True),)))
         self.setBackgroundRole(QtGui.QPalette.Window)
   
-class tree_book(mwidget):
+class plttree_book(mwidget):
 
     def set_page(self,pgx):
         self.tree_pages[self.page].hide()
@@ -569,7 +600,7 @@ class tree_book(mwidget):
                 tpages.append(sub_page)
             self.tree.addTopLevelItem(top)
         for page in tpages:
-            self.split.addWidget(page)
+            self.hsplit.addWidget(page)
             page.hide()
         self.tree_items = titems
         self.tree_pages = tpages
@@ -577,21 +608,95 @@ class tree_book(mwidget):
         self.tree_bottoms = bottoms
         self.set_page(self.page)
 
+    def _axisslice_widgets(self):
+        def slice_callback(a):
+            def f(ls,c):
+                self.axisdefaults[a] = self.axisvalues[a][c]
+                self.update()
+            return f
+        axslices = []
+        for axx in range(len(self.axisnames)):
+            ls = tuple(str(v) for v in mb.uniq(self.axisvalues[axx]))
+            si = str(self.axisdefaults[axx])
+            cb = slice_callback(axx)
+            axslices.append(selector(ls,si,cb,boxlabel = self.axisnames[axx]))
+        return mwidget(layout(axslices),'Parameter Space Axes')
+
+    def _domain_target_ptype_widgets(self):
+        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
+        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
+        tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
+        rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
+        if self.axisnames:axs = self._axisslice_widgets()
+        else:axs = mwidget() # this seems less than ideal... creates a dead space
+        bts = buttons((self.update,),('clicked',),('Update Plot',),'')
+        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
+        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
+        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
+        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
+        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
+        left = mwidget(layout((bts,xsel,ysel,zsel)),'')
+        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
+        return hsplit
+
+    def _defbind(self,k):
+        def b(ls,c):
+            self.__setattr__(k,ls[c])
+            mb.log(5,'set pltwidget attribute: %s : %s' % (k,str(ls[c])))
+            self.update()
+        return b
+
+    def _plt_control_widget(self):
+        self._targets = self.kws['entry'][1][:]
+        if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
+            self.reduce_lines = True
+            self.axisnames = self.kws['aux']['pspaceaxes']
+            d,t = self.kws['entry']
+            axxs = tuple(t.index(a) for a in self.axisnames)
+            self.axisvalues = [d[a] for a in axxs]
+            self.axisdefaults = [vs[0] for vs in self.axisvalues] 
+
+        hsplit = self._domain_target_ptype_widgets()
+
+        self.setLayout(layout((mwidget(hsplit,'Plot Filter',True),)))
+        return hsplit
+
     def _widgets(self):
-        self.split = QtGui.QSplitter(QtCore.Qt.Horizontal)
+        self.vsplit = QtGui.QSplitter(QtCore.Qt.Horizontal)
+        self.hsplit = QtGui.QSplitter(QtCore.Qt.Horizontal)
         self.tree = QtGui.QTreeWidget()
-        self.split.addWidget(self.tree)
+        self.hsplit.addWidget(self.tree)
+        #self.hsplit.addWidget(self._plt_control_widget())
+        self.hsplit.addWidget(self.vsplit)
         self.tree.currentItemChanged.connect(self._change_page)
         self._header(self.header)
         self._pages(self.pages)
-        return (self.split,)
+        return (self.hsplit,)
 
     def __init__(self,**kws):
         mwidget.__init__(self,**kws)
+        self.kws = kws
         self._def('pages',[],**kws)
         self._def('page',0,**kws)
         self._def('header','treebookheader',**kws)
         self._def('_targets',[],**kws)
+
+        self._def('xdomain',None,**kws)
+        self._def('ydomain',None,**kws)
+        self._def('zdomain',None,**kws)
+        self._def('xlog',False,**kws)
+        self._def('ylog',False,**kws)
+        self._def('inherit_targets',True,**kws)
+        self._def('axisnames',[],**kws)
+        self._def('axisvalues',[],**kws)
+        self._def('axisdefaults',None,**kws)
+        self._def('reduce_lines',False,**kws)
+        self._def('maxlinecount',20,**kws)
+        self._def('colorplot_interpolation','nearest',**kws)
+        self._def('colormap',plt.get_cmap('jet'),**kws)
+        self._def('plottypes',('lines','color'),**kws)
+        self._def('plottype','lines',**kws)
+
         wgs = self._widgets()
         self._layout = layout(wgs,'h')
         self.setLayout(self._layout)

@@ -5,7 +5,7 @@
 
 
 <capture>
-    increment : 0.5 : time
+    increment : 1.0 : time
 
 
 
@@ -30,13 +30,17 @@
 
 <variables>
     # transcription parameters
-    sigma : 20.0
-    k_0   : 0.05
+    sigma1 : 20.0
+    k_01   : 0.05
+    sigma2 : 20.0
+    k_02   : 0.05
 
 
     # translation parameters
-    beta : 100.0
-    nu   : 1.25
+    beta1 : 100.0
+    nu1   : 1.25
+    beta2 : 100.0
+    nu2   : 1.25
 
 
     # complex formation
@@ -44,27 +48,24 @@
 
 
     # cleavage
-    f_T     : 5.0
+    f_T1    : 5.0
     omega1  : 0.2
+    f_T2    : 5.0
     omega2  : 0.2
+    eta_clv : 0.0
 
 
     # degradation
     mu1     : 150.0
     mu2     : 150.0
     epsilon : 0.05
+    eta_pro : 0.0
 
 
     # dilution
     gamma   : 1.0
     b_c     : 0.25
-
-
-    # coupling
-    eta_pro : 0.0
-    eta_clv : 0.0
     eta_gam : 0.0
-    eta_trn : 0.0
 
 
 
@@ -83,32 +84,52 @@
 
 
     # transcription
-    lambda_ta1 : sigma/(1 + (1 - eta_trn)*mod1degtargs*k_0 + eta_trn*mod2degtargs*k_0)
-    lambda_ta2 : sigma/(1 + eta_trn*mod1degtargs*k_0 + (1 - eta_trn)*mod2degtargs*k_0)
+    fback1 : 1 / (1 + mod1degtargs * k_01)
+    fback2 : 1 / (1 + mod2degtargs * k_02)
+    lambda_ta1 : sigma1 * fback1
+    lambda_ta2 : sigma2 * fback2
 
 
     # translation
-    alpha_a : beta * nu
-    alpha_t : beta
+    alpha_a1 : beta1 * nu1
+    alpha_t1 : beta1
+    alpha_a2 : beta2 * nu2
+    alpha_t2 : beta2
     
 
     # mRNA cleavage
-    F_a1 : f_T*T_total1*omega1*(1 - eta_clv) + f_T*T_total2*omega2*eta_clv
-    F_t1 : f_T*T_total1*(1 - eta_clv)        + f_T*T_total2*eta_clv
-    F_a2 : f_T*T_total1*omega1*eta_clv + f_T*T_total2*omega2*(1 - eta_clv)
-    F_t2 : f_T*T_total1*eta_clv        + f_T*T_total2*(1 - eta_clv)
+    F_a1 : f_T1*T_total1*(1 - eta_clv)*omega1 + f_T2*T_total2*eta_clv*omega2
+    F_t1 : f_T1*T_total1*(1 - eta_clv)        + f_T2*T_total2*eta_clv
+    F_a2 : f_T1*T_total1*eta_clv*omega1 + f_T2*T_total2*(1 - eta_clv)*omega2
+    F_t2 : f_T1*T_total1*eta_clv        + f_T2*T_total2*(1 - eta_clv)
+
+    #F_a1 : f_T1 * T_total1 * omega1
+    #F_t1 : f_T1 * T_total1
+    #F_a2 : f_T2 * T_total2 * omega2
+    #F_t2 : f_T2 * T_total2
 
 
     # proteolysis
-    Mu1 : mu1 / (epsilon + (1 - eta_pro)*mod1degtargs + eta_pro*mod2degtargs)
-    Mu2 : mu2 / (epsilon + eta_pro*mod1degtargs + (1 - eta_pro)*mod2degtargs)
-    G1 : (1 - eta_pro)*Mu1 + eta_pro*Mu2
-    G2 : eta_pro*Mu1 + (1 - eta_pro)*Mu2
+    kappa11 : 1.0 - eta_pro
+    kappa21 : eta_pro
+    kappa12 : eta_pro
+    kappa22 : 1.0 - eta_pro
+
+    Mu1 : mu1 / (epsilon + kappa11 * mod1degtargs + kappa21 * mod2degtargs)
+    Mu2 : mu2 / (epsilon + kappa12 * mod1degtargs + kappa22 * mod2degtargs)
+    G1 : kappa11 * Mu1 + kappa12 * Mu2
+    G2 : kappa21 * Mu1 + kappa22 * Mu2
 
 
     # dilution rates
-    Gamma1 : gamma/(1.0 + b_c*T_total1*(1 - eta_gam) + b_c*T_total2*eta_gam)
-    Gamma2 : gamma/(1.0 + b_c*T_total1*eta_gam + b_c*T_total2*(1 - eta_gam))
+    Gamma1 : gamma/(1.0 + b_c*T_total1)
+    Gamma2 : gamma/(1.0 + b_c*T_total2)
+
+    #Gamma1 : gamma/(1.0 + b_c1 * T_total1 + b_c2 * T_total2)
+    #Gamma2 : Gamma1
+
+    #Gamma  : gamma/(1.0 + b_c1 * T_total1)
+    #Gamma2 : gamma/(1.0 + b_c2 * T_total2)
 
 
 
@@ -119,10 +140,10 @@
 
 
     # translation
-    1 a1 alpha_a -> 1 a1 + 1 A1 : translation of antitoxin mRNA of module1
-    1 t1 alpha_t -> 1 t1 + 1 T1 : translation of toxin mRNA of module1
-    1 a2 alpha_a -> 1 a2 + 1 A2 : translation of antitoxin mRNA of module2
-    1 t2 alpha_t -> 1 t2 + 1 T2 : translation of toxin mRNA of module2
+    1 a1 alpha_a1 -> 1 a1 + 1 A1 : translation of antitoxin mRNA of module1
+    1 t1 alpha_t1 -> 1 t1 + 1 T1 : translation of toxin mRNA of module1
+    1 a2 alpha_a2 -> 1 a2 + 1 A2 : translation of antitoxin mRNA of module2
+    1 t2 alpha_t2 -> 1 t2 + 1 T2 : translation of toxin mRNA of module2
 
 
     # complex formation
@@ -173,26 +194,26 @@
 <targets>
     time
     T_total1
+    A_total1
+    C_total1
     T_total2
-
-    #A_total1
-    #A_total2
-    #C_total1
-    #C_total2
+    A_total2
+    C_total2
 
 
 
 <parameterspace>
 	<map> : 100
     eta_pro : 0.0,0.5 : 0.0 : 6
-    eta_clv : 0.0,0.5 : 0.0 : 6
-    eta_gam : 0.0,0.5 : 0.0 : 2
-    eta_trn : 0.0,0.5 : 0.0 : 2
+
+    #eta_clv : 0.0,0.5 : 0.0 : 2
+
+    #omega1 : 0.1,0.5 : 0.25 : 5
 
 
 
 <measurements>
-    bistability : 0;location : T_total1,T_total2 of time : 5 : 0.1
+    bistability : 0;location : T_total1,T_total2 of time
     bypspace : 1;parameterspace : all
     correlation : 0;location : T_total1 and T_total2 of time : 5 : 0.0
     bypspace : 3;parameterspace : all
@@ -200,7 +221,7 @@
 
 
 <outputs>
-    none : ensemble_output    : pkl  : all
+    none : ensemble_output    : none : all
     none : bistability_output : none : all
     none : bistabreorg_output : pkl  : all
     none : correlation_output : none : all
