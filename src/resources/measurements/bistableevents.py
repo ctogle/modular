@@ -10,10 +10,14 @@ import pdb
 
 
 
+# all measurements inherit from mme.measurement and override 3 or 4 methods
 class bistability(mme.measurement):
 
+    # tag to point to this class when found in an mcfg
     tag = 'bistability'
 
+    # this defines how this object will 
+    # be parsed from a string found in an mcfg
     @staticmethod
     def parse(p,l):
         ls = tuple(x.strip() for x in l.split(':'))
@@ -30,11 +34,17 @@ class bistability(mme.measurement):
     def __init__(self,*ags,**kws):
         mme.measurement.__init__(self,*ags,**kws)
         self._def('name','bistability_measurement',**kws)
+        # target in input data corresponding to the domain
         self._def('domain',None,**kws)
+        # list of targets in input data corresponding to targets for measurement
         self._def('codomain',None,**kws)
+        # fraction of trajectory to chop off, assuming it represents a transient period
         self._def('transient',0.2,**kws)
+        # number of points required to represent a "stable" state
         self._def('min_x_dt',5,**kws)
 
+    # based on the names of the input targets
+    # set the names of the output targets
     def set_targets(self,inputs,pspace):
         if not self.domain in inputs:self.domain = inputs[0]
         bitgs = self.codomain
@@ -61,8 +71,10 @@ class bistability(mme.measurement):
         transx = int(data.shape[2]*self.transient)
         domain = data[0,targs.index(self.domain),transx:]
 
+        # iterate over each trajectory, providing a measurement of its events
         for tjx in range(data.shape[0]):
 
+            # aggregate the events from each target in the trajectory
             alltjevents = []
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
@@ -83,6 +95,7 @@ class bistability(mme.measurement):
 
                 alltjevents.append(tjevents)
 
+            # apply a measurement to the events of each target in the trajectory
             for dtx in range(tcount):
                 ed = alltjevents[dtx]
                 dt = self.codomain[dtx]
@@ -96,6 +109,7 @@ class bistability(mme.measurement):
                     mdt,mhy,phy,plo,plk,evc,epv = meas
                 else:mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
 
+                # insert the measurement for this trajectory into the output data array
                 dt = self.codomain[dtx]
                 getodtx = lambda dt,s : self.targets.index(dt+s)
                 odata[getodtx(dt,':mean_high_del_t'),tjx] = mdt
@@ -106,85 +120,11 @@ class bistability(mme.measurement):
                 odata[getodtx(dt,':mean_event_correlation'),tjx] = evc
                 odata[getodtx(dt,':mean_event_p-value'),tjx] = epv
 
+                # this is a dummy axis for plotting...
                 odata[0,tjx] = numpy.zeros(1,dtype = numpy.float)
 
+        # return the output array, list of targets in the array, auxillary info for plotting
         return odata,self.targets,{'header':str(psploc)}
-
-
-
-        '''#
-        # for each target (species to perform the measurement over) ... 
-        for dtx in range(tcount):
-            dt = self.codomain[dtx]
-            pdx = targs.index(dt)
-            dtdat = data[:,pdx,transx:]
-
-
-
-            # START SUBJECT TO CHANGE
-
-            # hard coded transition threshold values!
-            # could use a better way to automate this calculation
-            #threshz,thwidth = 20,10
-            threshz,thwidth = dtdat.max()/2.0,dtdat.max()/4.0
-            ahy,alo = threshz + thwidth,threshz - thwidth
-
-            # aggregate all events from each trajectory
-            events = []
-
-            # for each trajectory at this pspace location
-            for tjx in range(data.shape[0]):
-
-                # seek_events takes a 
-                # domain,comain,threshold for high transition,threshold for low transition
-                # it returns measurements of events it detects in this trajectory
-                #events.extend(seek_events(dtjdom,dtjdat,ahy,alo))
-                tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
-                events.extend(tjevents)
-
-                #if tjx % 50 == 0:
-                #    plot_events(domain,dtdat[tjx,:],tjevents)
-
-            # measure quantities for this target based on all events from all
-            # trajectories of the pspace location
-            print('BISTABILITY MEASUREMENT FOUND %i EVENTS!' % len(events))
-            if events:
-                meandt = numpy.mean([e[1] for e in events])
-                meanhy = numpy.mean([e[2] for e in events])
-                meanevcorrel = 
-            else:
-                meandt = -1.0
-                meanhy = -1.0
-
-            highcnt = numpy.count_nonzero(dtdat > ahy)
-            lowcnt = numpy.count_nonzero(dtdat < alo)
-            #atcnt = numpy.count_nonzero(dtdat == threshz)
-            probhy = float(highcnt)/dtdat.size
-            problo = float(lowcnt)/dtdat.size
-            problk = 1.0 - probhy - problo
-
-            # END SUBJECT TO CHANGE
-
-
-
-            # read the measurements for this target at this pspace location into the outgoing data array
-            odata[self.targets.index(dt+':mean_high_del_t')] = meandt
-            odata[self.targets.index(dt+':mean_high_value')] = meanhy
-            odata[self.targets.index(dt+':prob_high')] = probhy
-            odata[self.targets.index(dt+':prob_low')] = problo
-            odata[self.targets.index(dt+':prob_leak')] = problk
-            odata[self.targets.index(dt+':event_correlation')] = evcorrel
-
-        # insert a dummy array so that this data can be easily viewed in isolation
-        odata[0] = numpy.zeros(1,dtype = numpy.float)
-
-        # return a tuple containing the 
-        # outgoing data,the names of the targets in that data,and supplemental information
-        return odata,self.targets,{'header':str(psploc)}
-        '''#
-
-
-
 
 # es is a list of events from a single trajectory
 # aes are the events of all targets
