@@ -169,6 +169,11 @@ cdef double pi = 3.14159265359
 import random,numpy
 import time as timemodule
 from cython.view cimport array as cvarray
+
+cdef inline double heaviside(double value):
+\tif value >= 0.0:return 1.0
+\telse:return 0.0
+
 '''
 
 def write_simulator(e,name):
