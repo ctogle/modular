@@ -54,7 +54,7 @@ class bypspace(mme.measurement):
         for x in range(len(axes)):odata[x+1] = numpy.array(ptrajaxvals[x])
         for x in range(len(self.dtargets)):
             odata[x+len(axes)+1] = numpy.array(dvals[x])
-        return odata,self.targets,{'pspaceaxes':axes}
+        return odata,self.targets,{'pspaceaxes':axes,'header':'spans pspace'}
 
 
 

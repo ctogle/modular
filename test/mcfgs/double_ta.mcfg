@@ -1,11 +1,11 @@
 
 <end>
-    time limit : 1999.0
+    time limit : 4999.0
 
 
 
 <capture>
-    increment : 0.5 : time
+    increment : 1.0 : time
 
 
 
@@ -184,10 +184,10 @@
 
 <parameterspace>
 	<map> : 100
-    eta_pro : 0.0,0.5 : 0.0 : 6
-    eta_clv : 0.0,0.5 : 0.0 : 6
-    eta_gam : 0.0,0.5 : 0.0 : 2
-    eta_trn : 0.0,0.5 : 0.0 : 2
+    eta_pro : 0.0,0.5 : 0.0 : 11
+    eta_clv : 0.0,0.5 : 0.0 : 1
+    eta_gam : 0.0,0.5 : 0.0 : 11
+    eta_trn : 0.0,0.5 : 0.0 : 1
 
 
 
@@ -196,15 +196,17 @@
     bypspace : 1;parameterspace : all
     correlation : 0;location : T_total1 and T_total2 of time : 5 : 0.0
     bypspace : 3;parameterspace : all
+    extract : 0;location : all : all : 10 : 0.0
 
 
 
 <outputs>
-    none : ensemble_output    : pkl  : all
+    none : ensemble_output    : none : all
     none : bistability_output : none : all
     none : bistabreorg_output : pkl  : all
     none : correlation_output : none : all
     none : correlreorg_output : pkl  : all
+    none : extraction_output  : pkl  : all
 
 
 

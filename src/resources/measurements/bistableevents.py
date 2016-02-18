@@ -42,6 +42,8 @@ class bistability(mme.measurement):
         self._def('transient',0.2,**kws)
         # number of points required to represent a "stable" state
         self._def('min_x_dt',5,**kws)
+        # fill value for NaN calculations from numpy..
+        self._def('fillvalue',-100.0,**kws)
 
     # based on the names of the input targets
     # set the names of the output targets
@@ -62,6 +64,8 @@ class bistability(mme.measurement):
     # data is a numpy array ( trajectory , target , counts )
     # targs is a list of strings corresponding to each input data target
     def measure(self,data,targs,psploc,**kws):
+        verify = lambda v : self.fillvalue if math.isnan(v) else v
+
         # create the outgoing data set
         tcount = len(self.codomain)
         dshape = (len(self.targets),data.shape[0])
@@ -117,8 +121,8 @@ class bistability(mme.measurement):
                 odata[getodtx(dt,':prob_high'),tjx] = phy
                 odata[getodtx(dt,':prob_low'),tjx] = plo
                 odata[getodtx(dt,':prob_leak'),tjx] = plk
-                odata[getodtx(dt,':mean_event_correlation'),tjx] = evc
-                odata[getodtx(dt,':mean_event_p-value'),tjx] = epv
+                odata[getodtx(dt,':mean_event_correlation'),tjx] = verify(evc)
+                odata[getodtx(dt,':mean_event_p-value'),tjx] = verify(epv)
 
                 # this is a dummy axis for plotting...
                 odata[0,tjx] = numpy.zeros(1,dtype = numpy.float)
@@ -182,7 +186,8 @@ def seek(x,y,th,tl,min_x_dt):
             if dy >= th-y[j-1]:
                 st = 1
                 lastcross = j-1
-                while not y[lastcross] < tl:lastcross -= 1
+                while lastcross > 0 and not y[lastcross] < tl:
+                    lastcross -= 1
                 es[-1] = lastcross
     if not ms:return ms
     else:return filter_events(x,y,th,tl,min_x_dt,ms)

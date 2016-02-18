@@ -125,6 +125,7 @@ def checks(tlist,labels,master = True,callback = None,boxlabel = 'mwidgetchecks'
                 m.setCheckState(quck)
                 break
         m.clicked.connect(flipall())
+        if callback:m.clicked.connect(callback)
         cs.insert(0,m)
     return mwidget(layout(cs,ori),boxlabel)
 
@@ -349,10 +350,6 @@ class mpltwidget(mwidget):
         print('force check states to match parent._targets')
         return self
 
-    #def hide(self):
-    #    mwidget.hide(self)
-    #    return self
-
     def calc_lines_callback(self,ax,d,t,x,ys):
         #print('calc_lines_callback!')
         #ax.plot([500,500],[-1,1],linewidth = 5.0,marker = 'o',color = 'b')
@@ -363,27 +360,28 @@ class mpltwidget(mwidget):
         return ax
 
     def update(self):
-        if not self._targets:
+        if not self.parent._targets:
             mb.log(5,'mpltwidget should update its plot but has no targets!')
             return self
         ax = self.clear_ax()
-        x,y,z = self.xdomain,self.ydomain,self.zdomain
-        d,t = self.kws['entry']
-        if self.plottype == 'lines':
-            ax = self.calc_lines_callback(ax,d,t,x,self._targets)
-            ax = self.calc_lines_plot(ax,d,t,x,self._targets)
-        elif self.plottype == 'color':
+        x,y,z = self.parent.xdomain,self.parent.ydomain,self.parent.zdomain
+        d,t = self.entry
+        if self.parent.plottype == 'lines':
+            ax = self.calc_lines_callback(ax,d,t,x,self.parent._targets)
+            ax = self.calc_lines_plot(ax,d,t,x,self.parent._targets)
+        elif self.parent.plottype == 'color':
             ax = self.calc_color_callback(ax,d,t,x,y,z)
             ax = self.calc_color_plot(ax,d,t,x,y,z)
         else:
-            mb.log(5,'unknown plottype',self.plottype)
+            mb.log(5,'unknown plottype',self.parent.plottype)
             raise ValueError
-        if self.xlog:ax.set_xscale('log')
-        if self.ylog:ax.set_yscale('log')
+        if self.parent.xlog:ax.set_xscale('log')
+        if self.parent.ylog:ax.set_yscale('log')
         leg = ax.legend()
         if leg:leg.draggable()
         else:mb.log(5,'legend was None...')
         self.canvas.draw()
+        mwidget.update(self)
         return self
 
     def clear_ax(self,proj = None):
@@ -394,8 +392,10 @@ class mpltwidget(mwidget):
         return ax
 
     def reduce_x(self,ax,dt,ts,x,ys):
-        print('reduce_x: 'x,ys)
-        axes,axvs,axds = self.axisnames,self.axisvalues,self.axisdefaults
+        print('reduce_x: ',x,ys)
+        axes = self.parent.axisnames
+        axvs = self.parent.axisvalues
+        axds = self.parent.axisdefaults
         axss,inss = axds[:],[]
         axss[axes.index(x)] = None
         for axx in range(len(axes)):
@@ -410,8 +410,10 @@ class mpltwidget(mwidget):
         return dx,dys
 
     def reduce_xy(self,ax,dt,ts,x,y,z):
-        print('reduce_xy: 'x,y,z)
-        axes,axvs,axds = self.axisnames,self.axisvalues,self.axisdefaults
+        print('reduce_xy: ',x,y,z)
+        axes = self.parent.axisnames
+        axvs = self.parent.axisvalues
+        axds = self.parent.axisdefaults
         axss,inss = axds[:],[]
         axss[axes.index(x)],axss[axes.index(y)] = None,None
         for axx in range(len(axes)):
@@ -428,10 +430,10 @@ class mpltwidget(mwidget):
 
     def calc_lines_plot(self,ax,dt,ts,x,ys):
         ymin,ymax = sys.float_info.max,-sys.float_info.max
-        if self.reduce_lines and x in self.axisnames:
+        if self.parent.reduce_lines and x in self.parent.axisnames:
             dx,dys = self.reduce_x(ax,dt,ts,x,ys)
             for dy,y in zip(dys,ys):
-                if y in self._targets:
+                if y in self.parent._targets:
                     if dy.min() < ymin:ymin = dy.min()
                     if dy.max() > ymax:ymax = dy.max()
                     ax.plot(dx,dy,label = y)
@@ -440,7 +442,7 @@ class mpltwidget(mwidget):
         else:
             dx = dt[ts.index(x)]
             for y in ys:
-                if y in self._targets:
+                if y in self.parent._targets:
                     dy = dt[ts.index(y)]
                     if dy.min() < ymin:ymin = dy.min()
                     if dy.max() > ymax:ymax = dy.max()
@@ -453,15 +455,18 @@ class mpltwidget(mwidget):
         xyminmaxes = (dx.min(),dx.max(),dy.min(),dy.max())
         minz,maxz = ds.min(),ds.max()
 
-        if self.xlog or self.ylog:
+        if self.parent.xlog or self.parent.ylog:
             pckws = {
-                'shading':'gouraud','cmap':self.colormap,'vmin':minz,'vmax':maxz, 
+                'shading':'gouraud','cmap':self.parent.colormap,
+                'vmin':minz,'vmax':maxz, 
                     }
             pc_mesh = ax.pcolor(dx,dy,ds,**pckws)
         else:
             imkws = {
-                'aspect':'auto','interpolation':self.colorplot_interpolation,'origin':'lower',
-                'extent':xyminmaxes,'cmap':self.colormap,'vmin':minz,'vmax':maxz, 
+                'aspect':'auto','cmap':self.parent.colormap,
+                'interpolation':self.parent.colorplot_interpolation,
+                'origin':'lower','extent':xyminmaxes,
+                'vmin':minz,'vmax':maxz, 
                     }
             pc_mesh = ax.imshow(ds,**imkws)
 
@@ -473,78 +478,14 @@ class mpltwidget(mwidget):
         ax.axis(xyminmaxes)
         return ax
 
-    def _axisslice_widgets(self):
-        def slice_callback(a):
-            def f(ls,c):
-                self.axisdefaults[a] = self.axisvalues[a][c]
-                self.update()
-            return f
-        axslices = []
-        for axx in range(len(self.axisnames)):
-            ls = tuple(str(v) for v in mb.uniq(self.axisvalues[axx]))
-            si = str(self.axisdefaults[axx])
-            cb = slice_callback(axx)
-            axslices.append(selector(ls,si,cb,boxlabel = self.axisnames[axx]))
-        return mwidget(layout(axslices),'Parameter Space Axes')
-
-    def _domain_target_ptype_widgets(self):
-        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
-        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
-        tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
-        rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
-        if self.axisnames:axs = self._axisslice_widgets()
-        else:axs = mwidget() # this seems less than ideal... creates a dead space
-        bts = buttons((self.update,),('clicked',),('Update Plot',),'')
-        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
-        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
-        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
-        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
-        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
-        left = mwidget(layout((bts,xsel,ysel,zsel)),'')
-        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
-        return hsplit
-
-    def _defbind(self,k):
-        def b(ls,c):
-            self.__setattr__(k,ls[c])
-            mb.log(5,'set pltwidget attribute: %s : %s' % (k,str(ls[c])))
-            self.update()
-        return b
-
-    def __init__(self,**kws):
-        self._def('xdomain',None,**kws)
-        self._def('ydomain',None,**kws)
-        self._def('zdomain',None,**kws)
-        self._def('xlog',False,**kws)
-        self._def('ylog',False,**kws)
-        self._def('inherit_targets',True,**kws)
-        self._def('axisnames',[],**kws)
-        self._def('axisvalues',[],**kws)
-        self._def('axisdefaults',None,**kws)
-        self._def('reduce_lines',False,**kws)
-        self._def('maxlinecount',20,**kws)
-        self._def('colorplot_interpolation','nearest',**kws)
-        self._def('colormap',plt.get_cmap('jet'),**kws)
-        self._def('plottypes',('lines','color'),**kws)
-        self._def('plottype','lines',**kws)
+    def __init__(self,parent,entry):
         mwidget.__init__(self)
         self.fig = plt_figure
         self.canvas = figure_canvas(self.fig)
         self.toolbar = plttoolbar(self.canvas)
-        self.kws = kws
-        if self.inherit_targets:
-            self._targets = self.kws['parent']._targets
-        else:self._targets = self.kws['entry'][1][:]
-        if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
-            self.reduce_lines = True
-            self.axisnames = self.kws['aux']['pspaceaxes']
-            d,t = self.kws['entry']
-            axxs = tuple(t.index(a) for a in self.axisnames)
-            self.axisvalues = [d[a] for a in axxs]
-            self.axisdefaults = [vs[0] for vs in self.axisvalues] 
-        hsplit = self._domain_target_ptype_widgets()
-        vsplit = splitter((hsplit,mwidget(layout((self.canvas,self.toolbar)),'')),'v','')
-        self.setLayout(layout((mwidget(vsplit,'',True),)))
+        self.parent = parent
+        self.entry = entry
+        self.setLayout(layout((self.canvas,self.toolbar)))
         self.setBackgroundRole(QtGui.QPalette.Window)
   
 class plttree_book(mwidget):
@@ -567,11 +508,17 @@ class plttree_book(mwidget):
     def _pages(self,pages):
         self.tree.setColumnCount(1)
         self.tree.clear()
+
+        self.aux = {}
+        self._targets = []
+
         titems,tpages,tops,bottoms = [],[],[],[]
         for x in range(len(pages)):
             pgd,pgt,pge = pages[x]
-            #top = QtGui.QTreeWidgetItem(None,[pge['header']])
-            top = QtGui.QTreeWidgetItem(None,['pspace page: %i' % x])
+            if 'header' in pge:h = str(pge['header'])
+            else:h = ''
+            toplabel = 'pspace page: %i : %s' % (x,h)
+            top = QtGui.QTreeWidgetItem(None,[toplabel])
             tops.append(top)
             main_page = mwidget()
             titems.append(top)
@@ -591,14 +538,22 @@ class plttree_book(mwidget):
                 bottoms.append(bottom)
                 titems.append(bottom)
                 t1 = subpg[1][0]
-                pkws = {
-                    'xdomain':t1,'ydomain':t1,'zdomain':t1,
-                    'entry':subpg,'header':subh,'aux':pge,
-                    'parent':self,
-                        }
-                sub_page = mpltwidget(**pkws)
+
+                if 'pspaceaxes' in pge:
+                    self.aux['pspaceaxes'] = pge['pspaceaxes']
+                self.aux['entry'] = subpg
+                for t in subpg[1][:]:
+                    if not t in self._targets:
+                        self._targets.append(t)
+
+                sub_page = mpltwidget(self,subpg)
                 tpages.append(sub_page)
             self.tree.addTopLevelItem(top)
+
+        if self.xdomain is None:self.xdomain = t1
+        if self.ydomain is None:self.ydomain = t1
+        if self.zdomain is None:self.zdomain = t1
+
         for page in tpages:
             self.hsplit.addWidget(page)
             page.hide()
@@ -632,7 +587,7 @@ class plttree_book(mwidget):
         bts = buttons((self.update,),('clicked',),('Update Plot',),'')
         xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
         ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
-        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'X-Domain')
+        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'Z-Domain')
         xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
         ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
         left = mwidget(layout((bts,xsel,ysel,zsel)),'')
@@ -647,31 +602,48 @@ class plttree_book(mwidget):
         return b
 
     def _plt_control_widget(self):
-        self._targets = self.kws['entry'][1][:]
-        if 'pspaceaxes' in self.kws['aux'] and self.axisdefaults is None:
+        if 'pspaceaxes' in self.aux and self.axisdefaults is None:
             self.reduce_lines = True
-            self.axisnames = self.kws['aux']['pspaceaxes']
-            d,t = self.kws['entry']
+            self.axisnames = self.aux['pspaceaxes']
+            d,t = self.aux['entry']
+            if not t == self._targets:
+                print('probably a serious problem!')
+                pdb.set_trace()
             axxs = tuple(t.index(a) for a in self.axisnames)
             self.axisvalues = [d[a] for a in axxs]
             self.axisdefaults = [vs[0] for vs in self.axisvalues] 
-
         hsplit = self._domain_target_ptype_widgets()
-
-        self.setLayout(layout((mwidget(hsplit,'Plot Filter',True),)))
-        return hsplit
+        return mwidget(layout((hsplit,)),'Plot Filter',True)
 
     def _widgets(self):
-        self.vsplit = QtGui.QSplitter(QtCore.Qt.Horizontal)
+        self.vsplit = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.hsplit = QtGui.QSplitter(QtCore.Qt.Horizontal)
         self.tree = QtGui.QTreeWidget()
-        self.hsplit.addWidget(self.tree)
-        #self.hsplit.addWidget(self._plt_control_widget())
+        self.vsplit.addWidget(self.tree)
         self.hsplit.addWidget(self.vsplit)
         self.tree.currentItemChanged.connect(self._change_page)
         self._header(self.header)
         self._pages(self.pages)
+        self._set_axis_info()
+        self.plt_controls = self._plt_control_widget()
+        self.vsplit.addWidget(self.plt_controls)
         return (self.hsplit,)
+
+    def _set_axis_info(self):
+        if 'pspaceaxes' in self.aux and self.axisdefaults is None:
+            self.reduce_lines = True
+            self.axisnames = self.aux['pspaceaxes']
+            d,t = self.aux['entry']
+            if not t == self._targets:
+                print('probably a serious problem!')
+                pdb.set_trace()
+            axxs = tuple(t.index(a) for a in self.axisnames)
+            self.axisvalues = [d[a] for a in axxs]
+            self.axisdefaults = [vs[0] for vs in self.axisvalues] 
+
+    def update(self):
+        self.tree_pages[self.page].update()
+        mwidget.update(self)
 
     def __init__(self,**kws):
         mwidget.__init__(self,**kws)
