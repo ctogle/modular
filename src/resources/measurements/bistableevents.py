@@ -108,10 +108,13 @@ class bistability(mme.measurement):
                     odt = self.codomain[1 if dtx == 0 else 0]
                     otdat = data[tjx,targs.index(odt),transx:]
                 else:otdat = None
+                mb.log(5,'events found',len(ed))
                 if ed:
                     meas = measure_trajectory(domain,dtdat,alo,ahy,ed,alltjevents,otdat)
                     mdt,mhy,phy,plo,plk,evc,epv = meas
-                else:mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
+                else:
+                    #mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
+                    mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
 
                 # insert the measurement for this trajectory into the output data array
                 dt = self.codomain[dtx]
