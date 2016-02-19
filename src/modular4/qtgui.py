@@ -3,9 +3,11 @@ import modular4.mpi as mmpi
 
 import os,sys,numpy,matplotlib,six
 matplotlib.rcParams['backend.qt4'] = 'PySide'
-import matplotlib.pyplot as plt
+matplotlib.rcParams['pdf.fonttype'] = 42
+#matplotlib.use('Qt4Agg')
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as figure_canvas
 from matplotlib.backend_bases import NavigationToolbar2
+import matplotlib.pyplot as plt
 
 from PySide import QtGui,QtCore
 
@@ -80,11 +82,12 @@ def check(label,initial,callback,boxlabel = 'mwidgetcheck',ori = 'v'):
     c = QtGui.QCheckBox(label)
     if initial:c.setCheckState(QtCore.Qt.Checked)
     else:c.setCheckState(QtCore.Qt.Unchecked)
-    togg = lambda i : callback((False,True,True),i)
+    #togg = lambda i : callback((False,True,True),i)
+    togg = lambda i : callback(False if i == 0 else True)
     c.stateChanged.connect(togg)
     return mwidget(layout((c,),ori),boxlabel)
 
-def checks(tlist,labels,master = True,callback = None,boxlabel = 'mwidgetchecks',ori = 'v'):
+def checks(tlist,labels,master = True,callback = None,boxlabel = None,ori = 'v'):
     '''
     create a widget containing a set of check boxes which add/remove items from a list
     '''
@@ -127,12 +130,15 @@ def checks(tlist,labels,master = True,callback = None,boxlabel = 'mwidgetchecks'
         m.clicked.connect(flipall())
         if callback:m.clicked.connect(callback)
         cs.insert(0,m)
-    return mwidget(layout(cs,ori),boxlabel)
+    if type(boxlabel) == type(''):
+        return mwidget(layout(cs,ori),boxlabel)
+    else:return cs
 
 def selector(labels,initial,callback,boxlabel = 'mwidgetselector'):
     def pick():
         c = sel.currentIndex()
-        callback(lcopy,c)
+        #callback(lcopy,c)
+        callback(lcopy[c])
     lcopy = labels[:]
     sel = QtGui.QComboBox()
     for l in labels:sel.addItem(l)
@@ -142,13 +148,35 @@ def selector(labels,initial,callback,boxlabel = 'mwidgetselector'):
 
 def radios(labels,initial,callback,boxlabel = 'mwidgetradios',ori = 'v'):
     def pick(x):
-        f = lambda : callback(lcopy,x)
+        #f = lambda : callback(lcopy,x)
+        f = lambda : callback(lcopy[x])
         return f
     lcopy = labels[:]
     rads = [QtGui.QRadioButton(l) for l in labels]
     rads[labels.index(initial)].setChecked(True)
     for rx in range(len(rads)):rads[rx].clicked.connect(pick(rx))
     return mwidget(layout(rads,ori),boxlabel)
+
+def spin(minv,maxv,init = None,step = None,callback = None,boxlabel = None,ori = 'v'): 
+    bind = lambda : callback(spin.value())
+    spin = QtGui.QDoubleSpinBox()
+    spin.setDecimals(10)
+    spin.setMinimum(minv)
+    spin.setMaximum(maxv)
+    if not step is None:spin.setSingleStep(step)
+    if not init is None:spin.setValue(init)
+    if not callback is None:spin.valueChanged.connect(bind)
+    if type(boxlabel) == type(''):
+        return mwidget(layout((spin,)),boxlabel)
+    else:return spin
+
+def textbox(initial,callback = None,boxlabel = 'mwidgettextbox',ori = 'v'):
+    def f():
+        btx = str(box.text())
+        callback(btx)
+    box = QtGui.QLineEdit()
+    box.textChanged.connect(f)
+    return mwidget(layout((box,),ori),boxlabel)
 
 ###############################################################################
 ### classes useful for making applications
@@ -158,6 +186,7 @@ class mapp(QtGui.QApplication):
 
     def __init__(self,main_window_class = None,**kws):
         QtGui.QApplication.__init__(self,sys.argv)
+        QtGui.QApplication.setStyle(QtGui.QStyleFactory.create('Plastique'))
         if main_window_class is None:main_window_class = mwindow
         self.main_window = main_window_class(**kws)
 
@@ -189,6 +218,10 @@ class mwindow(QtGui.QMainWindow):
         return content
 
 class pwindow(mwindow):
+
+    def __init__(self,**kws):
+        kws['title'] = 'Modular Plot Window'
+        mwindow.__init__(self,**kws)
 
     def content(self,**kws):
         tree = plttree_book(**kws)
@@ -263,57 +296,15 @@ class plttoolbar(NavigationToolbar2,QtGui.QToolBar):
     def labels(self):
         print('need labels func!')
     '''#
-        lgd = lfu.gui_pack.lgd
-        domain = page.get_xtitle()
-        labels_dlg = lgd.change_labels_dialog(page.get_title(),domain,
-            page.get_ytitle(),page.max_line_count,page.parent.colors, 
-            page.get_targets(),domain,page.x_log,page.y_log,
-            page.parent.cplot_interpolation,
-            page.parent.cplot_zmin,page.parent.cplot_zmax)
-        if not labels_dlg: return
-        new_title,new_x_label,new_y_label,colors,xlog,ylog,cinterp,czmin,czmax = labels_dlg
-        
-        #page.set_title(new_title)
-        page.parent.plot_title = new_title
-        page.set_title()
-
-        #page.set_xtitle(new_x_label)
-        page.parent.xtitle = new_x_label
-        page.set_xtitle()
-
-        #page.set_ytitle(new_y_label)
-        page.parent.ytitle = new_y_label
-        page.set_ytitle()
-
-        #page.colors = colors
         try:czmin = float(czmin)
         except:czmin = None
         try:czmax = float(czmax)
         except:czmax = None
-        page.parent.colors = colors
-        page.parent.cplot_interpolation = cinterp
         page.parent.cplot_zmin = czmin
         page.parent.cplot_zmax = czmax
 
-        page.parent.x_log = xlog
-        page.parent.y_log = ylog
-        page.x_log = xlog
-        page.y_log = ylog
-
-        #ax = page.newest_ax
-
-        ax = page.get_newest_ax()
-        ax.set_xlabel(new_x_label, fontsize = 18)
-        ax.set_ylabel(new_y_label, fontsize = 18)
-        if page.parent.y_log: ax.set_yscale('log')
         if self.parent.plot_type in ['surface']:
             ax.set_zlabel(new_title, fontsize = 18)
-        ax.set_title(new_title)
-        else: cpage = self.parent.current_page
-
-        #self.parent.get_current_page().show_plot()
-
-        cpage().show_plot()
     '''#
 
     def draw_rubberband(self,event,x0,y0,x1,y1):
@@ -350,15 +341,6 @@ class mpltwidget(mwidget):
         print('force check states to match parent._targets')
         return self
 
-    def calc_lines_callback(self,ax,d,t,x,ys):
-        #print('calc_lines_callback!')
-        #ax.plot([500,500],[-1,1],linewidth = 5.0,marker = 'o',color = 'b')
-        return ax
-
-    def calc_color_callback(self,ax,d,t,x,y,z):
-        #print('calc_color_callback!')
-        return ax
-
     def update(self):
         if not self.parent._targets:
             mb.log(5,'mpltwidget should update its plot but has no targets!')
@@ -367,16 +349,22 @@ class mpltwidget(mwidget):
         x,y,z = self.parent.xdomain,self.parent.ydomain,self.parent.zdomain
         d,t = self.entry
         if self.parent.plottype == 'lines':
-            ax = self.calc_lines_callback(ax,d,t,x,self.parent._targets)
+            ax = self.parent.calc_lines_callback(self,ax,d,t,x,self.parent._targets)
             ax = self.calc_lines_plot(ax,d,t,x,self.parent._targets)
         elif self.parent.plottype == 'color':
-            ax = self.calc_color_callback(ax,d,t,x,y,z)
+            ax = self.parent.calc_color_callback(self,ax,d,t,x,y,z)
             ax = self.calc_color_plot(ax,d,t,x,y,z)
         else:
             mb.log(5,'unknown plottype',self.parent.plottype)
             raise ValueError
         if self.parent.xlog:ax.set_xscale('log')
         if self.parent.ylog:ax.set_yscale('log')
+        if not self.parent.xlabel is None:
+            ax.set_xlabel(self.parent.xlabel,fontsize = self.parent.fontsize)
+        if not self.parent.ylabel is None:
+            ax.set_ylabel(self.parent.ylabel,fontsize = self.parent.fontsize)
+        if not self.parent.plottitle is None:
+            ax.set_title(self.parent.plottitle,fontsize = self.parent.fontsize)
         leg = ax.legend()
         if leg:leg.draggable()
         else:mb.log(5,'legend was None...')
@@ -429,32 +417,39 @@ class mpltwidget(mwidget):
         return dx,dy,ds
 
     def calc_lines_plot(self,ax,dt,ts,x,ys):
-        ymin,ymax = sys.float_info.max,-sys.float_info.max
         if self.parent.reduce_lines and x in self.parent.axisnames:
             dx,dys = self.reduce_x(ax,dt,ts,x,ys)
+            tx = ts.index(x)
+            lw = self.parent.linewidths[tx]
+            ls = self.parent.linestyles[tx]
+            lm = self.parent.linemarkers[tx]
+            lc = self.parent.linecolors[tx]
             for dy,y in zip(dys,ys):
                 if y in self.parent._targets:
-                    if dy.min() < ymin:ymin = dy.min()
-                    if dy.max() > ymax:ymax = dy.max()
-                    ax.plot(dx,dy,label = y)
-            ax.axis((dx.min(),dx.max(),ymin,ymax))
-            return ax
+                    ax.plot(dx,dy,label = y,color = lc,
+                        linewidth = lw,linestyle = ls,marker = lm)
         else:
             dx = dt[ts.index(x)]
-            for y in ys:
+            dys = [dt[ts.index(y)] for y in ys]
+            for dy,y in zip(dys,ys):
                 if y in self.parent._targets:
-                    dy = dt[ts.index(y)]
-                    if dy.min() < ymin:ymin = dy.min()
-                    if dy.max() > ymax:ymax = dy.max()
-                    ax.plot(dx,dy,label = y)
-            ax.axis((dx.min(),dx.max(),ymin,ymax))
-            return ax
+                    tx = ts.index(y)
+                    lw = self.parent.linewidths[tx]
+                    ls = self.parent.linestyles[tx]
+                    lm = self.parent.linemarkers[tx]
+                    lc = self.parent.linecolors[tx]
+                    ax.plot(dx,dy,label = y,color = lc,
+                        linewidth = lw,linestyle = ls,marker = lm)
+        xyminmaxes,zmin,zmax = self._plot_bounds(dx,dys)
+        ax.axis(xyminmaxes)
+        return ax
 
     def calc_color_plot(self,ax,dt,ts,x,y,z):
         dx,dy,ds = self.reduce_xy(ax,dt,ts,x,y,z)
-        xyminmaxes = (dx.min(),dx.max(),dy.min(),dy.max())
-        minz,maxz = ds.min(),ds.max()
+        #xyminmaxes = (dx.min(),dx.max(),dy.min(),dy.max())
+        #minz,maxz = ds.min(),ds.max()
 
+        xyminmaxes,minz,maxz = self._plot_bounds(dx,[dy],ds)
         if self.parent.xlog or self.parent.ylog:
             pckws = {
                 'shading':'gouraud','cmap':self.parent.colormap,
@@ -477,6 +472,21 @@ class mpltwidget(mwidget):
         self.fig.colorbar(pc_mesh)
         ax.axis(xyminmaxes)
         return ax
+
+    def _plot_bounds(self,dx,dys,ds = None):
+        if self.parent.xbnd:xmin,xmax = self.parent.xmin,self.parent.xmax
+        else:xmin,xmax = dx.min(),dx.max()
+        if self.parent.ybnd:ymin,ymax = self.parent.ymin,self.parent.ymax
+        else:
+            ymin,ymax = dys[0].min(),dys[0].max()
+            if len(dys) > 1:
+                for dy in dys:
+                    if ymin > dy.min():ymin = dy.min()
+                    if ymax < dy.max():ymax = dy.max()
+        if self.parent.zbnd:zmin,zmax = self.parent.zmin,self.parent.zmax
+        elif ds is None:zmin,zmax = 0,1
+        else:zmin,zmax = ds.min(),ds.max()
+        return (xmin,xmax,ymin,ymax),zmin,zmax
 
     def __init__(self,parent,entry):
         mwidget.__init__(self)
@@ -509,7 +519,7 @@ class plttree_book(mwidget):
         self.tree.setColumnCount(1)
         self.tree.clear()
 
-        self.aux = {}
+        self.aux = {'extra_lines':[]}
         self._targets = []
 
         titems,tpages,tops,bottoms = [],[],[],[]
@@ -539,12 +549,15 @@ class plttree_book(mwidget):
                 titems.append(bottom)
                 t1 = subpg[1][0]
 
+                if 'extra_lines' in pge:
+                    self.aux['extra_lines'].append(pge['extra_lines'])
+
                 if 'pspaceaxes' in pge:
                     self.aux['pspaceaxes'] = pge['pspaceaxes']
                 self.aux['entry'] = subpg
-                for t in subpg[1][:]:
-                    if not t in self._targets:
-                        self._targets.append(t)
+                #for t in subpg[1][:]:
+                #    if not t in self._targets:
+                #        self._targets.append(t)
 
                 sub_page = mpltwidget(self,subpg)
                 tpages.append(sub_page)
@@ -553,7 +566,12 @@ class plttree_book(mwidget):
         if self.xdomain is None:self.xdomain = t1
         if self.ydomain is None:self.ydomain = t1
         if self.zdomain is None:self.zdomain = t1
-
+        if self.linestyles is None:self.linestyles = ['-' for t in self._targets]
+        if self.linewidths is None:self.linewidths = [1 for t in self._targets]
+        if self.linemarkers is None:self.linemarkers = ['' for t in self._targets]
+        if self.linecolors is None:
+            linsp = numpy.linspace(0,0.9,len(self._targets))
+            self.linecolors = [self.colormap(i) for i in linsp]
         for page in tpages:
             self.hsplit.addWidget(page)
             page.hide()
@@ -577,43 +595,73 @@ class plttree_book(mwidget):
             axslices.append(selector(ls,si,cb,boxlabel = self.axisnames[axx]))
         return mwidget(layout(axslices),'Parameter Space Axes')
 
+    def _domain_widgets(self,dom):
+        i = bool(self.__getattribute__(dom+'log'))
+        lab = textbox(self.xlabel,self._defbind(dom+'label'),dom+'-label')
+        sel = selector(self._targets,self._targets[0],
+            self._defbind(dom+'domain'),dom+'-domain')
+        lg = check('Use log('+str(dom)+')',i,self._defbind(dom+'log'),'')
+        i = bool(self.__getattribute__(dom+'bnd'))
+        usebnd = check('Use Bounds',i,self._defbind(dom+'bnd'),'')
+        lowbnd = spin(
+            -sys.float_info.max,sys.float_info.max,self.xmin,
+            1.0,self._defbind(dom+'min'),boxlabel = dom+'-minimum',ori = 'v')
+        highbnd = spin(
+            -sys.float_info.max,sys.float_info.max,self.xmax,
+            1.0,self._defbind(dom+'max'),boxlabel = dom+'-maximum',ori = 'v')
+        sel = mwidget(layout((
+            mwidget(layout((sel,lab),'h')), 
+            mwidget(layout((lg,usebnd,lowbnd,highbnd),'h'))),'v'),dom+'-axis')
+        return sel
+
+    def _target_widgets(self):
+        def lwbind(x):
+            def f(lw):
+                self.linewidths[x] = int(lw)
+                self.update()
+            return f
+        def lsbind(x):
+            def f(ls):
+                self.linestyles[x] = str(ls)
+                self.update()
+            return f
+        def lmbind(x):
+            def f(lm):
+                self.linemarkers[x] = str(lm)
+                self.update()
+            return f
+        def clbind(x):
+            def f():
+                col = QtGui.QColorDialog.getColor()
+                if col.isValid():self.linecolors[x] = col.getRgbF()
+                self.update()
+            return f
+        tcs = checks(self._targets,self._targets,True,self.update,None)
+        lwidgs = []
+        for tx in range(len(self._targets)):
+            lws = [str(x) for x in range(10)]
+            lwsel = selector(lws,str(self.linewidths[tx]),lwbind(tx),None)
+            lss = ['','-','--','.']
+            lssel = selector(lss,str(self.linestyles[tx]),lsbind(tx),None)
+            lms = ['','o','s','x','+']
+            lmsel = selector(lms,str(self.linemarkers[tx]),lmbind(tx),None)
+            lcbtn = buttons((clbind(tx),),('clicked',),('Color',),None)
+            lwidgs.append(mwidget(layout((tcs[tx+1],lwsel,lssel,lmsel,lcbtn),'h')))
+        lwidgs.insert(0,tcs[0])
+        sls = mwidget(layout(lwidgs,'v'),'Plot Targets')
+        return sls
+
     def _domain_target_ptype_widgets(self):
-        xlg = check('Use log(x)',self.xlog,self._defbind('xlog'),'')
-        ylg = check('Use log(y)',self.ylog,self._defbind('ylog'),'')
-        tcs = checks(self._targets,self._targets,True,self.update,'Plot Targets')
+        plab = textbox(self.plottitle,self._defbind('plottitle'),'Plot Title')
+        xaxis = self._domain_widgets('x')
+        yaxis = self._domain_widgets('y')
+        zaxis = self._domain_widgets('z')
         rds = radios(self.plottypes,self.plottype,self._defbind('plottype'),'Plot Type')
+        tcs = self._target_widgets()
         if self.axisnames:axs = self._axisslice_widgets()
         else:axs = mwidget() # this seems less than ideal... creates a dead space
-        bts = buttons((self.update,),('clicked',),('Update Plot',),'')
-        xsel = selector(self._targets,self._targets[0],self._defbind('xdomain'),'')
-        ysel = selector(self._targets,self._targets[0],self._defbind('ydomain'),'')
-        zsel = selector(self._targets,self._targets[0],self._defbind('zdomain'),'Z-Domain')
-        xsel = mwidget(layout((xsel,xlg),'h'),'X-Domain')
-        ysel = mwidget(layout((ysel,ylg),'h'),'Y-Domain')
-        left = mwidget(layout((bts,xsel,ysel,zsel)),'')
-        hsplit = mwidget(splitter((left,tcs,rds,axs),'h',''),'')
-        return hsplit
-
-    def _defbind(self,k):
-        def b(ls,c):
-            self.__setattr__(k,ls[c])
-            mb.log(5,'set pltwidget attribute: %s : %s' % (k,str(ls[c])))
-            self.update()
-        return b
-
-    def _plt_control_widget(self):
-        if 'pspaceaxes' in self.aux and self.axisdefaults is None:
-            self.reduce_lines = True
-            self.axisnames = self.aux['pspaceaxes']
-            d,t = self.aux['entry']
-            if not t == self._targets:
-                print('probably a serious problem!')
-                pdb.set_trace()
-            axxs = tuple(t.index(a) for a in self.axisnames)
-            self.axisvalues = [d[a] for a in axxs]
-            self.axisdefaults = [vs[0] for vs in self.axisvalues] 
-        hsplit = self._domain_target_ptype_widgets()
-        return mwidget(layout((hsplit,)),'Plot Filter',True)
+        bot = mwidget(splitter((rds,axs,tcs),'h',''),'')
+        return mwidget(splitter((plab,xaxis,yaxis,zaxis,bot),'v',''),'Plot Filter',True)
 
     def _widgets(self):
         self.vsplit = QtGui.QSplitter(QtCore.Qt.Vertical)
@@ -625,7 +673,9 @@ class plttree_book(mwidget):
         self._header(self.header)
         self._pages(self.pages)
         self._set_axis_info()
-        self.plt_controls = self._plt_control_widget()
+        updatebutton = buttons((self.update,),('clicked',),('Update Plot',),'')
+        self.plt_controls = self._domain_target_ptype_widgets()
+        self.vsplit.addWidget(updatebutton)
         self.vsplit.addWidget(self.plt_controls)
         return (self.hsplit,)
 
@@ -641,23 +691,58 @@ class plttree_book(mwidget):
             self.axisvalues = [d[a] for a in axxs]
             self.axisdefaults = [vs[0] for vs in self.axisvalues] 
 
+    def _defbind(self,k):
+        def f(c):
+            self.__setattr__(k,c)
+            mb.log(5,'set pltwidget attribute: %s : %s' % (k,str(c)))
+            self.update()
+        return f
+
     def update(self):
         self.tree_pages[self.page].update()
         mwidget.update(self)
 
+    def calc_lines_callback(self,pwidg,ax,d,t,x,ys):
+        print('calc_lines_callback!')
+        #ax.plot([500,500],[-1,100],linewidth = 5.0,marker = 'o',color = 'b')
+        return ax
+
+    def calc_color_callback(self,pgwidg,ax,d,t,x,y,z):
+        print('calc_color_callback!')
+        return ax
+
     def __init__(self,**kws):
         mwidget.__init__(self,**kws)
         self.kws = kws
+        self._def('line_callbacks',[],**kws)
         self._def('pages',[],**kws)
         self._def('page',0,**kws)
-        self._def('header','treebookheader',**kws)
+        self._def('header','Data Selection',**kws)
         self._def('_targets',[],**kws)
-
         self._def('xdomain',None,**kws)
         self._def('ydomain',None,**kws)
         self._def('zdomain',None,**kws)
+        self._def('linestyles',None,**kws)
+        self._def('linewidths',None,**kws)
+        self._def('linemarkers',None,**kws)
+        self._def('linecolors',None,**kws)
+        self._def('xlabel',None,**kws)
+        self._def('ylabel',None,**kws)
+        self._def('zlabel',None,**kws)
+        self._def('plottitle',None,**kws)
+        self._def('fontsize',18,**kws)
         self._def('xlog',False,**kws)
         self._def('ylog',False,**kws)
+        self._def('zlog',False,**kws)
+        self._def('xbnd',False,**kws)
+        self._def('xmin',None,**kws)
+        self._def('xmax',None,**kws)
+        self._def('ybnd',False,**kws)
+        self._def('ymin',None,**kws)
+        self._def('ymax',None,**kws)
+        self._def('zbnd',False,**kws)
+        self._def('zmin',None,**kws)
+        self._def('zmax',None,**kws)
         self._def('inherit_targets',True,**kws)
         self._def('axisnames',[],**kws)
         self._def('axisvalues',[],**kws)
@@ -668,7 +753,6 @@ class plttree_book(mwidget):
         self._def('colormap',plt.get_cmap('jet'),**kws)
         self._def('plottypes',('lines','color'),**kws)
         self._def('plottype','lines',**kws)
-
         wgs = self._widgets()
         self._layout = layout(wgs,'h')
         self.setLayout(self._layout)

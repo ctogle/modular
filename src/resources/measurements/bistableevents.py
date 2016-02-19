@@ -1,3 +1,4 @@
+import modular4.base as mb
 import modular4.measurement as mme
 import math,numpy
 from scipy.stats import pearsonr as correl
@@ -65,25 +66,18 @@ class bistability(mme.measurement):
     # targs is a list of strings corresponding to each input data target
     def measure(self,data,targs,psploc,**kws):
         verify = lambda v : self.fillvalue if math.isnan(v) else v
-
-        # create the outgoing data set
         tcount = len(self.codomain)
-        dshape = (len(self.targets),data.shape[0])
+        dtshape = (len(self.targets),data.shape[0])
+        tdata = numpy.zeros(dtshape,dtype = numpy.float)
+        dshape = (len(self.targets),1)
         odata = numpy.zeros(dshape,dtype = numpy.float)
-
-        # create a domain which disregards a specified transient period
         transx = int(data.shape[2]*self.transient)
         domain = data[0,targs.index(self.domain),transx:]
-
-        # iterate over each trajectory, providing a measurement of its events
         for tjx in range(data.shape[0]):
-
-            # aggregate the events from each target in the trajectory
             alltjevents = []
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
-
                 threshz,thwidth = dtdat.max()/5.0,dtdat.max()/8.0
                 alo = max(1,threshz - thwidth)
                 ahy = min(dtdat.max()-1,threshz + thwidth)
@@ -98,8 +92,6 @@ class bistability(mme.measurement):
                     plt.show()
 
                 alltjevents.append(tjevents)
-
-            # apply a measurement to the events of each target in the trajectory
             for dtx in range(tcount):
                 ed = alltjevents[dtx]
                 dt = self.codomain[dtx]
@@ -115,22 +107,36 @@ class bistability(mme.measurement):
                 else:
                     #mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
                     mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
-
-                # insert the measurement for this trajectory into the output data array
                 dt = self.codomain[dtx]
                 getodtx = lambda dt,s : self.targets.index(dt+s)
-                odata[getodtx(dt,':mean_high_del_t'),tjx] = mdt
-                odata[getodtx(dt,':mean_high_value'),tjx] = mhy
-                odata[getodtx(dt,':prob_high'),tjx] = phy
-                odata[getodtx(dt,':prob_low'),tjx] = plo
-                odata[getodtx(dt,':prob_leak'),tjx] = plk
-                odata[getodtx(dt,':mean_event_correlation'),tjx] = verify(evc)
-                odata[getodtx(dt,':mean_event_p-value'),tjx] = verify(epv)
+                tdata[getodtx(dt,':mean_high_del_t'),tjx] = mdt
+                tdata[getodtx(dt,':mean_high_value'),tjx] = mhy
+                tdata[getodtx(dt,':prob_high'),tjx] = phy
+                tdata[getodtx(dt,':prob_low'),tjx] = plo
+                tdata[getodtx(dt,':prob_leak'),tjx] = plk
+                tdata[getodtx(dt,':mean_event_correlation'),tjx] = verify(evc)
+                tdata[getodtx(dt,':mean_event_p-value'),tjx] = verify(epv)
+                tdata[0,tjx] = numpy.zeros(1,dtype = numpy.float)
 
-                # this is a dummy axis for plotting...
-                odata[0,tjx] = numpy.zeros(1,dtype = numpy.float)
-
-        # return the output array, list of targets in the array, auxillary info for plotting
+        for dtx in range(tcount):
+            dt = self.codomain[dtx]
+            dt = self.codomain[dtx]
+            getodtx = lambda s : self.targets.index(dt+s)
+            mdtx = getodtx(':mean_high_del_t')
+            odata[mdtx,0] = tdata[mdtx,:].mean()
+            mdtx = getodtx(':mean_high_value')
+            odata[mdtx,0] = tdata[mdtx,:].mean()
+            mdtx = getodtx(':prob_high')
+            odata[mdtx,0] = tdata[mdtx,:].mean()
+            mdtx = getodtx(':prob_low')
+            odata[mdtx,0] = tdata[mdtx,:].mean()
+            mdtx = getodtx(':prob_leak')
+            odata[mdtx,0] = tdata[mdtx,:].mean()
+            mdtx = getodtx(':mean_event_correlation')
+            odata[mdtx,0] = verify(tdata[mdtx,:].mean())
+            mdtx = getodtx(':mean_event_p-value')
+            odata[mdtx,0] = verify(tdata[mdtx,:].mean())
+        odata[0,0] = numpy.zeros(1,dtype = numpy.float)
         return odata,self.targets,{'header':str(psploc)}
 
 # es is a list of events from a single trajectory
@@ -228,6 +234,9 @@ def filter_events(x,y,th,tl,min_x_dt,es):
         if j > x.size-min_x_dt-1:f.pop(-1)
         elif y[j+1:j+1+min_x_dt].max() >= th:f.pop(-1)
     return f
+
+def calc_lines_callback(self,ax,d,t,x,ys):
+    pass
 
 def plot_events(x,y,es,z):
     ax = plt.gca()
