@@ -9,7 +9,7 @@
 <td valign=bottom>&nbsp;<br>
 <font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong><a href="modular4.html"><font color="#ffffff">modular4</font></a>.qtgui</strong></big></big></font></td
 ><td align=right valign=bottom
-><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/cogle/.local/lib/python2.7/site-packages/modular4/qtgui.py">/home/cogle/.local/lib/python2.7/site-packages/modular4/qtgui.py</a></font></td></tr></table>
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/athyra/.local/lib/python2.7/site-packages/modular4/qtgui.py">/home/athyra/.local/lib/python2.7/site-packages/modular4/qtgui.py</a></font></td></tr></table>
     <p></p>
 <p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
@@ -501,11 +501,7 @@ Data descriptors inherited from Shiboken.Object:<br>
 Methods defined here:<br>
 <dl><dt><a name="mpltwidget-__init__"><strong>__init__</strong></a>(self, parent, entry)</dt></dl>
 
-<dl><dt><a name="mpltwidget-calc_color_callback"><strong>calc_color_callback</strong></a>(self, ax, d, t, x, y, z)</dt></dl>
-
 <dl><dt><a name="mpltwidget-calc_color_plot"><strong>calc_color_plot</strong></a>(self, ax, dt, ts, x, y, z)</dt></dl>
-
-<dl><dt><a name="mpltwidget-calc_lines_callback"><strong>calc_lines_callback</strong></a>(self, ax, d, t, x, ys)</dt></dl>
 
 <dl><dt><a name="mpltwidget-calc_lines_plot"><strong>calc_lines_plot</strong></a>(self, ax, dt, ts, x, ys)</dt></dl>
 
@@ -2694,8 +2690,6 @@ Methods defined here:<br>
 
 <dl><dt><a name="plttoolbar-dynamic_update"><strong>dynamic_update</strong></a>(self)</dt></dl>
 
-<dl><dt><a name="plttoolbar-labels"><strong>labels</strong></a>(self)</dt><dd><tt>#toolitems.append(('Labels','Change&nbsp;the&nbsp;title&nbsp;and&nbsp;axes&nbsp;labels','gear','labels'))</tt></dd></dl>
-
 <dl><dt><a name="plttoolbar-pan"><strong>pan</strong></a>(self, *ags)</dt></dl>
 
 <dl><dt><a name="plttoolbar-save_figure"><strong>save_figure</strong></a>(self, *ags)</dt></dl>
@@ -3504,6 +3498,10 @@ Data and other attributes inherited from <a href="PySide.QtGui.html#QPaintDevice
 Methods defined here:<br>
 <dl><dt><a name="plttree_book-__init__"><strong>__init__</strong></a>(self, **kws)</dt></dl>
 
+<dl><dt><a name="plttree_book-calc_color_callback"><strong>calc_color_callback</strong></a>(self, pgwidg, ax, d, t, x, y, z)</dt></dl>
+
+<dl><dt><a name="plttree_book-calc_lines_callback"><strong>calc_lines_callback</strong></a>(self, pwidg, ax, d, t, x, ys)</dt></dl>
+
 <dl><dt><a name="plttree_book-set_page"><strong>set_page</strong></a>(self, pgx)</dt></dl>
 
 <dl><dt><a name="plttree_book-update"><strong>update</strong></a>(self)</dt></dl>
@@ -4192,15 +4190,13 @@ Data descriptors inherited from <a href="modular4.base.html#mobject">modular4.ba
 </dl>
 <hr>
 Methods defined here:<br>
+<dl><dt><a name="pwindow-__init__"><strong>__init__</strong></a>(self, **kws)</dt></dl>
+
 <dl><dt><a name="pwindow-content"><strong>content</strong></a>(self, **kws)</dt></dl>
 
 <hr>
 Data and other attributes defined here:<br>
 <dl><dt><strong>staticMetaObject</strong> = &lt;PySide.QtCore.QMetaObject object&gt;</dl>
-
-<hr>
-Methods inherited from <a href="modular4.qtgui.html#mwindow">mwindow</a>:<br>
-<dl><dt><a name="pwindow-__init__"><strong>__init__</strong></a>(self, **kws)</dt></dl>
 
 <hr>
 Methods inherited from <a href="PySide.QtGui.html#QMainWindow">PySide.QtGui.QMainWindow</a>:<br>
@@ -4984,9 +4980,9 @@ Data descriptors inherited from Shiboken.Object:<br>
     
 <tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
 <td width="100%"><dl><dt><a name="-bound"><strong>bound</strong></a>(label, lay)</dt></dl>
- <dl><dt><a name="-buttons"><strong>buttons</strong></a>(funcs, events, labels, boxlabel<font color="#909090">='mwidgetbuttons'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
+ <dl><dt><a name="-buttons"><strong>buttons</strong></a>(funcs, events, labels, fw<font color="#909090">=None</font>, boxlabel<font color="#909090">='mwidgetbuttons'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
  <dl><dt><a name="-check"><strong>check</strong></a>(label, initial, callback, boxlabel<font color="#909090">='mwidgetcheck'</font>, ori<font color="#909090">='v'</font>)</dt><dd><tt>create&nbsp;a&nbsp;widget&nbsp;containing&nbsp;a&nbsp;single&nbsp;check&nbsp;box&nbsp;which&nbsp;calls&nbsp;a&nbsp;function&nbsp;when&nbsp;toggled</tt></dd></dl>
- <dl><dt><a name="-checks"><strong>checks</strong></a>(tlist, labels, master<font color="#909090">=True</font>, callback<font color="#909090">=None</font>, boxlabel<font color="#909090">='mwidgetchecks'</font>, ori<font color="#909090">='v'</font>)</dt><dd><tt>create&nbsp;a&nbsp;widget&nbsp;containing&nbsp;a&nbsp;set&nbsp;of&nbsp;check&nbsp;boxes&nbsp;which&nbsp;add/remove&nbsp;items&nbsp;from&nbsp;a&nbsp;list</tt></dd></dl>
+ <dl><dt><a name="-checks"><strong>checks</strong></a>(tlist, labels, master<font color="#909090">=True</font>, callback<font color="#909090">=None</font>, boxlabel<font color="#909090">=None</font>, ori<font color="#909090">='v'</font>)</dt><dd><tt>create&nbsp;a&nbsp;widget&nbsp;containing&nbsp;a&nbsp;set&nbsp;of&nbsp;check&nbsp;boxes&nbsp;which&nbsp;add/remove&nbsp;items&nbsp;from&nbsp;a&nbsp;list</tt></dd></dl>
  <dl><dt><a name="-convert_pixel_space"><strong>convert_pixel_space</strong></a>(w, h)</dt></dl>
  <dl><dt><a name="-init_figure"><strong>init_figure</strong></a>()</dt></dl>
  <dl><dt><a name="-layout"><strong>layout</strong></a>(widgets<font color="#909090">=[]</font>, orientation<font color="#909090">='v'</font>)</dt></dl>
@@ -4994,7 +4990,9 @@ Data descriptors inherited from Shiboken.Object:<br>
  <dl><dt><a name="-runapp"><strong>runapp</strong></a>(windowclass, kws)</dt></dl>
  <dl><dt><a name="-selector"><strong>selector</strong></a>(labels, initial, callback, boxlabel<font color="#909090">='mwidgetselector'</font>)</dt></dl>
  <dl><dt><a name="-sortto"><strong>sortto</strong></a>(l1, l2)</dt></dl>
+ <dl><dt><a name="-spin"><strong>spin</strong></a>(minv, maxv, init<font color="#909090">=None</font>, step<font color="#909090">=None</font>, callback<font color="#909090">=None</font>, boxlabel<font color="#909090">=None</font>, ori<font color="#909090">='v'</font>)</dt></dl>
  <dl><dt><a name="-splitter"><strong>splitter</strong></a>(widgets<font color="#909090">=[]</font>, orientation<font color="#909090">='v'</font>, boxlabel<font color="#909090">='mwidgetsplitter'</font>)</dt></dl>
+ <dl><dt><a name="-textbox"><strong>textbox</strong></a>(initial, callback<font color="#909090">=None</font>, boxlabel<font color="#909090">='mwidgettextbox'</font>, ori<font color="#909090">='v'</font>)</dt></dl>
 </td></tr></table><p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#55aa55">

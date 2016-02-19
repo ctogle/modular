@@ -40,7 +40,7 @@ class moutput(mb.mobject):
             p.join()
 
     def __init__(self,*ags,**kws):
-        self._def('plt_multiprocessed',False,**kws)
+        self._def('plt_multiprocessed',True,**kws)
         self._def('path',None,**kws)
         self._def('filename',None,**kws)
         self._def('modes',[],**kws)

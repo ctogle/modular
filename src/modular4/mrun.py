@@ -4,7 +4,7 @@ import modular4.ensemble as me
 import modular4.output as mo
 import modular4.mpi as mmpi
 
-import sys,os,time,numpy,logging
+import sys,os,time,numpy,logging,multiprocessing
 
 import pdb
 
@@ -20,29 +20,31 @@ def run_gui():
         print('mainuserloop')
         raise NotImplementedError
 
+def run_pklplotter_file(p,f):
+    st = time.time()
+    mb.log(5,'begin loadpkl',f,mb.clock(st))
+    o = mo.loadpkl(os.path.join(p,f))
+    o.modes = ['plt']
+    et = time.time()
+    mb.log(5,'end loadpkl',f,mb.clock(et))
+    mb.log(5,'ran loadpkl in %f seconds' % numpy.round(et-st,3),f)
+    o()
+
 def run_pklplotter():
     if mmpi.root():
-        st = time.time()
-        mb.log(5,'begin loadpkl',mb.clock(st))
-
+        import modular4.qtgui as mg
+        mg.init_figure()
+        proc = multiprocessing.Process
         if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):p = sys.argv[1]
         else:p = os.getcwd()
         fs = os.listdir(p)
-        r = []
+        oprocs = []
         for f in fs:
             if f.endswith('.pkl'):
-                o = mo.loadpkl(os.path.join(p,f))
-                o.modes = ['plt']
-                r.append(o)
-
-        et = time.time()
-        mb.log(5,'end loadpkl',mb.clock(et))
-        mb.log(5,'ran loadpkl in %f seconds' % numpy.round(et-st,3))
-
-        import modular4.qtgui as mg
-        mg.init_figure()
-        if mmpi.root():
-            for o in r:o()
+                pltprocess = proc(target = run_pklplotter_file,args = (p,f))
+                pltprocess.start()
+                oprocs.append(pltprocess)
+        for op in oprocs:op.join()
 
 def run_serial(mcfg):
     s = time.time()
