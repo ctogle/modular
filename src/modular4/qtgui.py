@@ -339,6 +339,9 @@ class mpltwidget(mwidget):
         x,y,z = self.parent.xdomain,self.parent.ydomain,self.parent.zdomain
         d,t = self.entry
         if self.parent.plottype == 'lines':
+            if self.extras:
+                for ex in self.extras:
+                    ax.plot(*ex[0],**ex[1])
             ax = self.parent.calc_lines_callback(self,ax,d,t,x,self.parent._targets)
             ax = self.calc_lines_plot(ax,d,t,x,self.parent._targets)
         elif self.parent.plottype == 'color':
@@ -489,8 +492,9 @@ class mpltwidget(mwidget):
         xymm = (verify(xmin),verify(xmax),verify(ymin),verify(ymax))
         return xymm,verify(zmin),verify(zmax)
 
-    def __init__(self,parent,entry):
+    def __init__(self,parent,entry,**kws):
         mwidget.__init__(self)
+        self._def('extras',None,**kws)
         self.fig = plt_figure
         self.canvas = figure_canvas(self.fig)
         self.toolbar = plttoolbar(self.canvas)
@@ -519,7 +523,7 @@ class plttree_book(mwidget):
     def _pages(self,pages):
         self.tree.setColumnCount(1)
         self.tree.clear()
-        self.aux = {'extra_lines':[]}
+        self.aux = {}
         self._targets = []
         self._targetlabels = []
         titems,tpages,tops,bottoms = [],[],[],[]
@@ -550,14 +554,14 @@ class plttree_book(mwidget):
                 titems.append(bottom)
                 t1 = subpg[1][0]
 
-                if 'extra_lines' in pge:
-                    self.aux['extra_lines'].append(pge['extra_lines'])
-
+                if 'extra_trajectory' in pge:
+                    extras = pge['extra_trajectory']
+                else:extras = None
                 if 'pspaceaxes' in pge:
                     self.aux['pspaceaxes'] = pge['pspaceaxes']
                 self.aux['entry'] = subpg
 
-                sub_page = mpltwidget(self,subpg)
+                sub_page = mpltwidget(self,subpg,extras = extras)
                 tpages.append(sub_page)
             self.tree.addTopLevelItem(top)
         if self.xdomain is None:self.xdomain = t1
@@ -750,7 +754,6 @@ class plttree_book(mwidget):
         self._def('zlabelsize',20,**kws)
         self._def('plottitle','',**kws)
         self._def('plottitlesize',18,**kws)
-        #self._def('fontsize',18,**kws)
         self._def('xlog',False,**kws)
         self._def('ylog',False,**kws)
         self._def('zlog',False,**kws)

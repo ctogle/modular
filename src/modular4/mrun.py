@@ -41,6 +41,7 @@ def run_pklplotter():
         oprocs = []
         for f in fs:
             if f.endswith('.pkl'):
+                #run_pklplotter_file(p,f)
                 pltprocess = proc(target = run_pklplotter_file,args = (p,f))
                 pltprocess.start()
                 oprocs.append(pltprocess)

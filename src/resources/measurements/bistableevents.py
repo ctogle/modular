@@ -65,6 +65,7 @@ class bistability(mme.measurement):
     # data is a numpy array ( trajectory , target , counts )
     # targs is a list of strings corresponding to each input data target
     def measure(self,data,targs,psploc,**kws):
+        aux = {'header':str(psploc)}
         verify = lambda v : self.fillvalue if math.isnan(v) else v
         tcount = len(self.codomain)
         dtshape = (len(self.targets),data.shape[0])
@@ -75,6 +76,10 @@ class bistability(mme.measurement):
         domain = data[0,targs.index(self.domain),transx:]
         for tjx in range(data.shape[0]):
             alltjevents = []
+
+            if tjx == 0:
+                aux['extra_trajectory'] = []
+
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
@@ -84,6 +89,19 @@ class bistability(mme.measurement):
                 tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
 
                 #if tjx % 20 == 0:
+                if tjx == 0 and dtx == 0:
+                    aux['extra_trajectory'].append(
+                        ((domain,dtdat[tjx,:]),{'color':'black','label':dt}))
+                    etx = [domain[0],domain[-1]]
+                    aux['extra_trajectory'].append(
+                        ((etx,[alo,alo]),{'linestyle':'--','color':'red'}))
+                    aux['extra_trajectory'].append(
+                        ((etx,[ahy,ahy]),{'linestyle':'--','color':'red'}))
+                    for tje in tjevents:
+                        etx = [domain[tje[0]],domain[tje[1]]]
+                        aux['extra_trajectory'].append(((etx,[threshz,threshz]),
+                            {'linewidth':2,'marker':'s','color':'green'}))
+
                 if False:
                     ax = plot_events(domain,dtdat[tjx,:],tjevents,threshz)
                     ax.plot([domain[0],domain[-1]],[threshz,threshz],linestyle = '--',color = 'red')
@@ -137,7 +155,7 @@ class bistability(mme.measurement):
             mdtx = getodtx(':mean_event_p-value')
             odata[mdtx,0] = verify(tdata[mdtx,:].mean())
         odata[0,0] = numpy.zeros(1,dtype = numpy.float)
-        return odata,self.targets,{'header':str(psploc)}
+        return odata,self.targets,aux
 
 # es is a list of events from a single trajectory
 # aes are the events of all targets
