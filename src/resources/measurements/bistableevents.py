@@ -51,14 +51,15 @@ class bistability(mme.measurement):
     def set_targets(self,inputs,pspace):
         if not self.domain in inputs:self.domain = inputs[0]
         bitgs = self.codomain
-        plo = [x+':prob_low' for x in self.codomain]
-        phi = [x+':prob_high' for x in self.codomain]
-        los = [x+':prob_leak' for x in self.codomain]
+        plo = [x+':mean_prob_low' for x in self.codomain]
+        phi = [x+':mean_prob_high' for x in self.codomain]
+        los = [x+':mean_prob_leak' for x in self.codomain]
         his = [x+':mean_high_value' for x in self.codomain]
         dfs = [x+':mean_high_del_t' for x in self.codomain]
+        efs = [x+':mean_event_frequency' for x in self.codomain]
         pco = [x+':mean_event_correlation' for x in self.codomain]
-        ppv = [x+':mean_event_p-value' for x in self.codomain]
-        cinputs = ['minimaldomain']+dfs+his+plo+phi+los+pco+ppv
+        ppv = [x+':mean_event_pvalue' for x in self.codomain]
+        cinputs = ['minimaldomain']+dfs+his+plo+phi+los+efs+pco+ppv
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     # this function will be called for each pspace location 
@@ -69,17 +70,14 @@ class bistability(mme.measurement):
         verify = lambda v : self.fillvalue if math.isnan(v) else v
         tcount = len(self.codomain)
         dtshape = (len(self.targets),data.shape[0])
-        tdata = numpy.zeros(dtshape,dtype = numpy.float)
+        tdata = [[] for t in self.targets]
         dshape = (len(self.targets),1)
         odata = numpy.zeros(dshape,dtype = numpy.float)
         transx = int(data.shape[2]*self.transient)
         domain = data[0,targs.index(self.domain),transx:]
         for tjx in range(data.shape[0]):
             alltjevents = []
-
-            if tjx == 0:
-                aux['extra_trajectory'] = []
-
+            if tjx == 0:aux['extra_trajectory'] = []
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
@@ -88,8 +86,10 @@ class bistability(mme.measurement):
                 ahy = min(dtdat.max()-1,threshz + thwidth)
                 tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
 
+
+
                 #if tjx % 20 == 0:
-                if tjx == 0 and dtx == 0:
+                if tjx == 0 or tjx == 1 and dtx == 0:
                     aux['extra_trajectory'].append(
                         ((domain,dtdat[tjx,:]),{'color':'black','label':dt}))
                     etx = [domain[0],domain[-1]]
@@ -101,7 +101,6 @@ class bistability(mme.measurement):
                         etx = [domain[tje[0]],domain[tje[1]]]
                         aux['extra_trajectory'].append(((etx,[threshz,threshz]),
                             {'linewidth':2,'marker':'s','color':'green'}))
-
                 if False:
                     ax = plot_events(domain,dtdat[tjx,:],tjevents,threshz)
                     ax.plot([domain[0],domain[-1]],[threshz,threshz],linestyle = '--',color = 'red')
@@ -109,52 +108,48 @@ class bistability(mme.measurement):
                     ax.plot([domain[0],domain[-1]],[ahy,ahy],linestyle = '--',color = 'black')
                     plt.show()
 
+
+
                 alltjevents.append(tjevents)
             for dtx in range(tcount):
                 ed = alltjevents[dtx]
                 dt = self.codomain[dtx]
+                getodtx = lambda dt,s : self.targets.index(dt+s)
                 dtdat = data[tjx,targs.index(dt),transx:]
                 if tcount > 1:
                     odt = self.codomain[1 if dtx == 0 else 0]
                     otdat = data[tjx,targs.index(odt),transx:]
                 else:otdat = None
                 mb.log(5,'events found',len(ed))
+                tdata[0].append(len(ed))
                 if ed:
                     meas = measure_trajectory(domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    mdt,mhy,phy,plo,plk,evc,epv = meas
-                else:
-                    #mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
-                    mdt,mhy,phy,plo,plk,evc,epv = -1,-1,-1,-1,-1,-100,1
-                dt = self.codomain[dtx]
-                getodtx = lambda dt,s : self.targets.index(dt+s)
-                tdata[getodtx(dt,':mean_high_del_t'),tjx] = mdt
-                tdata[getodtx(dt,':mean_high_value'),tjx] = mhy
-                tdata[getodtx(dt,':prob_high'),tjx] = phy
-                tdata[getodtx(dt,':prob_low'),tjx] = plo
-                tdata[getodtx(dt,':prob_leak'),tjx] = plk
-                tdata[getodtx(dt,':mean_event_correlation'),tjx] = verify(evc)
-                tdata[getodtx(dt,':mean_event_p-value'),tjx] = verify(epv)
-                tdata[0,tjx] = numpy.zeros(1,dtype = numpy.float)
-
+                    mdt,mhy,phy,plo,plk,mefreq,evc,epv = meas
+                    tdata[getodtx(dt,':mean_high_del_t')].append(mdt)
+                    tdata[getodtx(dt,':mean_high_value')].append(mhy)
+                    tdata[getodtx(dt,':mean_prob_high')].append(phy)
+                    tdata[getodtx(dt,':mean_prob_low')].append(plo)
+                    tdata[getodtx(dt,':mean_prob_leak')].append(plk)
+                    tdata[getodtx(dt,':mean_event_frequency')].append(mefreq)
+                    if not math.isnan(evc):
+                        tdata[getodtx(dt,':mean_event_correlation')].append(verify(evc))
+                        tdata[getodtx(dt,':mean_event_pvalue')].append(verify(epv))
         for dtx in range(tcount):
             dt = self.codomain[dtx]
-            dt = self.codomain[dtx]
             getodtx = lambda s : self.targets.index(dt+s)
-            mdtx = getodtx(':mean_high_del_t')
-            odata[mdtx,0] = tdata[mdtx,:].mean()
-            mdtx = getodtx(':mean_high_value')
-            odata[mdtx,0] = tdata[mdtx,:].mean()
-            mdtx = getodtx(':prob_high')
-            odata[mdtx,0] = tdata[mdtx,:].mean()
-            mdtx = getodtx(':prob_low')
-            odata[mdtx,0] = tdata[mdtx,:].mean()
-            mdtx = getodtx(':prob_leak')
-            odata[mdtx,0] = tdata[mdtx,:].mean()
-            mdtx = getodtx(':mean_event_correlation')
-            odata[mdtx,0] = verify(tdata[mdtx,:].mean())
-            mdtx = getodtx(':mean_event_p-value')
-            odata[mdtx,0] = verify(tdata[mdtx,:].mean())
-        odata[0,0] = numpy.zeros(1,dtype = numpy.float)
+            def defoval(tx,dv):
+                if tdata[tx]:odata[tx,0] = numpy.mean(tdata[tx])
+                else:odata[tx,0] = dv
+            defoval(getodtx(':mean_high_del_t'),-1.0)
+            defoval(getodtx(':mean_high_value'),-1.0)
+            defoval(getodtx(':mean_prob_high'),-1.0)
+            defoval(getodtx(':mean_prob_low'),-1.0)
+            defoval(getodtx(':mean_prob_leak'),-1.0)
+            defoval(getodtx(':mean_event_frequency'),0.0)
+            defoval(getodtx(':mean_event_correlation'),-100.0)
+            defoval(getodtx(':mean_event_pvalue'),1.0)
+        mecnt = numpy.mean(tdata[0])
+        odata[0,0] = mecnt
         return odata,self.targets,aux
 
 # es is a list of events from a single trajectory
@@ -165,7 +160,7 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
     phy = float(highcnt)/y.size
     plo = float(lowcnt)/y.size
     plk = 1.0 - phy - plo
-    if not es:return -1,-1,phy,plo,plk,-100,1
+    if not es:return -1,-1,phy,plo,plk,0.0,-100,1
     dts = []
     hys = []
     crs = []
@@ -181,9 +176,10 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
         pvs.append(pv)
     mdt = numpy.mean(dts)
     mhy = numpy.mean(hys)
+    efq = float(len(es))/float(x[-1]-x[0])
     evc = numpy.mean(crs)
     epv = numpy.mean(pvs)
-    return mdt,mhy,phy,plo,plk,evc,epv
+    return mdt,mhy,phy,plo,plk,efq,evc,epv
 
 # return measurements of events in a trajectory (x,y)
 # an event identifies a "high count state" entry/exit for a species
