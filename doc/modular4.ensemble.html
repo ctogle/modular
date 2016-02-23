@@ -75,6 +75,8 @@ Methods defined here:<br>
 param&nbsp;name&nbsp;:&nbsp;string&nbsp;to&nbsp;identify&nbsp;with&nbsp;this&nbsp;<a href="#ensemble">ensemble</a>&nbsp;object<br>
 param&nbsp;module&nbsp;:&nbsp;string&nbsp;to&nbsp;identify&nbsp;which&nbsp;simulation&nbsp;module&nbsp;this&nbsp;<a href="#ensemble">ensemble</a>&nbsp;should&nbsp;use</tt></dd></dl>
 
+<dl><dt><a name="ensemble-batch_scheme"><strong>batch_scheme</strong></a>(self)</dt><dd><tt>return&nbsp;the&nbsp;number&nbsp;of&nbsp;trajectories&nbsp;for&nbsp;a&nbsp;batch&nbsp;call&nbsp;to&nbsp;execute</tt></dd></dl>
+
 <dl><dt><a name="ensemble-initialize_measurements"><strong>initialize_measurements</strong></a>(self)</dt><dd><tt>prepare&nbsp;measurement&nbsp;and&nbsp;data&nbsp;objects&nbsp;for&nbsp;post&nbsp;simulation&nbsp;measurements</tt></dd></dl>
 
 <dl><dt><a name="ensemble-measure_data_nonzeroth"><strong>measure_data_nonzeroth</strong></a>(self, **kws)</dt><dd><tt>perform&nbsp;measurements&nbsp;which&nbsp;depend&nbsp;on&nbsp;other&nbsp;measurements&nbsp;only</tt></dd></dl>
@@ -98,7 +100,7 @@ disconnect&nbsp;processes&nbsp;and&nbsp;waits&nbsp;for&nbsp;their&nbsp;results&n
 
 <dl><dt><a name="ensemble-run_listen"><strong>run_listen</strong></a>(self)</dt><dd><tt>run&nbsp;a&nbsp;listener&nbsp;process&nbsp;that&nbsp;performs&nbsp;work&nbsp;for&nbsp;a&nbsp;root&nbsp;running&nbsp;self.<strong>run_distpatch</strong></tt></dd></dl>
 
-<dl><dt><a name="ensemble-run_location"><strong>run_location</strong></a>(self, px, simf)</dt><dd><tt>generate&nbsp;and&nbsp;return&nbsp;the&nbsp;simulation&nbsp;data&nbsp;associated&nbsp;with&nbsp;a&nbsp;location&nbsp;in&nbsp;parameter&nbsp;space</tt></dd></dl>
+<dl><dt><a name="ensemble-run_location"><strong>run_location</strong></a>(self, px, simf)</dt><dd><tt>generate&nbsp;and&nbsp;return&nbsp;some&nbsp;simulation&nbsp;data&nbsp;associated&nbsp;with&nbsp;a&nbsp;location&nbsp;in&nbsp;parameter&nbsp;space</tt></dd></dl>
 
 <dl><dt><a name="ensemble-run_serial"><strong>run_serial</strong></a>(self, px, dfile)</dt><dd><tt>execute&nbsp;the&nbsp;work&nbsp;of&nbsp;pspace&nbsp;location&nbsp;px&nbsp;<br>
 and&nbsp;save&nbsp;the&nbsp;zeroth&nbsp;measurements&nbsp;in&nbsp;dfile</tt></dd></dl>

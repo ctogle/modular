@@ -38,9 +38,9 @@ def parse_outputs(parser,lines):
     parsed = [tuple(x.strip() for x in l.split(':')) for l in lines]
     return parsed
 
-#def parse_ensemble(parser,lines):
-#    print 'need real parser...',parser,lines
-#    return lines
+def parse_ensemble(parser,lines):
+    parsed = [tuple(x.strip() for x in l.split(':')) for l in lines]
+    return parsed
 
 def parse_pspace(parser,lines):
     def parse_axis(a):
@@ -88,7 +88,7 @@ parsers = {
     'targets' : parse_targets,
     'measurements' : parse_measurements,
     'outputs' : parse_outputs,
-    #'ensemble' : parse_ensemble,
+    'ensemble' : parse_ensemble,
     'parameterspace' : parse_pspace,
         }
 

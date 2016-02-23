@@ -33,7 +33,7 @@
 	x1
 
 <parameterspace>
-	<map> : 500
+	<map> : 10000
 		lambda1 : 1.0,10.0  : 1.0 : 10
 		lambda2 : 1.0,10.0  : 1.0 : 10
 
@@ -52,6 +52,9 @@
 	none : ensemble_output : none : all
 	none : correl_output : pkl : all
 	none : bypsp_output : pkl : all
+
+<ensemble>
+  batchsize : 10000
 
 
 

@@ -67,6 +67,14 @@ class ensemble(mb.mobject):
         for t in targets:self.targets.append(t)
         return self
 
+    def batch_scheme(self):
+        '''
+        return the number of trajectories for a batch call to execute
+        '''
+        if self.batchsize is None:tc = self.pspacemap.trajcount
+        else:tc = min(self.batchsize,self.pspacemap.trajcount)
+        return tc
+
     def __init__(self,*ags,**kws):
         '''
         ensemble class constructor (all inputs are keywords):
@@ -83,6 +91,7 @@ class ensemble(mb.mobject):
         self._def('capture',None,**kws)
         self._def('end',None,**kws)
         self._def('rgenseed',None,**kws)
+        self._def('batchsize',None,**kws)
         self._def('datascheme','raw',**kws)
         self._def('perform_installation',mmpi.root(),**kws)
         self._def('rgen',random.Random(),**kws)
@@ -97,6 +106,10 @@ class ensemble(mb.mobject):
         else:module_parsers = {}
         mcfg.measurement_parsers = eme.parsers
         einput = mcfg.parse(mcfgfile,module_parsers,**minput)
+        if 'ensemble' in einput:
+            for k,v in einput['ensemble']:
+                if k == 'batchsize':self.batchsize = int(v)
+                else:self.__setattr__(k,v)
         if 'targets' in einput:self.set_targets(einput['targets'])
         if 'measurements' in einput:self.measurements = einput['measurements']
         if 'outputs' in einput:self.outputs = einput['outputs']
@@ -187,14 +200,16 @@ class ensemble(mb.mobject):
 
     def run_location(self,px,simf):
         '''
-        generate and return the simulation data associated with a location in parameter space
+        generate and return some simulation data associated with a location in parameter space
         '''
-        trajcnt,targcnt,captcnt,p = self.pspacemap.set_location(px)
+        targcnt,captcnt,p = self.pspacemap.set_location(px)
+        trajcnt = self.batch_scheme()
         d = numpy.zeros((trajcnt,targcnt,captcnt),dtype = numpy.float)
         for x in range(trajcnt):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
-        mb.log(5,'rank %i ran location: %i' % (mmpi.rank(),px))
+        mstr = 'rank %i ran %i batch at location: %i'
+        mb.log(5,mstr % (mmpi.rank(),trajcnt,px))
         return d
 
     def run(self):
@@ -236,23 +251,45 @@ class ensemble(mb.mobject):
             if not h == 'root' and not h == mmpi.host():
                 mmpi.broadcast('prom',hosts[h][0])
         mmpi.broadcast('prep')
+        bsize = self.batch_scheme()
+        wholesome = bsize == self.pspacemap.trajcount
+        batch_cnt = self.pspacemap.trajcount/bsize
+        many_batch = [batch_cnt for x in range(len(self.pspacemap.goal))]
+        done_batch = [0 for x in range(len(self.pspacemap.goal))]
+        pool_batch = [None for x in range(len(self.pspacemap.goal))]
         todo,done = [x for x in range(len(self.pspacemap.goal))],[]
         free,occp = [x for x in range(mmpi.size())],[]
         free.remove(mmpi.rank())
         while len(done) < len(self.pspacemap.goal):
             time.sleep(0.01)
             if todo and free:
-                p = free.pop(0);w = todo.pop(0)
+                p = free.pop(0)
+                many_batch[todo[0]] -= 1
+                if many_batch[todo[0]] == 0:w = todo.pop(0)
+                else:w = todo[0]
                 mmpi.broadcast(['exec',w],p)
                 occp.append(p)
             if occp:
                 r = mmpi.passrecv()
                 if not r is None and int(r) in occp:
-                    px,pdata = mmpi.pollrecv(r)
-                    free.append(r);occp.remove(r);done.append(px)
                     mb.log(5,'result from worker: %i' % r)
-                    self.pspacemap.set_location(px)
-                    self.measure_data_zeroth(px,precalced = pdata)
+                    px,pdata = mmpi.pollrecv(r)
+                    free.append(r);occp.remove(r)
+                    done_batch[px] += 1
+                    if done_batch[px] == batch_cnt:done.append(px)
+                    targcnt,captcnt,p = self.pspacemap.set_location(px)
+                    if wholesome:self.measure_data_zeroth(px,precalced = pdata)
+                    else:
+                        if pool_batch[px] is None:pool_batch[px] = []
+                        pool_batch[px].append(pdata)
+                        if px in done:
+                            pdata = pool_batch[px]
+                            bshpe = (self.pspacemap.trajcount,targcnt,captcnt)
+                            bdata = numpy.zeros(bshpe,dtype = numpy.float)
+                            for bx in range(batch_cnt):
+                                bdata[bx*bsize:(bx+1)*bsize] = pdata[bx]
+                            self.measure_data_zeroth(px,locd = bdata)
+                            pool_batch[px] = None
         self.measure_data_nonzeroth()
         mmpi.broadcast('halt')
         mb.log(5,'dispatch halting: %i' % mmpi.rank())
@@ -263,6 +300,7 @@ class ensemble(mb.mobject):
         run a listener process that performs work for a root running self.run_distpatch
         '''
         mb.log(5,'listener beginning: %i' % mmpi.rank())
+        wholesome = self.batch_scheme() == self.pspacemap.trajcount
         m = mmpi.pollrecv()
         while True:
             if m == 'halt':break
@@ -271,8 +309,10 @@ class ensemble(mb.mobject):
             elif m == 'prep':simf = self.simmodule.overrides['prepare'](self)
             elif m == 'exec':
                 j = mmpi.pollrecv()
-                r = self.run_location(j,simf)
-                r = (j,self.measure_data_zeroth(j,returnonly = True,locd = r))
+                if wholesome:
+                    r = self.run_location(j,simf)
+                    r = (j,self.measure_data_zeroth(j,returnonly = True,locd = r))
+                else:r = (j,self.run_location(j,simf))
                 mmpi.broadcast(mmpi.rank(),0)
                 mmpi.broadcast(r,0)
                 mb.log(5,'listener sent result: %s' % str(j))

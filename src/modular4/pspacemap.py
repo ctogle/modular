@@ -34,7 +34,7 @@ class pspacemap(mb.mobject):
         self.goalindex = x
         pkey = self.pspace.current
         if not pkey in self.completed:self.completed[pkey] = 0
-        return self.trajcount,len(self.targets),self.captcount,pkey
+        return len(self.targets),self.captcount,pkey
 
     def new_location(self,loc):
         self.goal.append(loc)
@@ -59,11 +59,9 @@ class pspacemap(mb.mobject):
         elif ddim == 3:
             if d.shape[0] == self.data[self.goalindex].shape[0]:
                 self.data[self.goalindex,:,:,:] = d
+                self.completed[pkey] += d.shape[0]
             elif d.shape[0] < self.data[self.goalindex].shape[0]:
-                mb.log(5,'must implement data assimilation...')
-                raise NotImplementedError
-                #self.data[self.goalindex,self.completed[pkey],:,:] = d
-            self.completed[pkey] += d.shape[0]
+                for gx in range(d.shape[0]):self.add_data(d[gx])
         else:
             mb.log(5,'must implement data assimilation...')
             raise NotImplementedError
