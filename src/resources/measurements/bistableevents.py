@@ -89,7 +89,7 @@ class bistability(mme.measurement):
 
 
                 #if tjx % 20 == 0:
-                if tjx == 0 or tjx == 1 and dtx == 0:
+                if tjx == 0 and dtx == 0 or dtx == 1:
                     aux['extra_trajectory'].append(
                         ((domain,dtdat[tjx,:]),{'color':'black','label':dt}))
                     etx = [domain[0],domain[-1]]

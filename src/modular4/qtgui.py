@@ -365,9 +365,10 @@ class mpltwidget(mwidget):
             tick.label.set_fontsize(self.parent.xticksize)
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(self.parent.yticksize)
-        leg = ax.legend()
-        if leg:leg.draggable()
-        else:mb.log(5,'legend was None...')
+        if self.parent.legend:
+            leg = ax.legend()
+            if leg:leg.draggable()
+            else:mb.log(5,'legend was None...')
         self.canvas.draw()
         mwidget.update(self)
         return self
@@ -670,6 +671,8 @@ class plttree_book(mwidget):
 
     def _domain_target_ptype_widgets(self):
         plab = textbox(self.plottitle,self._defbind('plottitle'),'Plot Title')
+        pleg = check('Show Legend',self.legend,self._defbind('legend'),'')
+        popt = mwidget(layout((plab,pleg),'v'),'')
         plab.setFixedWidth(self._panelwidth)
         xaxis = self._domain_widgets('x')
         yaxis = self._domain_widgets('y')
@@ -679,7 +682,7 @@ class plttree_book(mwidget):
         if self.axisnames:axs = self._axisslice_widgets()
         else:axs = mwidget()
         bot = mwidget(layout((rds,axs),'h'),'')
-        return mwidget(splitter((plab,xaxis,yaxis,zaxis,tcs,bot),'v',''),'Plot Filter',True)
+        return mwidget(splitter((popt,xaxis,yaxis,zaxis,tcs,bot),'v',''),'Plot Filter',True)
 
     def _widgets(self):
         self.vsplit = QtGui.QSplitter(QtCore.Qt.Vertical)
@@ -754,6 +757,7 @@ class plttree_book(mwidget):
         self._def('zlabelsize',20,**kws)
         self._def('plottitle','',**kws)
         self._def('plottitlesize',18,**kws)
+        self._def('legend',True,**kws)
         self._def('xlog',False,**kws)
         self._def('ylog',False,**kws)
         self._def('zlog',False,**kws)
