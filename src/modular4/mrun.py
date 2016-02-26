@@ -45,6 +45,27 @@ def run_slave(mcfg):
     r = me.ensemble(datascheme = 'none').parse_mcfg(mcfg).run_serial(locx,dfile)
     t = time.time()-s
 
+def run_fit(mcfg,name,modu,fdat):
+    kws = {
+        'iterations' : 20000, 
+        'heatrate' : 20.0, 
+            }
+    e = me.ensemble(name = name,module = modu).parse_mcfg(mcfg)
+
+    print('turn fdat into input data (y)')
+    raise ValueError
+    pdb.set_trace()
+
+    res,err = mf.run_ensemble(e,y,**kws)
+
+    # summarize the result of the fit
+    print '-'*50
+    print 'percentage fit error:',numpy.round(err,3)
+    print 'result:',res
+    print '-'*50
+
+    pdb.set_trace()
+
 def run_mcfg(mcfg,name,modu):
     st = time.time()
     if mmpi.root():mb.log(5,'begin run',mb.clock(st))
@@ -64,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--plt', required = False,action = "store_true",default = False,help = 'perform plotting')
     parser.add_argument('--np',  required = False,type = int,default = 1,help = 'number of processes intended for use')
     parser.add_argument('--mpi', required = False,type = str,default = '',help = 'hostfile for use with mpi')
+    parser.add_argument('--fit', required = False,type = str,default = '',help = 'input data set to fit parameters to')
     parser.add_argument('--slave',action = "store_true",default = False,help = '')
     options = parser.parse_args()
     if options.plt:run_pklplotter(options.dir)
@@ -73,6 +95,10 @@ if __name__ == '__main__':
             mb.log(5,'COULD NOT LOCATE MCFG: %s' % mcfg)
         else:
             if options.slave:run_slave(mcfg,options.name,options.mod)
+            elif options.fit:
+                if not os.path.isfile(options.fit):
+                    mb.log(5,'COULD NOT LOCATE FIT DATA: %s' % options.fit)
+                else:run_fit(mcfg,options.name,options.mod,options.fit)
             else:run_mcfg(mcfg,options.name,options.mod)
     else:mb.log(5,'NO MCFG PROVIDED')
 

@@ -43,7 +43,8 @@ class test_fitting(unittest.TestCase):
             'iterations' : 20000, 
             'heatrate' : 20.0, 
                 }
-        res,err = mf.run_mcfg(self.mm_mcfg,y,**kws)
+        e = me.ensemble().parse_mcfg(self.mm_mcfg)
+        res,err = mf.run_ensemble(e,y,**kws)
 
         # summarize the result of the fit
         print '-'*50

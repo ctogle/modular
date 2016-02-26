@@ -150,7 +150,7 @@
 
 
 <measurements>
-    bistability : 0;location : T_total1 of time
+    bistability : 0;location : T_total1 of time : 5 : 0.1
     bypspace : 1;parameterspace : all
     #correlation : 0;location : T_total1 and T_total2 of time : 5 : 0.0
     #bypspace : 3;parameterspace : all

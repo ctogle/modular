@@ -1,0 +1,40 @@
+
+<end>
+	time limit : 599
+
+<capture>
+	increment : 1 : time
+
+<variables>
+	g  : 0.00275
+	X0 : 1.44
+	n  : 3
+	dox : 0.01
+	Kdox : 34.2
+
+#<functions>
+#<reactions>
+
+<equations>
+  X : g * (1-(X/X0)) * (1/(1+(dox/Kdox)^n))
+
+<species>
+	X : 0.103
+
+<targets>
+	time
+	X
+
+<parameterspace>
+	<map> : 1
+		n : 1.0,3.0 : 1.0 : 3
+
+<measurements>
+  extract : 0;location : all : all : 1 : 0.0
+
+<outputs>
+	none : ensemble_output : none : all
+  none : extraction_output  : pkl  : all
+
+
+

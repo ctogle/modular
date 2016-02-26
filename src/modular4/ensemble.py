@@ -134,8 +134,8 @@ class ensemble(mb.mobject):
         self.pspacemap.prepare(self.datascheme)
         self.simparameters = {}
         for mp in module_parsers:
-            if mp in einput:
-                self.simparameters[mp] = einput[mp]
+            if mp in einput:self.simparameters[mp] = einput[mp]
+            else:self.simparameters[mp] = ()
         self.mcfgfile = mcfgfile
         return self
 
