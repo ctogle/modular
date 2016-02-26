@@ -1,0 +1,52 @@
+
+<end>
+	time limit : 50
+
+<capture>
+	increment : 0.1 : time
+
+<variables>
+	g : 1
+	n : 4
+	alpha : 0.01
+
+<functions>
+  f1 : alpha/(1 + r1**n)
+  f2 : alpha/(1 + r2**n)
+  f3 : alpha/(1 + r3**n)
+
+<reactions>
+	null f1 -> 1 r1 : formation of r1
+	null f2 -> 1 r2 : formation of r2
+	null f3 -> 1 r3 : formation of r3
+	1 r1 g -> null : degradation of r1
+	1 r2 g -> null : degradation of r2
+	1 r3 g -> null : degradation of r3
+
+<species>
+	r1 : 1
+	r2 : 0
+	r3 : 0
+
+<targets>
+	time
+	r1
+	r2
+	r3
+
+<parameterspace>
+	<map> : 1
+		n : 1.0,4.0 : 1.0 : 4
+
+<measurements>
+  extract : 0;location : all : all : 1 : 0.0
+
+<outputs>
+	none : ensemble_output : none : all
+  none : extraction_output  : pkl  : all
+
+<ensemble>
+  batchsize : 100
+
+
+
