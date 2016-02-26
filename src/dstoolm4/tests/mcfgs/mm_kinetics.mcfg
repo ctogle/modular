@@ -11,25 +11,25 @@
   k_cat : 800.0
 
 <species>
-	E : 5000
-	S : 10000
-	ES : 0
-	P : 100
+	Enz : 5000
+	Sub : 10000
+	EnzSub : 0
+	Pro : 100
 
 <reactions>
-	1 E + 1 S k_r -> 1 ES : ES complex formation
-	1 ES k_f -> 1 E + 1 S : ES complex dissociation
-	1 ES k_cat -> 1 E + 1 P : P formation
+	1 Enz + 1 Sub k_r -> 1 EnzSub : ES complex formation
+	1 EnzSub k_f -> 1 Enz + 1 Sub : ES complex dissociation
+	1 EnzSub k_cat -> 1 Enz + 1 Pro : P formation
 
 <targets>
 	time
-	ES
-	P
-	S
-	E
+	EnzSub
+	Pro
+	Sub
+	Enz
 
 <measurements>
-  statistics : 0;location : E,S,ES,P of time : 100 : 0.0
+  statistics : 0;location : Enz,Sub,EnzSub,Pro of time : 100 : 0.0
 
 <outputs>
 	none : ensemble_output : none : all
@@ -37,7 +37,7 @@
 
 <parameterspace> 
   <map> : 500
-    E : 5000,10000 : 1000 : 6
+    Enz : 5000,10000 : 1000 : 6
 
 
 

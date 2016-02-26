@@ -15,6 +15,11 @@
   f2 : alpha/(1 + r2**n)
   f3 : alpha/(1 + r3**n)
 
+<equations>
+  #r1 : f1 - r1*g
+  #r2 : f2 - r2*g
+  #r3 : f3 - r3*g
+
 <reactions>
 	null f1 -> 1 r1 : formation of r1
 	null f2 -> 1 r2 : formation of r2
