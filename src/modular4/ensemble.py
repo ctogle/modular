@@ -25,6 +25,7 @@ class ensemble(mb.mobject):
 
     simmodules = {
         'gillespiem' : ('gillespiem4','simmodule'), 
+        'dstoolm' : ('dstoolm4','simmodule'), 
             }
 
     def prepare(self):
@@ -34,6 +35,9 @@ class ensemble(mb.mobject):
         if self.rgenseed is None:
             self.rgenseed = random.getrandbits(100)
         self.rgen.seed(self.rgenseed+mmpi.rank())
+        if not self.module in self.simmodules:
+            mb.log(5,'unknown simulation module!',self.module)
+            raise ValueError
         top,smod = self.simmodules[self.module]
         self.simmodule = __import__(top).__dict__[smod]
         self.home = os.path.join(os.getcwd(),self.name)
@@ -92,6 +96,8 @@ class ensemble(mb.mobject):
         self._def('end',None,**kws)
         self._def('rgenseed',None,**kws)
         self._def('batchsize',None,**kws)
+        self._def('serialwork',False,**kws)
+        self._def('processcount',8,**kws)
         self._def('datascheme','raw',**kws)
         self._def('perform_installation',mmpi.root(),**kws)
         self._def('rgen',random.Random(),**kws)
@@ -109,7 +115,9 @@ class ensemble(mb.mobject):
         if 'ensemble' in einput:
             for k,v in einput['ensemble']:
                 if k == 'batchsize':self.batchsize = int(v)
-                else:self.__setattr__(k,v)
+                elif k == 'serialwork':self.serialwork = bool(v)
+                elif k == 'processcount':self.processcount = int(v)
+                else:self.__setattr__(k,str(v))
         if 'targets' in einput:self.set_targets(einput['targets'])
         if 'measurements' in einput:self.measurements = einput['measurements']
         if 'outputs' in einput:self.outputs = einput['outputs']
@@ -218,9 +226,7 @@ class ensemble(mb.mobject):
         '''
         if mmpi.root():
             if mmpi.size() == 1:
-                if len(sys.argv) > 2:
-                    self.processes = 0
-                    self.processcount = int(sys.argv[2])
+                if self.serialwork:
                     r = self.run_dispatch_serial()
                 else:r = self.run_basic()
             else:r = self.run_dispatch()
@@ -343,11 +349,12 @@ class ensemble(mb.mobject):
             elif f in complete:return False
             else:return True
 
+        processes = 0
         while len(complete) < len(dfs):
-            if unstarted and self.processes < self.processcount:
+            if unstarted and processes < self.processcount:
                 df = unstarted.pop(0)
                 self.run_serial_process(dfs.index(df),df,scriptfile)
-                self.processes += 1
+                processes += 1
             elif ready:
                 for df in ready:
                     with open(df,'rb') as h:px,pr = cPickle.load(h)
@@ -359,7 +366,7 @@ class ensemble(mb.mobject):
                 newfiles = [os.path.join(dfdir,f) for f in os.listdir(dfdir)]
                 for nf in newfiles:
                     if new(nf):
-                        self.processes -= 1
+                        processes -= 1
                         ready.append(nf)
                 time.sleep(0.01)
         self.measure_data_nonzeroth()

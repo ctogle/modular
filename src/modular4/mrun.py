@@ -4,21 +4,11 @@ import modular4.ensemble as me
 import modular4.output as mo
 import modular4.mpi as mmpi
 
-import sys,os,time,numpy,logging,multiprocessing
+import argparse,sys,os,time,numpy,logging,multiprocessing
 
 import pdb
 
 
-
-def run_set_modules():
-    if mmpi.root():
-        print('setmodulesloop')
-        raise NotImplementedError
-
-def run_gui():
-    if mmpi.root():
-        print('mainuserloop')
-        raise NotImplementedError
 
 def run_pklplotter_file(p,f):
     st = time.time()
@@ -30,13 +20,12 @@ def run_pklplotter_file(p,f):
     mb.log(5,'ran loadpkl in %f seconds' % numpy.round(et-st,3),f)
     o()
 
-def run_pklplotter():
+def run_pklplotter(p):
     if mmpi.root():
         import modular4.qtgui as mg
         mg.init_figure()
         proc = multiprocessing.Process
-        if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):p = sys.argv[1]
-        else:p = os.getcwd()
+        if not os.path.exists(p):p = os.getcwd()
         fs = os.listdir(p)
         oprocs = []
         for f in fs:
@@ -47,7 +36,7 @@ def run_pklplotter():
                 oprocs.append(pltprocess)
         for op in oprocs:op.join()
 
-def run_serial(mcfg):
+def run_slave(mcfg):
     s = time.time()
     try:locx,dfile = int(sys.argv[3]),sys.argv[4]
     except:
@@ -56,10 +45,10 @@ def run_serial(mcfg):
     r = me.ensemble(datascheme = 'none').parse_mcfg(mcfg).run_serial(locx,dfile)
     t = time.time()-s
 
-def run_mcfg(mcfg):
+def run_mcfg(mcfg,name,modu):
     st = time.time()
     if mmpi.root():mb.log(5,'begin run',mb.clock(st))
-    r = me.ensemble().parse_mcfg(mcfg).run()
+    r = me.ensemble(name = name,module = modu).parse_mcfg(mcfg).run()
     et = time.time()
     if mmpi.root():
         mb.log(5,'end mcfg run: %s' % mb.clock(et))
@@ -67,18 +56,25 @@ def run_mcfg(mcfg):
         return tuple(o() for o in r)
 
 if __name__ == '__main__':
-    if '-v' in sys.argv:logging.basicConfig(level = logging.INFO)
-    elif '-V' in sys.argv:logging.basicConfig(level = logging.DEBUG)
-    if '--modules' in sys.argv:run_set_modules()
-    if '--plt' in sys.argv:run_pklplotter()
-    elif len(sys.argv) > 1:
-        mcfg = os.path.join(os.getcwd(),sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mcfg',required = False,type = str,default = '',help = 'path to mcfg file')
+    parser.add_argument('--name',required = False,type = str,default = 'ensemble',help = 'ensemble name')
+    parser.add_argument('--mod', required = False,type = str,default = 'gillespiem',help = 'simulation module')
+    parser.add_argument('--dir', required = False,type = str,default = os.getcwd(),help = 'default directory used for plotting')
+    parser.add_argument('--plt', required = False,action = "store_true",default = False,help = 'perform plotting')
+    parser.add_argument('--np',  required = False,type = int,default = 1,help = 'number of processes intended for use')
+    parser.add_argument('--mpi', required = False,type = str,default = '',help = 'hostfile for use with mpi')
+    parser.add_argument('--slave',action = "store_true",default = False,help = '')
+    options = parser.parse_args()
+    if options.plt:run_pklplotter(options.dir)
+    elif options.mcfg:
+        mcfg = os.path.join(os.getcwd(),options.mcfg)
         if not os.path.isfile(mcfg):
             mb.log(5,'COULD NOT LOCATE MCFG: %s' % mcfg)
         else:
-            if '--serial' in sys.argv:run_serial(mcfg)
-            else:run_mcfg(mcfg)
-    else:run_gui()
+            if options.slave:run_slave(mcfg,options.name,options.mod)
+            else:run_mcfg(mcfg,options.name,options.mod)
+    else:mb.log(5,'NO MCFG PROVIDED')
 
 
 
