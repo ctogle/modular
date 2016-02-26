@@ -1,0 +1,60 @@
+
+<end>
+	time limit : 800
+
+<capture>
+	increment : 20 : time
+
+<variables>
+	mu : 10.0
+	K : 0.00001
+	lambda1 : 5.0
+	lambda2 : 5.0
+	gam : 0.01
+
+<functions>
+	g : mu/(K + x1 + x2)
+
+<reactions>
+	null lambda1 -> 1 x1 : formation of x1 (rate is lambda1)
+	null lambda2 -> 1 x2 : formation of x2 (rate is lambda2)
+	1 x1 gam -> null : dilution of x1 (rate is gam)
+	1 x2 gam -> null : dilution of x2 (rate is gam)
+	1 x1 g -> null : degradation of x1 (rate is g1)
+	1 x2 g -> null : degradation of x2 (rate is g2)
+
+<species>
+	x2 : 10
+	x1 : 10
+
+<targets>
+	time
+	x2
+	x1
+
+<parameterspace>
+	<map> : 100
+		lambda1 : 1.0,10.0  : 1.0 : 10
+		lambda2 : 1.0,10.0  : 1.0 : 10
+
+		#mu      : 10.0,20.0 : 10.0 : 2
+
+<measurements>
+  # process : inputshape : someinfo : #bins : transient
+
+  # measure correlation of x1,x2 vs time for each pspace location
+  correlation : 0;location : x1 and x2 of time : 5 : 0.0
+
+  # reorganize all targets of input 1 by parameter space
+  bypspace : 1;parameterspace : all
+
+<outputs>
+	none : ensemble_output : none : all
+	none : correl_output : pkl : all
+	none : bypsp_output : pkl : all
+
+<ensemble>
+  batchsize : 10000
+
+
+

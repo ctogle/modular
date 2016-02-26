@@ -1,0 +1,43 @@
+
+<end>
+	time limit : 0.005
+
+<capture>
+	increment : 0.00005 : time
+
+<variables>
+  k_r : 1.0
+  k_f : 0.01
+  k_cat : 800.0
+
+<species>
+	E : 5000
+	S : 10000
+	ES : 0
+	P : 100
+
+<reactions>
+	1 E + 1 S k_r -> 1 ES : ES complex formation
+	1 ES k_f -> 1 E + 1 S : ES complex dissociation
+	1 ES k_cat -> 1 E + 1 P : P formation
+
+<targets>
+	time
+	ES
+	P
+	S
+	E
+
+<measurements>
+  statistics : 0;location : E,S,ES,P of time : 100 : 0.0
+
+<outputs>
+	none : ensemble_output : none : all
+	none : statistics_output : pkl : all
+
+<parameterspace> 
+  <map> : 500
+    E : 5000,10000 : 1000 : 6
+
+
+

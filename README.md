@@ -1,2 +1,2 @@
 # dstoolm
-ODE simulator for modular_core using pydstool
+ODE simulator for modular4 using pydstool
