@@ -24,7 +24,7 @@ def run_modular_setup(*ags):
     rsrc_dir = os.path.join(appdirs.user_config_dir(),'modular4_resources')
     rsrc_files = resource_files([],'./resources/')
     setup(script_args = ags,name = 'modular4',version = '4.0',description = 'minimal modular simulator',
-        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/modular4',
+        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/modular',
         license = 'MIT License',long_description = '''modular4: minimal modular simulator''',
         cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
         data_files = [(rsrc_dir,rsrc_files)],
@@ -37,8 +37,20 @@ def run_gillespiem_setup(*ags):
     pkgs = ['gillespiem4']
     exts = []
     setup(script_args = ags,name = 'gillespiem4',version = '4.0',description = 'gillespiem4 simulator',
-        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/gillespiem4',
+        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/gillespiem',
         license = 'MIT License',long_description = '''gillespiem4 simulator''',
+        cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
+        scripts = [],packages = pkgs,ext_modules = exts,py_modules = [])
+    os.chdir(cwd)
+
+def run_dstoolm_setup(*ags):
+    cwd = os.getcwd()
+    os.chdir(os.path.join(cwd,'src','dstoolm4','src'))
+    pkgs = ['dstoolm4']
+    exts = []
+    setup(script_args = ags,name = 'dstoolm4',version = '4.0',description = 'dstoolm4 simulator',
+        author = 'ctogle',author_email = 'cogle@vt.edu',url = 'http://github.com/ctogle/dstoolm',
+        license = 'MIT License',long_description = '''dstoolm4 simulator''',
         cmdclass = {'build_ext': build_ext},include_dirs = [numpy.get_include()], 
         scripts = [],packages = pkgs,ext_modules = exts,py_modules = [])
     os.chdir(cwd)
@@ -58,6 +70,7 @@ def run_sim_anneal_setup(*ags):
 if __name__ == '__main__':
     run_modular_setup('build','install','--user')
     run_gillespiem_setup('build','install','--user')
+    run_dstoolm_setup('build','install','--user')
     run_sim_anneal_setup('build','install','--user')
 
 
