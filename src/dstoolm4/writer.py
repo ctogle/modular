@@ -7,9 +7,10 @@ import pdb
 
 
 
-def convert_reactions(ss,rs,vs,fs):
-    vns,vvs = zip(*vs)
-    fns,fvs = zip(*fs)
+def convert_reactions(ss,rs,vs,fs,es):
+    vns,vvs = zip(*vs) if vs else ([],[])
+    fns,fvs = zip(*fs) if fs else ([],[])
+    ens,evs = zip(*es) if es else ([],[])
     def rxr(r):
         if r in vns:return r
         elif r in fns:
@@ -19,19 +20,33 @@ def convert_reactions(ss,rs,vs,fs):
             print('reaction rate is neither a function nor a variable!')
             raise ValueError
     def rxustr(rr,ru):
-        rxu = '*'.join((u[1] for u in ru))
+        rxu = ' * '.join((u[1]+'**'+str(u[0]) if u[0] > 1 else u[1] for u in ru))
         rxs = rxr(rr)
-        if rxu:rxs = rxu+'*'+rxs
+        if rxu:rxs = rxu+' * '+rxs
         return rxs
     rhs,afs = {},{}
-    for sn,sv in ss:rhs[sn] = ''
+    for sn,sv in ss:
+        if sn in ens:
+            base = evs[ens.index(sn)]
+            for fn in fns:
+                base = base.replace(fn,rxr(fn))
+        else:base = ''
+        rhs[sn] = base
     for rr,ru,rp,rn in rs:
         term = rxustr(rr,ru)
-        for uv,un in ru:rhs[un] += '-'+(str(uv) if uv > 1 else '')+term
-        for pv,pn in rp:rhs[pn] += '+'+(str(pv) if pv > 1 else '')+term
+        uvs,uns = zip(*ru) if ru else ([],[])
+        pvs,pns = zip(*rp) if rp else ([],[])
+        for sn,sv in ss:
+            m = 0
+            if sn in uns:m -= uvs[uns.index(sn)]
+            if sn in pns:m += pvs[pns.index(sn)]
+            if not m == 0:
+                smv = str(abs(m))+' * ' if abs(m) > 1 else ''
+                sms = ' - ' if m < 0 else ' + '
+                rhs[sn] += sms+smv+term
     for sn,sv in ss:
-        if rhs[sn].startswith('+'):
-            rhs[sn] = rhs[sn].replace('+','',1)
+        if rhs[sn].startswith(' + '):
+            rhs[sn] = rhs[sn].replace(' + ','',1)
     return rhs,afs
 
 def get_simulator(e):
@@ -41,7 +56,8 @@ def get_simulator(e):
     axes = e.pspace.axes
     rhs,afs = convert_reactions(
         esp['species'],esp['reactions'],
-        esp['variables'],esp['functions'])
+        esp['variables'],esp['functions'],
+        esp['equations'])
     dtargs = e.targets
     dtargs[0] = 't'
     dshape = (len(dtargs),int(etime/ctime)+1)
@@ -74,6 +90,7 @@ def get_simulator(e):
         for dtx in range(len(dtargs)):
             data[dtx] = pts[dtargs[dtx]]
         return data
+
     return simf
 
 

@@ -7,12 +7,12 @@ import pdb
 class simmodule(object):
 
     name = 'dstoolm'
-    
+
     def parse_species(p,r):
         ss = []
         for l in r:
             s,i = l.split(':')
-            ss.append((s.strip(),int(i)))
+            ss.append((s.strip(),float(i)))
         return ss
 
     def parse_reactions(p,r):
@@ -51,6 +51,7 @@ class simmodule(object):
         'reactions' : parse_reactions, 
         'variables' : parse_variables, 
         'functions' : parse_functions, 
+        'equations' : parse_functions, 
             }
 
     def prepare(e):
