@@ -21,9 +21,11 @@ class annealer(object):
         ya = self.y
         yi = self.f(self.x,*self.psp.initial)
         yb = self.f(self.x,*g)
-        plt.plot(self.x,ya,color = 'r',label = 'data')
-        plt.plot(self.x,yi,color = 'b',label = 'init')
-        plt.plot(self.x,yb,color = 'g',label = 'best')
+        for j in range(ya.shape[0]):
+            if j == 0:continue
+            plt.plot(self.x,ya[j],color = 'r',label = 'data')
+            plt.plot(self.x,yi[j],color = 'b',label = 'init')
+            plt.plot(self.x,yb[j],color = 'g',label = 'best')
         plt.show()
 
     def __call__(self,*kws):
@@ -67,17 +69,14 @@ class annealer(object):
         
         self.__def('iterations',100000,**kws)
         self.__def('tolerance',0.00001,**kws)
-        self.__def('buffered',False,**kws)
         self.__def('heatrate',10.0,**kws)
         self.__def('discrete',None,**kws)
+        self.__def('plotfinal',True,**kws)
+        self.__def('plotbetter',True,**kws)
+        self.__def('mstep',1,**kws)
 
         self.psp = pspace.pspace(self.bounds,self.initial,self.discrete)
         self.heat(self.heatrate)
-
-        if self.buffered:
-            self.buff()
-            self.meas = self.measure_buffered
-        else:self.meas = self.measure
 
         if len(y.shape) == 1:self.metric = metric.least_squares
         elif len(y.shape) == 2:self.metric = metric.least_squares_2d
@@ -96,17 +95,14 @@ class annealer(object):
         self.measurebuffer = np.zeros(self.x.shape,dtype = self.x.dtype)
         self.fmeas = self.measure_buffered
 
-    def measure_buffered(self,g):
-        '''measure a parameter space location using a buffered method'''
-        self.f(self.x.size,self.x,self.measurebuffer,*g)
-        m = self.metric(self.measurebuffer,self.y)  
-        return m
-
-    def measure(self,g):
+    def measure(self,gs):
         '''measure a parameter space location'''
-        fofy = self.f(self.x,*g)
-        m = self.metric(fofy,self.y)  
-        return m
+        smf = lambda g : self.metric(self.f(self.x,*g),self.y)
+        sms = tuple(smf(g) for g in gs)
+        return sms
+        #fofy = self.f(self.x,*g)
+        #m = self.metric(fofy,self.y)  
+        #return m
 
     def complete(self,j,m):
         '''determine if the annealing loop is complete'''
@@ -121,26 +117,30 @@ class annealer(object):
     def anneal(self):
         '''perform the annealing loop'''
         self.heat(self.heatrate)
-        m = self.meas(self.psp.initial)
-        sg = self.psp.step(self.hc[0])
+        m = self.measure((self.psp.initial,))
+        sgs = (self.psp.step(self.hc[0]),)
         j = 0
         while not self.complete(j,m):
-            sm = self.meas(sg)
+            sms = self.measure(sgs)
+            dg = None
+
+            bc = len([mmm for mmm in sms if self.better(m,mmm)])
+            if bc > 1:print('WOOOOOOT')
+
+            smi = sms.index(min(sms))
+            sg,sm = sgs[smi],sms[smi]
             if self.better(m,sm):
                 m = sm
                 dg = self.psp.delta()
                 self.psp.move(sg)
-
                 print 'iteration:',j,'/',self.iterations
-                #self.plot(g)
-
-            else:dg = None
-            sg = self.psp.step(self.hc[j],dg)
+                if self.plotbetter:self.plot(sg)
+            sgf = lambda j : self.psp.step(self.hc[j],dg)
+            sgs = tuple(sgf(k) for k in range(self.mstep))
             j += 1
-
         if j < self.iterations:print 'exited early:',j,'/',self.iterations
         else:print 'didnt exited early:',j,'/',self.iterations
-
+        if self.plotfinal:self.plot(self.psp.current)
         err = self.error(self.f(self.x,*self.psp.current),self.y)
         return self.psp.current,err
 
