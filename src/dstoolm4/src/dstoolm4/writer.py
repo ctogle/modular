@@ -67,8 +67,17 @@ def get_simulator(e):
     for r in rhs:print('\t'+r+': '+rhs[r])
     print('-'*50+'\n')
 
+    algparams   =   {
+        'atol': 1e-3,
+        #'stiff': False,
+        #'max_step': 0.0,  ## CVODE INTERNAL USE ONLY
+        #'min_step': 0.0,  ## CVODE INTERNAL USE ONLY
+        #'init_step': 0.01,  ## DICTATES DT FOR FIXED OUTPUT MESH
+        'init_step':ctime*0.5,  ## DICTATES DT FOR FIXED OUTPUT MESH
+            }
+
     def simf(*args):
-        DSargs = dst.args(name='dstoolm_test')
+        DSargs = dst.args(name = 'dstoolm_test')
         dspars,dsics,dsvarspecs,dsfnspecs = {},{},{},{}
         for vn,vv in esp['variables']:
             if vn in axes:vv = args[axes.index(vn)+1]
@@ -78,6 +87,7 @@ def get_simulator(e):
             dsics[sn] = si
             dsvarspecs[sn] = rhs[sn]
         for fn,ft in afs:dsfnspecs[fn] = ft
+        DSargs.algparams = algparams
         DSargs.pars = dspars
         DSargs.fnspecs = dsfnspecs
         DSargs.varspecs = dsvarspecs
