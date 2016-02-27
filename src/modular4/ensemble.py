@@ -4,6 +4,9 @@ import modular4.pspacemap as pmp
 import modular4.measurement as eme
 import modular4.output as mo
 import modular4.mpi as mmpi
+#import modular4.fitting as mf
+
+import sim_anneal.anneal as sa
 
 import numpy,random,time,os,sys,cPickle,subprocess,stat
 
@@ -216,8 +219,9 @@ class ensemble(mb.mobject):
         for x in range(trajcnt):
             r = self.rgen.getrandbits(100)
             d[x] = simf(r,*p)
-        mstr = 'rank %i ran %i batch at location: %i'
-        mb.log(5,mstr % (mmpi.rank(),trajcnt,px))
+        if mmpi.root():
+            mstr = 'rank %i ran %i batch at location: %i'
+            mb.log(5,mstr % (mmpi.rank(),trajcnt,px))
         return d
 
     def run(self):
@@ -244,6 +248,76 @@ class ensemble(mb.mobject):
             self.measure_data_zeroth(px)
         self.measure_data_nonzeroth()
         return self.output()
+
+    def run_fitting(self,d,**kws):
+        '''
+        perform simulated annealing using simulation data
+        '''
+        simf = self.simmodule.overrides['prepare'](self)
+
+        i = self.pspace.current[:]
+        b = self.pspace.bounds[:]
+        x = numpy.linspace(0,self.end,(self.end/self.capture)+1)
+        if not d.shape[1] == x.size:
+            newx,newy = mb.linterp(d[0],d[1],x)
+            y = numpy.zeros((d.shape[0],newx.size),dtype = numpy.float)
+            y[0,:] = newx[:]
+            y[1,:] = newy[:]
+            if d.shape[0] > 2:
+                for j in range(2,d.shape[0]):
+                    newx,newy = mb.linterp(d[0],d[1],x)
+                    y[0,:] = newx[:]
+                    y[j,:] = newy[:]
+            btx = -1
+            for v in x:
+                if v > newx.min():break
+                else:btx += 1
+            ttx = 0
+            for v in x:
+                if v > newx.max():break
+                else:ttx += 1
+            x = newx
+        else:
+            y = d
+            btx,ttx = 0,x.size
+
+        def f(x,*p):
+            px = self.pspacemap.new_location(p)
+            self.pspacemap.set_location(px)
+            sr = self.run_location(px,simf)
+            # hack to return 1st trajectory only for now...
+            return sr[0,:,btx:ttx]
+        #f,x = mf.make_run_func(self,x)
+        self.anlr = sa.annealer(f,x,y,i,b,**kws)
+
+        if not mmpi.root():self.run_listen()
+        elif mmpi.size() == 1:
+            result,error = self.anlr.anneal()
+            return result,error
+        else:
+            mb.log(5,'fitting dispatch beginning: %i' % mmpi.rank())
+            hosts = mmpi.hosts()
+            for h in hosts:
+                mb.log(5,'hostlookup: %s : %s' % (h,str(hosts[h])))
+                if not h == 'root' and not h == mmpi.host():
+                    mmpi.broadcast('prom',hosts[h][0])
+            mmpi.broadcast('prep')
+            def ameas(gs):
+                gcnt = min(len(gs),mmpi.size()-1)
+                ms = [None for c in range(gcnt)]
+                for p in range(gcnt):
+                    mmpi.broadcast(['execfit',gs[p]],p+1)
+                mcnt = 0
+                while mcnt < gcnt:
+                    nxtp = mmpi.pollrecv()
+                    ms[nxtp-1] = mmpi.pollrecv(nxtp)
+                    mcnt += 1
+                return ms
+            self.anlr.measure = ameas
+            result,error = self.anlr.anneal()
+            mmpi.broadcast('halt')
+            mb.log(5,'fitting dispatch halting: %i' % mmpi.rank())
+            return result,error
 
     def run_dispatch(self):
         '''
@@ -307,14 +381,14 @@ class ensemble(mb.mobject):
         '''
         mb.log(5,'listener beginning: %i' % mmpi.rank())
         wholesome = self.batch_scheme() == self.pspacemap.trajcount
-        m = mmpi.pollrecv()
+        m = mmpi.pollrecv(0)
         while True:
             if m == 'halt':break
             elif m == 'host':mmpi.broadcast(mmpi.host(),0)
             elif m == 'prom':self.perform_installation = False
             elif m == 'prep':simf = self.simmodule.overrides['prepare'](self)
             elif m == 'exec':
-                j = mmpi.pollrecv()
+                j = mmpi.pollrecv(0)
                 if wholesome:
                     r = self.run_location(j,simf)
                     r = (j,self.measure_data_zeroth(j,returnonly = True,locd = r))
@@ -322,8 +396,14 @@ class ensemble(mb.mobject):
                 mmpi.broadcast(mmpi.rank(),0)
                 mmpi.broadcast(r,0)
                 mb.log(5,'listener sent result: %s' % str(j))
+            elif m == 'execfit':
+                j = mmpi.pollrecv(0)
+                a = self.anlr
+                fm = a.metric(a.f(a.x,*j),a.y)
+                mmpi.broadcast(mmpi.rank(),0)
+                mmpi.broadcast(fm,0)
             else:mb.log(5,'listener received unknown message: %s' % m)
-            m = mmpi.pollrecv()
+            m = mmpi.pollrecv(0)
         mb.log(5,'listener halting: %i' % mmpi.rank())
 
     def run_dispatch_serial(self):

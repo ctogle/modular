@@ -2,7 +2,7 @@ import modular4.base as mb
 import modular4.mpi as mmpi
 import multiprocessing
 
-import numpy,os,cPickle
+import numpy,os,cPickle,csv
 
 import pdb
 
@@ -117,6 +117,27 @@ def loadpkl(fp,**kws):
         kws['pages'] = data['pages']
         moup = output(**kws)
         return moup
+
+def loadcsv(fp,**kws):
+    def validate(v):
+        try:return float(v)
+        except:
+            print('invalid value in csv file',v)
+            raise ValueError
+    with open(fp,'rb') as fh:
+        ffile = csv.reader(fh)
+        lines,header = [],[]
+        x = 0
+        for l in ffile:
+            if x < 3:header.append(l)
+            else:lines.append(l)
+            x += 1
+    genes,targs,indus = header
+    dshape = (len(targs),len(lines))
+    fdata = numpy.zeros(dshape,dtype = numpy.float)
+    for lx in range(len(lines)):
+        fdata[:,lx] = [validate(v) for v in lines[lx]]
+    return targs,fdata,{'genes':genes,'inducer':indus}
 
                                                  
 

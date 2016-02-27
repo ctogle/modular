@@ -1,22 +1,22 @@
 
 <end>
-	time limit : 599
+	time limit : 600
 
 <capture>
-	increment : 1 : time
+	increment : 10 : time
 
 <variables>
 	g  : 0.00275
 	X0 : 1.44
 	n  : 3
-	dox : 0.01
+	dox : 0.0
 	Kdox : 34.2
 
 #<functions>
 #<reactions>
 
 <equations>
-  X : g * (1-(X/X0)) * (1/(1+(dox/Kdox)^n))
+  X : g * (1-(X/X0)) * (1/(1+(dox/Kdox)**n))
 
 <species>
 	X : 0.103
@@ -26,8 +26,14 @@
 	X
 
 <parameterspace>
-	<map> : 1
-		n : 1.0,3.0 : 1.0 : 3
+	<fit> : 1
+		X : 0.1,0.5 : 0.1 : 1
+		g : 0.001,0.01 : 0.001 : 1
+		X0 : 0.01,10.0 : 1.0 : 1
+		#n : 1.0,4.0 : 1.0 : 1
+		#Kdox : 10.0,50.0 : 10.0 : 1
+
+		#dox : 0.0,200.0 : 0.0 : 200
 
 <measurements>
   extract : 0;location : all : all : 1 : 0.0

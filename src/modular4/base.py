@@ -1,5 +1,7 @@
-import appdirs,os,sys,inspect,logging,time
 import modular4.mpi as mmpi
+
+import appdirs,os,sys,inspect,logging,time,numpy
+import scipy.interpolate as sp
 
 import pdb
 
@@ -45,6 +47,23 @@ def load_measurements(parsers,base_measurement_class):
     if mmpi.root():
         log(5,'loaded measurements')
         for p in parsers:log(5,'>>>',p)
+
+def linterp(oldx,oldy,newx,k = 5):
+    interpolation = sp.interp1d(oldx,oldy,bounds_error = True,kind = k)
+    if newx.min() < oldx.min():
+        tx = 0
+        for v in newx:
+            if v > oldx.min():break
+            else:tx += 1
+        newx = newx[tx:]
+    if newx.max() > oldx.max():
+        tx = 0
+        for v in newx:
+            if v > oldx.max():break
+            else:tx += 1
+        newx = newx[:tx]
+    newy = interpolation(newx)
+    return newx,newy
 
 def uniq(u):
     '''return an ordered subsequence of a sequence without duplicates'''

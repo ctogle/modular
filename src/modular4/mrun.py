@@ -3,8 +3,10 @@ import modular4.base as mb
 import modular4.ensemble as me
 import modular4.output as mo
 import modular4.mpi as mmpi
+import modular4.fitting as mf
 
 import argparse,sys,os,time,numpy,logging,multiprocessing
+import pstats,cProfile
 
 import pdb
 
@@ -45,24 +47,47 @@ def run_slave(mcfg):
     r = me.ensemble(datascheme = 'none').parse_mcfg(mcfg).run_serial(locx,dfile)
     t = time.time()-s
 
+def profile_function(func_,*args,**kwargs):
+    cProfile.runctx('func_(*args,**kwargs)',
+        globals(),locals(),'profile.prof')
+    s = pstats.Stats('profile.prof')
+    s.strip_dirs().sort_stats('time').print_stats()
+    os.remove('profile.prof')
+
 def run_fit(mcfg,name,modu,fdat):
-    kws = {
-        'iterations' : 20000, 
-        'heatrate' : 20.0, 
-            }
-    e = me.ensemble(name = name,module = modu).parse_mcfg(mcfg)
+    ekws = {'name' : name,'module' : modu,'datascheme' : 'none'}
+    e = me.ensemble(**ekws).parse_mcfg(mcfg)
 
-    print('turn fdat into input data (y)')
-    raise ValueError
-    pdb.set_trace()
+    # iterate over the wells
+    yt,yd,ye = mo.loadcsv(fdat)
+    for wx in range(1,len(yt)):
+        d = numpy.array((yd[0],yd[wx+1]))
 
-    res,err = mf.run_ensemble(e,y,**kws)
+        skws = {
+            'iterations':100,'heatrate':3.0,'mstep':mmpi.size()-1,
+            'plotfinal':True,'plotbetter':False,
+                }
+        i = e.pspace.initial
+        ress = []
+        for j in range(1):
+            r = e.run_fitting(d,**skws)
+            if mmpi.root():
+                res,err = r
+                ress.append(res)
+            e.pspace.move(i)
 
-    # summarize the result of the fit
-    print '-'*50
-    print 'percentage fit error:',numpy.round(err,3)
-    print 'result:',res
-    print '-'*50
+        if mmpi.root():
+            print('resssss (dont forget to set dox...)')
+            for r in ress:print(r)
+
+            # summarize the result of the fit
+            print '-'*50
+            print 'percentage fit error:',numpy.round(err,3)
+            print 'result:',res
+            print '-'*50
+        return
+
+        pdb.set_trace()
 
     pdb.set_trace()
 
