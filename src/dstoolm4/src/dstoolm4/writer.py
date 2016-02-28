@@ -1,3 +1,5 @@
+import modular4.mpi as mmpi
+
 import numpy
 import PyDSTool as dst
 
@@ -58,22 +60,23 @@ def get_simulator(e):
         esp['species'],esp['reactions'],
         esp['variables'],esp['functions'],
         esp['equations'])
-    dtargs = e.targets
+    dtargs = e.targets[:]
     dtargs[0] = 't'
     dshape = (len(dtargs),int(etime/ctime)+1)
 
-    print('\n'+'-'*50)
-    print('converted rhs:')
-    for r in rhs:print('\t'+r+': '+rhs[r])
-    print('-'*50+'\n')
+    if mmpi.root():
+        print('\n'+'-'*50)
+        print('converted rhs:')
+        for r in rhs:print('\t'+r+': '+rhs[r])
+        print('-'*50+'\n')
 
     algparams   =   {
-        'atol': 1e-3,
+        'atol': 1e-2,
         #'stiff': False,
         #'max_step': 0.0,  ## CVODE INTERNAL USE ONLY
         #'min_step': 0.0,  ## CVODE INTERNAL USE ONLY
         #'init_step': 0.01,  ## DICTATES DT FOR FIXED OUTPUT MESH
-        'init_step':ctime*0.5,  ## DICTATES DT FOR FIXED OUTPUT MESH
+        'init_step':ctime*0.8,  ## DICTATES DT FOR FIXED OUTPUT MESH
             }
 
     def simf(*args):
