@@ -90,19 +90,11 @@ class annealer(object):
         self.hc = np.exp(-1.0*b*hx/hx.max())
         return self.hc
 
-    def buff(self):
-        '''initialize an array to hold current measurement data'''
-        self.measurebuffer = np.zeros(self.x.shape,dtype = self.x.dtype)
-        self.fmeas = self.measure_buffered
-
     def measure(self,gs):
         '''measure a parameter space location'''
         smf = lambda g : self.metric(self.f(self.x,*g),self.y)
         sms = tuple(smf(g) for g in gs)
         return sms
-        #fofy = self.f(self.x,*g)
-        #m = self.metric(fofy,self.y)  
-        #return m
 
     def complete(self,j,m):
         '''determine if the annealing loop is complete'''
@@ -124,9 +116,6 @@ class annealer(object):
             sms = self.measure(sgs)
             dg = None
 
-            bc = len([mmm for mmm in sms if self.better(m,mmm)])
-            if bc > 1:print('WOOOOOOT')
-
             smi = sms.index(min(sms))
             sg,sm = sgs[smi],sms[smi]
             if self.better(m,sm):
@@ -135,8 +124,9 @@ class annealer(object):
                 self.psp.move(sg)
                 print 'iteration:',j,'/',self.iterations
                 if self.plotbetter:self.plot(sg)
-            sgf = lambda j : self.psp.step(self.hc[j],dg)
-            sgs = tuple(sgf(k) for k in range(self.mstep))
+            #sgf = lambda j : self.psp.step(self.hc[j],dg)
+            #sgs = tuple(sgf(k) for k in range(self.mstep))
+            sgs = self.psp.step_multi(self.mstep,self.hc[j],dg)
             j += 1
         if j < self.iterations:print 'exited early:',j,'/',self.iterations
         else:print 'didnt exited early:',j,'/',self.iterations
