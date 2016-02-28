@@ -3,7 +3,6 @@ import modular4.base as mb
 import modular4.ensemble as me
 import modular4.output as mo
 import modular4.mpi as mmpi
-import modular4.fitting as mf
 
 import argparse,sys,os,time,numpy,logging,multiprocessing
 import pstats,cProfile
@@ -47,49 +46,36 @@ def run_slave(mcfg):
     r = me.ensemble(datascheme = 'none').parse_mcfg(mcfg).run_serial(locx,dfile)
     t = time.time()-s
 
-def profile_function(func_,*args,**kwargs):
-    cProfile.runctx('func_(*args,**kwargs)',
-        globals(),locals(),'profile.prof')
-    s = pstats.Stats('profile.prof')
-    s.strip_dirs().sort_stats('time').print_stats()
-    os.remove('profile.prof')
-
 def run_fit(mcfg,name,modu,fdat):
-    ekws = {'name' : name,'module' : modu,'datascheme' : 'none'}
-    e = me.ensemble(**ekws).parse_mcfg(mcfg)
-
-    # iterate over the wells
-    yt,yd,ye = mo.loadcsv(fdat)
-    for wx in range(1,len(yt)):
-        d = numpy.array((yd[0],yd[wx+1]))
-
-        skws = {
-            'iterations':100,'heatrate':3.0,'mstep':mmpi.size()-1,
-            'plotfinal':True,'plotbetter':False,
-                }
-        i = e.pspace.initial
-        ress = []
-        for j in range(1):
-            r = e.run_fitting(d,**skws)
-            if mmpi.root():
-                res,err = r
-                ress.append(res)
-            e.pspace.move(i)
-
-        if mmpi.root():
-            print('resssss (dont forget to set dox...)')
-            for r in ress:print(r)
-
-            # summarize the result of the fit
-            print '-'*50
-            print 'percentage fit error:',numpy.round(err,3)
-            print 'result:',res
-            print '-'*50
-        return
-
-        pdb.set_trace()
-
-    pdb.set_trace()
+    e = me.ensemble(name = name,module = modu,dataschem = 'none')
+    e.parse_mcfg(mcfg)
+    skws = {
+        'iterations':1000,'heatrate':5.0,'mstep':max(mmpi.size()-1,1),
+        'plotfinal':False,'plotbetter':False,
+            }
+    if mmpi.root():
+        e.simmodule.overrides['prepare'](e)
+        if mmpi.size() > 1:
+            mb.log(5,'fitting dispatch beginning: %i' % mmpi.rank())
+            hosts = mmpi.hosts()
+            for h in hosts:
+                mb.log(5,'hostlookup: %s : %s' % (h,str(hosts[h])))
+                if not h == 'root' and not h == mmpi.host():
+                    mmpi.broadcast('prom',hosts[h][0])
+            mmpi.broadcast('prep')
+        moup = mo.loadpkl(fdat)
+        for pg in moup.pages:
+            yd,yt,ye = pg
+            e.set_annealer(yd,**skws)
+            r = e.run()
+            res,err = r
+        if mmpi.size() > 1:
+            mmpi.broadcast('halt')
+            mb.log(5,'fitting dispatch halting: %i' % mmpi.rank())
+        ro = e.output(True)
+        for o in ro:o()
+    else:r = e.run()
+    return
 
 def run_mcfg(mcfg,name,modu):
     st = time.time()
@@ -100,6 +86,13 @@ def run_mcfg(mcfg,name,modu):
         mb.log(5,'end mcfg run: %s' % mb.clock(et))
         mb.log(5,'ran mcfg in %f seconds' % numpy.round(et-st,3))
         return tuple(o() for o in r)
+
+def profile_function(func_,*args,**kwargs):
+    cProfile.runctx('func_(*args,**kwargs)',
+        globals(),locals(),'profile.prof')
+    s = pstats.Stats('profile.prof')
+    s.strip_dirs().sort_stats('time').print_stats()
+    os.remove('profile.prof')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

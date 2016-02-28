@@ -51,9 +51,9 @@ class extract(mme.measurement):
         else:self.trajcount = int(self.trajcount)
         dshape = (int(self.trajcount),len(self.targets),int(self.bincount))
         odata = numpy.zeros(dshape,dtype = numpy.float)
+        tv = [t[:t.find('-extract')] for t in self.targets]
         for x in range(len(self.codomain)):
             codom = self.codomain[x]
-            tv = [t[:t.find('-extract')] for t in self.targets]
             odata[:,tv.index(codom),:] = data[:self.trajcount,x,:]
         return odata,self.targets,{'header':str(psploc)}
 

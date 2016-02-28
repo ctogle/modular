@@ -58,6 +58,7 @@ def parse_pspace(parser,lines):
     if intent == '<map>':traj = list(it.product(*sp.discrete))
     elif intent == '<fit>':traj = [sp.initial[:]]
     else:traj = None
+    sp._purpose = intent
     return sp,traj,trajcount
 
 def parse(mcfg,extra_parsers = {},**einput):

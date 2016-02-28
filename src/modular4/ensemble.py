@@ -4,7 +4,6 @@ import modular4.pspacemap as pmp
 import modular4.measurement as eme
 import modular4.output as mo
 import modular4.mpi as mmpi
-#import modular4.fitting as mf
 
 import sim_anneal.anneal as sa
 
@@ -70,9 +69,53 @@ class ensemble(mb.mobject):
         '''
         utility method for modifying self.targets
         '''
-        for x in range(len(self.targets)):self.targets.pop(x)
+        for x in range(len(self.targets)):self.targets.pop(0)
         for t in targets:self.targets.append(t)
         return self
+
+    def set_annealer(self,fd,**kws):
+        '''
+        set up an annealer instance for data fitting
+        '''
+        x = numpy.linspace(0,self.end,(self.end/self.capture)+1)
+        d = fd[0] # hack to select first trajectory only
+        newx,newx = mb.linterp(d[0],d[0],x)
+        y = numpy.zeros((d.shape[0],newx.size),dtype = numpy.float)
+        y[0,:] = newx[:]
+        if d.shape[0] > 1:
+            for j in range(1,d.shape[0]):
+                newx,newy = mb.linterp(d[0],d[j],x)
+                y[j,:] = newy[:]
+        btx = -1
+        for v in x:
+            if v > newx.min():break
+            else:btx += 1
+        ttx = 0
+        for v in x:
+            if v > newx.max():break
+            else:ttx += 1
+        simf = self.simmodule.overrides['simulate']
+        def f(x,*p):
+            px = self.pspacemap.new_location(p)
+            self.pspacemap.set_location(px)
+            sr = self.run_location(px,simf)
+            # hack to return 1st trajectory only for now...
+            return sr[0,:,btx:ttx]
+        i = self.pspace.current[:]
+        b = self.pspace.bounds[:]
+        self.anlr = sa.annealer(f,newx,y,i,b,**kws)
+        if mmpi.size() > 1 and mmpi.root():
+            mmpi.broadcast(['newfitdata',fd,kws])
+        return self.anlr
+
+    def find_extract_measurement(self):
+        '''
+        return the first index of a zeroth order extraction measurement,
+          if there is one for the ensemble; else return None
+        '''
+        for zx in range(len(self.zeroth)):
+            if self.zeroth[zx].tag == 'extract':
+                return zx
 
     def batch_scheme(self):
         '''
@@ -91,6 +134,7 @@ class ensemble(mb.mobject):
         self._def('name','ensemble',**kws)
         self._def('module','gillespiem',**kws)
         self._def('simmodule',None,**kws)
+        self._def('mcfgfile',None,**kws)
         self._def('pspacemap',[],**kws)
         self._def('targets',[],**kws)
         self._def('measurements',[],**kws)
@@ -106,15 +150,16 @@ class ensemble(mb.mobject):
         self._def('rgen',random.Random(),**kws)
         self.prepare()
 
-    def parse_mcfg(self,mcfgfile,**minput):
+    def parse_mcfg(self,mcfgfile = None,**minput):
         '''
         parse an mcfg file and prepare the ensemble for simulation
         '''
+        if not mcfgfile is None:self.mcfgfile = mcfgfile
         if hasattr(self.simmodule,'parsers'):
             module_parsers = self.simmodule.parsers
         else:module_parsers = {}
         mcfg.measurement_parsers = eme.parsers
-        einput = mcfg.parse(mcfgfile,module_parsers,**minput)
+        einput = mcfg.parse(self.mcfgfile,module_parsers,**minput)
         if 'ensemble' in einput:
             for k,v in einput['ensemble']:
                 if k == 'batchsize':self.batchsize = int(v)
@@ -139,10 +184,9 @@ class ensemble(mb.mobject):
         for mp in module_parsers:
             if mp in einput:self.simparameters[mp] = einput[mp]
             else:self.simparameters[mp] = ()
-        self.mcfgfile = mcfgfile
         return self
 
-    def output(self):
+    def output(self,skipe = False):
         '''
         generate output for the simulation data and measurement results
         '''
@@ -154,13 +198,14 @@ class ensemble(mb.mobject):
         for ox in range(len(self.outputs)):
             o = self.outputs[ox]
             if ox == 0:
+                if skipe:continue
                 if mmpi.size() > 1:
                     mb.log(5,'cannot access simulation data from a pspace scan while using mpi...')
                     continue
                 else:
                     t,n = self.targets[:],None
                     d = self.pspacemap.get_data(t,n)
-            else:
+            elif self.measurements:
                 m = self.measurements[ox-1]
                 t = m.targets[:]
                 if m in self.zeroth:
@@ -230,10 +275,17 @@ class ensemble(mb.mobject):
         '''
         if mmpi.root():
             if mmpi.size() == 1:
-                if self.serialwork:
-                    r = self.run_dispatch_serial()
-                else:r = self.run_basic()
-            else:r = self.run_dispatch()
+                if self.pspace._purpose == '<fit>':
+                    r = self.run_fitting()
+                elif self.pspace._purpose == '<map>':
+                    if self.serialwork:
+                        r = self.run_dispatch_serial()
+                    else:r = self.run_basic()
+            else:
+                if self.pspace._purpose == '<fit>':
+                    r = self.run_fitting_dispatch()
+                elif self.pspace._purpose == '<map>':
+                    r = self.run_dispatch()
         else:r = self.run_listen()
         return r
 
@@ -249,75 +301,59 @@ class ensemble(mb.mobject):
         self.measure_data_nonzeroth()
         return self.output()
 
-    def run_fitting(self,d,**kws):
+    def run_fitting(self):
         '''
         perform simulated annealing using simulation data
+        param d : data to fit to; must overlap with domain given by mcfg
         '''
-        simf = self.simmodule.overrides['prepare'](self)
+        result,error = self.anlr.anneal()
+        px = self.pspacemap.new_location(result)
+        self.pspacemap.set_location(px)
+        simf = self.simmodule.overrides['simulate']
+        pdata = self.run_location(px,simf)
+        exx = self.find_extract_measurement()
+        if not exx is None:
+            zdata = self.measure_data_zeroth(px,returnonly = True,locd = pdata)
+            zdata[exx][2]['extra_trajectory'] = []
+            for yd,t in zip(self.anlr.y,self.targets):
+                if t == 'time':continue
+                zdata[exx][2]['extra_trajectory'].append(
+                    ((self.anlr.y[0],yd),{'label':t+'-data'}))
+            self.measure_data_zeroth(px,precalced = zdata)
+        return result,error
 
-        i = self.pspace.current[:]
-        b = self.pspace.bounds[:]
-        x = numpy.linspace(0,self.end,(self.end/self.capture)+1)
-        if not d.shape[1] == x.size:
-            newx,newy = mb.linterp(d[0],d[1],x)
-            y = numpy.zeros((d.shape[0],newx.size),dtype = numpy.float)
-            y[0,:] = newx[:]
-            y[1,:] = newy[:]
-            if d.shape[0] > 2:
-                for j in range(2,d.shape[0]):
-                    newx,newy = mb.linterp(d[0],d[1],x)
-                    y[0,:] = newx[:]
-                    y[j,:] = newy[:]
-            btx = -1
-            for v in x:
-                if v > newx.min():break
-                else:btx += 1
-            ttx = 0
-            for v in x:
-                if v > newx.max():break
-                else:ttx += 1
-            x = newx
-        else:
-            y = d
-            btx,ttx = 0,x.size
-
-        def f(x,*p):
-            px = self.pspacemap.new_location(p)
+    def run_fitting_dispatch(self):
+        '''
+        act as a dispatcher for a fitting routine that leverages mpi
+        '''
+        def ameas(gs):
+            gcnt = min(len(gs),mmpi.size()-1)
+            ms = [None for c in range(gcnt)]
+            for p in range(gcnt):
+                mmpi.broadcast(['execfit',gs[p]],p+1)
+            mcnt = 0
+            while mcnt < gcnt:
+                nxtp = mmpi.pollrecv()
+                ms[nxtp-1] = mmpi.pollrecv(nxtp)
+                mcnt += 1
+            return ms
+        self.anlr.measure = ameas
+        result,error = self.anlr.anneal()
+        exx = self.find_extract_measurement()
+        if not exx is None:
+            px = self.pspacemap.new_location(result)
             self.pspacemap.set_location(px)
-            sr = self.run_location(px,simf)
-            # hack to return 1st trajectory only for now...
-            return sr[0,:,btx:ttx]
-        #f,x = mf.make_run_func(self,x)
-        self.anlr = sa.annealer(f,x,y,i,b,**kws)
-
-        if not mmpi.root():self.run_listen()
-        elif mmpi.size() == 1:
-            result,error = self.anlr.anneal()
-            return result,error
-        else:
-            mb.log(5,'fitting dispatch beginning: %i' % mmpi.rank())
-            hosts = mmpi.hosts()
-            for h in hosts:
-                mb.log(5,'hostlookup: %s : %s' % (h,str(hosts[h])))
-                if not h == 'root' and not h == mmpi.host():
-                    mmpi.broadcast('prom',hosts[h][0])
-            mmpi.broadcast('prep')
-            def ameas(gs):
-                gcnt = min(len(gs),mmpi.size()-1)
-                ms = [None for c in range(gcnt)]
-                for p in range(gcnt):
-                    mmpi.broadcast(['execfit',gs[p]],p+1)
-                mcnt = 0
-                while mcnt < gcnt:
-                    nxtp = mmpi.pollrecv()
-                    ms[nxtp-1] = mmpi.pollrecv(nxtp)
-                    mcnt += 1
-                return ms
-            self.anlr.measure = ameas
-            result,error = self.anlr.anneal()
-            mmpi.broadcast('halt')
-            mb.log(5,'fitting dispatch halting: %i' % mmpi.rank())
-            return result,error
+            simf = self.simmodule.overrides['simulate']
+            pdata = self.run_location(px,simf)
+            zdata = self.measure_data_zeroth(px,returnonly = True,locd = pdata)
+            zdata[exx][2]['extra_trajectory'] = []
+            for yd,t in zip(self.anlr.y,self.targets):
+                if t == 'time':continue
+                zdata[exx][2]['extra_trajectory'].append((
+                    (self.anlr.y[0],yd),
+                    {'color':'g','label':t+'-data','linestyle':'--'}))
+            self.measure_data_zeroth(px,precalced = zdata)
+        return result,error
 
     def run_dispatch(self):
         '''
@@ -402,6 +438,10 @@ class ensemble(mb.mobject):
                 fm = a.metric(a.f(a.x,*j),a.y)
                 mmpi.broadcast(mmpi.rank(),0)
                 mmpi.broadcast(fm,0)
+            elif m == 'newfitdata':
+                newy = mmpi.pollrecv(0)
+                skws = mmpi.pollrecv(0)
+                self.set_annealer(newy,**skws)
             else:mb.log(5,'listener received unknown message: %s' % m)
             m = mmpi.pollrecv(0)
         mb.log(5,'listener halting: %i' % mmpi.rank())

@@ -29,8 +29,9 @@
 </td><td width="25%" valign=top><a href="pdb.html">pdb</a><br>
 <a href="modular4.pspacemap.html">modular4.pspacemap</a><br>
 <a href="random.html">random</a><br>
-<a href="stat.html">stat</a><br>
-</td><td width="25%" valign=top><a href="subprocess.html">subprocess</a><br>
+<a href="sim_anneal.anneal.html">sim_anneal.anneal</a><br>
+</td><td width="25%" valign=top><a href="stat.html">stat</a><br>
+<a href="subprocess.html">subprocess</a><br>
 <a href="sys.html">sys</a><br>
 <a href="time.html">time</a><br>
 </td></tr></table></td></tr></table><p>
@@ -77,15 +78,18 @@ param&nbsp;module&nbsp;:&nbsp;string&nbsp;to&nbsp;identify&nbsp;which&nbsp;simul
 
 <dl><dt><a name="ensemble-batch_scheme"><strong>batch_scheme</strong></a>(self)</dt><dd><tt>return&nbsp;the&nbsp;number&nbsp;of&nbsp;trajectories&nbsp;for&nbsp;a&nbsp;batch&nbsp;call&nbsp;to&nbsp;execute</tt></dd></dl>
 
+<dl><dt><a name="ensemble-find_extract_measurement"><strong>find_extract_measurement</strong></a>(self)</dt><dd><tt>return&nbsp;the&nbsp;first&nbsp;index&nbsp;of&nbsp;a&nbsp;zeroth&nbsp;order&nbsp;extraction&nbsp;measurement,<br>
+&nbsp;&nbsp;if&nbsp;there&nbsp;is&nbsp;one&nbsp;for&nbsp;the&nbsp;<a href="#ensemble">ensemble</a>;&nbsp;else&nbsp;return&nbsp;None</tt></dd></dl>
+
 <dl><dt><a name="ensemble-initialize_measurements"><strong>initialize_measurements</strong></a>(self)</dt><dd><tt>prepare&nbsp;measurement&nbsp;and&nbsp;data&nbsp;objects&nbsp;for&nbsp;post&nbsp;simulation&nbsp;measurements</tt></dd></dl>
 
 <dl><dt><a name="ensemble-measure_data_nonzeroth"><strong>measure_data_nonzeroth</strong></a>(self, **kws)</dt><dd><tt>perform&nbsp;measurements&nbsp;which&nbsp;depend&nbsp;on&nbsp;other&nbsp;measurements&nbsp;only</tt></dd></dl>
 
 <dl><dt><a name="ensemble-measure_data_zeroth"><strong>measure_data_zeroth</strong></a>(self, goalindex, precalced<font color="#909090">=None</font>, returnonly<font color="#909090">=False</font>, locd<font color="#909090">=None</font>)</dt><dd><tt>perform&nbsp;measurements&nbsp;which&nbsp;depend&nbsp;only&nbsp;on&nbsp;the&nbsp;simulation&nbsp;data</tt></dd></dl>
 
-<dl><dt><a name="ensemble-output"><strong>output</strong></a>(self)</dt><dd><tt>generate&nbsp;output&nbsp;for&nbsp;the&nbsp;simulation&nbsp;data&nbsp;and&nbsp;measurement&nbsp;results</tt></dd></dl>
+<dl><dt><a name="ensemble-output"><strong>output</strong></a>(self, skipe<font color="#909090">=False</font>)</dt><dd><tt>generate&nbsp;output&nbsp;for&nbsp;the&nbsp;simulation&nbsp;data&nbsp;and&nbsp;measurement&nbsp;results</tt></dd></dl>
 
-<dl><dt><a name="ensemble-parse_mcfg"><strong>parse_mcfg</strong></a>(self, mcfgfile, **minput)</dt><dd><tt>parse&nbsp;an&nbsp;mcfg&nbsp;file&nbsp;and&nbsp;prepare&nbsp;the&nbsp;<a href="#ensemble">ensemble</a>&nbsp;for&nbsp;simulation</tt></dd></dl>
+<dl><dt><a name="ensemble-parse_mcfg"><strong>parse_mcfg</strong></a>(self, mcfgfile<font color="#909090">=None</font>, **minput)</dt><dd><tt>parse&nbsp;an&nbsp;mcfg&nbsp;file&nbsp;and&nbsp;prepare&nbsp;the&nbsp;<a href="#ensemble">ensemble</a>&nbsp;for&nbsp;simulation</tt></dd></dl>
 
 <dl><dt><a name="ensemble-prepare"><strong>prepare</strong></a>(self)</dt><dd><tt>import&nbsp;simulation&nbsp;module,&nbsp;establish&nbsp;self.<strong>home</strong>&nbsp;directory,&nbsp;and&nbsp;load&nbsp;available&nbsp;measurements</tt></dd></dl>
 
@@ -98,6 +102,11 @@ param&nbsp;module&nbsp;:&nbsp;string&nbsp;to&nbsp;identify&nbsp;which&nbsp;simul
 <dl><dt><a name="ensemble-run_dispatch_serial"><strong>run_dispatch_serial</strong></a>(self)</dt><dd><tt>run&nbsp;a&nbsp;serial&nbsp;submission&nbsp;dispatcher&nbsp;process&nbsp;that&nbsp;issues&nbsp;work&nbsp;to<br>
 disconnect&nbsp;processes&nbsp;and&nbsp;waits&nbsp;for&nbsp;their&nbsp;results&nbsp;to&nbsp;appear</tt></dd></dl>
 
+<dl><dt><a name="ensemble-run_fitting"><strong>run_fitting</strong></a>(self)</dt><dd><tt>perform&nbsp;simulated&nbsp;annealing&nbsp;using&nbsp;simulation&nbsp;data<br>
+param&nbsp;d&nbsp;:&nbsp;data&nbsp;to&nbsp;fit&nbsp;to;&nbsp;must&nbsp;overlap&nbsp;with&nbsp;domain&nbsp;given&nbsp;by&nbsp;mcfg</tt></dd></dl>
+
+<dl><dt><a name="ensemble-run_fitting_dispatch"><strong>run_fitting_dispatch</strong></a>(self)</dt><dd><tt>act&nbsp;as&nbsp;a&nbsp;dispatcher&nbsp;for&nbsp;a&nbsp;fitting&nbsp;routine&nbsp;that&nbsp;leverages&nbsp;mpi</tt></dd></dl>
+
 <dl><dt><a name="ensemble-run_listen"><strong>run_listen</strong></a>(self)</dt><dd><tt>run&nbsp;a&nbsp;listener&nbsp;process&nbsp;that&nbsp;performs&nbsp;work&nbsp;for&nbsp;a&nbsp;root&nbsp;running&nbsp;self.<strong>run_distpatch</strong></tt></dd></dl>
 
 <dl><dt><a name="ensemble-run_location"><strong>run_location</strong></a>(self, px, simf)</dt><dd><tt>generate&nbsp;and&nbsp;return&nbsp;some&nbsp;simulation&nbsp;data&nbsp;associated&nbsp;with&nbsp;a&nbsp;location&nbsp;in&nbsp;parameter&nbsp;space</tt></dd></dl>
@@ -107,6 +116,8 @@ and&nbsp;save&nbsp;the&nbsp;zeroth&nbsp;measurements&nbsp;in&nbsp;dfile</tt></dd
 
 <dl><dt><a name="ensemble-run_serial_process"><strong>run_serial_process</strong></a>(self, locx, dfile, scriptfile)</dt><dd><tt>deploy&nbsp;a&nbsp;process&nbsp;which&nbsp;executes&nbsp;a&nbsp;serial&nbsp;job&nbsp;using&nbsp;self.<strong>run_serial</strong><br>
 &nbsp;&nbsp;this&nbsp;process&nbsp;saves&nbsp;the&nbsp;results&nbsp;at&nbsp;the&nbsp;provided&nbsp;data&nbsp;filename</tt></dd></dl>
+
+<dl><dt><a name="ensemble-set_annealer"><strong>set_annealer</strong></a>(self, fd, **kws)</dt><dd><tt>set&nbsp;up&nbsp;an&nbsp;annealer&nbsp;instance&nbsp;for&nbsp;data&nbsp;fitting</tt></dd></dl>
 
 <dl><dt><a name="ensemble-set_targets"><strong>set_targets</strong></a>(self, targets)</dt><dd><tt>utility&nbsp;method&nbsp;for&nbsp;modifying&nbsp;self.<strong>targets</strong></tt></dd></dl>
 

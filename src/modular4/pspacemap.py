@@ -54,11 +54,15 @@ class pspacemap(mb.mobject):
         ddim = len(d.shape)
         pkey = self.pspace.current
         if ddim == 2:
-            self.data[self.goalindex,self.completed[pkey],:,:] = d
+            if self.data.shape[0] > self.goalindex:glx = self.goalindex
+            else:glx = -1
+            self.data[glx,self.completed[pkey],:,:] = d
             self.completed[pkey] += 1
         elif ddim == 3:
-            if d.shape[0] == self.data[self.goalindex].shape[0]:
-                self.data[self.goalindex,:,:,:] = d
+            if self.data.shape[0] > self.goalindex:glx = self.goalindex
+            else:glx = -1
+            if d.shape[0] == self.data[glx].shape[0]:
+                self.data[glx,:,:,:] = d
                 self.completed[pkey] += d.shape[0]
             elif d.shape[0] < self.data[self.goalindex].shape[0]:
                 for gx in range(d.shape[0]):self.add_data(d[gx])

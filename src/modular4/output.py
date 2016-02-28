@@ -139,7 +139,7 @@ def loadcsv(fp,**kws):
         fdata[:,lx] = [validate(v) for v in lines[lx]]
     return targs,fdata,{'genes':genes,'inducer':indus}
 
-                                                 
 
+                                                 
 
 

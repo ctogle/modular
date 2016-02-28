@@ -48,7 +48,7 @@ def load_measurements(parsers,base_measurement_class):
         log(5,'loaded measurements')
         for p in parsers:log(5,'>>>',p)
 
-def linterp(oldx,oldy,newx,k = 5):
+def linterp(oldx,oldy,newx,k = 0):
     interpolation = sp.interp1d(oldx,oldy,bounds_error = True,kind = k)
     if newx.min() < oldx.min():
         tx = 0

@@ -32,12 +32,12 @@
   statistics : 0;location : E,S,ES,P of time : 100 : 0.0
 
 <outputs>
-	none : ensemble_output : none : all
-	none : statistics_output : pkl : all
+	none : ensemble_output : pkl : all
+	none : statistics_output : pkl : E_mean,S_mean,ES_mean,P_mean
 
 <parameterspace> 
-  <map> : 500
-    E : 5000,10000 : 1000 : 6
+  <map> : 1
+    k_cat : 200.0,1000.0 : 200.0 : 5
 
 
 

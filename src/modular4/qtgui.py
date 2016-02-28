@@ -529,6 +529,7 @@ class plttree_book(mwidget):
         self._targetlabels = []
         titems,tpages,tops,bottoms = [],[],[],[]
         for x in range(len(pages)):
+            if not pages[x]:continue
             pgd,pgt,pge = pages[x]
             if 'header' in pge:h = str(pge['header'])
             else:h = ''

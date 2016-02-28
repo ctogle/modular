@@ -18,7 +18,7 @@ def plot(mcfg,y,r):
     ax = plt.gca()
     for j in range(best.shape[0]):
         ax.plot(x,init[j],color = 'b',label = 'initial fit')
-        ax.plot(x,data[j],color = 'r',label = 'actual',linestyle = '--')
+        ax.plot(x,data[0][j],color = 'r',label = 'actual',linestyle = '--')
         ax.plot(x,best[j],color = 'g',label = 'best fit')
     ax.legend()
     plt.show()
@@ -31,7 +31,7 @@ class test_fitting(unittest.TestCase):
         e = me.ensemble().parse_mcfg(self.mm_mcfg)
         f,x = mf.make_run_func(e)
         y = f(None,*a)
-        return y
+        return y.reshape(1,y.shape[0],y.shape[1])
 
     def test_fit_mm_kinetics(self):
         # make data using actual parameters
@@ -40,11 +40,14 @@ class test_fitting(unittest.TestCase):
 
         # fit to that data given the mcfg
         kws = {
-            'iterations' : 20000, 
-            'heatrate' : 20.0, 
+            'iterations' : 1000, 
+            'heatrate' : 10.0, 
+            'plotfinal' : True,
+            'plotbetter' : False,
                 }
         e = me.ensemble().parse_mcfg(self.mm_mcfg)
-        res,err = e.run_fitting(y,**kws)
+        e.set_annealer(y,**kws)
+        res,err = e.run()
 
         # summarize the result of the fit
         print '-'*50

@@ -34,8 +34,12 @@
     k_f   : 0.001,1000.0 : 1.0 : 10
     k_cat : 0.001,1000.0 : 1.0 : 10
 
+<measurements>
+  extract : 0;location : all : all : 1 : 0.0
+
 <outputs>
 	none : ensemble_output : none : all
+  none : extraction_output  : pkl  : all
 
 #	Correct Values :
 #		Enzyme Substrate complex formation : rate : 1.0
