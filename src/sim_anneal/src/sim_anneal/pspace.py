@@ -1,6 +1,8 @@
 import numpy as np
 import random,pdb
 
+import itertools as it
+
 
 
 __doc__ = '''parameter space implementation for simulated annealing'''
@@ -104,6 +106,10 @@ class pspace(object):
         self.current = initial[:]
         self.last = initial[:]
 
+        steproll = tuple((-1,0,1) for d in range(self.dims))
+        self.steproll = list(it.product(*steproll))
+        self.steproll = [x for x in self.steproll if not (min(x) == max(x) == 0)]
+
         self.nonedg = tuple(None for k in self.initial)
         if discrete is None:
             self.discrete = self.nonedg
@@ -169,6 +175,29 @@ class pspace(object):
         self.last = self.current
         new = tuple(self.step_axis(a,t,dg[a]) for a in range(self.dims))
         return new
+
+    def step_binary(self,a,n,t):
+        '''provide a new parameter value for axis index a'''
+        if n < 0:
+            if self.discrete[a]:delp = self.step_discrete(a,t,-1)
+            else:delp = self.step_continous(a,t,-1)
+        elif n > 0:
+            if self.discrete[a]:delp = self.step_discrete(a,t,1)
+            else:delp = self.step_continous(a,t,1)
+        else:delp = 0
+        p = self.current[a] + delp
+        return self.step_boundary(p,self.bounds[a])
+
+    def step_multi(self,m,t,dg = None):
+        '''provide m distinct steps'''
+        mstep = []
+        for mx in range(m):
+            stepn = self.steproll.pop(0)
+            self.steproll.append(stepn)
+            anzip = zip(range(self.dims),stepn)
+            s = tuple(self.step_binary(a,n,t) for a,n in anzip)
+            mstep.append(s)
+        return tuple(mstep)
 
 
 
