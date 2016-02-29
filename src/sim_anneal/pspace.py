@@ -1,5 +1,5 @@
 import numpy as np
-import random,pdb
+import random,numpy,pdb
 
 import itertools as it
 
@@ -17,8 +17,11 @@ def reflect(p,a,b):
         
 def wraparound(p,a,b):
     '''force p to be on the interval [a,b] using periodic boundaries'''
-    if p < a:p = b - (a - p)
-    if p > b:p = a + (p - b)
+    while a > p or p > b:
+        if p < a:p = b - (a - p) 
+        if p > b:p = a + (p - b) 
+    #if p < a:p = b - (a - p)
+    #if p > b:p = a + (p - b)
     return p
 
 def locate(ax,v):
@@ -47,6 +50,9 @@ def trim_discrete(p,d):
     '''return trimmed bounds for a discrete axis based on the current position'''
     rng = tuple(range(len(d)))
     loc = locate(d,p)
+    #if loc == rng[0]:m0,m1 = d[rng[0]]/2.0,d[rng[-2]]
+    #elif loc == rng[-1]:m0,m1 = d[rng[1]],d[rng[-1]]*2.0
+    #elif loc in rng[:int(len(rng)/2.0)]:m0,m1 = d[rng[0]],d[rng[-2]]
     if loc in rng[:int(len(rng)/2.0)]:m0,m1 = d[rng[0]],d[rng[-2]]
     elif loc in rng[int(len(rng)/2.0):]:m0,m1 = d[rng[1]],d[rng[-1]]
     else:m0,m1 = d[rng[1]],d[rng[-2]]
@@ -84,7 +90,9 @@ class pspace(object):
         self.bounds = tuple(self.trim_axis(j) for j in range(self.dims))
         if not self.discrete == self.nonedg:
             dbzip = zip(self.discrete,self.bounds)
-            self.discrete = tuple(logspan(*b) if d else d for d,b in dbzip)
+            self.discrete = tuple(
+                logspan(b[0],b[1],self.disccount) if d else d 
+                    for d,b in dbzip)
         return self
 
     def move_initial(self,ni):
@@ -106,17 +114,23 @@ class pspace(object):
         self.current = initial[:]
         self.last = initial[:]
 
-        steproll = tuple((-1,0,1) for d in range(self.dims))
-        self.steproll = list(it.product(*steproll))
-        self.steproll = [x for x in self.steproll if not (min(x) == max(x) == 0)]
+        if self.dims:
+            steproll = tuple((-1,0,1) for d in range(self.dims))
+            steproll = list(it.product(*steproll))
+            steproll = [x for x in steproll if not (min(x) == max(x) == 0)]
+        else:steproll = []
+        self.steproll = steproll 
 
         self.nonedg = tuple(None for k in self.initial)
+        self.disccount = 10
         if discrete is None:
             self.discrete = self.nonedg
             self.disc_loc = None
         else:
             if discrete == True:
-                self.discrete = tuple(logspan(*b) for b in self.bounds)
+                self.discrete = tuple(
+                    logspan(b[0],b[1],self.disccount) 
+                        for b in self.bounds)
             else:self.discrete = discrete
             dczip = zip(self.discrete,self.current)
             self.disc_loc = tuple(locate(d,c) for d,c in dczip)
@@ -142,8 +156,6 @@ class pspace(object):
 
     def step_roll(self,d = None):
         '''determine if an axis should change during a step'''
-        #if d is None:m = random.random > 0.5
-        #else:m = True
         m = random.random > 0.5
         return m
 
@@ -188,16 +200,39 @@ class pspace(object):
         p = self.current[a] + delp
         return self.step_boundary(p,self.bounds[a])
 
+    def step_spam(self,m,t,dg = None):
+        rx = random.randint(0,len(self.steproll)-1)
+        n = self.steproll[rx]
+        v = int(m/self.dims)-n.count(0)
+        if v == 0:e = 0
+        else:e = m % v
+        faket = numpy.linspace(0.000001,1.0,int(m/self.dims)+1)
+        axs = tuple(tuple(self.step_axis(a,faket[j],d)
+                for j in range(int(m/self.dims))) 
+                    for a,d in zip(range(self.dims),n))
+        sgs = list(set(list(it.product(*axs))))
+        if len(sgs) > m:sgs = random.sample(sgs,m)
+        else:sgs = [random.choice(sgs) for x in range(m)]
+        return sgs
+
     def step_multi(self,m,t,dg = None):
         '''provide m distinct steps'''
-        mstep = []
-        for mx in range(m):
-            stepn = self.steproll.pop(0)
-            self.steproll.append(stepn)
-            anzip = zip(range(self.dims),stepn)
-            s = tuple(self.step_binary(a,n,t) for a,n in anzip)
-            mstep.append(s)
-        return tuple(mstep)
+        #if mmpi.size() > 1:
+        if True:
+            mstep = self.step_spam(m,t,dg)
+            return tuple(mstep)
+        else:
+            mstep = []
+            srolls = []
+            for mx in range(m):
+                if not self.steproll:self.steproll.extend(srolls)
+                rx = random.randint(0,len(self.steproll)-1)
+                srolls.append(self.steproll.pop(rx))
+                anzip = zip(range(self.dims),srolls[-1])
+                s = tuple(self.step_binary(a,n,t) for a,n in anzip)
+                mstep.append(s)
+            self.steproll.extend(srolls)
+            return tuple(mstep)
 
 
 

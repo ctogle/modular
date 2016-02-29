@@ -37,21 +37,24 @@ cpdef double percent_error_2d(np.ndarray[double,ndim = 2] fofy,np.ndarray[double
         total += percent_error_c(fofy[j],y[j])
     return total
 
-cdef double least_squares_c(double[:] fofy,double[:] y):
+cdef double least_squares_c(double[:] fofy,double[:] y,double[:] w):
     cdef int x
     cdef int l = fofy.size
     cdef double dm
     cdef double m = 0.0
     for x in range(l):
         dm = fofy[x] - y[x]
-        m = m + dm*dm
+        m = m + dm*dm*w[x]
     return m
 
-cpdef double least_squares(double[:] fofy,double[:] y):
+cpdef double least_squares(double[:] fofy,double[:] y,double[:] w):
     '''return the sum of the squared residuals between fofy and y'''
-    return least_squares_c(fofy,y)
+    return least_squares_c(fofy,y,w)
 
-cdef double least_squares_2d_c(np.ndarray[double,ndim = 2] fofy,np.ndarray[double,ndim = 2] y):
+cdef double least_squares_2d_c(
+        np.ndarray[double,ndim = 2] fofy,
+        np.ndarray[double,ndim = 2] y,
+        np.ndarray[double,ndim = 2] w):
     cdef int i
     cdef int j
     cdef int t
@@ -63,15 +66,18 @@ cdef double least_squares_2d_c(np.ndarray[double,ndim = 2] fofy,np.ndarray[doubl
     for i in range(t):
         for j in range(l):
             dm = fofy[i,j] - y[i,j]
-            m = m + dm*dm
+            m = m + dm*dm*w[i,j]
     return m
 
-cpdef double least_squares_2d(np.ndarray[double,ndim = 2] fofy,np.ndarray[double,ndim = 2] y):
+cpdef double least_squares_2d(
+        np.ndarray[double,ndim = 2] fofy,
+        np.ndarray[double,ndim = 2] y,
+        np.ndarray[double,ndim = 2] w):
     '''
     return the sum of the squared residuals between fofy and y 
     where fofy and y are of dimension 2
     '''
-    return least_squares_2d_c(fofy,y)
+    return least_squares_2d_c(fofy,y,w)
 
 
 

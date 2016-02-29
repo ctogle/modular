@@ -1,9 +1,8 @@
 import metric
 import pspace
 
+import numpy,random,inspect,sys
 import matplotlib.pyplot as plt
-import numpy as np
-import random,inspect
 
 import pdb
 
@@ -67,6 +66,7 @@ class annealer(object):
         self.f,self.x,self.y = f,x,y
         self.initial,self.bounds = i,b
         
+        self.__def('weights',numpy.ones(y.shape),**kws)
         self.__def('iterations',100000,**kws)
         self.__def('tolerance',0.00001,**kws)
         self.__def('heatrate',10.0,**kws)
@@ -75,6 +75,7 @@ class annealer(object):
         self.__def('plotbetter',True,**kws)
         self.__def('mstep',1,**kws)
 
+        self.m = sys.float_info.max
         self.psp = pspace.pspace(self.bounds,self.initial,self.discrete)
         self.heat(self.heatrate)
 
@@ -84,17 +85,41 @@ class annealer(object):
         elif len(y.shape) == 2:self.error = metric.percent_error_2d
         else:raise ValueError
 
+    def finish(self):
+        '''hook to mess with annealer in between anneal calls'''
+        pass
+
     def heat(self,b):
         '''initialize an appropriate temperature curve'''
-        hx = np.linspace(0,self.iterations,self.iterations)
-        self.hc = np.exp(-1.0*b*hx/hx.max())
+        hx = numpy.linspace(0,self.iterations,self.iterations)
+        self.hc = numpy.exp(-1.0*b*hx/hx.max())
         return self.hc
 
+    def newstep(self,j,dg = None):
+        '''perform the parameter space stepping procedure'''
+        if self.mstep == 1:
+            sgf = lambda j : self.psp.step(self.hc[j],dg)
+            sgs = tuple(sgf(k) for k in range(self.mstep))
+        else:
+            sgs = self.psp.step_multi(self.mstep,self.hc[j],dg)
+        return sgs
+
+    def pickstep(self,sgs,sms):
+        '''given a sequence of steps and measurements, select one to use'''
+        if len(sgs) == 1:return sms[0],sgs[0]
+        else:
+            smi = sms.index(min(sms))
+            sg,sm = sgs[smi],sms[smi]
+            return sm,sg
+
     def measure(self,gs):
-        '''measure a parameter space location'''
-        smf = lambda g : self.metric(self.f(self.x,*g),self.y)
+        '''
+        measure a set parameter space locations
+        '''
+        smf = lambda g : self.metric(self.f(self.x,*g),self.y,self.weights)
         sms = tuple(smf(g) for g in gs)
-        return sms
+        sm,sg = self.pickstep(gs,sms)
+        return sm,sg
 
     def complete(self,j,m):
         '''determine if the annealing loop is complete'''
@@ -109,28 +134,28 @@ class annealer(object):
     def anneal(self):
         '''perform the annealing loop'''
         self.heat(self.heatrate)
-        m = self.measure((self.psp.initial,))
-        sgs = (self.psp.step(self.hc[0]),)
+        self.m,sg = self.measure((self.psp.initial,))
+        #print('annealinit',self.psp.initial,self.m,sg)
         j = 0
-        while not self.complete(j,m):
-            sms = self.measure(sgs)
-            dg = None
-
-            smi = sms.index(min(sms))
-            sg,sm = sgs[smi],sms[smi]
-            if self.better(m,sm):
-                m = sm
-                dg = self.psp.delta()
+        sgs = self.newstep(j)
+        while not self.complete(j,self.m):
+            sgms,dg = self.measure(sgs),None
+            sm,sg = sgms
+            if sg and self.better(self.m,sm):
+                self.m,dg = sm,self.psp.delta()
                 self.psp.move(sg)
-                print 'iteration:',j,'/',self.iterations
+
+                print('iteration: %i / %i :%s' % (j,self.iterations,str(sg)))
                 if self.plotbetter:self.plot(sg)
-            #sgf = lambda j : self.psp.step(self.hc[j],dg)
-            #sgs = tuple(sgf(k) for k in range(self.mstep))
-            sgs = self.psp.step_multi(self.mstep,self.hc[j],dg)
+
+            sgs = self.newstep(j,dg)
             j += 1
+
         if j < self.iterations:print 'exited early:',j,'/',self.iterations
         else:print 'didnt exited early:',j,'/',self.iterations
         if self.plotfinal:self.plot(self.psp.current)
+        #print('annealfini',self.m,self.psp.current)
+
         err = self.error(self.f(self.x,*self.psp.current),self.y)
         return self.psp.current,err
 
@@ -146,14 +171,20 @@ class annealer(object):
 
     def anneal_auto(self,i):
         '''perform a smart loop of annealing and pspace trimming'''
+        last = None
         for j in range(i):
             best,err = self.anneal()
-            #if j == i - int(i/2.0):
-            if j == i - 3:
+            self.finish()
+            if not last is None and best == last:
+                print ('NO IMPROvEMENT')
+                self.iterations = int(self.iterations*0.8)
+            last = best
+            if j == i - int(i/2.0):
+            #if j == i - 3:
                 self.psp.become_continuous()
                 print 'BECOME CONTINOUS!'
             if j == i - 1:break
-            self.heatrate += 2*(j+1)
+            #self.heatrate += 2*(j+1)
             self.psp.move_initial(best)
             print 'pretrim',self.psp.bounds
             self.psp.trim()
