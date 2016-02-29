@@ -123,7 +123,8 @@ class bistability(mme.measurement):
                 mb.log(5,'events found',len(ed))
                 tdata[0].append(len(ed))
                 if ed:
-                    meas = measure_trajectory(domain,dtdat,alo,ahy,ed,alltjevents,otdat)
+                    meas = measure_trajectory(
+                        domain,dtdat,alo,ahy,ed,alltjevents,otdat)
                     mdt,mhy,phy,plo,plk,mefreq,evc,epv = meas
                     tdata[getodtx(dt,':mean_high_del_t')].append(mdt)
                     tdata[getodtx(dt,':mean_high_value')].append(mhy)
@@ -134,6 +135,15 @@ class bistability(mme.measurement):
                     if not math.isnan(evc):
                         tdata[getodtx(dt,':mean_event_correlation')].append(verify(evc))
                         tdata[getodtx(dt,':mean_event_pvalue')].append(verify(epv))
+                else:
+                    meas = measure_boring_trajectory(
+                        domain,dtdat,alo,ahy,ed,alltjevents,otdat)
+                    phy,plo,plk = meas
+                    tdata[getodtx(dt,':mean_prob_high')].append(phy)
+                    tdata[getodtx(dt,':mean_prob_low')].append(plo)
+                    tdata[getodtx(dt,':mean_prob_leak')].append(plk)
+                    tdata[getodtx(dt,':mean_event_frequency')].append(0.0)
+                    
         for dtx in range(tcount):
             dt = self.codomain[dtx]
             getodtx = lambda s : self.targets.index(dt+s)
@@ -145,7 +155,7 @@ class bistability(mme.measurement):
             defoval(getodtx(':mean_prob_high'),-1.0)
             defoval(getodtx(':mean_prob_low'),-1.0)
             defoval(getodtx(':mean_prob_leak'),-1.0)
-            defoval(getodtx(':mean_event_frequency'),0.0)
+            defoval(getodtx(':mean_event_frequency'),-1.0)
             defoval(getodtx(':mean_event_correlation'),-100.0)
             defoval(getodtx(':mean_event_pvalue'),1.0)
         mecnt = numpy.mean(tdata[0])
@@ -155,12 +165,13 @@ class bistability(mme.measurement):
 # es is a list of events from a single trajectory
 # aes are the events of all targets
 def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
-    highcnt = numpy.count_nonzero(y > ahy)
-    lowcnt = numpy.count_nonzero(y < alo)
-    phy = float(highcnt)/y.size
-    plo = float(lowcnt)/y.size
-    plk = 1.0 - phy - plo
-    if not es:return -1,-1,phy,plo,plk,0.0,-100,1
+    #highcnt = numpy.count_nonzero(y > ahy)
+    #lowcnt = numpy.count_nonzero(y < alo)
+    #phy = float(highcnt)/y.size
+    #plo = float(lowcnt)/y.size
+    #plk = 1.0 - phy - plo
+    #if not es:return -1,-1,phy,plo,plk,0.0,-100,1
+
     dts = []
     hys = []
     crs = []
@@ -179,7 +190,20 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
     efq = float(len(es))/float(x[-1]-x[0])
     evc = numpy.mean(crs)
     epv = numpy.mean(pvs)
+    phy = sum(dts)/float(x[-1]-x[0])
+    plo = 1.0 - phy
+    plk = -1.0
     return mdt,mhy,phy,plo,plk,efq,evc,epv
+
+def measure_boring_trajectory(x,y,alo,ahy,es,aes,o = None):
+    highcnt = numpy.count_nonzero(y >= ahy)
+    lowcnt = numpy.count_nonzero(y <= alo)
+    #leakcnt = numpy.count_nonzero(y > alo and y < ahy)
+    leakcnt = -1.0
+    if highcnt > lowcnt:phy,plo = 1.0,0.0
+    elif highcnt < lowcnt:phy,plo = 0.0,1.0
+    else:phy,plo = 0.5,0.5
+    return phy,plo,leakcnt/float(y.size)
 
 # return measurements of events in a trajectory (x,y)
 # an event identifies a "high count state" entry/exit for a species

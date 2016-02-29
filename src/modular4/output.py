@@ -17,6 +17,7 @@ class moutput(mb.mobject):
 
     def savepkl(self,fp,**kws):
         kws['MODULARDATA'] = True
+        kws['inform'] = self.inform
         mstr = ','.join(self.modes)
         tstr = ','.join(self.targets)
         kws['ol'] = (self.path,self.filename,mstr,tstr)
@@ -46,6 +47,7 @@ class moutput(mb.mobject):
         self._def('modes',[],**kws)
         self._def('targets',[],**kws)
         self._def('pages',[],**kws)
+        self._def('inform',None,**kws)
         self._processes = []
 
     def __call__(self,**kws):
@@ -115,6 +117,8 @@ def loadpkl(fp,**kws):
     elif data['MODULARDATA']:
         kws['ol'] = data['ol']
         kws['pages'] = data['pages']
+        if 'inform' in data:
+            kws['inform'] = data['inform']
         moup = output(**kws)
         return moup
 

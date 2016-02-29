@@ -66,6 +66,7 @@ def run_fit(mcfg,name,modu,fdat):
             mmpi.broadcast('prep')
         moup = mo.loadpkl(fdat)
         for pg in moup.pages:
+            if moup.inform:moup.inform(e,pg)
             yd,yt,ye = pg
             e.set_annealer(yd,**skws)
             r = e.run()

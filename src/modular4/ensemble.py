@@ -331,34 +331,35 @@ class ensemble(mb.mobject):
         '''
         act as a dispatcher for a fitting routine that leverages mpi
         '''
-        maxissue = int(mmpi.size()*1.0)
-        free,occp,todo,issd = list(range(1,mmpi.size())),[],[],[]
+        def issue():
+            ng,p = todo.pop(-1),free.pop(0)
+            mmpi.broadcast(['execfit',ng],p)
+            occp.append(p)
+            issd.append(ng)
+
         def ameas(gs):
             todo.extend(list(gs))
             gcnt = len(todo)
             ms,bg = self.anlr.m,None
             mcnt = 0
             while mcnt < gcnt:
-                while free and todo:
-                    ng,p = todo.pop(-1),free.pop(0)
-                    mmpi.broadcast(['execfit',ng],p)
-                    occp.append(p)
-                    issd.append(ng)
+                while free and todo:issue()
                 while occp:
                     r = mmpi.passrecv()
                     if not r is None and int(r) in occp:
                         free.append(r);occp.remove(r)
                         rg,rm = mmpi.pollrecv(r)
+                        issd.remove(rg)
                         if rm < ms:
                             ms = rm
                             bg = rg
                             for x in range(len(todo)):todo.pop(0)
                             return ms,bg
-                        issd.remove(rg)
                         mcnt += 1
                     elif todo:break
                     elif len(issd) <= maxissue:return ms,bg
             return ms,bg
+
         def fin():
             for j in range(len(todo)):todo.pop(0)
             for j in range(len(issd)):issd.pop(0)
@@ -368,6 +369,9 @@ class ensemble(mb.mobject):
                     free.append(r);occp.remove(r)
                     rg,rm = mmpi.pollrecv(r)
             
+        maxissue = int(mmpi.size()*1.0)
+        free,occp,todo,issd = list(range(1,mmpi.size())),[],[],[]
+
         self.anlr.measure = ameas
         self.anlr.finish = fin
         result,error = self.anlr.anneal_auto(10)

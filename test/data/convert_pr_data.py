@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 import modular4.output as mo
 
-import argparse,sys,os,time,numpy,logging,multiprocessing
-
-import numpy 
+import argparse,sys,os,time,numpy,logging,multiprocessing,numpy,pdb
 
 
 
@@ -21,12 +19,18 @@ def convert(fp,**kws):
             pgs.append((ydat,[yt[0],yt[yx]],{'header':str(ye['inducer'][yx])}))
         kws['ol'] = 'none','converteddata','pkl',','.join(yt)
         kws['pages'] = pgs
+        kws['inform'] = inform_callback
         kws['MODULARDATA'] = True
         moup = mo.output(**kws)
     else:
         mb.log(5,'unknown data extension',fp[fp.rfind('.'):])
         raise ValueError
     return moup
+
+def inform_callback(e,pg):
+    yt,yd,ye = pg
+
+    pdb.set_trace()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
