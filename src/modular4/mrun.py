@@ -50,7 +50,8 @@ def run_fit(mcfg,name,modu,fdat):
     e = me.ensemble(name = name,module = modu,dataschem = 'none')
     e.parse_mcfg(mcfg)
     skws = {
-        'iterations':1000,'heatrate':5.0,'mstep':max(mmpi.size()-1,1),
+        'iterations':e.batchsize,'heatrate':1.0,
+        'mstep':max(mmpi.size()-1,1),'discrete':None,
         'plotfinal':False,'plotbetter':False,
             }
     if mmpi.root():
@@ -87,6 +88,21 @@ def run_mcfg(mcfg,name,modu):
         mb.log(5,'ran mcfg in %f seconds' % numpy.round(et-st,3))
         return tuple(o() for o in r)
 
+def run(options):
+    if options.plt:run_pklplotter(options.dir)
+    elif options.mcfg:
+        mcfg = os.path.join(os.getcwd(),options.mcfg)
+        if not os.path.isfile(mcfg):
+            mb.log(5,'COULD NOT LOCATE MCFG: %s' % mcfg)
+        else:
+            if options.slave:run_slave(mcfg,options.name,options.mod)
+            elif options.fit:
+                if not os.path.isfile(options.fit):
+                    mb.log(5,'COULD NOT LOCATE FIT DATA: %s' % options.fit)
+                else:run_fit(mcfg,options.name,options.mod,options.fit)
+            else:run_mcfg(mcfg,options.name,options.mod)
+    else:mb.log(5,'NO MCFG PROVIDED')
+
 def profile_function(func_,*args,**kwargs):
     cProfile.runctx('func_(*args,**kwargs)',
         globals(),locals(),'profile.prof')
@@ -104,21 +120,11 @@ if __name__ == '__main__':
     parser.add_argument('--np',  required = False,type = int,default = 1,help = 'number of processes intended for use')
     parser.add_argument('--mpi', required = False,type = str,default = '',help = 'hostfile for use with mpi')
     parser.add_argument('--fit', required = False,type = str,default = '',help = 'input data set to fit parameters to')
+    parser.add_argument('--prof',action = "store_true",default = False,help = 'perform profiling')
     parser.add_argument('--slave',action = "store_true",default = False,help = '')
     options = parser.parse_args()
-    if options.plt:run_pklplotter(options.dir)
-    elif options.mcfg:
-        mcfg = os.path.join(os.getcwd(),options.mcfg)
-        if not os.path.isfile(mcfg):
-            mb.log(5,'COULD NOT LOCATE MCFG: %s' % mcfg)
-        else:
-            if options.slave:run_slave(mcfg,options.name,options.mod)
-            elif options.fit:
-                if not os.path.isfile(options.fit):
-                    mb.log(5,'COULD NOT LOCATE FIT DATA: %s' % options.fit)
-                else:run_fit(mcfg,options.name,options.mod,options.fit)
-            else:run_mcfg(mcfg,options.name,options.mod)
-    else:mb.log(5,'NO MCFG PROVIDED')
+    if mmpi.rank() == 1 and options.prof:profile_function(run,options)
+    else:run(options)
 
 
 

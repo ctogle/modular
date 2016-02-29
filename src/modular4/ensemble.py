@@ -8,6 +8,7 @@ import modular4.mpi as mmpi
 import sim_anneal.anneal as sa
 
 import numpy,random,time,os,sys,cPickle,subprocess,stat
+import matplotlib.pyplot as plt
 
 import pdb
 
@@ -103,6 +104,10 @@ class ensemble(mb.mobject):
             return sr[0,:,btx:ttx]
         i = self.pspace.current[:]
         b = self.pspace.bounds[:]
+
+        w = numpy.exp((-5.0/newx[-1])*newx)
+        w = numpy.array(tuple(w for t in self.targets))
+        kws['weights'] = w
         self.anlr = sa.annealer(f,newx,y,i,b,**kws)
         if mmpi.size() > 1 and mmpi.root():
             mmpi.broadcast(['newfitdata',fd,kws])
@@ -326,19 +331,47 @@ class ensemble(mb.mobject):
         '''
         act as a dispatcher for a fitting routine that leverages mpi
         '''
+        maxissue = int(mmpi.size()*1.0)
+        free,occp,todo,issd = list(range(1,mmpi.size())),[],[],[]
         def ameas(gs):
-            gcnt = min(len(gs),mmpi.size()-1)
-            ms = [None for c in range(gcnt)]
-            for p in range(gcnt):
-                mmpi.broadcast(['execfit',gs[p]],p+1)
+            todo.extend(list(gs))
+            gcnt = len(todo)
+            ms,bg = self.anlr.m,None
             mcnt = 0
             while mcnt < gcnt:
-                nxtp = mmpi.pollrecv()
-                ms[nxtp-1] = mmpi.pollrecv(nxtp)
-                mcnt += 1
-            return ms
+                while free and todo:
+                    ng,p = todo.pop(-1),free.pop(0)
+                    mmpi.broadcast(['execfit',ng],p)
+                    occp.append(p)
+                    issd.append(ng)
+                while occp:
+                    r = mmpi.passrecv()
+                    if not r is None and int(r) in occp:
+                        free.append(r);occp.remove(r)
+                        rg,rm = mmpi.pollrecv(r)
+                        if rm < ms:
+                            ms = rm
+                            bg = rg
+                            for x in range(len(todo)):todo.pop(0)
+                            return ms,bg
+                        issd.remove(rg)
+                        mcnt += 1
+                    elif todo:break
+                    elif len(issd) <= maxissue:return ms,bg
+            return ms,bg
+        def fin():
+            for j in range(len(todo)):todo.pop(0)
+            for j in range(len(issd)):issd.pop(0)
+            while occp:
+                r = mmpi.passrecv()
+                if not r is None and int(r) in occp:
+                    free.append(r);occp.remove(r)
+                    rg,rm = mmpi.pollrecv(r)
+            
         self.anlr.measure = ameas
-        result,error = self.anlr.anneal()
+        self.anlr.finish = fin
+        result,error = self.anlr.anneal_auto(10)
+        #result,error = self.anlr.anneal()
         exx = self.find_extract_measurement()
         if not exx is None:
             px = self.pspacemap.new_location(result)
@@ -435,9 +468,9 @@ class ensemble(mb.mobject):
             elif m == 'execfit':
                 j = mmpi.pollrecv(0)
                 a = self.anlr
-                fm = a.metric(a.f(a.x,*j),a.y)
+                fm = a.metric(a.f(a.x,*j),a.y,a.weights)
                 mmpi.broadcast(mmpi.rank(),0)
-                mmpi.broadcast(fm,0)
+                mmpi.broadcast((j,fm),0)
             elif m == 'newfitdata':
                 newy = mmpi.pollrecv(0)
                 skws = mmpi.pollrecv(0)

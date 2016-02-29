@@ -33,7 +33,7 @@
 
 <outputs>
 	none : ensemble_output : pkl : all
-	none : statistics_output : pkl : E_mean,S_mean,ES_mean,P_mean
+	none : statistics_output : pkl : all
 
 <parameterspace> 
   <map> : 1

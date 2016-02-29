@@ -21,7 +21,7 @@ def broadcast(m,*dests):
                 c.send(m,dest = l)
     
 # effectively recv, but use polling to ease cores...
-def pollrecv(r = None,d = 0.0000001,md = 0.1,i = 0.001,e = 0.001):
+def pollrecv(r = None,d = 0.0000001,md = 0.001,i = 0.0001,e = 0.001):
     if r is None:r = MPI.ANY_SOURCE
     c = comm()
     while True:

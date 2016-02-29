@@ -25,7 +25,7 @@ class test_fitting(unittest.TestCase):
             'plotfinal':False,'plotbetter':False,
                 }
 
-        moup = mo.convert(self.fd_file)
+        moup = mo.loadpkl(self.fd_file)
         for pg in moup.pages:
             yd,yt,ye = pg
             e.set_annealer(yd,**skws)

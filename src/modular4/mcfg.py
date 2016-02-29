@@ -53,9 +53,12 @@ def parse_pspace(parser,lines):
         intent = lines.pop(0).split(':')
         intent,trajcount = intent[0].strip(),int(intent[1])
     else:intent,trajcount = None,1
-    axes,bnds,init,disc = zip(*tuple(parse_axis(l) for l in lines))
+    if lines:axes,bnds,init,disc = zip(*tuple(parse_axis(l) for l in lines))
+    else:axes,bnds,init,disc = (),(),(),()
     sp = psp.pspace(bnds,init,disc,axes)
-    if intent == '<map>':traj = list(it.product(*sp.discrete))
+    if intent == '<map>':
+        traj = list(it.product(*sp.discrete))
+        if not traj:traj = [sp.initial[:]]
     elif intent == '<fit>':traj = [sp.initial[:]]
     else:traj = None
     sp._purpose = intent

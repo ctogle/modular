@@ -1,0 +1,55 @@
+
+<end>
+	time limit : 0.005
+
+<capture>
+  increment : 0.00005 : time
+
+<variables>
+  k_r : 1.0
+  k_f : 0.01
+  k_cat : 800.0
+
+<species>
+	E : 5000
+	S : 10000
+	ES : 0
+	P : 100
+
+<reactions>
+	1 E + 1 S k_r -> 1 ES : ES complex formation
+	1 ES k_f -> 1 E + 1 S : ES complex dissociation
+	1 ES k_cat -> 1 E + 1 P : P formation
+
+<targets>
+	time
+	ES
+	P
+	S
+	E
+
+<parameterspace>
+  <fit> : 1
+    k_r   : 0.001,1000.0 : 1.0 : 10
+    k_f   : 0.001,1000.0 : 1.0 : 10
+    k_cat : 0.001,1000.0 : 1.0 : 10
+
+<measurements>
+  extract : 0;location : all : all : 1 : 0.0
+
+<outputs>
+	none : ensemble_output : none : all
+  none : extraction_output  : pkl  : all
+
+<ensemble>
+  batchsize : 1000
+
+#	Correct Values :
+#		Enzyme Substrate complex formation : rate : 1.0
+#		Enzyme Substrate complex dissociation : rate : 0.01
+#		Product formation : rate : 800
+#		Substrate : initial_count : 10000
+#		Enzyme : initial_count : 5000
+
+
+
