@@ -64,8 +64,9 @@ class pspace(object):
     def move(self,ng):
         '''set and return the current position in the parameter space'''
         self.current = ng
-        dczip = zip(self.discrete,self.current)
-        self.disc_loc = tuple(locate(d,c) if d else None for d,c in dczip)
+        if not self.discrete == self.nonedg:
+            dczip = zip(self.discrete,self.current)
+            self.disc_loc = tuple(locate(d,c) if d else None for d,c in dczip)
         self.trajectory.append(self.current[:])
         return self.current
     
@@ -123,7 +124,7 @@ class pspace(object):
 
         self.nonedg = tuple(None for k in self.initial)
         self.disccount = 10
-        if discrete is None:
+        if discrete is None or discrete == self.nonedg:
             self.discrete = self.nonedg
             self.disc_loc = None
         else:
@@ -206,6 +207,12 @@ class pspace(object):
         v = int(m/self.dims)-n.count(0)
         if v == 0:e = 0
         else:e = m % v
+
+        ## temp hack....
+        if m < self.dims:
+            print('use more processes...')
+            raise ValueError
+
         faket = numpy.linspace(0.000001,1.0,int(m/self.dims)+1)
         axs = tuple(tuple(self.step_axis(a,faket[j],d)
                 for j in range(int(m/self.dims))) 
