@@ -24,28 +24,28 @@ Run the test:
 
 View the test results:
 
-../mrun.sh ./correl_ensemble_test/ --plt
+../mrun.sh --dir ./correl_ensemble_test/ --plt
 
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 Three ways to run an mcfg using the mrun.sh script (with mrun.sh in the path):
 
-mrun.sh path/to/some/mcfgfile.mcfg
+mrun.sh --mcfg path/to/some/mcfgfile.mcfg
 
-mrun.sh path/to/some/mcfgfile.mcfg --np #processes
+mrun.sh --np #processes --mcfg path/to/some/mcfgfile.mcfg 
 
-mrun.sh path/to/some/mcfgfile.mcfg --mpi path/to/some/hostfile
+mrun.sh --mpi path/to/some/hostfile --mcfg path/to/some/mcfgfile.mcfg 
 
 
 You can also run mcfgs using mpiexec manually:
 
-mpiexec [mpi-options] mrun.sh path/to/some/mcfgfile.mcfg
+mpiexec [mpi-options] mrun.sh --mcfg path/to/some/mcfgfile.mcfg
 
 
 Running an mcfg creates a directory in the current working directory containing
 results among other files generated during the run. To view output data:
 
-mrun.sh /path/to/output/files/ --plt
+mrun.sh --dir /path/to/output/files/ --plt
 
 -------------------------------------------------------------------------------

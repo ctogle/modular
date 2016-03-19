@@ -19,7 +19,7 @@ def convert(fp,**kws):
             pgs.append((ydat,[yt[0],yt[yx]],{'header':str(ye['inducer'][yx])}))
         kws['ol'] = 'none','converteddata','pkl',','.join(yt)
         kws['pages'] = pgs
-        kws['inform'] = inform_callback
+        #kws['inform'] = inform_callback
         kws['MODULARDATA'] = True
         moup = mo.output(**kws)
     else:

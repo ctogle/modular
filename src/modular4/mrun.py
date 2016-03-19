@@ -49,6 +49,7 @@ def run_slave(mcfg):
 def run_fit(mcfg,name,modu,fdat):
     e = me.ensemble(name = name,module = modu,dataschem = 'none')
     e.parse_mcfg(mcfg)
+    itr = 100 if e.batchsize is None else e.batchsize
     skws = {
         'iterations':e.batchsize,'heatrate':1.0,
         'mstep':max(mmpi.size()-1,1),'discrete':None,
@@ -65,10 +66,12 @@ def run_fit(mcfg,name,modu,fdat):
                     mmpi.broadcast('prom',hosts[h][0])
             mmpi.broadcast('prep')
         moup = mo.loadpkl(fdat)
+        epi = e.pspace.current[:]
         for pg in moup.pages:
             if moup.inform:moup.inform(e,pg)
             yd,yt,ye = pg
             e.set_annealer(yd,**skws)
+            e.anlr.psp.move(epi)
             r = e.run()
             res,err = r
         if mmpi.size() > 1:

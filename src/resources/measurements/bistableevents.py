@@ -89,18 +89,19 @@ class bistability(mme.measurement):
 
 
                 #if tjx % 20 == 0:
-                if tjx == 0 and dtx == 0 or dtx == 1:
-                    aux['extra_trajectory'].append(
-                        ((domain,dtdat[tjx,:]),{'color':'black','label':dt}))
+                if tjx == 0 and (dtx == 0 or dtx == 1):
+                    tcol = 'blue' if dtx == 0 else 'green'
+                    aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
+                        {'linewidth':2,'color':tcol,'label':dt}))
                     etx = [domain[0],domain[-1]]
-                    aux['extra_trajectory'].append(
-                        ((etx,[alo,alo]),{'linestyle':'--','color':'red'}))
-                    aux['extra_trajectory'].append(
-                        ((etx,[ahy,ahy]),{'linestyle':'--','color':'red'}))
+                    aux['extra_trajectory'].append(((etx,[alo,alo]),
+                        {'linewidth':2,'linestyle':'--','color':'black'}))
+                    aux['extra_trajectory'].append(((etx,[ahy,ahy]),
+                        {'linewidth':2,'linestyle':'--','color':'black'}))
                     for tje in tjevents:
                         etx = [domain[tje[0]],domain[tje[1]]]
                         aux['extra_trajectory'].append(((etx,[threshz,threshz]),
-                            {'linewidth':2,'marker':'s','color':'green'}))
+                            {'linewidth':3,'marker':'s','color':'red'}))
                 if False:
                     ax = plot_events(domain,dtdat[tjx,:],tjevents,threshz)
                     ax.plot([domain[0],domain[-1]],[threshz,threshz],linestyle = '--',color = 'red')

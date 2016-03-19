@@ -6,17 +6,14 @@
 	increment : 5 : time
 
 <variables>
-	g  : 0.00275
 	X0 : 1.44
-	n  : 3
-	dox : 0.0
-	Kdox : 34.2
+	tau : 1
 
 #<functions>
 #<reactions>
 
 <equations>
-  X : g * (1-(X/X0)) * (1/(1+(dox/Kdox)**n))
+  X : (0.69 / tau) * X * (1-(X/X0))
 
 <species>
 	X : 0.103
@@ -28,12 +25,8 @@
 <parameterspace>
 	<fit> : 1
 		X : 0.1,0.5 : 0.1 : 1
-		g : 0.001,0.01 : 0.001 : 1
 		X0 : 0.01,10.0 : 1.0 : 1
-		n : 1.0,4.0 : 1.0 : 1
-		Kdox : 10.0,50.0 : 10.0 : 1
-
-		#dox : 0.0,200.0 : 0.0 : 200
+		tau : 1.0,500.0 : 1.0 : 1
 
 <measurements>
   extract : 0;location : all : all : 1 : 0.0

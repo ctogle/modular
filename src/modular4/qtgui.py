@@ -332,9 +332,9 @@ class mpltwidget(mwidget):
         return self
 
     def update(self):
-        if not self.parent._targets:
-            mb.log(5,'mpltwidget should update its plot but has no targets!')
-            return self
+        #if not self.parent._targets:
+        #    mb.log(5,'mpltwidget should update its plot but has no targets!')
+        #    return self
         ax = self.clear_ax()
         x,y,z = self.parent.xdomain,self.parent.ydomain,self.parent.zdomain
         d,t = self.entry
@@ -481,6 +481,7 @@ class mpltwidget(mwidget):
         if self.parent.xbnd:xmin,xmax = self.parent.xmin,self.parent.xmax
         else:xmin,xmax = dx.min(),dx.max()
         if self.parent.ybnd:ymin,ymax = self.parent.ymin,self.parent.ymax
+        elif not dys:ymin,ymax = 0,1
         else:
             ymin,ymax = dys[0].min(),dys[0].max()
             if len(dys) > 1:

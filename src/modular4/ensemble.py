@@ -104,8 +104,7 @@ class ensemble(mb.mobject):
             return sr[0,:,btx:ttx]
         i = self.pspace.current[:]
         b = self.pspace.bounds[:]
-
-        w = numpy.exp((-5.0/newx[-1])*newx)
+        w = numpy.exp((-3.0/newx[-1])*newx)
         w = numpy.array(tuple(w for t in self.targets))
         kws['weights'] = w
         self.anlr = sa.annealer(f,newx,y,i,b,**kws)
@@ -356,7 +355,8 @@ class ensemble(mb.mobject):
                             for x in range(len(todo)):todo.pop(0)
                             return ms,bg
                         mcnt += 1
-                    elif todo:break
+                        break
+                    #elif todo:break
                     elif len(issd) <= maxissue:return ms,bg
             return ms,bg
 
@@ -374,7 +374,7 @@ class ensemble(mb.mobject):
 
         self.anlr.measure = ameas
         self.anlr.finish = fin
-        result,error = self.anlr.anneal_auto(10)
+        result,error = self.anlr.anneal_auto(5)
         #result,error = self.anlr.anneal()
         exx = self.find_extract_measurement()
         if not exx is None:

@@ -1,0 +1,143 @@
+
+<end>
+    time limit : 100.0
+
+
+
+<capture>
+    increment : 1.0 : time
+
+
+
+<species>
+    t1   : 0
+    a1   : 0
+    T1   : 0
+    A1   : 0
+    TT1  : 0
+    C1   : 0
+    CC1  : 0
+
+
+
+<variables>
+    # transcription parameters
+    sigma : 20.0
+    k_0   : 0.05
+
+    # translation parameters
+    beta : 100.0
+    nu   : 1.25
+
+    # complex formation
+    k_C : 100.0
+
+    # cleavage
+    f_T    : 5.0
+    omega  : 0.2
+
+    # degradation
+    mu      : 100.0
+    epsilon : 0.05
+
+    # dilution
+    gam   : 1.0
+    b_c   : 0.25
+
+
+
+<functions>
+    # useful shorthands
+    T_total1 : T1 + TT1
+    A_total1 : A1
+    C_total1 : C1 + CC1
+    #mod1degtargs : A1 + C1 + CC1
+
+    # transcription
+    lambda_ta : sigma/(1 + (A1 + C1 + CC1)*k_0)
+
+    # translation
+    alpha_t : beta
+    alpha_a : beta*nu
+
+    # mRNA cleavage
+    F_t : f_T*(T1 + TT1)
+    F_a : f_T*(T1 + TT1)*omega
+
+    # proteolysis
+    G : mu / (epsilon + (A1 + C1 + CC1))
+
+    # dilution rates
+    Gam : gam/(1.0 + b_c*(T1 + TT1))
+
+
+
+<reactions>
+    # transcription
+    nothing lambda_ta -> 1 t1 + 1 a1 : production of toxin/antitoxin mRNAs of module1
+
+    # translation
+    1 a1 alpha_a -> 1 a1 + 1 A1 : translation of antitoxin mRNA of module1
+    1 t1 alpha_t -> 1 t1 + 1 T1 : translation of toxin mRNA of module1
+
+    # complex formation
+    2 T1 k_C -> 1 TT1 : toxin dimer formation of module1
+    1 TT1 + 1 A1  k_C -> 1 C1 : formation of TTA complex of module 1 
+    2 C1 k_C -> 1 CC1 : formation of TTAATT complex of module 1
+
+    # mRNA cleavage
+    1 t1 + F_t -> nothing : cleavage of toxin mRNA by toxin of module 1
+    1 a1 + F_a -> nothing : cleavage of antitoxin mRNA by toxin of module 1
+
+    # degradation
+    1 A1 G -> nothing : degradation of antitoxin1
+    1 C1 G -> 1 TT1 : degradation of antitoxin in TTA complex1
+    1 CC1 G -> 1 TT1 + 1 C1 : degradation of antitoxin in TTAATT complex1
+
+    # dilution
+    1 a1 Gam -> nothing : dilution of antitoxin1 mRNA
+    1 A1 Gam -> nothing : dilution of antitoxin1
+    1 C1 Gam -> nothing : dilution of TTA complex1
+    1 CC1 Gam -> nothing : dilution of TTAATT complex1
+    1 t1 Gam -> nothing : dilution of toxin1 mRNA
+    1 T1 Gam -> nothing : dilution of toxin1
+    1 TT1 Gam -> nothing : dilution of toxin1 dimer
+
+
+
+<targets>
+    time
+    T1
+    TT1
+    T_total1
+
+
+
+<parameterspace>
+	<map> : 1
+    #beta : 100.0,200.0 : 100.0 : 6
+    k_C : 100.0,1000.0 : 100.0 : 7
+
+
+
+<measurements>
+    extract : 0;location : all : all : 5 : 0.0
+    bistability : 0;location : T_total1 of time : 5 : 0.1
+    bypspace : 2;parameterspace : all
+
+
+
+<outputs>
+    none : ensemble_output    : none : all
+    none : extraction_output  : pkl  : all
+    none : bistability_output : pkl  : all
+    none : bistabreorg_output : pkl  : all
+
+
+
+<ensemble>
+    batchsize : 1
+
+
+
+
