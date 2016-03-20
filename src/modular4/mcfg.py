@@ -46,10 +46,19 @@ def parse_pspace(parser,lines):
     def parse_axis(a):
         ax,b,i,d = tuple(x.strip() for x in a.split(':'))
         b = tuple(float(x) for x in b.split(','))
-        i = float(i)
-        d = int(d)
-        if d == 1:d = None
-        else:d = tuple(np.linspace(b[0],b[1],d))
+        if len(b) == 2:
+            i = float(i)
+            if d.endswith(';log'):
+                d = int(d[:d.find(';')])
+                if d == 1:d = None
+                else:d = tuple(np.exp(np.linspace(np.log(b[0]),np.log(b[1]),d)))
+            else:
+                d = int(d)
+                if d == 1:d = None
+                else:d = tuple(np.linspace(b[0],b[1],d))
+        elif len(b) > 2:
+            i = b[0]
+            d = b[:]
         return ax,b,i,d
     if lines and '<' in lines[0] and '>' in lines[0]:
         intent = lines.pop(0).split(':')
