@@ -56,10 +56,16 @@ class bistability(mme.measurement):
         los = [x+':mean_prob_leak' for x in self.codomain]
         his = [x+':mean_high_value' for x in self.codomain]
         dfs = [x+':mean_high_del_t' for x in self.codomain]
+        shis = [x+':mean_stddev_high_value' for x in self.codomain]
+        sdfs = [x+':mean_stddev_high_del_t' for x in self.codomain]
+        mnhis = [x+':mean_min_high_value' for x in self.codomain]
+        mndfs = [x+':mean_min_high_del_t' for x in self.codomain]
+        mxhis = [x+':mean_max_high_value' for x in self.codomain]
+        mxdfs = [x+':mean_max_high_del_t' for x in self.codomain]
         efs = [x+':mean_event_frequency' for x in self.codomain]
         pco = [x+':mean_event_correlation' for x in self.codomain]
         ppv = [x+':mean_event_pvalue' for x in self.codomain]
-        cinputs = ['minimaldomain']+dfs+his+plo+phi+los+efs+pco+ppv
+        cinputs = ['minimaldomain']+dfs+his+sdfs+shis+mndfs+mnhis+mxdfs+mxhis+plo+phi+los+efs+pco+ppv
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     # this function will be called for each pspace location 
@@ -126,9 +132,15 @@ class bistability(mme.measurement):
                 if ed:
                     meas = measure_trajectory(
                         domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    mdt,mhy,phy,plo,plk,mefreq,evc,epv = meas
+                    mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,plk,mefreq,evc,epv = meas
                     tdata[getodtx(dt,':mean_high_del_t')].append(mdt)
                     tdata[getodtx(dt,':mean_high_value')].append(mhy)
+                    tdata[getodtx(dt,':mean_stddev_high_del_t')].append(sdt)
+                    tdata[getodtx(dt,':mean_stddev_high_value')].append(shy)
+                    tdata[getodtx(dt,':mean_min_high_del_t')].append(mndt)
+                    tdata[getodtx(dt,':mean_min_high_value')].append(mnhy)
+                    tdata[getodtx(dt,':mean_max_high_del_t')].append(mxdt)
+                    tdata[getodtx(dt,':mean_max_high_value')].append(mxhy)
                     tdata[getodtx(dt,':mean_prob_high')].append(phy)
                     tdata[getodtx(dt,':mean_prob_low')].append(plo)
                     tdata[getodtx(dt,':mean_prob_leak')].append(plk)
@@ -153,6 +165,12 @@ class bistability(mme.measurement):
                 else:odata[tx,0] = dv
             defoval(getodtx(':mean_high_del_t'),-1.0)
             defoval(getodtx(':mean_high_value'),-1.0)
+            defoval(getodtx(':mean_stddev_high_del_t'),-1.0)
+            defoval(getodtx(':mean_stddev_high_value'),-1.0)
+            defoval(getodtx(':mean_min_high_del_t'),-1.0)
+            defoval(getodtx(':mean_min_high_value'),-1.0)
+            defoval(getodtx(':mean_max_high_del_t'),-1.0)
+            defoval(getodtx(':mean_max_high_value'),-1.0)
             defoval(getodtx(':mean_prob_high'),-1.0)
             defoval(getodtx(':mean_prob_low'),-1.0)
             defoval(getodtx(':mean_prob_leak'),-1.0)
@@ -187,14 +205,20 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
         crs.append(cr)
         pvs.append(pv)
     mdt = numpy.mean(dts)
+    sdt = numpy.std(dts)
+    mndt = numpy.min(dts)
+    mxdt = numpy.max(dts)
     mhy = numpy.mean(hys)
+    shy = numpy.std(hys)
+    mnhy = numpy.min(hys)
+    mxhy = numpy.max(hys)
     efq = float(len(es))/float(x[-1]-x[0])
     evc = numpy.mean(crs)
     epv = numpy.mean(pvs)
     phy = sum(dts)/float(x[-1]-x[0])
     plo = 1.0 - phy
     plk = -1.0
-    return mdt,mhy,phy,plo,plk,efq,evc,epv
+    return mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,plk,efq,evc,epv
 
 def measure_boring_trajectory(x,y,alo,ahy,es,aes,o = None):
     highcnt = numpy.count_nonzero(y >= ahy)
