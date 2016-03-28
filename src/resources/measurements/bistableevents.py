@@ -50,10 +50,9 @@ class bistability(mme.measurement):
     # set the names of the output targets
     def set_targets(self,inputs,pspace):
         if not self.domain in inputs:self.domain = inputs[0]
-        bitgs = self.codomain
+
         plo = [x+':mean_prob_low' for x in self.codomain]
         phi = [x+':mean_prob_high' for x in self.codomain]
-        los = [x+':mean_prob_leak' for x in self.codomain]
         his = [x+':mean_high_value' for x in self.codomain]
         dfs = [x+':mean_high_del_t' for x in self.codomain]
         shis = [x+':mean_stddev_high_value' for x in self.codomain]
@@ -65,7 +64,9 @@ class bistability(mme.measurement):
         efs = [x+':mean_event_frequency' for x in self.codomain]
         pco = [x+':mean_event_correlation' for x in self.codomain]
         ppv = [x+':mean_event_pvalue' for x in self.codomain]
-        cinputs = ['minimaldomain']+dfs+his+sdfs+shis+mndfs+mnhis+mxdfs+mxhis+plo+phi+los+efs+pco+ppv
+
+        cinputs = ['eventcount']+\
+            dfs+his+sdfs+shis+mndfs+mnhis+mxdfs+mxhis+plo+phi+efs+pco+ppv
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     # this function will be called for each pspace location 
@@ -87,15 +88,20 @@ class bistability(mme.measurement):
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
+
+                # MAGIC NUMBERS HERE!!!
                 threshz,thwidth = dtdat.max()/5.0,dtdat.max()/8.0
                 alo = max(1,threshz - thwidth)
                 ahy = min(dtdat.max()-1,threshz + thwidth)
+
+                # seek all events in this trajectory for this target
                 tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
 
 
 
+                # CODE TO COLLECT/PRINT DIAGNOSTIC EVENT DETECTION DATA
                 #if tjx % 20 == 0:
-                if tjx == 0 and (dtx == 0 or dtx == 1):
+                if False and (tjx == 0 and (dtx == 0 or dtx == 1)):
                     tcol = 'blue' if dtx == 0 else 'green'
                     aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
                         {'linewidth':2,'color':tcol,'label':dt}))
@@ -118,6 +124,8 @@ class bistability(mme.measurement):
 
 
                 alltjevents.append(tjevents)
+
+            # having collecting all events for all targets, event measurements can be made
             for dtx in range(tcount):
                 ed = alltjevents[dtx]
                 dt = self.codomain[dtx]
@@ -129,10 +137,12 @@ class bistability(mme.measurement):
                 else:otdat = None
                 mb.log(5,'events found',len(ed))
                 tdata[0].append(len(ed))
+
+                # IF NOT ED THEN NO EVENTS => BIG PROBLEM!!!
                 if ed:
                     meas = measure_trajectory(
                         domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,plk,mefreq,evc,epv = meas
+                    mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,mefreq,evc,epv = meas
                     tdata[getodtx(dt,':mean_high_del_t')].append(mdt)
                     tdata[getodtx(dt,':mean_high_value')].append(mhy)
                     tdata[getodtx(dt,':mean_stddev_high_del_t')].append(sdt)
@@ -143,40 +153,39 @@ class bistability(mme.measurement):
                     tdata[getodtx(dt,':mean_max_high_value')].append(mxhy)
                     tdata[getodtx(dt,':mean_prob_high')].append(phy)
                     tdata[getodtx(dt,':mean_prob_low')].append(plo)
-                    tdata[getodtx(dt,':mean_prob_leak')].append(plk)
                     tdata[getodtx(dt,':mean_event_frequency')].append(mefreq)
                     if not math.isnan(evc):
                         tdata[getodtx(dt,':mean_event_correlation')].append(verify(evc))
                         tdata[getodtx(dt,':mean_event_pvalue')].append(verify(epv))
+
                 else:
+                    # THIS POINT SHOULD NEVER BE REACHED!!!
                     meas = measure_boring_trajectory(
                         domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    phy,plo,plk = meas
+                    phy,plo = meas
                     tdata[getodtx(dt,':mean_prob_high')].append(phy)
                     tdata[getodtx(dt,':mean_prob_low')].append(plo)
-                    tdata[getodtx(dt,':mean_prob_leak')].append(plk)
                     tdata[getodtx(dt,':mean_event_frequency')].append(0.0)
                     
         for dtx in range(tcount):
             dt = self.codomain[dtx]
             getodtx = lambda s : self.targets.index(dt+s)
-            def defoval(tx,dv):
+            def defoval(tx):
                 if tdata[tx]:odata[tx,0] = numpy.mean(tdata[tx])
-                else:odata[tx,0] = dv
-            defoval(getodtx(':mean_high_del_t'),-1.0)
-            defoval(getodtx(':mean_high_value'),-1.0)
-            defoval(getodtx(':mean_stddev_high_del_t'),-1.0)
-            defoval(getodtx(':mean_stddev_high_value'),-1.0)
-            defoval(getodtx(':mean_min_high_del_t'),-1.0)
-            defoval(getodtx(':mean_min_high_value'),-1.0)
-            defoval(getodtx(':mean_max_high_del_t'),-1.0)
-            defoval(getodtx(':mean_max_high_value'),-1.0)
-            defoval(getodtx(':mean_prob_high'),-1.0)
-            defoval(getodtx(':mean_prob_low'),-1.0)
-            defoval(getodtx(':mean_prob_leak'),-1.0)
-            defoval(getodtx(':mean_event_frequency'),-1.0)
-            defoval(getodtx(':mean_event_correlation'),-100.0)
-            defoval(getodtx(':mean_event_pvalue'),1.0)
+                else:odata[tx,0] = self.fill_value
+            defoval(getodtx(':mean_high_del_t'))
+            defoval(getodtx(':mean_high_value'))
+            defoval(getodtx(':mean_stddev_high_del_t'))
+            defoval(getodtx(':mean_stddev_high_value'))
+            defoval(getodtx(':mean_min_high_del_t'))
+            defoval(getodtx(':mean_min_high_value'))
+            defoval(getodtx(':mean_max_high_del_t'))
+            defoval(getodtx(':mean_max_high_value'))
+            defoval(getodtx(':mean_prob_high'))
+            defoval(getodtx(':mean_prob_low'))
+            defoval(getodtx(':mean_event_frequency'))
+            defoval(getodtx(':mean_event_correlation'))
+            defoval(getodtx(':mean_event_pvalue'))
         mecnt = numpy.mean(tdata[0])
         odata[0,0] = mecnt
         return odata,self.targets,aux
@@ -204,6 +213,7 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
         hys.append(hy)
         crs.append(cr)
         pvs.append(pv)
+
     mdt = numpy.mean(dts)
     sdt = numpy.std(dts)
     mndt = numpy.min(dts)
@@ -213,22 +223,23 @@ def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
     mnhy = numpy.min(hys)
     mxhy = numpy.max(hys)
     efq = float(len(es))/float(x[-1]-x[0])
+
+    # evc/epv are almost definitely not correct; mean here is definitely incorrect
     evc = numpy.mean(crs)
     epv = numpy.mean(pvs)
+
     phy = sum(dts)/float(x[-1]-x[0])
     plo = 1.0 - phy
-    plk = -1.0
-    return mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,plk,efq,evc,epv
+    return mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,efq,evc,epv
 
+# THIS SHOULD EFFECTIVELY NEVER BE CALLED!!!
 def measure_boring_trajectory(x,y,alo,ahy,es,aes,o = None):
     highcnt = numpy.count_nonzero(y >= ahy)
     lowcnt = numpy.count_nonzero(y <= alo)
-    #leakcnt = numpy.count_nonzero(y > alo and y < ahy)
-    leakcnt = -1.0
     if highcnt > lowcnt:phy,plo = 1.0,0.0
     elif highcnt < lowcnt:phy,plo = 0.0,1.0
     else:phy,plo = 0.5,0.5
-    return phy,plo,leakcnt/float(y.size)
+    return phy,plo
 
 # return measurements of events in a trajectory (x,y)
 # an event identifies a "high count state" entry/exit for a species
@@ -297,9 +308,6 @@ def filter_events(x,y,th,tl,min_x_dt,es):
         if j > x.size-min_x_dt-1:f.pop(-1)
         elif y[j+1:j+1+min_x_dt].max() >= th:f.pop(-1)
     return f
-
-def calc_lines_callback(self,ax,d,t,x,ys):
-    pass
 
 def plot_events(x,y,es,z):
     ax = plt.gca()
