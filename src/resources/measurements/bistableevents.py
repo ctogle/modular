@@ -43,30 +43,44 @@ class bistability(mme.measurement):
         self._def('transient',0.2,**kws)
         # number of points required to represent a "stable" state
         self._def('min_x_dt',5,**kws)
+        self._def('z_factor',0.2,**kws)
+        self._def('w_factor',0.125,**kws)
         # fill value for NaN calculations from numpy..
         self._def('fillvalue',-100.0,**kws)
+        self._def('debug',False,**kws)
+        self._def('debug_plot',False,**kws)
 
     # based on the names of the input targets
     # set the names of the output targets
     def set_targets(self,inputs,pspace):
         if not self.domain in inputs:self.domain = inputs[0]
 
-        plo = [x+':mean_prob_low' for x in self.codomain]
-        phi = [x+':mean_prob_high' for x in self.codomain]
-        his = [x+':mean_high_value' for x in self.codomain]
-        dfs = [x+':mean_high_del_t' for x in self.codomain]
-        shis = [x+':mean_stddev_high_value' for x in self.codomain]
-        sdfs = [x+':mean_stddev_high_del_t' for x in self.codomain]
-        mnhis = [x+':mean_min_high_value' for x in self.codomain]
-        mndfs = [x+':mean_min_high_del_t' for x in self.codomain]
-        mxhis = [x+':mean_max_high_value' for x in self.codomain]
-        mxdfs = [x+':mean_max_high_del_t' for x in self.codomain]
-        efs = [x+':mean_event_frequency' for x in self.codomain]
-        pco = [x+':mean_event_correlation' for x in self.codomain]
-        ppv = [x+':mean_event_pvalue' for x in self.codomain]
+        ect = [x+':mean_event_count' for x in self.codomain]
 
-        cinputs = ['eventcount']+\
-            dfs+his+sdfs+shis+mndfs+mnhis+mxdfs+mxhis+plo+phi+efs+pco+ppv
+        mdt = [x+':mean_mean_high_del_t' for x in self.codomain]
+        sdt = [x+':mean_stddev_high_del_t' for x in self.codomain]
+        vdt = [x+':mean_variance_high_del_t' for x in self.codomain]
+        cdt = [x+':mean_covariance_high_del_t' for x in self.codomain]
+        mndt = [x+':mean_min_high_del_t' for x in self.codomain]
+        mxdt = [x+':mean_max_high_del_t' for x in self.codomain]
+
+        mhy = [x+':mean_mean_high_value' for x in self.codomain]
+        shy = [x+':mean_stddev_high_value' for x in self.codomain]
+        vhy = [x+':mean_variance_high_value' for x in self.codomain]
+        chy = [x+':mean_covariance_high_value' for x in self.codomain]
+        mnhy = [x+':mean_min_high_value' for x in self.codomain]
+        mxhy = [x+':mean_max_high_value' for x in self.codomain]
+
+        plo = [x+':mean_prob_low' for x in self.codomain]
+        phy = [x+':mean_prob_high' for x in self.codomain]
+
+        eco = [x+':mean_event_correlation' for x in self.codomain]
+        epv = [x+':mean_event_pvalue' for x in self.codomain]
+
+        cinputs = ect+\
+            mdt+sdt+vdt+cdt+mndt+mxdt+\
+            mhy+shy+vhy+chy+mnhy+mxhy+\
+            plo+phy+eco+epv
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     # this function will be called for each pspace location 
@@ -74,172 +88,198 @@ class bistability(mme.measurement):
     # targs is a list of strings corresponding to each input data target
     def measure(self,data,targs,psploc,**kws):
         aux = {'header':str(psploc)}
-        verify = lambda v : self.fillvalue if math.isnan(v) else v
+
+        # the list of input targets
         tcount = len(self.codomain)
-        dtshape = (len(self.targets),data.shape[0])
+
+        # proxy data to average over trajectories
         tdata = [[] for t in self.targets]
+
+        # actual output data (one value per output target)
         dshape = (len(self.targets),1)
         odata = numpy.zeros(dshape,dtype = numpy.float)
+
+        # immediately ignore a transient period before steady state
         transx = int(data.shape[2]*self.transient)
         domain = data[0,targs.index(self.domain),transx:]
+
+        # iterate over trajectories
         for tjx in range(data.shape[0]):
             alltjevents = []
             if tjx == 0:aux['extra_trajectory'] = []
+
+            # iterate over targets in a trajectory
             for dtx in range(tcount):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
 
-                # MAGIC NUMBERS HERE!!!
-                threshz,thwidth = dtdat.max()/5.0,dtdat.max()/8.0
+                # magic numbers for event detection
+                threshz = dtdat.max()*self.z_factor
+                thwidth = dtdat.max()*self.w_factor
                 alo = max(1,threshz - thwidth)
                 ahy = min(dtdat.max()-1,threshz + thwidth)
 
                 # seek all events in this trajectory for this target
                 tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
+                alltjevents.append(tjevents)
 
 
 
-                # CODE TO COLLECT/PRINT DIAGNOSTIC EVENT DETECTION DATA
-                #if tjx % 20 == 0:
-                if False and (tjx == 0 and (dtx == 0 or dtx == 1)):
+                if self.debug and (tjx == 0 and (dtx == 0 or dtx == 1)):
                     tcol = 'blue' if dtx == 0 else 'green'
                     aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
                         {'linewidth':2,'color':tcol,'label':dt}))
                     etx = [domain[0],domain[-1]]
-                    aux['extra_trajectory'].append(((etx,[alo,alo]),
-                        {'linewidth':2,'linestyle':'--','color':'black'}))
-                    aux['extra_trajectory'].append(((etx,[ahy,ahy]),
-                        {'linewidth':2,'linestyle':'--','color':'black'}))
+                    etkws = {'linewidth':2,'linestyle':'--','color':'black'}
+                    aux['extra_trajectory'].append(((etx,[alo,alo]),etkws))
+                    aux['extra_trajectory'].append(((etx,[ahy,ahy]),etkws))
+                    etkws = {'linewidth':3,'marker':'s','color':'red'}
+                    ety = [threshz,threshz]
                     for tje in tjevents:
                         etx = [domain[tje[0]],domain[tje[1]]]
-                        aux['extra_trajectory'].append(((etx,[threshz,threshz]),
-                            {'linewidth':3,'marker':'s','color':'red'}))
-                if False:
+                        aux['extra_trajectory'].append(((etx,ety),etkws))
+
+                if self.debug_plot:
                     ax = plot_events(domain,dtdat[tjx,:],tjevents,threshz)
-                    ax.plot([domain[0],domain[-1]],[threshz,threshz],linestyle = '--',color = 'red')
-                    ax.plot([domain[0],domain[-1]],[alo,alo],linestyle = '--',color = 'black')
-                    ax.plot([domain[0],domain[-1]],[ahy,ahy],linestyle = '--',color = 'black')
+                    etx = [domain[0],domain[-1]]
+                    ax.plot(etx,[threshz,threshz],linestyle = '--',color = 'red')
+                    ax.plot(etx,[alo,alo],linestyle = '--',color = 'black')
+                    ax.plot(etx,[ahy,ahy],linestyle = '--',color = 'black')
                     plt.show()
 
 
 
-                alltjevents.append(tjevents)
-
-            # having collecting all events for all targets, event measurements can be made
+            # iterate over targets again
             for dtx in range(tcount):
                 ed = alltjevents[dtx]
                 dt = self.codomain[dtx]
-                getodtx = lambda dt,s : self.targets.index(dt+s)
                 dtdat = data[tjx,targs.index(dt),transx:]
+
+                # get other data for correlation measurements (if more than one target)
                 if tcount > 1:
                     odt = self.codomain[1 if dtx == 0 else 0]
+                    oed = alltjevents[1 if dtx == 0 else 0]
                     otdat = data[tjx,targs.index(odt),transx:]
-                else:otdat = None
+                else:oed,otdat = None,None
+
                 mb.log(5,'events found',len(ed))
                 tdata[0].append(len(ed))
 
-                # IF NOT ED THEN NO EVENTS => BIG PROBLEM!!!
-                if ed:
-                    meas = measure_trajectory(
-                        domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,mefreq,evc,epv = meas
-                    tdata[getodtx(dt,':mean_high_del_t')].append(mdt)
-                    tdata[getodtx(dt,':mean_high_value')].append(mhy)
-                    tdata[getodtx(dt,':mean_stddev_high_del_t')].append(sdt)
-                    tdata[getodtx(dt,':mean_stddev_high_value')].append(shy)
-                    tdata[getodtx(dt,':mean_min_high_del_t')].append(mndt)
-                    tdata[getodtx(dt,':mean_min_high_value')].append(mnhy)
-                    tdata[getodtx(dt,':mean_max_high_del_t')].append(mxdt)
-                    tdata[getodtx(dt,':mean_max_high_value')].append(mxhy)
-                    tdata[getodtx(dt,':mean_prob_high')].append(phy)
-                    tdata[getodtx(dt,':mean_prob_low')].append(plo)
-                    tdata[getodtx(dt,':mean_event_frequency')].append(mefreq)
-                    if not math.isnan(evc):
-                        tdata[getodtx(dt,':mean_event_correlation')].append(verify(evc))
-                        tdata[getodtx(dt,':mean_event_pvalue')].append(verify(epv))
+                # mercilessly kill the entire run if ANY trajectory has no events
+                if not ed:
+                    mb.log(5,'NOEVENTSFOUND!',len(ed))
+                    raise ValueError
 
+                # measure statistics of the events of the trajectory
+                meas = measure_trajectory(domain,dtdat,ed,oed,otdat)
+
+                # add measurements to the proxy container
+                getodtx = lambda s : self.targets.index(dt+s)
+                tdata[getodtx(':mean_mean_high_del_t')].append(meas[0])
+                tdata[getodtx(':mean_stddev_high_del_t')].append(meas[1])
+                tdata[getodtx(':mean_min_high_del_t')].append(meas[2])
+                tdata[getodtx(':mean_max_high_del_t')].append(meas[3])
+                tdata[getodtx(':mean_variance_high_del_t')].append(meas[4])
+                tdata[getodtx(':mean_covariance_high_del_t')].append(meas[5])
+                tdata[getodtx(':mean_mean_high_value')].append(meas[6])
+                tdata[getodtx(':mean_stddev_high_value')].append(meas[7])
+                tdata[getodtx(':mean_min_high_value')].append(meas[8])
+                tdata[getodtx(':mean_max_high_value')].append(meas[9])
+                tdata[getodtx(':mean_variance_high_value')].append(meas[10])
+                tdata[getodtx(':mean_covariance_high_value')].append(meas[11])
+                tdata[getodtx(':mean_prob_high')].append(meas[12])
+                tdata[getodtx(':mean_prob_low')].append(meas[13])
+                if math.isnan(meas[14]):
+                    mb.log(5,'INVALIDCORRELATIONMEASUREMENT!')
+                    tdata[getodtx(':mean_event_correlation')].append(self.fill_value)
+                    tdata[getodtx(':mean_event_pvalue')].append(self.fill_value)
                 else:
-                    # THIS POINT SHOULD NEVER BE REACHED!!!
-                    meas = measure_boring_trajectory(
-                        domain,dtdat,alo,ahy,ed,alltjevents,otdat)
-                    phy,plo = meas
-                    tdata[getodtx(dt,':mean_prob_high')].append(phy)
-                    tdata[getodtx(dt,':mean_prob_low')].append(plo)
-                    tdata[getodtx(dt,':mean_event_frequency')].append(0.0)
-                    
+                    tdata[getodtx(':mean_event_correlation')].append(meas[14])
+                    tdata[getodtx(':mean_event_pvalue')].append(meas[15])
+
+        # iterate over the targets, averaging over the proxy container (trajectories)
         for dtx in range(tcount):
             dt = self.codomain[dtx]
+
             getodtx = lambda s : self.targets.index(dt+s)
-            def defoval(tx):
-                if tdata[tx]:odata[tx,0] = numpy.mean(tdata[tx])
-                else:odata[tx,0] = self.fill_value
-            defoval(getodtx(':mean_high_del_t'))
-            defoval(getodtx(':mean_high_value'))
+            def defoval(tx):odata[tx,0] = numpy.mean(tdata[tx])
+
+            defoval(getodtx(':mean_event_count'))
+
+            defoval(getodtx(':mean_mean_high_del_t'))
             defoval(getodtx(':mean_stddev_high_del_t'))
-            defoval(getodtx(':mean_stddev_high_value'))
             defoval(getodtx(':mean_min_high_del_t'))
-            defoval(getodtx(':mean_min_high_value'))
             defoval(getodtx(':mean_max_high_del_t'))
+            defoval(getodtx(':mean_variance_high_del_t'))
+            defoval(getodtx(':mean_covariance_high_del_t'))
+
+            defoval(getodtx(':mean_mean_high_value'))
+            defoval(getodtx(':mean_stddev_high_value'))
+            defoval(getodtx(':mean_min_high_value'))
             defoval(getodtx(':mean_max_high_value'))
+            defoval(getodtx(':mean_variance_high_value'))
+            defoval(getodtx(':mean_covariance_high_value'))
+
             defoval(getodtx(':mean_prob_high'))
             defoval(getodtx(':mean_prob_low'))
-            defoval(getodtx(':mean_event_frequency'))
             defoval(getodtx(':mean_event_correlation'))
             defoval(getodtx(':mean_event_pvalue'))
-        mecnt = numpy.mean(tdata[0])
-        odata[0,0] = mecnt
+
         return odata,self.targets,aux
 
-# es is a list of events from a single trajectory
-# aes are the events of all targets
-def measure_trajectory(x,y,alo,ahy,es,aes,o = None):
-    #highcnt = numpy.count_nonzero(y > ahy)
-    #lowcnt = numpy.count_nonzero(y < alo)
-    #phy = float(highcnt)/y.size
-    #plo = float(lowcnt)/y.size
-    #plk = 1.0 - phy - plo
-    #if not es:return -1,-1,phy,plo,plk,0.0,-100,1
 
-    dts = []
-    hys = []
-    crs = []
-    pvs = []
+
+# es is a list of events from a single trajectory
+def measure_trajectory(x,y,es,oes = None,o = None):
+    dts,pile,opile = [],[],[]
     for e in es:
         dt = x[e[1]]-x[e[0]]
-        hy = y[e[0]:e[1]].mean()
-        if o is None:cr,pv = -100,1
-        else:cr,pv = correl(y[e[0]:e[1]],o[e[0]:e[1]])
         dts.append(dt)
-        hys.append(hy)
-        crs.append(cr)
-        pvs.append(pv)
+        pile.extend(y[e[0]:e[1]])
+        if not o is None:opile.extend(o[e[0]:e[1]])
 
+    # mean, stddev, min, max, and variance of event widths
     mdt = numpy.mean(dts)
     sdt = numpy.std(dts)
     mndt = numpy.min(dts)
     mxdt = numpy.max(dts)
-    mhy = numpy.mean(hys)
-    shy = numpy.std(hys)
-    mnhy = numpy.min(hys)
-    mxhy = numpy.max(hys)
-    efq = float(len(es))/float(x[-1]-x[0])
+    vdt = numpy.var(dts)
 
-    # evc/epv are almost definitely not correct; mean here is definitely incorrect
-    evc = numpy.mean(crs)
-    epv = numpy.mean(pvs)
+    # mean, stddev, min, max, variance of points during events
+    mhy = numpy.mean(pile)
+    shy = numpy.std(pile)
+    mnhy = numpy.min(pile)
+    mxhy = numpy.max(pile)
+    vhy = numpy.var(pile)
 
+    if not oes is None:
+        odts = []
+        for oe in oes:
+            odt = x[oe[1]]-x[oe[0]]
+            odts.append(odt)
+
+        pdb.set_trace()
+
+        cdt = numpy.cov(dts)
+        chy = numpy.cov(pile)
+    else:cdt,chy = -100,-100
+
+    # correlation of points during events with points of another target
+    if o is None:ecr,epv = -100,-100
+    else:ecr,epv = correl(pile,opile)
+
+    # probability of being in the high toxin state at any given time
     phy = sum(dts)/float(x[-1]-x[0])
     plo = 1.0 - phy
-    return mdt,sdt,mndt,mxdt,mhy,shy,mnhy,mxhy,phy,plo,efq,evc,epv
 
-# THIS SHOULD EFFECTIVELY NEVER BE CALLED!!!
-def measure_boring_trajectory(x,y,alo,ahy,es,aes,o = None):
-    highcnt = numpy.count_nonzero(y >= ahy)
-    lowcnt = numpy.count_nonzero(y <= alo)
-    if highcnt > lowcnt:phy,plo = 1.0,0.0
-    elif highcnt < lowcnt:phy,plo = 0.0,1.0
-    else:phy,plo = 0.5,0.5
-    return phy,plo
+    # report 10 distinct measurements of the events in this trajectory
+    res = (
+        mdt,sdt,mndt,mxdt,vdt,cdt,
+        mhy,shy,mnhy,mxhy,vhy,chy,
+        phy,plo,ecr,epv)
+    return res
+
+
 
 # return measurements of events in a trajectory (x,y)
 # an event identifies a "high count state" entry/exit for a species
@@ -275,6 +315,8 @@ def seek(x,y,th,tl,min_x_dt):
     if not ms:return ms
     else:return filter_events(x,y,th,tl,min_x_dt,ms)
 
+
+
 # filtered events have the following properties:
 #   1) at least one point is above th (sufficiently tall)
 #   2) the end points are below tl (system is low before/after event)
@@ -308,6 +350,8 @@ def filter_events(x,y,th,tl,min_x_dt,es):
         if j > x.size-min_x_dt-1:f.pop(-1)
         elif y[j+1:j+1+min_x_dt].max() >= th:f.pop(-1)
     return f
+
+
 
 def plot_events(x,y,es,z):
     ax = plt.gca()

@@ -90,6 +90,8 @@ class mplot(mb.mobject):
             subp.clear()
             #subp.extract()
             subp.render()
+        #self.figure.tight_layout()
+        self.figure.subplots_adjust(left = 0.05,right = 0.95,top = 0.96,bottom = 0.08)
 
 # this represents a subplot in the figure, with one axis, and all
 # other data associated with the plot
@@ -500,8 +502,8 @@ class mplotheat(mplottarg):
         #yticks = numpy.linspace(self.y[0],self.y[-1],10)
 
         # ticks should optionally come directly from the mplt script!!
-        xticks = numpy.linspace(100,200,11)
-        yticks = numpy.linspace(100,1000,11)
+        xticks = numpy.linspace(100,200,6)
+        yticks = numpy.linspace(100,1000,6)
         ax.set_xticks(xticks,minor = False)
         ax.set_yticks(yticks,minor = False)
 
