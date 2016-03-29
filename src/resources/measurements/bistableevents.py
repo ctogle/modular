@@ -158,23 +158,21 @@ class bistability(mme.measurement):
                 # get other data for correlation measurements (if more than one target)
                 if tcount > 1:
                     odt = self.codomain[1 if dtx == 0 else 0]
-                    oed = alltjevents[1 if dtx == 0 else 0]
                     otdat = data[tjx,targs.index(odt),transx:]
-                else:oed,otdat = None,None
+                else:otdat = None
 
                 mb.log(5,'events found',len(ed))
-                tdata[0].append(len(ed))
-
                 # mercilessly kill the entire run if ANY trajectory has no events
                 if not ed:
                     mb.log(5,'NOEVENTSFOUND!',len(ed))
                     raise ValueError
 
                 # measure statistics of the events of the trajectory
-                meas = measure_trajectory(domain,dtdat,ed,oed,otdat)
+                meas = measure_trajectory(domain,dtdat,ed,otdat)
 
                 # add measurements to the proxy container
                 getodtx = lambda s : self.targets.index(dt+s)
+                tdata[getodtx(':mean_event_count')].append(len(ed))
                 tdata[getodtx(':mean_mean_high_del_t')].append(meas[0])
                 tdata[getodtx(':mean_stddev_high_del_t')].append(meas[1])
                 tdata[getodtx(':mean_min_high_del_t')].append(meas[2])
@@ -230,7 +228,7 @@ class bistability(mme.measurement):
 
 
 # es is a list of events from a single trajectory
-def measure_trajectory(x,y,es,oes = None,o = None):
+def measure_trajectory(x,y,es,o = None):
     dts,pile,opile = [],[],[]
     for e in es:
         dt = x[e[1]]-x[e[0]]
@@ -252,6 +250,7 @@ def measure_trajectory(x,y,es,oes = None,o = None):
     mxhy = numpy.max(pile)
     vhy = numpy.var(pile)
 
+    '''#
     if not oes is None:
         odts = []
         for oe in oes:
@@ -263,10 +262,13 @@ def measure_trajectory(x,y,es,oes = None,o = None):
         cdt = numpy.cov(dts)
         chy = numpy.cov(pile)
     else:cdt,chy = -100,-100
+    '''#
 
     # correlation of points during events with points of another target
-    if o is None:ecr,epv = -100,-100
-    else:ecr,epv = correl(pile,opile)
+    if o is None:ecr,epv,cdt,chy = -100,-100,-100,-100
+    else:
+        ecr,epv = correl(pile,opile)
+        chy,cdt = numpy.cov(pile,opile),-100
 
     # probability of being in the high toxin state at any given time
     phy = sum(dts)/float(x[-1]-x[0])
