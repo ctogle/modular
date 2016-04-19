@@ -47,7 +47,7 @@ class bistability(mme.measurement):
         self._def('w_factor',0.125,**kws)
         # fill value for NaN calculations from numpy..
         self._def('fillvalue',-100.0,**kws)
-        self._def('debug',False,**kws)
+        self._def('debug',True,**kws)
         self._def('debug_plot',False,**kws)
 
     # based on the names of the input targets
@@ -125,8 +125,12 @@ class bistability(mme.measurement):
 
 
 
-                if self.debug and (tjx == 0 and (dtx == 0 or dtx == 1)):
-                    tcol = 'blue' if dtx == 0 else 'green'
+                #if self.debug and (tjx == 0 and (dtx == 0 or dtx == 1)):
+                if self.debug and tjx == 0:
+                    print('FINALLY MOVING!!!')
+                    if dtx == 0:tcol = 'blue'
+                    elif dtx == 1:tcol = 'green'
+                    elif dtx == 2:tcol = 'red'
                     aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
                         {'linewidth':2,'color':tcol,'label':dt}))
                     etx = [domain[0],domain[-1]]
@@ -249,20 +253,6 @@ def measure_trajectory(x,y,es,o = None):
     mnhy = numpy.min(pile)
     mxhy = numpy.max(pile)
     vhy = numpy.var(pile)
-
-    '''#
-    if not oes is None:
-        odts = []
-        for oe in oes:
-            odt = x[oe[1]]-x[oe[0]]
-            odts.append(odt)
-
-        pdb.set_trace()
-
-        cdt = numpy.cov(dts)
-        chy = numpy.cov(pile)
-    else:cdt,chy = -100,-100
-    '''#
 
     # correlation of points during events with points of another target
     if o is None:ecr,epv,cdt,chy = -100,-100,-100,-100
