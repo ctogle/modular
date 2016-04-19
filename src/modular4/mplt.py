@@ -53,8 +53,12 @@ class mplot(mb.mobject):
     def __init__(self,*args,**kwargs):
         self._def('name','mplot',**kwargs)
         self._def('subplots',[],**kwargs)
-        self._def('wspace',0.3,**kwargs)
-        self._def('hspace',0.35,**kwargs)
+        self._def('wspace',0.2,**kwargs)
+        self._def('hspace',0.2,**kwargs)
+        self._def('left',0.09,**kwargs)
+        self._def('right',0.95,**kwargs)
+        self._def('top',0.96,**kwargs)
+        self._def('bottom',0.08,**kwargs)
         self._def('pipe',[],**kwargs)
         self.figure = plt.figure(figsize = (8,8))
         self.figure.subplots_adjust(wspace = self.wspace,hspace = self.hspace)
@@ -91,7 +95,8 @@ class mplot(mb.mobject):
             #subp.extract()
             subp.render()
         #self.figure.tight_layout()
-        self.figure.subplots_adjust(left = 0.05,right = 0.95,top = 0.96,bottom = 0.08)
+        l,r,t,b = self.left,self.right,self.top,self.bottom
+        self.figure.subplots_adjust(left = l,right = r,top = t,bottom = b)
 
 # this represents a subplot in the figure, with one axis, and all
 # other data associated with the plot
@@ -261,6 +266,7 @@ class msubplot(mb.mobject):
             if df == 'extras':continue
             data = datas[df]
             for pg in data:
+                if not pg:continue
                 ds,ts,ps = pg
                 if target in ts:
                     located.append((pg,df))
@@ -347,7 +353,7 @@ class msubplot(mb.mobject):
 # represents one plot target in a plot
 class mplottarg(mb.mobject):
 
-    # describe this line in a string
+    # describe this target in a string
     def __str__(self):
         minx,maxx,miny,maxy,minz,maxz = self.minmax()
         s =  ''.join((' "',str(self.name),'" - ',str(self.__class__)))
@@ -360,6 +366,9 @@ class mplottarg(mb.mobject):
     def __init__(self,msubplot,req,*args,**kwargs):
         self.msub = msubplot
         self._def('name',req[-1],**kwargs)
+        self._def('cmap',None,**kwargs)
+        self._def('rast',False,**kwargs)
+        self._def('width',2.0,**kwargs)
 
 # represents one colormesh in a plot
 class mplotheat(mplottarg):
@@ -394,7 +403,10 @@ class mplotheat(mplottarg):
                                 axdef = numpy.unique(axvs[axx])
                                 print 'reducer axis default:','"'+ax+'"',':',axdef
                                 print '\twith potential values:',axval
-                                nv = raw_input('\n\tnew value?:\t')
+
+                                if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                else:nv = raw_input('\n\tnew value?:\t')
+
                         if nv == '':nv = axval[0]
                         try:
                             nv = float(nv)
@@ -416,14 +428,14 @@ class mplotheat(mplottarg):
                 ds = numpy.array(surf,dtype = numpy.float)
 
                 ddx,ddy = dx[1]-dx[0],dy[1]-dy[0]
-                dx = numpy.linspace(dx[0]-ddx/2.0,dx[-1]+ddx/2.0,dx.size+1)
-                dy = numpy.linspace(dy[0]-ddy/2.0,dy[-1]+ddy/2.0,dy.size+1)
+                #dx = numpy.linspace(dx[0]-ddx/2.0,dx[-1]+ddx/2.0,dx.size+1)
+                #dy = numpy.linspace(dy[0]-ddy/2.0,dy[-1]+ddy/2.0,dy.size+1)
 
                 #dx = numpy.linspace(dx[0],dx[-1]+ddx,dx.size+1)
                 #dy = numpy.linspace(dy[0],dy[-1]+ddy,dy.size+1)
 
-                #dx = numpy.linspace(dx[0],dx[-1],dx.size+1)
-                #dy = numpy.linspace(dy[0],dy[-1],dy.size+1)
+                dx = numpy.linspace(dx[0],dx[-1],dx.size+1)
+                dy = numpy.linspace(dy[0],dy[-1],dy.size+1)
 
                 ds = ds.reshape(dx.size-1,dy.size-1)
                 #ds = ds.reshape(dx.size,dy.size)
@@ -494,18 +506,30 @@ class mplotheat(mplottarg):
     def render(self,ax):
         minx,maxx,miny,maxy,minz,maxz = self.msub.minmaxes()
 
-        cmesh = ax.pcolor(self.x,self.y,self.z,vmin = minz,vmax = maxz)
+        pckws = {
+            'vmin':minz,'vmax':maxz,'cmap':self.cmap,
+            'linewidth':self.width,'rasterized':self.rast,
+                }
+
+        cmesh = ax.pcolor(self.x,self.y,self.z,**pckws)
+        cmesh.set_edgecolor('face')
 
         #xticks = self.x
         #yticks = self.y
-        #xticks = numpy.linspace(self.x[0],self.x[-1],10)
-        #yticks = numpy.linspace(self.y[0],self.y[-1],10)
+
+        #pdb.set_trace()
+
+        xticks = numpy.linspace(self.x[0],self.x[-1],6)
+        yticks = numpy.linspace(self.y[0],self.y[-1],6)
 
         # ticks should optionally come directly from the mplt script!!
-        xticks = numpy.linspace(100,200,6)
-        yticks = numpy.linspace(100,1000,6)
-        ax.set_xticks(xticks,minor = False)
-        ax.set_yticks(yticks,minor = False)
+        #xticks = numpy.linspace(100,200,6)
+        #yticks = numpy.linspace(100,1000,6)
+
+        ax.set_xticks(xticks,['%f' % numpy.round(v,2) for v in xticks])
+        ax.set_yticks(xticks,['%f' % numpy.round(v,2) for v in xticks])
+        #ax.set_xticks(yticks,minor = False)
+        #ax.set_yticks(yticks,minor = False)
 
         #cmesh = ax.imshow(self.z,vmin = minz,vmax = maxz,
         #    interpolation = 'nearest',extent = (minx,maxx,miny,maxy),
@@ -571,7 +595,10 @@ class mplotline(mplottarg):
                                 axdef = numpy.unique(axvs[axx])
                                 print 'reducer axis default:','"'+ax+'"',':',axdef
                                 print '\twith potential values:',axval
-                                nv = raw_input('\n\tnew value?:\t')
+
+                                if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                else:nv = raw_input('\n\tnew value?:\t')
+
                         if nv == '':nv = axval[0]
                         try:
                             nv = float(nv)
@@ -591,8 +618,20 @@ class mplotline(mplottarg):
                 self.x = dx
                 self.y = dy
             elif req[0] in x[1]:
-                self.x = x[0][x[1].index(req[0])]
-                self.y = y[0][y[1].index(req[1])]
+                if len(x[0].shape) == 2:
+                    self.x = x[0][x[1].index(req[0])]
+                elif len(x[0].shape) == 3:
+                    print('extradimhack!',x[0].shape)
+                    self.x = x[0][0][x[1].index(req[0])]
+                else:raise ValueError
+                if len(y[0].shape) == 2:
+                    self.y = y[0][y[1].index(req[1])]
+                elif len(y[0].shape) == 3:
+                    print('extradimhack!',y[0].shape)
+                    self.y = y[0][0][y[1].index(req[1])]
+                else:raise ValueError
+                #try:self.y = y[0][y[1].index(req[1])]
+                #except:pdb.set_trace()
             else:
 
                 pdb.set_trace()
@@ -608,7 +647,6 @@ class mplotline(mplottarg):
         mplottarg.__init__(self,msubplot,req,*args,**kwargs)
         self._def('color','black',**kwargs)
         self._def('style','-',**kwargs)
-        self._def('width',2.0,**kwargs)
         self._def('mark','',**kwargs)
         self.inp(x,y,req)
 
@@ -639,34 +677,6 @@ class mplotline(mplottarg):
             line = matplotlib.lines.Line2D(self.x,self.y,**largs)
             if self.name:line.set_label(self.name)
             ax.add_line(line)
-
-
-
-
-
-def makeit():
-    #reorgfile = '/srv/4.0/latitude/corrdemo/ensemble/bypsp_output.pkl'
-    reorgfile = '/srv/4.0/enterprise/bypsp_output.pkl'
-    x,y = 'lambda1','x1,x2-correlation'
-
-    mp = mplot(wspace = 0.2,hspace = 0.2)
-    mp.open_data(reorgfile)
-    
-    msub1 = mp.subplot('111',
-        xlab = 'lambda1',ylab = 'correlation coefficient',ymin = 0,ymax = 1,
-        plab = 'Correlation Resonance',legendloc = 'lower right')
-    msub1.add_line(x,y,color = 'red',name = 'lambda2 = 10',width = 2)
-    msub1.add_line(x,y,color = 'blue',name = 'lambda2 = 25',width = 2)
-    msub1.add_line(x,y,color = 'green',name = 'lambda2 = 40',width = 2)
-    msub1.add_line([10,10],[-1,1],name = '',color = 'black',width = 2,style = '--')
-    msub1.add_line([25,25],[-1,1],name = '',color = 'black',width = 2,style = '--')
-    msub1.add_line([40,40],[-1,1],name = '',color = 'black',width = 2,style = '--')
-
-    mp.render()
-
-if __name__ == '__main__':
-    makeit()
-    plt.show()
 
 
 
