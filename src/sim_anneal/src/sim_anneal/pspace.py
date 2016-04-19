@@ -20,8 +20,6 @@ def wraparound(p,a,b):
     while a > p or p > b:
         if p < a:p = b - (a - p) 
         if p > b:p = a + (p - b) 
-    #if p < a:p = b - (a - p)
-    #if p > b:p = a + (p - b)
     return p
 
 def locate(ax,v):
@@ -41,9 +39,14 @@ def logspan(f,c,n = 10):
 
 def trim_continuous(p,m):
     '''return trimmed bounds for a continuous axis based on the current position'''
-    r = (m[1]-m[0])/3
-    m0 = m[0] if p-m[0] < r else p - r
-    m1 = m[1] if m[1]-p < r else p + r
+    om = int(numpy.log10(m[1]/m[0]))
+    if om > 1:
+        logb = logspan(m[0],m[1],10)
+        m0,m1 = trim_discrete(p,logb)
+    else:
+        r = (m[1]-m[0])/3
+        m0 = m[0] if p-m[0] < r else p - r
+        m1 = m[1] if m[1]-p < r else p + r
     return m0,m1
 
 def trim_discrete(p,d):
@@ -54,7 +57,8 @@ def trim_discrete(p,d):
     #elif loc == rng[-1]:m0,m1 = d[rng[1]],d[rng[-1]]*2.0
     #elif loc in rng[:int(len(rng)/2.0)]:m0,m1 = d[rng[0]],d[rng[-2]]
     if loc in rng[:int(len(rng)/2.0)]:m0,m1 = d[rng[0]],d[rng[-2]]
-    elif loc in rng[int(len(rng)/2.0):]:m0,m1 = d[rng[1]],d[rng[-1]]
+    #elif loc in rng[int(len(rng)/2.0):]:m0,m1 = d[rng[1]],d[rng[-1]]
+    elif loc in rng[int(len(rng)/2.0)+1:]:m0,m1 = d[rng[1]],d[rng[-1]]
     else:m0,m1 = d[rng[1]],d[rng[-2]]
     return m0,m1
 
@@ -94,6 +98,7 @@ class pspace(object):
             self.discrete = tuple(
                 logspan(b[0],b[1],self.disccount) if d else d 
                     for d,b in dbzip)
+        self.spans = tuple(self.span(x) for x in range(self.dims))
         return self
 
     def move_initial(self,ni):
@@ -103,6 +108,7 @@ class pspace(object):
 
     def become_continuous(self):
         '''rid discretization information to make the space continuous'''
+        print('pspace becoming continuous...')
         self.discrete = self.nonedg
         self.disc_loc = None
 
@@ -182,6 +188,16 @@ class pspace(object):
         p = self.current[a] + delp
         return self.step_boundary(p,self.bounds[a])
 
+    def step_axis_log(self,a,t,d = None):
+        '''perform step_axis but with a modified t parameter 
+        based on the position along the axis in log10 space'''
+        om = int(numpy.log10(self.bounds[a][1]/self.bounds[a][0]))
+        if om > 2:
+            logb = logspan(self.bounds[a][0],self.bounds[a][1],om)
+            faket = t*float(locate(logb,self.current[a])+1)/float(om)**2
+        else:faket = t
+        return self.step_axis(a,faket,d)
+
     def step(self,t,dg = None):
         '''provide a new parameter space position'''
         if dg is None:dg = self.nonedg
@@ -213,10 +229,12 @@ class pspace(object):
             print('use more processes...')
             raise ValueError
 
-        faket = numpy.linspace(0.000001,1.0,int(m/self.dims)+1)
-        axs = tuple(tuple(self.step_axis(a,faket[j],d)
-                for j in range(int(m/self.dims))) 
+        if self.nonedg == self.discrete:
+            axs = tuple(
+                tuple(self.step_axis_log(a,t,d) for j in range(int(m/self.dims))) 
                     for a,d in zip(range(self.dims),n))
+        else:axs = tuple(logspan(b[0],b[1],self.disccount) for b in self.bounds)
+
         sgs = list(set(list(it.product(*axs))))
         if len(sgs) > m:sgs = random.sample(sgs,m)
         else:sgs = [random.choice(sgs) for x in range(m)]

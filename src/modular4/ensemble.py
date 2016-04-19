@@ -148,6 +148,7 @@ class ensemble(mb.mobject):
         self._def('rgenseed',None,**kws)
         self._def('batchsize',None,**kws)
         self._def('serialwork',False,**kws)
+        self._def('annealcount',20,**kws)
         self._def('processcount',8,**kws)
         self._def('datascheme','raw',**kws)
         self._def('perform_installation',mmpi.root(),**kws)
@@ -374,7 +375,7 @@ class ensemble(mb.mobject):
 
         self.anlr.measure = ameas
         self.anlr.finish = fin
-        result,error = self.anlr.anneal_auto(5)
+        result,error = self.anlr.anneal_auto(self.annealcount)
         #result,error = self.anlr.anneal()
         exx = self.find_extract_measurement()
         if not exx is None:

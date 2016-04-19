@@ -177,9 +177,9 @@ class annealer(object):
             self.finish()
             if not last is None and best == last:
                 print ('NO IMPROvEMENT')
-                self.iterations = int(self.iterations*0.8)
+                #self.iterations = int(self.iterations*0.8)
             last = best
-            if j == i - int(i/2.0):
+            if j == i - int(i/2.0) - 1:
             #if j == i - 3:
                 self.psp.become_continuous()
                 print 'BECOME CONTINOUS!'

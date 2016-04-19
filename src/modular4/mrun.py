@@ -51,8 +51,9 @@ def run_fit(mcfg,name,modu,fdat):
     e.parse_mcfg(mcfg)
     itr = 100 if e.batchsize is None else e.batchsize
     skws = {
-        'iterations':e.batchsize,'heatrate':1.0,
-        'mstep':max(mmpi.size()-1,1),'discrete':None,
+        'iterations':e.batchsize,'heatrate':3.0,
+        #'mstep':max(mmpi.size()-1,1),'discrete':None,
+        'mstep':max(mmpi.size()-1,1),'discrete':True,
         'plotfinal':False,'plotbetter':False,
             }
     if mmpi.root():

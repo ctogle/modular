@@ -47,7 +47,7 @@ class bistability(mme.measurement):
         self._def('w_factor',0.125,**kws)
         # fill value for NaN calculations from numpy..
         self._def('fillvalue',-100.0,**kws)
-        self._def('debug',False,**kws)
+        self._def('debug',True,**kws)
         self._def('debug_plot',False,**kws)
 
     # based on the names of the input targets
