@@ -29,6 +29,7 @@ class bistability(mme.measurement):
             'codomain' : tuple(x.strip() for x in u.split(',')),
             'min_x_dt' : int(ls[3].strip()),
             'transient' : float(ls[4].strip()),
+            'debug' : bool(ls[5].strip()),
                 }
         return bistability(**kws)
 
@@ -47,7 +48,7 @@ class bistability(mme.measurement):
         self._def('w_factor',0.125,**kws)
         # fill value for NaN calculations from numpy..
         self._def('fillvalue',-100.0,**kws)
-        self._def('debug',True,**kws)
+        self._def('debug',False,**kws)
         self._def('debug_plot',False,**kws)
 
     # based on the names of the input targets
@@ -166,13 +167,14 @@ class bistability(mme.measurement):
                 else:otdat = None
 
                 mb.log(5,'events found',len(ed))
-                # mercilessly kill the entire run if ANY trajectory has no events
-                if not ed:
+                if ed:
+                    # measure statistics of the events of the trajectory
+                    meas = measure_trajectory(domain,dtdat,ed,otdat)
+                else:
+                    # mercilessly kill the entire run if ANY trajectory has no events
                     mb.log(5,'NOEVENTSFOUND!',len(ed))
-                    raise ValueError
-
-                # measure statistics of the events of the trajectory
-                meas = measure_trajectory(domain,dtdat,ed,otdat)
+                    #raise ValueError
+                    meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
 
                 # add measurements to the proxy container
                 getodtx = lambda s : self.targets.index(dt+s)
