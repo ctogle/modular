@@ -47,7 +47,8 @@ class bypspace(mme.measurement):
                     mdat,mtgs,mloc = mtdat[0]
                     for dx in range(len(mtgs)):
                         if mtgs[dx] in self.targets:
-                            dvals[dx].append(mdat[dx,-1])
+                            #dvals[dx].append(mdat[dx,-1])
+                            dvals[dx].append(mdat[dx][-1])
         dshape = (len(self.targets),len(traj))
         odata = numpy.zeros(dshape,dtype = numpy.float)
         odata[0] = numpy.array([x for x in range(len(traj))])

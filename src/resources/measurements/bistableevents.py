@@ -128,7 +128,6 @@ class bistability(mme.measurement):
 
                 #if self.debug and (tjx == 0 and (dtx == 0 or dtx == 1)):
                 if self.debug and tjx == 0:
-                    print('FINALLY MOVING!!!')
                     if dtx == 0:tcol = 'blue'
                     elif dtx == 1:tcol = 'green'
                     elif dtx == 2:tcol = 'red'
@@ -169,12 +168,19 @@ class bistability(mme.measurement):
                 mb.log(5,'events found',len(ed))
                 if ed:
                     # measure statistics of the events of the trajectory
-                    meas = measure_trajectory(domain,dtdat,ed,otdat)
+                    meas,x,h = measure_trajectory(domain,dtdat,ed,otdat)
+
+                    if len(ed) > 1000:
+                        plt.plot(x,h)
+                        plt.show()
+
+                    #def defoval(tx):odata[tx].append(numpy.mean(tdata[tx]))
+
                 else:
                     # mercilessly kill the entire run if ANY trajectory has no events
                     mb.log(5,'NOEVENTSFOUND!',len(ed))
                     #raise ValueError
-                    meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
+                    meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,-100,-100)
 
                 # add measurements to the proxy container
                 getodtx = lambda s : self.targets.index(dt+s)
@@ -242,6 +248,14 @@ def measure_trajectory(x,y,es,o = None):
         pile.extend(y[e[0]:e[1]])
         if not o is None:opile.extend(o[e[0]:e[1]])
 
+
+    n = 10
+    b = numpy.linspace(5,numpy.max(dts),n+1)
+    hy,bs = numpy.histogram(dts,bins = b,density = False)
+    fm = lambda u,v : (u+v)/2.0
+    bx = numpy.array([fm(bs[y-1],bs[y]) for y in range(1,bs.size)])
+
+
     # mean, stddev, min, max, and variance of event widths
     mdt = numpy.mean(dts)
     sdt = numpy.std(dts)
@@ -271,7 +285,7 @@ def measure_trajectory(x,y,es,o = None):
         mdt,sdt,mndt,mxdt,vdt,cdt,
         mhy,shy,mnhy,mxhy,vhy,chy,
         phy,plo,ecr,epv)
-    return res
+    return res,bx,hy
 
 
 
