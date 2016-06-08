@@ -8,7 +8,7 @@
 <variables>
 	g : 1
 	n : 4
-	alpha : 0.01
+	alpha : 100
 
 <functions>
   f1 : alpha/(1 + r1**n)
@@ -35,9 +35,14 @@
 	r3
 
 <parameterspace>
-	<map> : 1
-		n : 1.0,4.0 : 1.0 : 4
-
+	<map> : 10000 
+	#ensemble size
+	#THis gives us 10000(n) trajectories per location in paramter space
+		alpha : 95.0,105.0 : 100.0 : 3
+		# : Lower bound, Upper bound : initalize value : steps between
+		# In this instance there will be three bounds 95,100, 105
+		g : 1.0,2.0 : 1.0 : 2
+# g and alpha correspond to the axes in paramter space 
 <measurements>
   extract : 0;location : all : all : 1 : 0.0
 
