@@ -41,6 +41,7 @@
 		alpha : 95.0,105.0 : 100.0 : 3
 		# : Lower bound, Upper bound : initalize value : steps between
 		# In this instance there will be three bounds 95,100, 105
+		# lines 45-76
 		g : 1.0,2.0 : 1.0 : 2
 # g and alpha correspond to the axes in paramter space 
 <measurements>
