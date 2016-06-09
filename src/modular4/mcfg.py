@@ -74,13 +74,7 @@ def parse_pspace(parser,lines):
     else:traj = None
     sp._purpose = intent
     return sp,traj,trajcount
-# old 77
-# ax,b,i,d 
-# axes,bnds,init,disc
-# axes , the value of axis one, example alpha, 
-# bnds, the bounds given by : lower,upper :
-# the initilized value of the axes name 
-# the discretization step number. 
+
 def parse(mcfg,extra_parsers = {},**einput):
     with open(mcfg,'r') as h:lines = h.readlines()
     p = None
