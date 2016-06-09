@@ -170,7 +170,7 @@ class bistability(mme.measurement):
                     # measure statistics of the events of the trajectory
                     meas,x,h = measure_trajectory(domain,dtdat,ed,otdat)
 
-                    if len(ed) > 1000:
+                    if self.debug_plot and len(ed) > 1000:
                         plt.plot(x,h)
                         plt.show()
 
