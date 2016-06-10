@@ -1,0 +1,38 @@
+
+<end>
+	time limit : 2000.0
+
+<capture>
+	increment : 10.0 : time
+
+<variables>
+  gamma : 1.0
+
+<functions>
+  ext_signal : 10.0*(external_signal(/home/cogle/dev/modular/tests/data/extsignal1.txt,time) + 1.0)
+
+<species>
+  A : 0
+
+<reactions>
+  nothing ext_signal -> 1 A : A production
+  1 A gamma -> nothing : A decay
+
+<targets>
+  time
+  A
+  ext_signal
+
+<measurements>
+  statistics : 0;location : A of time : 100 : 0.0
+
+<outputs>
+	none : ensemble_output : pkl : all
+	none : statistics_output : pkl : all
+
+<parameterspace> 
+  <map> : 1
+    k_cat : 200.0,1000.0 : 200.0 : 5
+
+
+

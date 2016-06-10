@@ -159,7 +159,7 @@ class msubplot(mb.mobject):
 
     # given x,y, and z (strings), add a request for this target
     # requests are considered based on input data in self.extract
-    def add_heat(self,x,y,z,**kwargs):
+    def add_heat(self,x,y,z,zm = None,zmf = None,**kwargs):
         if type(x) is type(''):print 'expecting xdomain',x,'in input files'
         #elif issubclass(x.__class__,mst.scalars):
         #    self.mplot.datas['extras'].data.append(x)
@@ -196,9 +196,18 @@ class msubplot(mb.mobject):
             #zdat = mst.scalars(name = znam,data = numpy.array(z))
             #self.mplot.datas['extras'].data.append(zdat)
             #z = znam
+        if not zm is None:
+            if type(zm) is type(''):
+                print 'expecting mask surface',zm,'in input files'
+            else:
+                zmnam = 'extraz-'+str(len(self.mplot.datas['extras']))
+                zmdat = numpy.array(zm)
+                self.mplot.datas['extras'][zmnam] = zmdat
+                zm = zmnam
         self.requests.append(kwargs)
-        self.reqorder.append((x,y,z))
+        self.reqorder.append((x,y,z,zm))
         self.ptype = 'color'
+        self.zmf = zmf
     
     # given the data objects of the parent mplot
     # create and store a set of mplottarget objects 
@@ -237,11 +246,17 @@ class msubplot(mb.mobject):
         for reqx in range(len(self.reqorder)):
             rkws = self.requests[reqx]
             req = self.reqorder[reqx]
-            xdom,ydom,zcod = req
+            xdom,ydom,zcod,zmask = req
             print '\nextracting request:',req,'\n','-'*40
+            if zmask is None:zm = None
+            else:zm = self.locate(datas,zmask)
             z = self.locate(datas,zcod)
             x = self.locate(datas,xdom)
             y = self.locate(datas,ydom)
+
+            #zmask = 'T_total1:mean_event_count'
+            #zm = self.locate(datas,zmask)
+
             #if issubclass(z.__class__,mst.reducer):
             #    x = z
             #    y = z
@@ -252,7 +267,7 @@ class msubplot(mb.mobject):
             elif y is None:print 'failed to locate y for request:',req
             elif z is None:print 'failed to locate z for request:',req
             else:
-                heat = mplotheat(self,x,y,z,req,**rkws)
+                heat = mplotheat(self,x,y,z,zm,req,**rkws)
                 heats.append(heat)
                 print 'made heat map:',heat
         return heats
@@ -334,8 +349,10 @@ class msubplot(mb.mobject):
         self.ax.set_xlim([xb,xt])
         self.ax.set_ylim([yb,yt])
         #self.ax.set_zlim([zb,zt])
-        if self.ptype == 'lines' and self.legend:
-            leg = self.ax.legend(loc = self.legendloc)
+        #if self.ptype == 'lines' and self.legend:
+        if self.ptype == 'lines':
+            if self.legend:
+                leg = self.ax.legend(loc = self.legendloc)
             #leg.draggable()
         if self.xlog:self.ax.set_xscale('log')
         if self.ylog:self.ax.set_yscale('log')
@@ -374,11 +391,12 @@ class mplottarg(mb.mobject):
 class mplotheat(mplottarg):
 
     # given a data object for x,y, and z, store numpy arrays to plot
-    def inp(self,x,y,z,req):
+    def inp(self,x,y,z,zm,req):
         if type(x) != type(()):
             self.x = x
             self.y = y
             self.z = z
+            self.zm = zm
         else:
             aux = x[2]
             if 'pspaceaxes' in aux and req[0] in aux['pspaceaxes']:
@@ -421,79 +439,55 @@ class mplotheat(mplottarg):
                     else:inss.append([1 if v == axds[axx] else 0 for v in axvs[axx]])
                 in_every = [(0 not in row) for row in zip(*inss)]   
                 surf = [sur for sur,ie in zip(z[0][z[1].index(req[2])],in_every) if ie]
+
+                if zm is None:
+                    msurf = numpy.ones(len(surf))
+                else:
+                    msurf = [sur for sur,ie in zip(zm[0][zm[1].index(req[3])],in_every) if ie]
+
                 xzip = zip(x[0][x[1].index(req[0])],in_every)
                 yzip = zip(y[0][y[1].index(req[1])],in_every)
                 dx = numpy.unique(numpy.array([j for j,ie in xzip if ie]))
                 dy = numpy.unique(numpy.array([j for j,ie in yzip if ie]))
                 ds = numpy.array(surf,dtype = numpy.float)
+                dsm = numpy.array(msurf,dtype = numpy.float)
 
                 ddx,ddy = dx[1]-dx[0],dy[1]-dy[0]
                 #dx = numpy.linspace(dx[0]-ddx/2.0,dx[-1]+ddx/2.0,dx.size+1)
                 #dy = numpy.linspace(dy[0]-ddy/2.0,dy[-1]+ddy/2.0,dy.size+1)
-
                 #dx = numpy.linspace(dx[0],dx[-1]+ddx,dx.size+1)
                 #dy = numpy.linspace(dy[0],dy[-1]+ddy,dy.size+1)
-
-                dx = numpy.linspace(dx[0],dx[-1],dx.size+1)
-                dy = numpy.linspace(dy[0],dy[-1],dy.size+1)
+                if self.msub.xlog:
+                    dx = numpy.exp(numpy.linspace(
+                        numpy.log(dx[0]),numpy.log(dx[-1]),dx.size+1))
+                else:dx = numpy.linspace(dx[0],dx[-1],dx.size+1)
+                if self.msub.ylog:
+                    dy = numpy.exp(numpy.linspace(
+                        numpy.log(dy[0]),numpy.log(dy[-1]),dy.size+1))
+                else:dy = numpy.linspace(dy[0],dy[-1],dy.size+1)
 
                 ds = ds.reshape(dx.size-1,dy.size-1)
-                #ds = ds.reshape(dx.size,dy.size)
+                dsm = dsm.reshape(dx.size-1,dy.size-1)
 
-                if axisnames.index(req[0]) < axisnames.index(req[1]):ds = ds.transpose()
+                if axisnames.index(req[0]) < axisnames.index(req[1]):
+                    ds = ds.transpose()
+                    dsm = dsm.transpose()
                 self.x = dx
                 self.y = dy
                 self.z = ds
+                self.zm = dsm
 
             elif req[0] in x[1]:
                 print 'simple!'
-
-                pdb.set_trace()
+                raise NotImplemented
 
             else:raise ValueError
 
         self.req = req
 
-        #if   issubclass(x.__class__,mst.scalars):self.x = x.data
-        #elif issubclass(x.__class__,mst.reducer):
-        #    self.x = x.axis_values[x.axes.index(req[0])].data
-        #if   issubclass(y.__class__,mst.scalars):self.y = y.data
-        #elif issubclass(x.__class__,mst.reducer):
-        #    self.x = x.axis_values[x.axes.index(req[0])]
-        '''#
-        if   issubclass(z.__class__,mst.scalars):self.z = z.data
-        elif issubclass(z.__class__,mst.reducer):
-            axcnt = len(z.axes)
-            if axcnt > 1:
-                print '\nneed to set axis defaults on a reducer...'
-                for axx in range(axcnt):
-                    nv,ax,axdef = '',z.axes[axx],z.axis_defaults[axx]
-                    if ax == req[0] or ax == req[1]:continue
-                    if len(z.axis_values[axx].data) > 1:
-                        bax = ax.replace(' : value','')
-                        if bax in self.name:
-                            nmsp = lfu.msplit(self.name,'=')
-                            nv = nmsp[nmsp.index(bax)+1]
-                            try:nv = float(nv)
-                            except:nv = ''
-                        if nv == '':
-                            print 'reducer axis default:','"'+ax+'"',':',axdef
-                            print '\twith potential values:',y.axis_values[axx].data
-                            nv = raw_input('\n\tnew value?:\t')
-                    if nv == '':z.axis_values[axx].data[0]
-                    try:
-                        nv = float(nv)
-                        nv = lfu.nearest(nv,z.axis_values[axx].data)
-                        z.axis_defaults[axx] = nv
-                    except:print 'axis default input ignored:',nv
-            surf = z._surface(req[0],req[1],req[2])
-            if not surf:raise ValueError
-            self.x,self.y,self.z = surf
-        '''#
-
-    def __init__(self,msubplot,x,y,z,req,*args,**kwargs):
+    def __init__(self,msubplot,x,y,z,zm,req,*args,**kwargs):
         mplottarg.__init__(self,msubplot,req,*args,**kwargs)
-        self.inp(x,y,z,req)
+        self.inp(x,y,z,zm,req)
 
     # get the min/max of the x/y data of this plot target
     def minmax(self):
@@ -506,48 +500,28 @@ class mplotheat(mplottarg):
     def render(self,ax):
         minx,maxx,miny,maxy,minz,maxz = self.msub.minmaxes()
 
+        #zmask = (self.z >= minz) <= maxz
+        #zmask = (self.zm >= 100)
+        if self.msub.zmf is None:zmask = self.zm == 0
+        else:zmask = self.msub.zmf(self.zm)
+
+        if self.cmap is None:cmap = plt.cm.jet
+        else:cmap = self.cmap
+        cmap.set_bad('c',0.2)
+
         pckws = {
-            'vmin':minz,'vmax':maxz,'cmap':self.cmap,
+            'vmin':minz,'vmax':maxz,'cmap':cmap,
             'linewidth':self.width,'rasterized':self.rast,
                 }
 
-        cmesh = ax.pcolor(self.x,self.y,self.z,**pckws)
+        z = numpy.ma.masked_array(self.z,mask = zmask)
+        cmesh = ax.pcolor(self.x,self.y,z,**pckws)
         cmesh.set_edgecolor('face')
-
-        #xticks = self.x
-        #yticks = self.y
-
-        #pdb.set_trace()
 
         xticks = numpy.linspace(self.x[0],self.x[-1],6)
         yticks = numpy.linspace(self.y[0],self.y[-1],6)
-
-        # ticks should optionally come directly from the mplt script!!
-        #xticks = numpy.linspace(100,200,6)
-        #yticks = numpy.linspace(100,1000,6)
-
         ax.set_xticks(xticks,['%f' % numpy.round(v,2) for v in xticks])
-        ax.set_yticks(xticks,['%f' % numpy.round(v,2) for v in xticks])
-        #ax.set_xticks(yticks,minor = False)
-        #ax.set_yticks(yticks,minor = False)
-
-        #cmesh = ax.imshow(self.z,vmin = minz,vmax = maxz,
-        #    interpolation = 'nearest',extent = (minx,maxx,miny,maxy),
-        #    aspect = 'auto')
-
-        #    #cmap = cmap,shading = 'gouraud',vmin = z_min,vmax = z_max)
-        #####
-        #####
-        #cmesh = ax.imshow(self.z,vmin = minz,vmax = maxz,
-        #    interpolation = 'nearest',extent = (minx,maxx,miny,maxy))
-
-        #    aspect = 'auto',interpolation = self.cplot_interpolation, 
-        #    cmap = cmap,vmin = z_min,vmax = z_max,origin = 'lower',
-        #    extent = self.minmax())
-        #####
-
-        #ax.set_yticks(numpy.arange(self.z.shape[0])+0.5,minor = False)
-        #ax.set_xticks(numpy.arange(self.z.shape[1])+0.5,minor = False)
+        ax.set_yticks(yticks,['%f' % numpy.round(v,2) for v in yticks])
 
         if not minz == maxz:
             cb = self.msub.mplot.figure.colorbar(cmesh)
