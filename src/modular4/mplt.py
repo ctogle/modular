@@ -55,12 +55,13 @@ class mplot(mb.mobject):
         self._def('subplots',[],**kwargs)
         self._def('wspace',0.2,**kwargs)
         self._def('hspace',0.2,**kwargs)
-        self._def('left',0.09,**kwargs)
-        self._def('right',0.95,**kwargs)
+        self._def('left',0.1,**kwargs)
+        self._def('right',0.98,**kwargs)
         self._def('top',0.96,**kwargs)
         self._def('bottom',0.08,**kwargs)
         self._def('pipe',[],**kwargs)
-        self.figure = plt.figure(figsize = (8,8))
+        #self.figure = plt.figure(figsize = (8,8))
+        self.figure = plt.figure(figsize = (24,16))
         self.figure.subplots_adjust(wspace = self.wspace,hspace = self.hspace)
         #self.datas = {'extras':lfu.data_container(data = [])}
         self.datas = {'extras':{}}
@@ -89,14 +90,20 @@ class mplot(mb.mobject):
 
     # produce the actual plot axes objects with plotted data
     # axes are used from elsewhere (including plt.show())
-    def render(self):
+    def render(self,savefilename = None):
         for subp in self.subplots:
             subp.clear()
             #subp.extract()
             subp.render()
-        #self.figure.tight_layout()
         l,r,t,b = self.left,self.right,self.top,self.bottom
         self.figure.subplots_adjust(left = l,right = r,top = t,bottom = b)
+
+        if not savefilename is None:
+            #self.figure.tight_layout()
+
+            print('saving figure...')
+            self.figure.savefig(savefilename,dpi = 100)
+            print('saved figure!!!')
 
 # this represents a subplot in the figure, with one axis, and all
 # other data associated with the plot
@@ -507,7 +514,9 @@ class mplotheat(mplottarg):
 
         if self.cmap is None:cmap = plt.cm.jet
         else:cmap = self.cmap
-        cmap.set_bad('c',0.2)
+        cmap.set_over('m',1.0)
+        cmap.set_bad('k',1.0)
+        cmap.set_under('c',1.0)
 
         pckws = {
             'vmin':minz,'vmax':maxz,'cmap':cmap,
@@ -515,7 +524,8 @@ class mplotheat(mplottarg):
                 }
 
         z = numpy.ma.masked_array(self.z,mask = zmask)
-        cmesh = ax.pcolor(self.x,self.y,z,**pckws)
+        cmesh = ax.pcolormesh(self.x,self.y,z,**pckws)
+        #cmesh = ax.pcolor(self.x,self.y,z,**pckws)
         cmesh.set_edgecolor('face')
 
         xticks = numpy.linspace(self.x[0],self.x[-1],6)
@@ -524,7 +534,8 @@ class mplotheat(mplottarg):
         ax.set_yticks(yticks,['%f' % numpy.round(v,2) for v in yticks])
 
         if not minz == maxz:
-            cb = self.msub.mplot.figure.colorbar(cmesh)
+            cb = self.msub.mplot.figure.colorbar(
+                cmesh,extend = 'both',shrink = 0.9)
             cb.set_label('',fontsize = 20)
             for tick in cb.ax.xaxis.get_major_ticks():
                 tick.label.set_fontsize(20)
