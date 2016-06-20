@@ -74,14 +74,17 @@ class bistability(mme.measurement):
 
         plo = [x+':mean_prob_low' for x in self.codomain]
         phy = [x+':mean_prob_high' for x in self.codomain]
+        peb = [x+':mean_prob_both' for x in self.codomain]
+        pcn = [x+':mean_prob_cond' for x in self.codomain]
 
         eco = [x+':mean_event_correlation' for x in self.codomain]
-        epv = [x+':mean_event_pvalue' for x in self.codomain]
+        #epv = [x+':mean_event_pvalue' for x in self.codomain]
 
         cinputs = ect+\
             mdt+sdt+vdt+cdt+mndt+mxdt+\
             mhy+shy+vhy+chy+mnhy+mxhy+\
-            plo+phy+eco+epv
+            plo+phy+peb+pcn+eco
+            #plo+phy+eco+epv
         return mme.measurement.set_targets(self,cinputs,pspace)
 
     # this function will be called for each pspace location 
@@ -163,12 +166,13 @@ class bistability(mme.measurement):
                 if tcount > 1:
                     odt = self.codomain[1 if dtx == 0 else 0]
                     otdat = data[tjx,targs.index(odt),transx:]
-                else:otdat = None
+                    oed = alltjevents[1 if dtx == 0 else 0]
+                else:otdat,oed = None,None
 
                 mb.log(5,'events found',len(ed))
                 if ed:
                     # measure statistics of the events of the trajectory
-                    meas,x,h = measure_trajectory(domain,dtdat,ed,otdat)
+                    meas,x,h = measure_trajectory(domain,dtdat,ed,otdat,oed)
 
                     if self.debug_plot and len(ed) > 1000:
                         plt.plot(x,h)
@@ -199,13 +203,15 @@ class bistability(mme.measurement):
                 tdata[getodtx(':mean_covariance_high_value')].append(meas[11])
                 tdata[getodtx(':mean_prob_high')].append(meas[12])
                 tdata[getodtx(':mean_prob_low')].append(meas[13])
+                tdata[getodtx(':mean_prob_both')].append(meas[15])
+                tdata[getodtx(':mean_prob_cond')].append(meas[16])
                 if math.isnan(meas[14]):
                     mb.log(5,'INVALIDCORRELATIONMEASUREMENT!')
                     tdata[getodtx(':mean_event_correlation')].append(self.fill_value)
-                    tdata[getodtx(':mean_event_pvalue')].append(self.fill_value)
+                    #tdata[getodtx(':mean_event_pvalue')].append(self.fill_value)
                 else:
                     tdata[getodtx(':mean_event_correlation')].append(meas[14])
-                    tdata[getodtx(':mean_event_pvalue')].append(meas[15])
+                    #tdata[getodtx(':mean_event_pvalue')].append(meas[15])
 
         # iterate over the targets, averaging over the proxy container (trajectories)
         for dtx in range(tcount):
@@ -232,21 +238,26 @@ class bistability(mme.measurement):
 
             defoval(getodtx(':mean_prob_high'))
             defoval(getodtx(':mean_prob_low'))
+            defoval(getodtx(':mean_prob_both'))
+            defoval(getodtx(':mean_prob_cond'))
             defoval(getodtx(':mean_event_correlation'))
-            defoval(getodtx(':mean_event_pvalue'))
+            #defoval(getodtx(':mean_event_pvalue'))
 
         return odata,self.targets,aux
 
 
 
 # es is a list of events from a single trajectory
-def measure_trajectory(x,y,es,o = None):
+def measure_trajectory(x,y,es,o = None,oes = None):
     dts,pile,opile = [],[],[]
     for e in es:
         dt = x[e[1]]-x[e[0]]
         dts.append(dt)
         pile.extend(y[e[0]:e[1]])
         if not o is None:opile.extend(o[e[0]:e[1]])
+
+    if o is None:bes = []
+    else:bes = conditional_events(x,es,oes)
 
 
     n = 10
@@ -280,12 +291,37 @@ def measure_trajectory(x,y,es,o = None):
     phy = sum(dts)/float(x[-1]-x[0])
     plo = 1.0 - phy
 
+    
+    bdts = [t[1]-t[0] for t in bes]
+    pboth = sum(bdts)/float(x[-1]-x[0])
+    pcond = pboth/phy if phy > 0.0 else 0.0
+    #pdb.set_trace()
+
+
     # report 10 distinct measurements of the events in this trajectory
     res = (
         mdt,sdt,mndt,mxdt,vdt,cdt,
         mhy,shy,mnhy,mxhy,vhy,chy,
-        phy,plo,ecr,epv)
+        #phy,plo,ecr,epv)
+        phy,plo,ecr,pboth,pcond)
     return res,bx,hy
+
+
+
+# determine the probability that BOTH modules would be in the toxic state
+def conditional_events(x,es,oes):
+    bes = []
+    for ej in range(len(es)):
+        e1,e2 = es[ej]
+        # there are either 0, 1, or 2 events which may overlap this event
+        # determine the subrange of events within event during which both are toxic
+        for oj in range(len(oes)):
+            o1,o2 = oes[oj]
+            if   e1 <= o1 and o1 <= e2:bes.append((o1,e2))
+            elif e1 <= o2 and o2 <= e2:bes.append((e1,o2))
+            elif o1 <= e2 and e2 <= o2 and o1 <= e2 and e2 <= o2:
+                bes.append((e1,e2))
+    return bes
 
 
 
