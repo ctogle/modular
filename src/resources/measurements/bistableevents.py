@@ -207,8 +207,8 @@ class bistability(mme.measurement):
                 tdata[getodtx(':mean_prob_cond')].append(meas[16])
                 if math.isnan(meas[14]):
                     mb.log(5,'INVALIDCORRELATIONMEASUREMENT!')
-                    tdata[getodtx(':mean_event_correlation')].append(self.fill_value)
-                    #tdata[getodtx(':mean_event_pvalue')].append(self.fill_value)
+                    tdata[getodtx(':mean_event_correlation')].append(self.fillvalue)
+                    #tdata[getodtx(':mean_event_pvalue')].append(self.fillvalue)
                 else:
                     tdata[getodtx(':mean_event_correlation')].append(meas[14])
                     #tdata[getodtx(':mean_event_pvalue')].append(meas[15])
