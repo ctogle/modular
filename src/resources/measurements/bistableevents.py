@@ -184,7 +184,7 @@ class bistability(mme.measurement):
                     # mercilessly kill the entire run if ANY trajectory has no events
                     mb.log(5,'NOEVENTSFOUND!',len(ed))
                     #raise ValueError
-                    meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,-100,-100)
+                    meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,-100,-1,-1)
 
                 # add measurements to the proxy container
                 getodtx = lambda s : self.targets.index(dt+s)
@@ -205,6 +205,11 @@ class bistability(mme.measurement):
                 tdata[getodtx(':mean_prob_low')].append(meas[13])
                 tdata[getodtx(':mean_prob_both')].append(meas[15])
                 tdata[getodtx(':mean_prob_cond')].append(meas[16])
+    res = (
+        mdt,sdt,mndt,mxdt,vdt,cdt,
+        mhy,shy,mnhy,mxhy,vhy,chy,
+        #phy,plo,ecr,epv)
+        phy,plo,ecr,pboth,pcond)
                 if math.isnan(meas[14]):
                     mb.log(5,'INVALIDCORRELATIONMEASUREMENT!')
                     tdata[getodtx(':mean_event_correlation')].append(self.fill_value)
