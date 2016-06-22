@@ -292,7 +292,7 @@ def measure_trajectory(x,y,es,o = None,oes = None):
     plo = 1.0 - phy
 
     
-    bdts = [t[1]-t[0] for t in bes]
+    bdts = [x[t[1]]-x[t[0]] for t in bes]
     pboth = sum(bdts)/float(x[-1]-x[0])
     pcond = pboth/phy if phy > 0.0 else 0.0
     #pdb.set_trace()
@@ -317,10 +317,26 @@ def conditional_events(x,es,oes):
         # determine the subrange of events within event during which both are toxic
         for oj in range(len(oes)):
             o1,o2 = oes[oj]
-            if   e1 <= o1 and o1 <= e2:bes.append((o1,e2))
-            elif e1 <= o2 and o2 <= e2:bes.append((e1,o2))
-            elif o1 <= e2 and e2 <= o2 and o1 <= e2 and e2 <= o2:
-                bes.append((e1,e2))
+            if e2 <= o1 or o2 <= e1:continue
+            else:
+                b1,b2 = max(e1,o1),min(e2,o2)
+                bes.append((b1,b2))
+
+            #elif e1 <= o1 and o1 <= e2:bes.append((o1,e2))
+            #elif e1 <= o2 and o2 <= e2:bes.append((e1,o2))
+            #elif o1 <= e2 and e2 <= o2 and o1 <= e2 and e2 <= o2:
+            #    bes.append((e1,e2))
+
+    '''#
+    z = 10
+    ax = plot_events(x,y,es,z)
+    for e in oes:
+        ax.plot((x[e[0]],x[e[1]]),(z+5,z+5),linewidth = 2.0,marker = 's',color = 'b')
+    for e in bes:
+        ax.plot((x[e[0]],x[e[1]]),(z+10,z+10),linewidth = 2.0,marker = 's',color = 'r')
+    plt.show()
+    '''#
+
     return bes
 
 
@@ -397,8 +413,8 @@ def filter_events(x,y,th,tl,min_x_dt,es):
 
 
 
-def plot_events(x,y,es,z):
-    ax = plt.gca()
+def plot_events(x,y,es,z,ax = None):
+    if ax is None:ax = plt.gca()
     ax.plot(x,y)
     for e in es:
         ax.plot((x[e[0]],x[e[1]]),(z,z),linewidth = 2.0,marker = 's',color = 'g')
