@@ -134,17 +134,19 @@ class bistability(mme.measurement):
                     if dtx == 0:tcol = 'blue'
                     elif dtx == 1:tcol = 'green'
                     elif dtx == 2:tcol = 'red'
-                    aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
-                        {'linewidth':2,'color':tcol,'label':dt}))
-                    etx = [domain[0],domain[-1]]
-                    etkws = {'linewidth':2,'linestyle':'--','color':'black'}
-                    aux['extra_trajectory'].append(((etx,[alo,alo]),etkws))
-                    aux['extra_trajectory'].append(((etx,[ahy,ahy]),etkws))
-                    etkws = {'linewidth':3,'marker':'s','color':'red'}
-                    ety = [threshz,threshz]
-                    for tje in tjevents:
-                        etx = [domain[tje[0]],domain[tje[1]]]
-                        aux['extra_trajectory'].append(((etx,ety),etkws))
+                    if dtx in (0,1):
+                        aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
+                            {'linewidth':2,'color':tcol,'label':dt}))
+                        if dtx == 0:
+                            etx = [domain[0],domain[-1]]
+                            etkws = {'linewidth':2,'linestyle':'--','color':'black'}
+                            aux['extra_trajectory'].append(((etx,[alo,alo]),etkws))
+                            aux['extra_trajectory'].append(((etx,[ahy,ahy]),etkws))
+                            etkws = {'linewidth':3,'marker':'s','color':'red'}
+                            ety = [threshz,threshz]
+                            for tje in tjevents:
+                                etx = [domain[tje[0]],domain[tje[1]]]
+                                aux['extra_trajectory'].append(((etx,ety),etkws))
 
                 if self.debug_plot:
                     ax = plot_events(domain,dtdat[tjx,:],tjevents,threshz)

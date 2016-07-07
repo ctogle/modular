@@ -60,8 +60,8 @@ class mplot(mb.mobject):
         self._def('top',0.96,**kwargs)
         self._def('bottom',0.08,**kwargs)
         self._def('pipe',[],**kwargs)
-        #self.figure = plt.figure(figsize = (8,8))
-        self.figure = plt.figure(figsize = (24,16))
+        self._def('aspect',(24,16),**kwargs)
+        self.figure = plt.figure(figsize = self.aspect)
         self.figure.subplots_adjust(wspace = self.wspace,hspace = self.hspace)
         #self.datas = {'extras':lfu.data_container(data = [])}
         self.datas = {'extras':{}}
@@ -98,8 +98,8 @@ class mplot(mb.mobject):
         l,r,t,b = self.left,self.right,self.top,self.bottom
         self.figure.subplots_adjust(left = l,right = r,top = t,bottom = b)
 
+        #self.figure.tight_layout()
         if not savefilename is None:
-            #self.figure.tight_layout()
 
             print('saving figure...')
             self.figure.savefig(savefilename,dpi = 100)
