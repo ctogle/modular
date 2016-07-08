@@ -117,11 +117,28 @@ class bistability(mme.measurement):
                 dt = self.codomain[dtx]
                 dtdat = data[:,targs.index(dt),transx:]
 
+
+                '''#
+                n = 50
+                b = numpy.linspace(5,dtdat.max(),n+1)
+                hy,bs = numpy.histogram(dtdat,bins = b,density = False)
+                fm = lambda u,v : (u+v)/2.0
+                bx = numpy.array([fm(bs[y-1],bs[y]) for y in range(1,bs.size)])
+                plt.plot(bx,hy)
+                plt.gca().set_yscale('log')
+                plt.show()
+                '''#
+
+
+                #dteffmax = dtdat.max()
+                dteffmax = numpy.percentile(dtdat,99.9)
+                print('maxvperc:',dtdat.max(),dteffmax)
+
                 # magic numbers for event detection
-                threshz = dtdat.max()*self.z_factor
-                thwidth = dtdat.max()*self.w_factor
+                threshz = dteffmax*self.z_factor
+                thwidth = dteffmax*self.w_factor
                 alo = max(1,threshz - thwidth)
-                ahy = min(dtdat.max()-1,threshz + thwidth)
+                ahy = min(dteffmax-1,threshz + thwidth)
 
                 # seek all events in this trajectory for this target
                 tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
