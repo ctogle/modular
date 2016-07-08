@@ -120,6 +120,71 @@ def write_cython(src,fpath):
             return
     with open(fpath,'w') as fh:fh.write(src)
       
+
+
+'''#
+class external_signal_function(cwr.function):
+    def _code_header(self,coder):
+        cshape = (self.valuecount,)
+        self._carray(coder,self.name+'_domain',cshape,spacer = '\n')
+        self._carray(coder,self.name+'_codomain',cshape,spacer = '\n')
+        coder.write('\n')
+        for dx,x in enumerate(self.extstrx):
+        coder.write(self.name+'_domain['+str(dx)+'] = '+x+';')
+        if dx % 5 == 0 and dx > 0:coder.write('\n')
+        coder.write('\n')
+        for dy,y in enumerate(self.extstry):
+        coder.write(self.name+'_codomain['+str(dy)+'] = '+y+';')
+        if dy % 5 == 0 and dy > 0:coder.write('\n')
+        coder.write('\ncdef int '+self.name+'lastindex = 0')
+        coder.write('\n'+self.cytype+' '+self.name+'('+self.argstring+')')
+        coder.write(self.cyoptions+':')
+    def _code_body(self,coder):
+        coder.write('\n\tglobal '+self.name+'_domain')
+        coder.write('\n\tglobal '+self.name+'_codomain')
+        coder.write('\n\tglobal '+self.name+'lastindex')
+        sdx = self.statetargets.index(self.domain)
+        coder.write('\n\tcdef double xcurrent = state['+str(sdx)+']')
+        coder.write('\n\tcdef double domvalue = '+self.name+'_domain')
+        coder.write('['+self.name+'lastindex]')
+        coder.write('\n\tcdef double codomvalue')
+        coder.write('\n\twhile xcurrent > domvalue:')
+        coder.write('\n\t\t'+self.name+'lastindex'+' += 1')
+        coder.write('\n\t\tdomvalue = '+self.name+'_domain')
+        coder.write('['+self.name+'lastindex]')
+        coder.write('\n\tcodomvalue = '+self.name+'_codomain')
+        coder.write('['+self.name+'lastindex-1]')
+        coder.write('\n\treturn codomvalue\n')
+    def __init__(self,*args,**kwargs):
+        self._default('name','extsignal',**kwargs)
+        self._default('domain','time',**kwargs)
+        self._default('signalpath','',**kwargs)
+        self._default('rxncount',0,**kwargs)
+        self._default('cytype','cdef inline double',**kwargs)
+        cwr.function.__init__(self,*args,**kwargs)
+        with open(self.signalpath,'r') as handle:
+            signal = handle.readlines()
+            self.valuecount = len(signal)
+            self.extstrx = []
+            self.extstry = []
+            for sigdex in range(len(signal)):
+                sigp = signal[sigdex].strip()
+                if not ',' in sigp:continue
+                coma = sigp.find(',')
+                self.extstrx.append(sigp[:coma])
+                self.extstry.append(sigp[coma+1:])
+'''#
+
+def read(seq,sx,oc = '(',cc = ')'):
+    score = 1
+    sx += 1
+    while score > 0:
+        sx += 1
+        if seq[sx] == oc:score += 1
+        elif seq[sx] == cc:
+            if score > 0:score -= 1
+    return sx
+
 def write_cython_functions(src,fs,sts):
     def convert(substr):
         if substr in fns:return substr+'(state)'
@@ -130,7 +195,23 @@ def write_cython_functions(src,fs,sts):
 
     fns = tuple(f[0] for f in fs)
     scnt = len(sts)
+
+    extfns = {}
+
     for fn,fu in fs:
+
+
+        escnt = fu.count('external_signal')
+        if escnt == 1:
+            print('fuuu',fn,fu)
+
+            # add an external function to the src string (needs a unique name)
+            # whenever that function is encountered -> use the unique name!!
+
+            #op = fu.
+
+
+
         fsplit = re.split('(\W)',fu)
         fstrng = ''.join([convert(substr) for substr in fsplit])
         src.write('\ncdef inline double '+fn+'(double ['+str(scnt)+'] state):')
@@ -143,15 +224,16 @@ def write_cython_functions(src,fs,sts):
         src.write('\n\treturn val\n')
 
     #specials = self._ext_special_funcs()
-    specials = []
+    #specials = []
 
     #extsignals = self._ext_external_signal_funcs()
     #for es in extsignals:
     #    es.statetargets = runfunc.statetargets
     #    es.argstring = 'double['+str(len(runfunc.statetargets))+'] state'
+
     extsignals = []
 
-    return specials+extsignals
+    #return specials+extsignals
 
 header =\
 '''
@@ -209,6 +291,11 @@ def write_simulator(e,name):
         vv = vn if vn in e.pspace.axes else str(vv)
         src.write('\n\tstate['+str(scnt+vx+1)+'] = '+vv)
     for fx in range(fcnt):src.write('\n\t'+fs[fx][0]+'(state)')
+
+    src.write('\n\tprint(\''+'-'*40+'\')')
+    src.write('\n\tprint(\'rseed:\','+agstring+')')
+    src.write('\n\tprint(\''+'-'*40+'\')')
+
     src.write('\n\trandom.seed(rseed)')
     src.write('\n\tcdef int totalcaptures = '+str(e.pspacemap.captcount))
     src.write('\n\tcdef int capturecount = 0')
