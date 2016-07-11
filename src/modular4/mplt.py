@@ -168,43 +168,30 @@ class msubplot(mb.mobject):
     # requests are considered based on input data in self.extract
     def add_heat(self,x,y,z,zm = None,zmf = None,**kwargs):
         if type(x) is type(''):print 'expecting xdomain',x,'in input files'
-        #elif issubclass(x.__class__,mst.scalars):
-        #    self.mplot.datas['extras'].data.append(x)
         else:
             xnam = 'extrax-'+str(len(self.mplot.datas['extras']))
             xdat = numpy.array(x)
             self.mplot.datas['extras'][xnam] = xdat
             x = xnam
-            #xnam = 'extrax-'+str(len(self.mplot.datas['extras'].data))
-            #xdat = mst.scalars(name = xnam,data = numpy.array(x))
-            #self.mplot.datas['extras'].data.append(xdat)
-            #x = xnam
         if type(y) is type(''):print 'expecting ydomain',y,'in input files'
-        #elif issubclass(y.__class__,mst.scalars):
-        #    self.mplot.datas['extras'].data.append(y)
         else:
             ynam = 'extray-'+str(len(self.mplot.datas['extras']))
             ydat = numpy.array(y)
             self.mplot.datas['extras'][ynam] = ydat
             y = ynam
-            #ynam = 'extray-'+str(len(self.mplot.datas['extras'].data))
-            #ydat = mst.scalars(name = ynam,data = numpy.array(y))
-            #self.mplot.datas['extras'].data.append(ydat)
-            #y = ynam
         if type(z) is type(''):print 'expecting surface',z,'in input files'
-        #elif issubclass(z.__class__,mst.scalars):
-        #    self.mplot.datas['extras'].data.append(z)
         else:
             znam = 'extraz-'+str(len(self.mplot.datas['extras']))
             zdat = numpy.array(z)
             self.mplot.datas['extras'][znam] = zdat
             z = znam
-            #znam = 'extray-'+str(len(self.mplot.datas['extras'].data))
-            #zdat = mst.scalars(name = znam,data = numpy.array(z))
-            #self.mplot.datas['extras'].data.append(zdat)
-            #z = znam
         if not zm is None:
-            if type(zm) is type(''):
+            if type(zm) is type(()):
+                for szm in zm:
+                    if type(szm) is type(''):
+                        print 'expecting sub-mask surface',szm,'in input files'
+                    else:raise ValueError
+            elif type(zm) is type(''):
                 print 'expecting mask surface',zm,'in input files'
             else:
                 zmnam = 'extraz-'+str(len(self.mplot.datas['extras']))
@@ -256,6 +243,8 @@ class msubplot(mb.mobject):
             xdom,ydom,zcod,zmask = req
             print '\nextracting request:',req,'\n','-'*40
             if zmask is None:zm = None
+            elif type(zmask) == type(()):
+                zm = tuple((self.locate(datas,szm) for szm in zmask))
             else:zm = self.locate(datas,zmask)
             z = self.locate(datas,zcod)
             x = self.locate(datas,xdom)
@@ -449,6 +438,10 @@ class mplotheat(mplottarg):
 
                 if zm is None:
                     msurf = numpy.ones(len(surf))
+                elif type(zm) == type(()):
+                    msurf = [[sur for sur,ie in 
+                        zip(szm[0][szm[1].index(rq)],in_every) if ie] 
+                            for szm,rq in zip(zm,req[3])]
                 else:
                     msurf = [sur for sur,ie in zip(zm[0][zm[1].index(req[3])],in_every) if ie]
 
@@ -457,7 +450,9 @@ class mplotheat(mplottarg):
                 dx = numpy.unique(numpy.array([j for j,ie in xzip if ie]))
                 dy = numpy.unique(numpy.array([j for j,ie in yzip if ie]))
                 ds = numpy.array(surf,dtype = numpy.float)
-                dsm = numpy.array(msurf,dtype = numpy.float)
+                if type(msurf) == type([]):
+                    dsm = [numpy.array(smsurf,dtype = numpy.float) for smsurf in msurf]
+                else:dsm = [numpy.array(msurf,dtype = numpy.float)]
 
                 ddx,ddy = dx[1]-dx[0],dy[1]-dy[0]
                 #dx = numpy.linspace(dx[0]-ddx/2.0,dx[-1]+ddx/2.0,dx.size+1)
@@ -474,11 +469,11 @@ class mplotheat(mplottarg):
                 else:dy = numpy.linspace(dy[0],dy[-1],dy.size+1)
 
                 ds = ds.reshape(dx.size-1,dy.size-1)
-                dsm = dsm.reshape(dx.size-1,dy.size-1)
+                dsm = [sdsm.reshape(dx.size-1,dy.size-1) for sdsm in dsm]
 
                 if axisnames.index(req[0]) < axisnames.index(req[1]):
                     ds = ds.transpose()
-                    dsm = dsm.transpose()
+                    dsm = [sdsm.transpose() for sdsm in dsm]
                 self.x = dx
                 self.y = dy
                 self.z = ds
@@ -510,7 +505,8 @@ class mplotheat(mplottarg):
         #zmask = (self.z >= minz) <= maxz
         #zmask = (self.zm >= 100)
         if self.msub.zmf is None:zmask = self.zm == 0
-        else:zmask = self.msub.zmf(self.zm)
+        else:zmask = self.msub.zmf(*self.zm)
+        #else:zmask = self.msub.zmf(self.zm)
 
         if self.cmap is None:cmap = plt.cm.jet
         else:cmap = self.cmap
