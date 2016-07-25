@@ -98,6 +98,55 @@ def write_rxnpropensity(rxn,stargets,funcs):
     rxnpropexprsn = '*'.join(uchecks)
     return rxnpropexprsn
 
+def write_extfunc(src,fname,fpath,dom,targets,etime,backsrc):
+    if not os.path.exists(fpath):
+        print 'missing external signal file: \'%s\'' % fpath
+        raise ValueError
+    x,y = [],[]
+    with open(fpath,'r') as fh:
+        extsig = fh.readlines()
+        for esl in extsig:
+            esl = esl.strip().split(',')
+            if esl and esl[0]:
+                nx,ny = esl
+                x.append(nx)
+                y.append(ny)
+
+    dshape = (len(x),)
+    write_nparray(src,fname+'_domain',dshape,spacer = '\n')
+    write_nparray(src,fname+'_codomain',dshape,spacer = '\n')
+    src.write('\n')
+    for j in range(len(x)):
+        src.write(fname+'_domain['+str(j)+'] = '+x[j]+';')
+        if j % 25 == 0 and j > 0:src.write('\n')
+        if float(x[j]) > etime:break
+    src.write('\n')
+    for j in range(len(y)):
+        src.write(fname+'_codomain['+str(j)+'] = '+y[j]+';')
+        if j % 25 == 0 and j > 0:src.write('\n')
+        if float(x[j]) > etime:break
+    argstring = 'double['+str(len(targets))+'] state'
+    src.write('\ncdef int '+fname+'_lastindex = 0')
+    backsrc.write('\n\tglobal '+fname+'_lastindex')
+    backsrc.write('\n\t'+fname+'_lastindex = 0')
+    src.write('\ncdef inline double '+fname+'('+argstring+'):')
+
+    src.write('\n\tglobal '+fname+'_domain')
+    src.write('\n\tglobal '+fname+'_codomain')
+    src.write('\n\tglobal '+fname+'_lastindex')
+    sdx = targets.index(dom)
+    src.write('\n\tcdef double xcurrent = state['+str(sdx)+']')
+    src.write('\n\tcdef double domvalue = '+fname+'_domain')
+    src.write('['+fname+'_lastindex]')
+    src.write('\n\tcdef double codomvalue')
+    src.write('\n\twhile xcurrent > domvalue:')
+    src.write('\n\t\t'+fname+'_lastindex'+' += 1')
+    src.write('\n\t\tdomvalue = '+fname+'_domain')
+    src.write('['+fname+'_lastindex]')
+    src.write('\n\tcodomvalue = '+fname+'_codomain')
+    src.write('['+fname+'_lastindex-1]')
+    src.write('\n\treturn codomvalue\n')
+
 def install_cython(extdir,extname,fpaths):
     cwd = os.getcwd()
     os.chdir(extdir)
@@ -120,61 +169,6 @@ def write_cython(src,fpath):
             return
     with open(fpath,'w') as fh:fh.write(src)
       
-
-
-'''#
-class external_signal_function(cwr.function):
-    def _code_header(self,coder):
-        cshape = (self.valuecount,)
-        self._carray(coder,self.name+'_domain',cshape,spacer = '\n')
-        self._carray(coder,self.name+'_codomain',cshape,spacer = '\n')
-        coder.write('\n')
-        for dx,x in enumerate(self.extstrx):
-        coder.write(self.name+'_domain['+str(dx)+'] = '+x+';')
-        if dx % 5 == 0 and dx > 0:coder.write('\n')
-        coder.write('\n')
-        for dy,y in enumerate(self.extstry):
-        coder.write(self.name+'_codomain['+str(dy)+'] = '+y+';')
-        if dy % 5 == 0 and dy > 0:coder.write('\n')
-        coder.write('\ncdef int '+self.name+'lastindex = 0')
-        coder.write('\n'+self.cytype+' '+self.name+'('+self.argstring+')')
-        coder.write(self.cyoptions+':')
-    def _code_body(self,coder):
-        coder.write('\n\tglobal '+self.name+'_domain')
-        coder.write('\n\tglobal '+self.name+'_codomain')
-        coder.write('\n\tglobal '+self.name+'lastindex')
-        sdx = self.statetargets.index(self.domain)
-        coder.write('\n\tcdef double xcurrent = state['+str(sdx)+']')
-        coder.write('\n\tcdef double domvalue = '+self.name+'_domain')
-        coder.write('['+self.name+'lastindex]')
-        coder.write('\n\tcdef double codomvalue')
-        coder.write('\n\twhile xcurrent > domvalue:')
-        coder.write('\n\t\t'+self.name+'lastindex'+' += 1')
-        coder.write('\n\t\tdomvalue = '+self.name+'_domain')
-        coder.write('['+self.name+'lastindex]')
-        coder.write('\n\tcodomvalue = '+self.name+'_codomain')
-        coder.write('['+self.name+'lastindex-1]')
-        coder.write('\n\treturn codomvalue\n')
-    def __init__(self,*args,**kwargs):
-        self._default('name','extsignal',**kwargs)
-        self._default('domain','time',**kwargs)
-        self._default('signalpath','',**kwargs)
-        self._default('rxncount',0,**kwargs)
-        self._default('cytype','cdef inline double',**kwargs)
-        cwr.function.__init__(self,*args,**kwargs)
-        with open(self.signalpath,'r') as handle:
-            signal = handle.readlines()
-            self.valuecount = len(signal)
-            self.extstrx = []
-            self.extstry = []
-            for sigdex in range(len(signal)):
-                sigp = signal[sigdex].strip()
-                if not ',' in sigp:continue
-                coma = sigp.find(',')
-                self.extstrx.append(sigp[:coma])
-                self.extstry.append(sigp[coma+1:])
-'''#
-
 def read(seq,sx,oc = '(',cc = ')'):
     score = 1
     sx += 1
@@ -185,55 +179,47 @@ def read(seq,sx,oc = '(',cc = ')'):
             if score > 0:score -= 1
     return sx
 
-def write_cython_functions(src,fs,sts):
+def ext_func_name_gen(maxnum = 100):
+    fnum = 0
+    while fnum < maxnum:
+        fnum += 1
+        fname = 'extfunc_'+str(fnum)
+        yield fname
+
+def write_cython_functions(src,fs,sts,etime):
     def convert(substr):
-        if substr in fns:return substr+'(state)'
+        if substr in fns or substr in extfns.values():return substr+'(state)'
         #elif substr in self.variables:
         #    return 'state['+str(sts.index(substr))+']'
         elif substr in sts:return 'state['+str(sts.index(substr))+']'
         else:return substr
-
+    backsrc = StringIO()
+    fng = ext_func_name_gen()
     fns = tuple(f[0] for f in fs)
     scnt = len(sts)
-
     extfns = {}
-
+    extstr = 'external_signal('
     for fn,fu in fs:
-
-
         escnt = fu.count('external_signal')
         if escnt == 1:
-            print('fuuu',fn,fu)
-
-            # add an external function to the src string (needs a unique name)
-            # whenever that function is encountered -> use the unique name!!
-
-            #op = fu.
-
-
-
+            nfn = next(fng)
+            fid = fu.find(extstr)+len(extstr)
+            espath,esdom = fu[fid:read(fu,fid,'(',')')].split(',')
+            fline = extstr+espath+','+esdom+')'
+            extfns[fline] = nfn
+            fu = fu.replace(fline,nfn)
+            write_extfunc(src,nfn,espath,esdom,sts,etime,backsrc)
+        elif escnt > 1:
+            print 'gillespiem must support two external signals in a function...'
+            raise ValueError
         fsplit = re.split('(\W)',fu)
         fstrng = ''.join([convert(substr) for substr in fsplit])
         src.write('\ncdef inline double '+fn+'(double ['+str(scnt)+'] state):')
         src.write('\n\tcdef double val = '+fstrng)
-
-        #doffset = len(sts) - len(fns)
-        #selfdex = fns.index(fn)+doffset
         selfdex = sts.index(fn)
         src.write('\n\tstate['+str(selfdex)+'] = val')
         src.write('\n\treturn val\n')
-
-    #specials = self._ext_special_funcs()
-    #specials = []
-
-    #extsignals = self._ext_external_signal_funcs()
-    #for es in extsignals:
-    #    es.statetargets = runfunc.statetargets
-    #    es.argstring = 'double['+str(len(runfunc.statetargets))+'] state'
-
-    extsignals = []
-
-    #return specials+extsignals
+    return backsrc
 
 header =\
 '''
@@ -275,9 +261,10 @@ def write_simulator(e,name):
 
     src = StringIO()
     src.write(header)
-    write_cython_functions(src,fs,statetargets)
+    backsrc = write_cython_functions(src,fs,statetargets,e.end)
     src.write('\n'*10+'#'*80+'\n')
     src.write('\ncpdef gillespie_run('+agstring+'):')
+    src.write('\n'+backsrc.getvalue()+'\n')
     write_nparray(src,'data',dshape)
     write_carray(src,'capture',cshape)
     write_carray(src,'state',sshape)
