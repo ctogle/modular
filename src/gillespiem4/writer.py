@@ -244,7 +244,7 @@ cdef inline double heaviside(double value):
 
 '''
 
-def write_simulator(e,name):
+def write_simulator(e,name,print_seed = False):
     sps = e.simparameters
     ss,rs,vs,fs = [],[],[],[]
     if 'species' in sps:ss = sps['species']
@@ -279,9 +279,10 @@ def write_simulator(e,name):
         src.write('\n\tstate['+str(scnt+vx+1)+'] = '+vv)
     for fx in range(fcnt):src.write('\n\t'+fs[fx][0]+'(state)')
 
-    src.write('\n\tprint(\''+'-'*40+'\')')
-    src.write('\n\tprint(\'rseed:\','+agstring+')')
-    src.write('\n\tprint(\''+'-'*40+'\')')
+    if print_seed:
+        src.write('\n\tprint(\''+'-'*40+'\')')
+        src.write('\n\tprint(\'rseed:\','+agstring+')')
+        src.write('\n\tprint(\''+'-'*40+'\')')
 
     src.write('\n\trandom.seed(rseed)')
     src.write('\n\tcdef int totalcaptures = '+str(e.pspacemap.captcount))
