@@ -96,6 +96,11 @@ class bistability(mme.measurement):
         # the list of input targets
         tcount = len(self.codomain)
 
+        #
+        colormap = plt.get_cmap('jet')
+        colors = [colormap(i) for i in numpy.linspace(0,0.9,tcount)]
+        #
+
         # proxy data to average over trajectories
         tdata = [[] for t in self.targets]
 
@@ -132,7 +137,7 @@ class bistability(mme.measurement):
 
                 #dteffmax = dtdat.max()
                 dteffmax = numpy.percentile(dtdat,99.9)
-                print('maxvperc:',dtdat.max(),dteffmax)
+                #print('maxvperc:',dtdat.max(),dteffmax)
 
                 # magic numbers for event detection
                 threshz = dteffmax*self.z_factor
@@ -141,20 +146,24 @@ class bistability(mme.measurement):
                 ahy = min(dteffmax-1,threshz + thwidth)
 
                 # seek all events in this trajectory for this target
-                tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
+                if ahy-alo > 4:
+                    tjevents = seek(domain,dtdat[tjx,:],ahy,alo,self.min_x_dt)
+                else:tjevents = []
                 alltjevents.append(tjevents)
-
 
 
                 #if self.debug and (tjx == 0 and (dtx == 0 or dtx == 1)):
                 if self.debug and tjx == 0:
-                    if dtx == 0:tcol = 'blue'
-                    elif dtx == 1:tcol = 'green'
-                    elif dtx == 2:tcol = 'red'
-                    if dtx in (0,1):
+                    tcol = colors[dtx]
+                    #if dtx == 0:tcol = 'blue'
+                    #elif dtx == 1:tcol = 'green'
+                    #elif dtx == 2:tcol = 'red'
+                    whichdebug = tuple(range(tcount))
+                    #if dtx in (0,1,2):
+                    if dtx in whichdebug:
                         aux['extra_trajectory'].append(((domain,dtdat[tjx,:]),
                             {'linewidth':2,'color':tcol,'label':dt}))
-                        if dtx == 0:
+                        if dtx in whichdebug:
                             etx = [domain[0],domain[-1]]
                             etkws = {'linewidth':2,'linestyle':'--','color':'black'}
                             aux['extra_trajectory'].append(((etx,[alo,alo]),etkws))
@@ -183,26 +192,21 @@ class bistability(mme.measurement):
 
                 # get other data for correlation measurements (if more than one target)
                 if tcount > 1:
-                    odt = self.codomain[1 if dtx == 0 else 0]
+                    oindex = dtx+1 if dtx+1<tcount else 0
+                    odt = self.codomain[oindex]
                     otdat = data[tjx,targs.index(odt),transx:]
-                    oed = alltjevents[1 if dtx == 0 else 0]
+                    oed = alltjevents[oindex]
                 else:otdat,oed = None,None
 
                 mb.log(5,'events found',len(ed))
                 if ed:
                     # measure statistics of the events of the trajectory
                     meas,x,h = measure_trajectory(domain,dtdat,ed,otdat,oed)
-
                     if self.debug_plot and len(ed) > 1000:
                         plt.plot(x,h)
                         plt.show()
-
-                    #def defoval(tx):odata[tx].append(numpy.mean(tdata[tx]))
-
                 else:
-                    # mercilessly kill the entire run if ANY trajectory has no events
                     mb.log(5,'NOEVENTSFOUND!',len(ed))
-                    #raise ValueError
                     meas = (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,-100,-1,-1)
 
                 # add measurements to the proxy container
