@@ -289,7 +289,11 @@ class msubplot(mb.mobject):
             print '\tcould not be located!!\n','-'*40,'\n'
             return
         elif lcnt == 1:return located[0][0]
-        elif self.mplot.pipe:return located[self.mplot.pipe.pop(0)][0]
+        #elif self.mplot.pipe:return located[self.mplot.pipe.pop(0)][0]
+        elif self.mplot.pipe:
+            if type(self.mplot.pipe) == type([]):
+                return located[self.mplot.pipe.pop(0)][0]
+            else:return located[next(self.mplot.pipe)][0]
         else:
             print 'more than one data object was found for:',target
             for lx in range(lcnt):
@@ -418,7 +422,11 @@ class mplotheat(mplottarg):
                                 print 'reducer axis default:','"'+ax+'"',':',axdef
                                 print '\twith potential values:',axval
 
-                                if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                #if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                if self.msub.mplot.pipe:
+                                    if type(self.msub.mplot.pipe) == type([]):
+                                        nv = self.msub.mplot.pipe.pop(0)
+                                    else:nv = next(self.msub.mplot.pipe)
                                 else:nv = raw_input('\n\tnew value?:\t')
 
                         if nv == '':nv = axval[0]
@@ -577,7 +585,11 @@ class mplotline(mplottarg):
                                 print 'reducer axis default:','"'+ax+'"',':',axdef
                                 print '\twith potential values:',axval
 
-                                if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                #if self.msub.mplot.pipe:nv = self.msub.mplot.pipe.pop(0)
+                                if self.msub.mplot.pipe:
+                                    if type(self.msub.mplot.pipe) == type([]):
+                                        nv = self.msub.mplot.pipe.pop(0)
+                                    else:nv = next(self.msub.mplot.pipe)
                                 else:nv = raw_input('\n\tnew value?:\t')
 
                         if nv == '':nv = axval[0]

@@ -50,11 +50,13 @@ def parse_pspace(parser,lines):
             i = float(i)
             if d.endswith(';log'):
                 d = int(d[:d.find(';')])
-                if d == 1:d = None
+                #if d == 1:d = None
+                if d == 1:d = [b[0]]
                 else:d = tuple(np.exp(np.linspace(np.log(b[0]),np.log(b[1]),d)))
             else:
                 d = int(d)
-                if d == 1:d = None
+                #if d == 1:d = None
+                if d == 1:d = [b[0]]
                 else:d = tuple(np.linspace(b[0],b[1],d))
         elif len(b) > 2:
             i = b[0]
