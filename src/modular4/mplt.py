@@ -462,7 +462,7 @@ class mplotheat(mplottarg):
                     dsm = [numpy.array(smsurf,dtype = numpy.float) for smsurf in msurf]
                 else:dsm = [numpy.array(msurf,dtype = numpy.float)]
 
-                ddx,ddy = dx[1]-dx[0],dy[1]-dy[0]
+                #ddx,ddy = dx[1]-dx[0],dy[1]-dy[0]
                 #dx = numpy.linspace(dx[0]-ddx/2.0,dx[-1]+ddx/2.0,dx.size+1)
                 #dy = numpy.linspace(dy[0]-ddy/2.0,dy[-1]+ddy/2.0,dy.size+1)
                 #dx = numpy.linspace(dx[0],dx[-1]+ddx,dx.size+1)
